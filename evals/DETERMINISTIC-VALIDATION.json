@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 226,
-  "passes": 226,
+  "checks": 234,
+  "passes": 234,
   "failures": 0,
   "results": [
     {
@@ -179,6 +179,22 @@
     },
     {
       "name": "unknown-tool-denied",
+      "status": "PASS"
+    },
+    {
+      "name": "web-search-clean-query-pass",
+      "status": "PASS"
+    },
+    {
+      "name": "web-search-sensitive-query-blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "web-fetch-valid-url-pass",
+      "status": "PASS"
+    },
+    {
+      "name": "web-fetch-blocked-host-fails",
       "status": "PASS"
     },
     {
@@ -666,6 +682,14 @@
       "status": "PASS"
     },
     {
+      "name": "task-recovery/provider-fallback-resumes-from-task-checkpoint",
+      "status": "PASS"
+    },
+    {
+      "name": "task-recovery/workspace-worktree-reuses-existing-branch-on-retry",
+      "status": "PASS"
+    },
+    {
       "name": "task-migration_telemetry/migration-materializes-tasks-from-a-recorded-plan",
       "status": "PASS"
     },
@@ -699,6 +723,14 @@
     },
     {
       "name": "a6-repo_intelligence/index-is-incremental-and-detects-staleness",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/index-records-truncation-for-oversized-files",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/regex-extracts-ruby-rust-csharp-php-kotlin",
       "status": "PASS"
     },
     {

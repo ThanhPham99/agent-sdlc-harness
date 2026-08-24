@@ -9,7 +9,9 @@
       ],
       "allowed_tools": [
         "input.normalize",
-        "repo.read"
+        "repo.read",
+        "web.search",
+        "web.fetch_url"
       ],
       "denied_tools": [
         "deploy.production"
@@ -34,7 +36,9 @@
         "input.normalize",
         "repo.read",
         "repo.search",
-        "repo.symbol"
+        "repo.symbol",
+        "web.search",
+        "web.fetch_url"
       ],
       "denied_tools": [
         "deploy.production"
@@ -64,7 +68,9 @@
         "repo.symbol",
         "repo.diff",
         "security.sast",
-        "security.sca"
+        "security.sca",
+        "web.search",
+        "web.fetch_url"
       ],
       "denied_tools": [
         "deploy.production"
@@ -92,7 +98,9 @@
         "repo.read",
         "repo.search",
         "repo.symbol",
-        "repo.diff"
+        "repo.diff",
+        "web.search",
+        "web.fetch_url"
       ],
       "denied_tools": [
         "deploy.production"
@@ -191,7 +199,9 @@
         "test.run_targeted",
         "security.sast",
         "security.sca",
-        "security.secret_scan"
+        "security.secret_scan",
+        "web.search",
+        "web.fetch_url"
       ],
       "denied_tools": [
         "deploy.production"
@@ -295,7 +305,9 @@
       "allowed_tools": [
         "repo.read",
         "repo.diff",
-        "repo.patch"
+        "repo.patch",
+        "web.search",
+        "web.fetch_url"
       ],
       "denied_tools": [
         "deploy.production"

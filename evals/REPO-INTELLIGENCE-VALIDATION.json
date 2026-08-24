@@ -37,8 +37,8 @@
     "rule": "anchored to the task declared scope, consulted before any broad repo.search, never mined from free text",
     "no_match_behaviour": "reports NO_DETERMINISTIC_MATCH_BROADER_SEARCH_REQUIRED instead of returning the repository"
   },
-  "checks": 12,
-  "passes": 12,
+  "checks": 14,
+  "passes": 14,
   "failures": 0,
   "results": [
     {
@@ -51,6 +51,14 @@
     },
     {
       "name": "index-is-incremental-and-detects-staleness",
+      "status": "PASS"
+    },
+    {
+      "name": "index-records-truncation-for-oversized-files",
+      "status": "PASS"
+    },
+    {
+      "name": "regex-extracts-ruby-rust-csharp-php-kotlin",
       "status": "PASS"
     },
     {

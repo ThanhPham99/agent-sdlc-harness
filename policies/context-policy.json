@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/context-policy/v1",
-  "version": "3.0.0-alpha3",
+  "version": "3.0.0-alpha6",
   "assembly_order": [
     "stable_system_policy",
     "stable_tool_contract",

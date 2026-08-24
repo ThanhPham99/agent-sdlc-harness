@@ -105,8 +105,8 @@
       "worker_scratch_reasoning"
     ]
   },
-  "checks": 9,
-  "passes": 9,
+  "checks": 11,
+  "passes": 11,
   "failures": 0,
   "results": [
     {
@@ -143,6 +143,14 @@
     },
     {
       "name": "provider-fallback-checkpoint-carries-artifacts-not-reasoning",
+      "status": "PASS"
+    },
+    {
+      "name": "provider-fallback-resumes-from-task-checkpoint",
+      "status": "PASS"
+    },
+    {
+      "name": "workspace-worktree-reuses-existing-branch-on-retry",
       "status": "PASS"
     }
   ],

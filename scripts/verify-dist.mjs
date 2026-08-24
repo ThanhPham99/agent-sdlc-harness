@@ -160,7 +160,7 @@ const md=[
   `- Pass: **${report.passes}**`,
   `- Fail: **${report.failures}**`,
   `- Public native discovery skills: **2**`,
-  `- Internal on-demand skills: **18**`,
+  `- Internal on-demand skills: **${Object.keys(JSON.parse(fs.readFileSync(path.join(ROOT,'config','skills.json'),'utf8')).internal||{}).length}**`,
   `- Auto-activation bootstrap: **${estimateBootstrapCost().rough_tokens} rough tokens** (\`${bootstrapHash()}\`)`,
   `- Strong activation: **not established by this offline validation**`,
   `- Live host qualification: **not established by this static/offline validation**`,'',

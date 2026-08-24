@@ -15,7 +15,7 @@ const WORKFLOW_SKILLS={
   'documentation':['documentation'],'ci-cd-change':['ci-cd'],'infrastructure-change':['ci-cd'],
   'observability-change':['monitoring'],'api-breaking-change':['documentation'],'deprecation-removal':['upgrade','documentation']
 };
-const OVERLAY_SKILLS={security:'security',incident:'incident','db-migration':'database','api-breaking-change':'documentation'};
+const OVERLAY_SKILLS={security:'security',incident:'incident','db-migration':'database','api-breaking-change':'documentation','client-impact':'frontend-integration'};
 
 function resolveSkills(root,run){
   const registry=readJson(path.join(root,'config','skills.json')).internal||{};

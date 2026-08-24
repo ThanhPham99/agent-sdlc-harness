@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/parallelism-policy/v1",
-  "version": "3.0.0-alpha3",
+  "version": "3.0.0-alpha6",
   "default_max_parallel_agents": 1,
   "hard_default_max": 2,
   "parallelize_when": [

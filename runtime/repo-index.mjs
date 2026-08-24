@@ -87,6 +87,31 @@ const RX={
     symbols:[/^\s*(?:public|protected|private)?\s*(?:static\s+)?(?:final\s+)?(?:class|interface|enum|record)\s+([A-Za-z_]\w*)/gm],
     exports:[/^\s*public\s+(?:abstract\s+)?(?:class|interface|enum|record)\s+([A-Za-z_]\w*)/gm],
     imports:[/^\s*import\s+(?:static\s+)?([\w.]+);/gm]
+  },
+  ruby:{
+    symbols:[/^\s*def\s+([A-Za-z_]\w*[!?]?)/gm,/^\s*class\s+([A-Z]\w*)/gm,/^\s*module\s+([A-Z]\w*)/gm],
+    exports:[/^\s*def\s+([A-Za-z_]\w*[!?]?)/gm,/^\s*class\s+([A-Z]\w*)/gm,/^\s*module\s+([A-Z]\w*)/gm],
+    imports:[/^\s*require(?:_relative)?\s+['"]([^'"]+)['"]/gm]
+  },
+  rust:{
+    symbols:[/^\s*(?:pub(?:\([^)]*\))?\s+)?fn\s+([A-Za-z_]\w*)/gm,/^\s*(?:pub(?:\([^)]*\))?\s+)?(?:struct|enum|trait|type)\s+([A-Za-z_]\w*)/gm],
+    exports:[/^\s*pub\s+fn\s+([A-Za-z_]\w*)/gm,/^\s*pub\s+(?:struct|enum|trait|type)\s+([A-Za-z_]\w*)/gm],
+    imports:[/^\s*use\s+([^;]+);/gm]
+  },
+  csharp:{
+    symbols:[/^\s*(?:public|protected|private|internal)?\s*(?:static\s+)?(?:async\s+)?(?:class|interface|struct|record|enum)\s+([A-Za-z_]\w*)/gm,/^\s*(?:public|protected|private|internal)?\s*(?:static\s+)?(?:async\s+)?(?:void|[A-Za-z_][\w<>\[\],?\s]*)\s+([A-Za-z_]\w*)\s*\(/gm],
+    exports:[/^\s*public\s+(?:static\s+)?(?:class|interface|struct|record|enum)\s+([A-Za-z_]\w*)/gm],
+    imports:[/^\s*using\s+([^;]+);/gm]
+  },
+  php:{
+    symbols:[/^\s*(?:final\s+|abstract\s+)?(?:class|interface|trait|enum)\s+([A-Za-z_]\w*)/gm,/^\s*(?:public|protected|private)?\s*(?:static\s+)?function\s+([A-Za-z_]\w*)/gm],
+    exports:[/^\s*public\s+(?:static\s+)?function\s+([A-Za-z_]\w*)/gm,/^\s*(?:class|interface|trait|enum)\s+([A-Za-z_]\w*)/gm],
+    imports:[/^\s*(?:require|include)(?:_once)?\s*\(?\s*['"]([^'"]+)['"]/gm,/^\s*use\s+([^;]+);/gm]
+  },
+  kotlin:{
+    symbols:[/^\s*(?:fun|class|interface|object|enum\s+class)\s+([A-Za-z_]\w*)/gm],
+    exports:[/^\s*(?:public\s+)?(?:fun|class|interface|object|enum\s+class)\s+([A-Za-z_]\w*)/gm],
+    imports:[/^\s*import\s+([\w.*]+)/gm]
   }
 };
 RX.typescript={
@@ -232,27 +257,80 @@ export function trackedFiles(projectRoot){
   return r.stdout.split('\n').map(s=>s.trim()).filter(Boolean);
 }
 
+/** Tracked files with git blob SHA: mode, blobSha, stage. */
+export function trackedEntries(projectRoot){
+  const r=git(['ls-files','-s'],projectRoot);
+  if(r.code!==0)return new Map();
+  const map=new Map();
+  for(const line of r.stdout.split('\n')){
+    const l=line.trim();
+    if(!l)continue;
+    const parts=l.split(/\t/);
+    if(parts.length<2)continue;
+    const meta=parts[0].split(/\s+/);
+    const rel=parts.slice(1).join('\t').trim();
+    if(meta.length>=2){
+      map.set(rel,{mode:meta[0],blob_sha:meta[1],stage:meta[2]||'0'});
+    }
+  }
+  return map;
+}
+
 const SKIP_DIR=/(^|\/)(node_modules|\.git|dist|build|out|coverage|vendor|\.agent-sdlc|__pycache__|\.venv)\//;
 const MAX_FILE_BYTES=512*1024;
 
 /**
- * Build or refresh the index. Incremental: a file whose content hash is
- * unchanged keeps its cached entry and is not re-parsed.
+ * Build or refresh the index. Incremental: a file whose blob hash or content
+ * hash is unchanged keeps its cached entry and is not re-parsed or re-read.
  */
 export function buildIndex(projectRoot,{force=false,maxFiles=20000}={}){
   const cached=!force&&fs.existsSync(indexPath(projectRoot))?readJson(indexPath(projectRoot),null):null;
   const previous=new Map((cached?.files||[]).map(f=>[f.path,f]));
-  const files=[];let reused=0,parsed=0,skipped=0;
-  for(const rel of trackedFiles(projectRoot).slice(0,maxFiles)){
+  const entries=trackedEntries(projectRoot);
+  const fileList=entries.size?[...entries.keys()]:trackedFiles(projectRoot);
+  const totalDiscovered=fileList.length;
+  const omittedFiles=Math.max(0,totalDiscovered-maxFiles);
+  const isTruncated=omittedFiles>0;
+  const files=[];let reused=0,parsed=0,skipped=0,truncated=0;
+  for(const rel of fileList.slice(0,maxFiles)){
     if(SKIP_DIR.test(`/${rel}/`)){skipped++;continue;}
     const abs=path.join(projectRoot,rel);
     let stat;try{stat=fs.statSync(abs);}catch{skipped++;continue;}
-    if(!stat.isFile()||stat.size>MAX_FILE_BYTES){skipped++;continue;}
+    if(!stat.isFile()){skipped++;continue;}
+    const entry=entries.get(rel);
+    const blobSha=entry?.blob_sha||null;
+    const prev=previous.get(rel);
+
+    // Explicitly record oversized files with truncation flag rather than dropping silently.
+    if(stat.size>MAX_FILE_BYTES){
+      files.push({
+        path:rel,
+        language:languageOf(rel),
+        module:moduleOf(rel),
+        lines:0,
+        size:stat.size,
+        is_test:isTestPath(rel),
+        is_migration:isMigrationPath(rel),
+        symbols:[],exports:[],imports:[],routes:[],entities:[],events:[],referenced:[],
+        sha256:null,blob_sha:blobSha,
+        truncated:true,is_truncated:true
+      });
+      truncated++;
+      continue;
+    }
+
+    // Blob-SHA reuse: if git blob SHA matches cached record, reuse without reading disk.
+    if(prev&&blobSha&&prev.blob_sha===blobSha&&!prev.truncated){
+      files.push(prev);reused++;continue;
+    }
+
     let text;try{text=fs.readFileSync(abs,'utf8');}catch{skipped++;continue;}
     const hash=sha256(text);
-    const prev=previous.get(rel);
-    if(prev&&prev.sha256===hash){files.push(prev);reused++;continue;}
-    files.push({...extractFile(rel,text),sha256:hash});
+    if(prev&&prev.sha256===hash&&!prev.truncated){
+      if(!prev.blob_sha&&blobSha)prev.blob_sha=blobSha;
+      files.push(prev);reused++;continue;
+    }
+    files.push({...extractFile(rel,text),sha256:hash,blob_sha:blobSha,size:stat.size,truncated:false,is_truncated:false});
     parsed++;
   }
   const index={
@@ -260,10 +338,19 @@ export function buildIndex(projectRoot,{force=false,maxFiles=20000}={}){
     project_root:projectRoot,
     revision:gitSha(projectRoot),
     capability:detectCapability(projectRoot),
-    counts:{files:files.length,parsed,reused,skipped,
-      symbols:files.reduce((a,f)=>a+f.symbols.length,0),
+    is_truncated:isTruncated,
+    counts:{
+      files:files.length,
+      total_discovered:totalDiscovered,
+      omitted_files:omittedFiles,
+      parsed,
+      reused,
+      skipped:skipped+omittedFiles,
+      truncated,
+      symbols:files.reduce((a,f)=>a+(f.symbols||[]).length,0),
       tests:files.filter(f=>f.is_test).length,
-      migrations:files.filter(f=>f.is_migration).length},
+      migrations:files.filter(f=>f.is_migration).length
+    },
     files,
     built_at:now()
   };
@@ -281,11 +368,16 @@ export function loadIndex(projectRoot,{build=true}={}){
   return build?buildIndex(projectRoot):null;
 }
 
-/** True when the index no longer matches the working revision. */
+/** True when the index no longer matches the working revision or working tree is dirty. */
 export function indexStale(projectRoot,index=null){
   const idx=index||loadIndex(projectRoot,{build:false});
   if(!idx)return {stale:true,reason:'NO_INDEX'};
   const rev=gitSha(projectRoot);
   if(idx.revision!==rev)return {stale:true,reason:'REVISION_CHANGED',indexed:idx.revision,current:rev};
+  const dirty=git(['status','--porcelain','--untracked-files=no'],projectRoot);
+  if(dirty.code===0&&dirty.stdout.trim()){
+    const changed=dirty.stdout.split('\n').map(s=>s.trim()).filter(Boolean);
+    return {stale:true,reason:'DIRTY_WORKING_TREE',dirty_count:changed.length,dirty_files:changed.slice(0,20)};
+  }
   return {stale:false,reason:null};
 }

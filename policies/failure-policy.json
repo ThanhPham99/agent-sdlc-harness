@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/failure-policy/v1",
-  "version": "3.0.0-alpha3",
+  "version": "3.0.0-alpha6",
   "retry": {
     "transient_provider": 3,
     "schema_repair": 1,

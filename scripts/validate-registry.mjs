@@ -28,16 +28,8 @@ const stateMachine=rj('config/state-machine.json');
 const tools=rj('config/tools.json');
 const workflows=rj('config/workflows.json');
 
-// Files that predate this validator and are not referenced by any registry
-// entry. They ship nowhere. Each line is debt to delete or register, and the
-// list is an allowlist precisely so that a *new* orphan fails CI.
-const ACCEPTED_UNREGISTERED=[
-  'coordination-analysis.md','docs-update.md','frontend-integration.md','git-delivery.md',
-  'impact-analysis.md','implementation-plan.md','knowledge-maintenance.md','operability-engineering.md',
-  'project-bootstrap.md','release-deployment.md','requirements-clarify.md','requirements-intake.md',
-  'requirements-normalize.md','solution-design.md','systematic-debugging.md','tdd.md',
-  'technical-spike.md','testing-verification.md','workflow-maintenance.md'
-];
+// All internal skills are now registered. The list is empty so any orphan fails CI.
+const ACCEPTED_UNREGISTERED=[];
 
 const problems=[];
 const fail=(kind,subject,detail)=>problems.push({kind,subject,detail});

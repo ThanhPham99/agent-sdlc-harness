@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/security-policy/v1",
-  "version": "3.0.0-alpha3",
+  "version": "3.0.0-alpha6",
   "network_default": "deny",
   "repo_content_trust": "untrusted-data",
   "human_approval_required": [
@@ -31,5 +31,27 @@
     ".ssh/**",
     ".npmrc",
     ".pypirc"
-  ]
+  ],
+  "web_search_policy": {
+    "sanitize_queries": true,
+    "blocked_query_patterns": [
+      "(?i)api[_-]?key",
+      "(?i)secret",
+      "(?i)password",
+      "(?i)token",
+      "(?i)bearer\\s+[a-z0-9_.-]+",
+      "(?i)AKIA[0-9A-Z]{16}",
+      "(?i)BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY"
+    ],
+    "blocked_host_patterns": [
+      "localhost",
+      "127.0.0.1",
+      "10.*",
+      "192.168.*",
+      "172.16.*",
+      "*.local",
+      "*.internal",
+      "*.corp"
+    ]
+  }
 }

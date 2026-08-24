@@ -9,7 +9,7 @@ import {loadIndex,moduleOf} from './repo-index.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 const norm=p=>String(p||'').replace(/\\/g,'/').replace(/^\.\//,'');
-const stripExt=p=>norm(p).replace(/\.(m|c)?[jt]sx?$/,'').replace(/\.py$/,'').replace(/\/index$/,'');
+const stripExt=p=>norm(p).replace(/\.(m|c)?[jt]sx?$/,'').replace(/\.(py|go|java|rs|cs|php|rb|kt)$/,'').replace(/\/index$/,'');
 
 /**
  * Resolve one import specifier to an indexed file.

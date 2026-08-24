@@ -26,10 +26,12 @@ export const ACTIVATION_EVENTS=[
   'activation.disabled'
 ];
 
-let policyCache=null;
-export function getActivationPolicy(){
-  if(!policyCache)policyCache=JSON.parse(fs.readFileSync(POLICY_PATH,'utf8'));
-  return policyCache;
+const policyCache=new Map();
+export function clearActivationPolicyCache(){policyCache.clear();}
+export function getActivationPolicy(root=ROOT){
+  const r=path.resolve(root||ROOT);
+  if(!policyCache.has(r))policyCache.set(r,JSON.parse(fs.readFileSync(path.join(r,'policies','auto-activation.json'),'utf8')));
+  return policyCache.get(r);
 }
 
 export function getBootstrapInstruction(){return BOOTSTRAP_TEXT;}

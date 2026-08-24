@@ -14,5 +14,8 @@
     "security",
     "devops",
     "token-efficiency"
-  ]
+  ],
+  "license": "Apache-2.0",
+  "skills": "./skills/",
+  "commands": "./commands/"
 }

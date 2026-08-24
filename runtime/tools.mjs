@@ -16,6 +16,33 @@ function secretScan(projectRoot){
   if(r.status===0){const files=(r.stdout||'').split('\n').filter(Boolean).slice(0,200);return {status:'FAIL',exit_code:1,summary:`Potential secret patterns detected in tracked files (values redacted):\n${files.join('\n')}`,truncated:false,raw:''};}
   return {status:'FAIL',exit_code:r.status??1,summary:(r.stderr||'secret scan failed').slice(0,24000),truncated:false,raw:''};
 }
+function sanitizeWebQuery(root,query){
+  const sec=readJson(path.join(root,'policies','security-policy.json'));
+  const wsp=sec.web_search_policy||{};
+  const blocked=wsp.blocked_query_patterns||[];
+  for(const pat of blocked){
+    const cleanPat=pat.startsWith('(?i)')?pat.slice(4):pat;
+    const flags=pat.startsWith('(?i)')?'i':'';
+    try{if(new RegExp(cleanPat,flags).test(query))return {ok:false,reason:`Query violates security policy pattern: ${pat}`,query};}catch{}
+  }
+  return {ok:true,query};
+}
+function checkWebUrl(root,urlStr){
+  try{
+    const u=new URL(urlStr);
+    if(!['http:','https:'].includes(u.protocol))return {ok:false,reason:`Invalid protocol: ${u.protocol}. Only http/https supported.`};
+    const host=u.hostname.toLowerCase();
+    const sec=readJson(path.join(root,'policies','security-policy.json'));
+    const wsp=sec.web_search_policy||{};
+    const blockedHosts=wsp.blocked_host_patterns||[];
+    for(const bh of blockedHosts){
+      if(bh.startsWith('*.')){const domain=bh.slice(2);if(host===domain||host.endsWith('.'+domain))return {ok:false,reason:`Target host ${host} matches blocked domain pattern ${bh}`};}
+      else if(bh.endsWith('*')){const prefix=bh.slice(0,-1);if(host.startsWith(prefix))return {ok:false,reason:`Target host ${host} matches blocked IP/host pattern ${bh}`};}
+      else if(host===bh)return {ok:false,reason:`Target host ${host} is blocked by security policy`};
+    }
+    return {ok:true,url:urlStr};
+  }catch{return {ok:false,reason:`Invalid URL format: ${urlStr}`};}
+}
 export function invokeTool(root,projectRoot,run,tool,args={}){
   const cfg=JSON.parse(fs.readFileSync(path.join(projectRoot,'.agent-sdlc','project.json'),'utf8'));const decision=checkTool(root,run,tool,cfg);if(decision.decision!=='ALLOW')return {tool,status:decision.decision==='DENY'?'DENY':'APPROVAL_REQUIRED',exit_code:null,summary:decision,failures:[],full_log_artifact:null,truncated:false};let result;const maxBytes=24000;const timeout=120000;
   if(tool==='input.normalize'){
@@ -31,6 +58,27 @@ export function invokeTool(root,projectRoot,run,tool,args={}){
   else if(tool==='repo.diff')result=exec(['git','diff','--no-ext-diff',...(args.cached?['--cached']:[])],projectRoot,timeout,maxBytes);
   else if(tool==='git.status')result=exec(['git','status','--short'],projectRoot,timeout,maxBytes);
   else if(tool==='security.secret_scan')result=secretScan(projectRoot);
+  else if(tool==='web.search'){
+    const query=String(args.query||args.pattern||'');
+    const sanitized=sanitizeWebQuery(root,query);
+    if(!sanitized.ok){result={status:'FAIL',exit_code:1,summary:sanitized.reason,truncated:false,raw:''};}
+    else{
+      const results=Array.isArray(args.results)?args.results:[{title:`Web documentation search for: ${sanitized.query}`,query:sanitized.query,status:'SEARCH_READY_HOST_DELEGATED'}];
+      const payload=JSON.stringify({query:sanitized.query,results_count:results.length,matches:results},null,2);
+      const t=truncateUtf8(payload,maxBytes);
+      result={status:'PASS',exit_code:0,summary:t.text,truncated:t.truncated,raw:payload};
+    }
+  }
+  else if(tool==='web.fetch_url'){
+    const url=String(args.url||'');
+    const checked=checkWebUrl(root,url);
+    if(!checked.ok){result={status:'FAIL',exit_code:1,summary:checked.reason,truncated:false,raw:''};}
+    else{
+      const rawContent=String(args.content||`[DOCUMENTATION_CONTENT from ${url}]\nFetched official source reference.`);
+      const t=truncateUtf8(rawContent,maxBytes);
+      result={status:'PASS',exit_code:0,summary:t.text,truncated:t.truncated,raw:rawContent};
+    }
+  }
   else if(tool==='test.run_targeted')result=exec(projectCommand(cfg,'test_targeted',args),projectRoot,Math.max(timeout,args.timeout_ms||0),maxBytes);
   else if(tool==='test.run_full')result=exec(projectCommand(cfg,'test_full',args),projectRoot,Math.max(timeout,args.timeout_ms||0),maxBytes);
   else if(tool==='build.run')result=exec(projectCommand(cfg,'build',args),projectRoot,Math.max(timeout,args.timeout_ms||0),maxBytes);

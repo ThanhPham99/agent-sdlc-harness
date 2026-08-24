@@ -20,7 +20,10 @@ export function routeModel(root,projectRoot,run,{task='stage',provider='auto',re
     const cap=capabilities(host,probe(host));considered.push(cap);
     if(!cap.available)continue;
     if(requireStructured&&!cap.structured_output)continue;
-    return {mode:'MODEL',provider:host,tier,model_alias:policy.provider_specific?.[host]?.[tier]||null,reason:'first-qualified-provider',considered};
+    const envModel=process.env[`AGENT_SDLC_MODEL_${host.toUpperCase()}_${tier.toUpperCase()}`]||process.env[`AGENT_SDLC_MODEL_${host.toUpperCase()}`]||process.env[`AGENT_SDLC_QUAL_MODEL_${host.toUpperCase()}`];
+    const projectModel=cfg.providers?.[host]?.models?.[tier]||cfg.providers?.[host]?.model;
+    const modelAlias=envModel||projectModel||policy.provider_specific?.[host]?.[tier]||null;
+    return {mode:'MODEL',provider:host,tier,model_alias:modelAlias,reason:'first-qualified-provider',considered};
   }
   return {mode:'PENDING',provider:null,tier,model_alias:null,reason:'no-qualified-provider-available',considered};
 }

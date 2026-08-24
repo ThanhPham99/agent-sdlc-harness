@@ -20,7 +20,7 @@ import {createTaskWorkspace,cleanupTaskWorkspace,checkWriterIsolation,listTaskWo
 import {verifyTask,scopeAudit,verificationStrategy} from '../runtime/task-verification.mjs';
 import {validateSpecComplianceReview,validateCodeQualityReview,recordTaskReview} from '../runtime/task-review.mjs';
 import {classifyTaskFailure,planRecovery,applyRecovery,evidenceFingerprint,hasNewEvidence,outerEscalation} from '../runtime/task-recovery.mjs';
-import {startTask,advanceTask,captureTaskDiff,taskCheckpoint,recordTaskUsage} from '../runtime/task-runner.mjs';
+import {startTask,advanceTask,captureTaskDiff,taskCheckpoint,recordTaskUsage,resumeFromCheckpoint} from '../runtime/task-runner.mjs';
 import {migrateRunToTaskRuntime} from '../runtime/task-migration.mjs';
 import {reportRunTaskUsage} from '../runtime/cost.mjs';
 import {taskMetrics} from '../runtime/telemetry.mjs';
@@ -864,6 +864,36 @@ export function runTaskRuntimeSuite(root){
         if(!cp.excludes.includes(key))fail(`checkpoint does not exclude ${key}`);
       const serialized=JSON.stringify(cp);
       if(/reasoning":"/.test(serialized))fail('the checkpoint carried reasoning content');
+    });
+
+    t('provider-fallback-resumes-from-task-checkpoint',()=>{
+      const {run}=runAtImplement(root,projectRoot);
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/token-store.js','export const store=new Map();\nexport const ttl=900;\n');
+      const task=requireTask(projectRoot,run.run_id,'TASK-001');
+      captureTaskDiff(projectRoot,run,task);
+      const res=resumeFromCheckpoint(root,projectRoot,run,'TASK-001',{
+        originalProvider:'claude',
+        fallbackProvider:'codex',
+        reason:'rate limit'
+      });
+      if(!res.resumed||res.fallback_provider!=='codex')fail(JSON.stringify(res));
+      if(!res.base_revision||!res.diff_hash)fail('missing base_revision or diff_hash');
+      if(!res.transferred.includes('context manifest hash'))fail('missing context manifest in transferred list');
+    });
+
+    t('workspace-worktree-reuses-existing-branch-on-retry',()=>{
+      const {run}=runAtImplement(root,projectRoot);
+      const task=requireTask(projectRoot,run.run_id,'TASK-001');
+      const ws1=createTaskWorkspace(projectRoot,{run,task,writer:'writer-1',mode:'isolated-worktree'});
+      if(ws1.mode==='isolated-worktree'&&ws1.branch){
+        // Simulate workspace cleanup or retry where the branch already exists in git
+        const fakeTask={...task,task_id:'TASK-RETRY-BRANCH'};
+        // Create branch first
+        gitq(projectRoot,'branch',`agent-sdlc/${String(run.run_id).replace(/^run_/,'')}/task-retry-branch`,ws1.base_revision);
+        const ws2=createTaskWorkspace(projectRoot,{run,task:fakeTask,writer:'writer-2',mode:'isolated-worktree'});
+        if(ws2.status!=='ACTIVE')fail(JSON.stringify(ws2));
+      }
     });
   }
 

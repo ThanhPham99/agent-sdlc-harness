@@ -20,10 +20,12 @@ const raise=(a,b)=>{
   return TIERS.indexOf(a)>=TIERS.indexOf(b)?a:b;
 };
 
-let policyCache=null;
+const policyCache=new Map();
+export function clearGovernancePolicyCache(){policyCache.clear();}
 export function getGovernancePolicy(root){
-  if(!policyCache)policyCache=readJson(path.join(root,'policies','cost-context-governance.json'));
-  return policyCache;
+  const r=path.resolve(root||'.');
+  if(!policyCache.has(r))policyCache.set(r,readJson(path.join(r,'policies','cost-context-governance.json')));
+  return policyCache.get(r);
 }
 
 /** Deterministic complexity from declared scope, not from prose. */

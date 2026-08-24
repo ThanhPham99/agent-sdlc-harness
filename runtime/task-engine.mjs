@@ -16,10 +16,12 @@ import {now,readJson,sha256} from './util.mjs';
 import {saveTask,loadTask,listTasks,saveTaskGraph,loadTaskGraph,emitTaskEvent,hasTask} from './store.mjs';
 import {validateTaskPlan} from './plan-validator.mjs';
 
-let smCache=null;
+const smCache=new Map();
+export function clearTaskStateMachineCache(){smCache.clear();}
 export function getTaskStateMachine(root){
-  if(!smCache)smCache=readJson(path.join(root,'config','task-state-machine.json'));
-  return smCache;
+  const r=path.resolve(root||'.');
+  if(!smCache.has(r))smCache.set(r,readJson(path.join(r,'config','task-state-machine.json')));
+  return smCache.get(r);
 }
 const arr=x=>Array.isArray(x)?x:[];
 

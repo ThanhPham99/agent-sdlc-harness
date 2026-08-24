@@ -20,10 +20,12 @@ export const FAILURE_CLASSES=[
   'INFRA_TRANSIENT','PROVIDER_FAILURE','PERMISSION_DENIED','BUDGET_EXHAUSTED'
 ];
 
-let policyCache=null;
+const policyCache=new Map();
+export function clearTaskFailurePolicyCache(){policyCache.clear();}
 export function getTaskFailurePolicy(root){
-  if(!policyCache)policyCache=readJson(path.join(root,'policies','task-failure-policy.json'));
-  return policyCache;
+  const r=path.resolve(root||'.');
+  if(!policyCache.has(r))policyCache.set(r,readJson(path.join(r,'policies','task-failure-policy.json')));
+  return policyCache.get(r);
 }
 
 const arr=x=>Array.isArray(x)?x:[];

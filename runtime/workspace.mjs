@@ -100,7 +100,12 @@ export function createTaskWorkspace(projectRoot,{run,task,writer=null,mode=null,
       // affect is what the workspace can see, so record the exclusion instead
       // of silently dropping isolation.
       const modified=git(['status','--porcelain','--untracked-files=no'],projectRoot).stdout.trim();
-      const r=git(['worktree','add','-b',branch,dir,base],projectRoot);
+      const existingBranch=git(['branch','--list',branch],projectRoot);
+      const branchExists=existingBranch.code===0&&existingBranch.stdout.trim().length>0;
+      const worktreeArgs=branchExists
+        ?['worktree','add',dir,branch]
+        :['worktree','add','-b',branch,dir,base];
+      const r=git(worktreeArgs,projectRoot);
       if(r.code!==0){
         ws.mode='provider-sandbox';ws.writable=true;ws.root=projectRoot;
         ws.degraded=`WORKTREE_UNAVAILABLE:${(r.stderr||'').trim().slice(0,200)}`;

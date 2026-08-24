@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/workflow-registry/v1",
-  "version": "3.0.0-alpha3",
+  "version": "3.0.0-alpha6",
   "workflows": {
     "new-feature": {
       "id": "new-feature",

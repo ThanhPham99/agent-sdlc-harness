@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/model-routing/v1",
-  "version": "3.0.0-alpha3",
+  "version": "3.0.0-alpha6",
   "strategy": "cheapest-qualified-first-with-risk-floor",
   "principles": [
     "no model for mechanical deterministic work",
@@ -22,19 +22,162 @@
   },
   "provider_specific": {
     "claude": {
-      "economy": "haiku",
-      "standard": "sonnet",
-      "high": "opus-or-high-effort-sonnet"
+      "economy": "claude-haiku-4-5-20251001",
+      "standard": "claude-sonnet-5",
+      "high": "claude-opus-5"
     },
     "codex": {
-      "economy": "configured-low-cost",
-      "standard": "codex-default",
-      "high": "codex-high-reasoning"
+      "economy": "gpt-5.6-luna",
+      "standard": "gpt-5.6-terra",
+      "high": "o3-pro"
     },
     "antigravity": {
-      "economy": "configured-flash",
-      "standard": "configured-agent-default",
-      "high": "configured-high-reasoning"
+      "economy": "gemini-3.5-flash-lite",
+      "standard": "gemini-3.7-flash",
+      "high": "gemini-3.1-pro"
+    }
+  },
+  "model_registry": {
+    "claude": {
+      "claude-haiku-4-5-20251001": {
+        "tier": "economy",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "claude-3-5-haiku-latest": {
+        "tier": "economy",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "claude-sonnet-5": {
+        "tier": "standard",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "claude-3-7-sonnet-latest": {
+        "tier": "standard",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "claude-3-5-sonnet-latest": {
+        "tier": "standard",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "claude-opus-5": {
+        "tier": "high",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "claude-fable-5": {
+        "tier": "high",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "claude-mythos-5": {
+        "tier": "high",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "claude-3-7-sonnet-20250219": {
+        "tier": "high",
+        "context_window": 200000,
+        "structured_output": true
+      }
+    },
+    "codex": {
+      "gpt-5.6-luna": {
+        "tier": "economy",
+        "context_window": 1050000,
+        "structured_output": true
+      },
+      "gpt-4o-mini": {
+        "tier": "economy",
+        "context_window": 128000,
+        "structured_output": true
+      },
+      "gpt-5.6-terra": {
+        "tier": "standard",
+        "context_window": 1050000,
+        "structured_output": true
+      },
+      "gpt-4o": {
+        "tier": "standard",
+        "context_window": 128000,
+        "structured_output": true
+      },
+      "gpt-5.6-sol": {
+        "tier": "high",
+        "context_window": 1050000,
+        "structured_output": true
+      },
+      "o3-pro": {
+        "tier": "high",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "o3": {
+        "tier": "high",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "o4-mini": {
+        "tier": "high",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "o3-mini": {
+        "tier": "high",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "o1": {
+        "tier": "high",
+        "context_window": 200000,
+        "structured_output": true
+      }
+    },
+    "antigravity": {
+      "gemini-3.5-flash-lite": {
+        "tier": "economy",
+        "context_window": 1048576,
+        "structured_output": true
+      },
+      "gemini-2.0-flash": {
+        "tier": "economy",
+        "context_window": 1048576,
+        "structured_output": true
+      },
+      "gemini-2.5-flash": {
+        "tier": "economy",
+        "context_window": 1048576,
+        "structured_output": true
+      },
+      "gemini-3.7-flash": {
+        "tier": "standard",
+        "context_window": 2097152,
+        "structured_output": true
+      },
+      "gemini-3.6-flash": {
+        "tier": "standard",
+        "context_window": 2097152,
+        "structured_output": true
+      },
+      "gemini-2.5-pro": {
+        "tier": "standard",
+        "context_window": 2097152,
+        "structured_output": true
+      },
+      "gemini-3.1-pro": {
+        "tier": "high",
+        "context_window": 2097152,
+        "structured_output": true
+      },
+      "gemini-3-pro": {
+        "tier": "high",
+        "context_window": 2097152,
+        "structured_output": true
+      }
     }
   },
   "pricing": "external registry; never hard-code billing claims in prompts"

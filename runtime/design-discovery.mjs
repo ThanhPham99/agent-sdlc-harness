@@ -14,10 +14,12 @@ const ROOT=path.resolve(HERE,'..');
 export const POLICY_PATH=path.join(ROOT,'policies','design-discovery.json');
 export const MODES=['SKIP','COMPACT','FULL'];
 
-let policyCache=null;
-export function getDesignDiscoveryPolicy(){
-  if(!policyCache)policyCache=JSON.parse(fs.readFileSync(POLICY_PATH,'utf8'));
-  return policyCache;
+const policyCache=new Map();
+export function clearDesignDiscoveryPolicyCache(){policyCache.clear();}
+export function getDesignDiscoveryPolicy(root=ROOT){
+  const r=path.resolve(root||ROOT);
+  if(!policyCache.has(r))policyCache.set(r,JSON.parse(fs.readFileSync(path.join(r,'policies','design-discovery.json'),'utf8')));
+  return policyCache.get(r);
 }
 
 const rank=(mode)=>getDesignDiscoveryPolicy().mode_rank[mode]??0;

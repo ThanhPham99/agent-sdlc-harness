@@ -151,13 +151,79 @@ export function runAlpha6Suite(root){
 
     t('index-is-incremental-and-detects-staleness',()=>{
       const first=buildIndex(projectRoot,{force:true});
+      if(!first.files[0]?.blob_sha)fail('blob_sha missing in indexed file records');
       const second=buildIndex(projectRoot);
       if(second.counts.reused===0)fail('second pass re-parsed everything');
       if(second.counts.parsed>0)fail(`clean tree still parsed ${second.counts.parsed} files`);
       if(first.counts.files!==second.counts.files)fail('file count changed on a clean tree');
       const stale=indexStale(projectRoot,second);
       if(stale.stale)fail(JSON.stringify(stale));
-      if(indexStale(projectRoot,{...second,revision:'0'.repeat(40)}).reason!=='REVISION_CHANGED')fail('staleness not detected');
+      if(indexStale(projectRoot,{...second,revision:'0'.repeat(40)}).reason!=='REVISION_CHANGED')fail('revision staleness not detected');
+
+      // Dirty staleness check: modifying a tracked file without committing must make index stale
+      const target=path.join(projectRoot,'src/notify/refund-email.js');
+      const original=fs.readFileSync(target,'utf8');
+      try{
+        fs.writeFileSync(target,original+'\n// dirty change\n');
+        const dirtyStale=indexStale(projectRoot,second);
+        if(!dirtyStale.stale||dirtyStale.reason!=='DIRTY_WORKING_TREE')fail(`expected DIRTY_WORKING_TREE, got: ${JSON.stringify(dirtyStale)}`);
+        if(!dirtyStale.dirty_files.some(f=>f.includes('refund-email.js')))fail(`dirty_files missing modified target: ${JSON.stringify(dirtyStale.dirty_files)}`);
+      }finally{
+        fs.writeFileSync(target,original);
+      }
+      const restoredStale=indexStale(projectRoot,second);
+      if(restoredStale.stale)fail(`restored working tree should be clean, got: ${JSON.stringify(restoredStale)}`);
+    });
+
+    t('index-records-truncation-for-oversized-files',()=>{
+      const bigRel='src/big-data.js';
+      const bigPath=path.join(projectRoot,bigRel);
+      try{
+        fs.writeFileSync(bigPath,'// big file\n'+'x'.repeat(600*1024));
+        gitq(projectRoot,'add',bigRel);
+        const idx=buildIndex(projectRoot,{force:true});
+        const bigEntry=idx.files.find(f=>f.path===bigRel);
+        if(!bigEntry)fail('oversized file not present in index');
+        if(!bigEntry.truncated||!bigEntry.is_truncated)fail(`oversized file missing truncated flag: ${JSON.stringify(bigEntry)}`);
+        if(idx.counts.truncated<1)fail(`counts.truncated expected >=1, got ${idx.counts.truncated}`);
+      }finally{
+        try{gitq(projectRoot,'rm','-f',bigRel);}catch{}
+        try{fs.rmSync(bigPath,{force:true});}catch{}
+        buildIndex(projectRoot,{force:true});
+      }
+    });
+
+    t('regex-extracts-ruby-rust-csharp-php-kotlin',()=>{
+      const multiDir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-multilang-'));
+      try{
+        gitq(multiDir,'init','-q');
+        const write=(rel,text)=>{
+          const p=path.join(multiDir,rel);
+          fs.mkdirSync(path.dirname(p),{recursive:true});
+          fs.writeFileSync(p,text);
+        };
+        write('service.rb','require "json"\nmodule Billing\n  class Invoice\n    def process\n    end\n  end\nend\n');
+        write('service.rs','use std::collections::HashMap;\npub struct Payment;\npub fn execute_payment() {}\n');
+        write('Service.cs','using System;\nnamespace Core {\n  public class OrderManager {\n    public async Task ProcessOrder() {}\n  }\n}\n');
+        write('service.php','<?php\nnamespace App;\nuse App\\Util;\nclass UserManager {\n  public function findUser() {}\n}\n');
+        write('service.kt','import com.example.util.*\nclass ItemRepository {\n  fun getItem(): String = ""\n}\n');
+        gitq(multiDir,'add','.');
+        execFileSync('git',['-c','user.email=a@b.c','-c','user.name=t','commit','-qm','init'],{cwd:multiDir,stdio:'ignore'});
+        const idx=buildIndex(multiDir,{force:true});
+        const byPath=new Map(idx.files.map(f=>[f.path,f]));
+        const rb=byPath.get('service.rb');
+        if(!rb?.symbols.includes('Invoice')||!rb?.symbols.includes('process')||!rb?.imports.includes('json'))fail(`Ruby extraction failed: ${JSON.stringify(rb)}`);
+        const rs=byPath.get('service.rs');
+        if(!rs?.symbols.includes('Payment')||!rs?.symbols.includes('execute_payment')||!rs?.imports.includes('std::collections::HashMap'))fail(`Rust extraction failed: ${JSON.stringify(rs)}`);
+        const cs=byPath.get('Service.cs');
+        if(!cs?.symbols.includes('OrderManager')||!cs?.symbols.includes('ProcessOrder')||!cs?.imports.includes('System'))fail(`C# extraction failed: ${JSON.stringify(cs)}`);
+        const php=byPath.get('service.php');
+        if(!php?.symbols.includes('UserManager')||!php?.symbols.includes('findUser')||!php?.imports.includes('App\\Util'))fail(`PHP extraction failed: ${JSON.stringify(php)}`);
+        const kt=byPath.get('service.kt');
+        if(!kt?.symbols.includes('ItemRepository')||!kt?.symbols.includes('getItem')||!kt?.imports.includes('com.example.util.*'))fail(`Kotlin extraction failed: ${JSON.stringify(kt)}`);
+      }finally{
+        try{fs.rmSync(multiDir,{recursive:true,force:true});}catch{}
+      }
     });
 
     t('symbol-resolution-finds-definitions',()=>{

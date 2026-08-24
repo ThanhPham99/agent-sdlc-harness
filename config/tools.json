@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/tool-registry/v1",
-  "version": "3.0.0-alpha3",
+  "version": "3.0.0-alpha6",
   "tools": {
     "input.normalize": {
       "name": "input.normalize",
@@ -190,6 +190,26 @@
       "deterministic": true,
       "implementation": "host",
       "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "web.search": {
+      "name": "web.search",
+      "version": "1.0.0",
+      "risk": "read",
+      "idempotent": true,
+      "deterministic": false,
+      "implementation": "host",
+      "default_timeout_ms": 60000,
+      "max_return_bytes": 16000
+    },
+    "web.fetch_url": {
+      "name": "web.fetch_url",
+      "version": "1.0.0",
+      "risk": "read",
+      "idempotent": true,
+      "deterministic": false,
+      "implementation": "host",
+      "default_timeout_ms": 60000,
       "max_return_bytes": 24000
     }
   }

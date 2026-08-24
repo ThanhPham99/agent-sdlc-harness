@@ -2,34 +2,14 @@
   "schema": "agent-sdlc/registry-validation/v1",
   "version": "3.0.0-alpha6",
   "counts": {
-    "registered_internal_skills": 22,
+    "registered_internal_skills": 41,
     "internal_skill_files": 41,
     "public_skills": 2,
-    "unregistered_files": 19,
-    "accepted_unregistered": 19,
+    "unregistered_files": 0,
+    "accepted_unregistered": 0,
     "new_orphans": 0
   },
-  "unregistered_files": [
-    "coordination-analysis.md",
-    "docs-update.md",
-    "frontend-integration.md",
-    "git-delivery.md",
-    "impact-analysis.md",
-    "implementation-plan.md",
-    "knowledge-maintenance.md",
-    "operability-engineering.md",
-    "project-bootstrap.md",
-    "release-deployment.md",
-    "requirements-clarify.md",
-    "requirements-intake.md",
-    "requirements-normalize.md",
-    "solution-design.md",
-    "systematic-debugging.md",
-    "tdd.md",
-    "technical-spike.md",
-    "testing-verification.md",
-    "workflow-maintenance.md"
-  ],
+  "unregistered_files": [],
   "problems": [],
   "status": "PASS"
 }

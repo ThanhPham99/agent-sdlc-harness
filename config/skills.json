@@ -44,7 +44,9 @@
         "repo.read",
         "repo.search",
         "repo.symbol",
-        "repo.diff"
+        "repo.diff",
+        "web.search",
+        "web.fetch_url"
       ],
       "instructions": "harness/internal-skills/design-discovery.md",
       "output_schema": "protocol/schemas/DesignDecision.schema.json",
@@ -66,7 +68,9 @@
       "tools": [
         "repo.read",
         "repo.symbol",
-        "repo.diff"
+        "repo.diff",
+        "web.search",
+        "web.fetch_url"
       ],
       "instructions": "harness/internal-skills/architecture.md",
       "output_schema": "protocol/schemas/StageResult.schema.json",
@@ -254,7 +258,9 @@
         "repo.diff",
         "security.sast",
         "security.sca",
-        "security.secret_scan"
+        "security.secret_scan",
+        "web.search",
+        "web.fetch_url"
       ],
       "instructions": "harness/internal-skills/security.md",
       "output_schema": "protocol/schemas/StageResult.schema.json",
@@ -400,7 +406,9 @@
         "repo.patch",
         "test.run_targeted",
         "test.run_full",
-        "security.sca"
+        "security.sca",
+        "web.search",
+        "web.fetch_url"
       ],
       "instructions": "harness/internal-skills/upgrade.md",
       "output_schema": "protocol/schemas/StageResult.schema.json",
@@ -477,7 +485,9 @@
       ],
       "tools": [
         "repo.read",
-        "repo.diff"
+        "repo.diff",
+        "web.search",
+        "web.fetch_url"
       ],
       "instructions": "harness/internal-skills/compliance.md",
       "output_schema": "protocol/schemas/StageResult.schema.json",
@@ -532,6 +542,456 @@
         "test.run_full"
       ],
       "instructions": "harness/internal-skills/modernization.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "coordination-analysis": {
+      "id": "coordination-analysis",
+      "version": "1.0.0",
+      "description": "Analyze pairwise work item relationships, change claims, drift facets, and dependency/merge ordering.",
+      "stages": [
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "REVIEW",
+        "RELEASE"
+      ],
+      "roles": [
+        "architect",
+        "pm",
+        "developer",
+        "devops"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "git.status"
+      ],
+      "instructions": "harness/internal-skills/coordination-analysis.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 800
+    },
+    "docs-update": {
+      "id": "docs-update",
+      "version": "1.0.0",
+      "description": "Update project documentation, architecture, feature index, decisions, and deployment notes by diff.",
+      "stages": [
+        "REQUIREMENTS",
+        "REVIEW",
+        "RELEASE",
+        "CLOSE"
+      ],
+      "roles": [
+        "tech-writer",
+        "developer",
+        "architect"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "docs.patch"
+      ],
+      "instructions": "harness/internal-skills/docs-update.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "frontend-integration": {
+      "id": "frontend-integration",
+      "version": "1.0.0",
+      "description": "Document endpoint/event contracts, auth, response examples, errors, rollout timing, and client mock guidance.",
+      "stages": [
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY"
+      ],
+      "roles": [
+        "developer",
+        "architect",
+        "qa"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "repo.symbol"
+      ],
+      "instructions": "harness/internal-skills/frontend-integration.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "git-delivery": {
+      "id": "git-delivery",
+      "version": "1.0.0",
+      "description": "Manage branches, worktrees, PR lifecycle, merge queue, CI evidence validation, and post-merge reconciliation.",
+      "stages": [
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "DEPLOY",
+        "CLOSE"
+      ],
+      "roles": [
+        "developer",
+        "devops",
+        "release-manager"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "git.status",
+        "git.worktree",
+        "build.run",
+        "test.run_targeted"
+      ],
+      "instructions": "harness/internal-skills/git-delivery.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 800
+    },
+    "impact-analysis": {
+      "id": "impact-analysis",
+      "version": "1.0.0",
+      "description": "Trace requirements changes to affected code, system boundaries, security boundaries, and persistence contracts.",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN"
+      ],
+      "roles": [
+        "architect",
+        "developer",
+        "security",
+        "qa"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.search",
+        "repo.symbol",
+        "repo.diff"
+      ],
+      "instructions": "harness/internal-skills/impact-analysis.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "implementation-plan": {
+      "id": "implementation-plan",
+      "version": "1.0.0",
+      "description": "Structure an execution plan into independently verifiable tasks with write scopes, verification gates, and rollback plans.",
+      "stages": [
+        "PLAN"
+      ],
+      "roles": [
+        "architect",
+        "developer",
+        "qa"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.symbol",
+        "repo.diff"
+      ],
+      "instructions": "harness/internal-skills/implementation-plan.md",
+      "output_schema": "protocol/schemas/TaskPlan.schema.json",
+      "max_response_words": 800
+    },
+    "knowledge-maintenance": {
+      "id": "knowledge-maintenance",
+      "version": "1.0.0",
+      "description": "Maintain durable external knowledge, update architecture records, and preserve historical decisions.",
+      "stages": [
+        "REVIEW",
+        "RELEASE",
+        "CLOSE"
+      ],
+      "roles": [
+        "architect",
+        "tech-writer",
+        "pm"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "docs.patch"
+      ],
+      "instructions": "harness/internal-skills/knowledge-maintenance.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "operability-engineering": {
+      "id": "operability-engineering",
+      "version": "1.0.0",
+      "description": "Define runbooks, telemetry invariants, log formats, alerts, and operational rollback mechanisms.",
+      "stages": [
+        "DESIGN",
+        "PLAN",
+        "RELEASE",
+        "DEPLOY",
+        "OBSERVE"
+      ],
+      "roles": [
+        "sre",
+        "devops",
+        "ops"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "observability.query",
+        "deploy.plan"
+      ],
+      "instructions": "harness/internal-skills/operability-engineering.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "project-bootstrap": {
+      "id": "project-bootstrap",
+      "version": "1.0.0",
+      "description": "Initialize project invariants, detect project topology, tools, conventions, and verify auto-activation state.",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN"
+      ],
+      "roles": [
+        "architect",
+        "developer",
+        "devops"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.search",
+        "git.status"
+      ],
+      "instructions": "harness/internal-skills/project-bootstrap.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "release-deployment": {
+      "id": "release-deployment",
+      "version": "1.0.0",
+      "description": "Execute release gates, package validation, provenance checks, deployment strategies, and rollback verification.",
+      "stages": [
+        "RELEASE",
+        "DEPLOY"
+      ],
+      "roles": [
+        "release-manager",
+        "sre",
+        "devops"
+      ],
+      "tools": [
+        "build.run",
+        "test.run_full",
+        "deploy.plan",
+        "deploy.production",
+        "observability.query"
+      ],
+      "instructions": "harness/internal-skills/release-deployment.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 800
+    },
+    "requirements-clarify": {
+      "id": "requirements-clarify",
+      "version": "1.0.0",
+      "description": "Surface material ambiguities, formulate bounded questions, and present crisp choices with recommended defaults.",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS"
+      ],
+      "roles": [
+        "pm",
+        "architect"
+      ],
+      "tools": [
+        "repo.read"
+      ],
+      "instructions": "harness/internal-skills/requirements-clarify.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "requirements-intake": {
+      "id": "requirements-intake",
+      "version": "1.0.0",
+      "description": "Ingest unstructured requests, bug reports, and features; route to appropriate SDLC workflow with evidence.",
+      "stages": [
+        "INTAKE"
+      ],
+      "roles": [
+        "pm",
+        "support",
+        "developer"
+      ],
+      "tools": [
+        "input.normalize",
+        "repo.read"
+      ],
+      "instructions": "harness/internal-skills/requirements-intake.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "requirements-normalize": {
+      "id": "requirements-normalize",
+      "version": "1.0.0",
+      "description": "Extract structured requirements, acceptance criteria, and non-functional requirements from diverse inputs.",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS"
+      ],
+      "roles": [
+        "pm",
+        "architect",
+        "qa"
+      ],
+      "tools": [
+        "input.normalize",
+        "repo.read"
+      ],
+      "instructions": "harness/internal-skills/requirements-normalize.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "solution-design": {
+      "id": "solution-design",
+      "version": "1.0.0",
+      "description": "Design architectural components, API interfaces, data models, error semantics, and evaluate trade-offs.",
+      "stages": [
+        "DESIGN"
+      ],
+      "roles": [
+        "architect",
+        "developer",
+        "security"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.symbol",
+        "repo.diff",
+        "web.search",
+        "web.fetch_url"
+      ],
+      "instructions": "harness/internal-skills/solution-design.md",
+      "output_schema": "protocol/schemas/DesignDecision.schema.json",
+      "max_response_words": 800
+    },
+    "systematic-debugging": {
+      "id": "systematic-debugging",
+      "version": "1.0.0",
+      "description": "Isolate root causes with minimal reproduction, form bounded hypotheses, and verify fixes with regression tests.",
+      "stages": [
+        "INTAKE",
+        "DESIGN",
+        "IMPLEMENT",
+        "VERIFY"
+      ],
+      "roles": [
+        "developer",
+        "qa",
+        "sre"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.symbol",
+        "repo.diff",
+        "repo.patch",
+        "test.run_targeted",
+        "web.search",
+        "web.fetch_url"
+      ],
+      "instructions": "harness/internal-skills/systematic-debugging.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 800
+    },
+    "tdd": {
+      "id": "tdd",
+      "version": "1.0.0",
+      "description": "Follow red-green-refactor cycle: write minimal failing test first, implement minimal passing code, then refactor.",
+      "stages": [
+        "IMPLEMENT",
+        "VERIFY"
+      ],
+      "roles": [
+        "developer",
+        "qa"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.symbol",
+        "repo.diff",
+        "repo.patch",
+        "test.run_targeted",
+        "build.run"
+      ],
+      "instructions": "harness/internal-skills/tdd.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "technical-spike": {
+      "id": "technical-spike",
+      "version": "1.0.0",
+      "description": "Perform time-boxed exploration, prototype risky assumptions, and capture objective evidence before planning.",
+      "stages": [
+        "DESIGN",
+        "PLAN"
+      ],
+      "roles": [
+        "architect",
+        "developer"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.symbol",
+        "repo.diff",
+        "repo.patch",
+        "test.run_targeted"
+      ],
+      "instructions": "harness/internal-skills/technical-spike.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "testing-verification": {
+      "id": "testing-verification",
+      "version": "1.0.0",
+      "description": "Design test matrices, verify edge cases, execute targeted suites, and gather proof of acceptance criteria.",
+      "stages": [
+        "VERIFY"
+      ],
+      "roles": [
+        "qa",
+        "developer"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "test.run_targeted",
+        "test.run_full",
+        "build.run"
+      ],
+      "instructions": "harness/internal-skills/testing-verification.md",
+      "output_schema": "protocol/schemas/TaskVerification.schema.json",
+      "max_response_words": 700
+    },
+    "workflow-maintenance": {
+      "id": "workflow-maintenance",
+      "version": "1.0.0",
+      "description": "Maintain workflow health, resolve blocked tasks, clean orphan workspaces, and perform state migrations.",
+      "stages": [
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "CLOSE"
+      ],
+      "roles": [
+        "devops",
+        "sre",
+        "developer"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "git.status",
+        "test.run_targeted"
+      ],
+      "instructions": "harness/internal-skills/workflow-maintenance.md",
       "output_schema": "protocol/schemas/StageResult.schema.json",
       "max_response_words": 700
     }

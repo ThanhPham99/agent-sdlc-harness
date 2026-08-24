@@ -49,6 +49,10 @@ function host(name){
   }
   fs.copyFileSync(path.join(ROOT,'README.md'),path.join(out,'README.md'));
   fs.copyFileSync(path.join(ROOT,'VERSION'),path.join(out,'VERSION'));
+  if(fs.existsSync(path.join(ROOT,'LICENSE')))fs.copyFileSync(path.join(ROOT,'LICENSE'),path.join(out,'LICENSE'));
+  if(fs.existsSync(path.join(ROOT,'SECURITY.md')))fs.copyFileSync(path.join(ROOT,'SECURITY.md'),path.join(out,'SECURITY.md'));
+  if(fs.existsSync(path.join(ROOT,'CONTRIBUTING.md')))fs.copyFileSync(path.join(ROOT,'CONTRIBUTING.md'),path.join(out,'CONTRIBUTING.md'));
+  if(fs.existsSync(path.join(ROOT,'CHANGELOG.md')))fs.copyFileSync(path.join(ROOT,'CHANGELOG.md'),path.join(out,'CHANGELOG.md'));
   return out;
 }
 
@@ -56,6 +60,10 @@ let c=host('claude');
 fs.mkdirSync(path.join(c,'.claude-plugin'),{recursive:true});
 fs.copyFileSync(path.join(ROOT,'adapters/claude/plugin.json'),path.join(c,'.claude-plugin','plugin.json'));
 fs.copyFileSync(path.join(ROOT,'adapters/claude/.mcp.json'),path.join(c,'.mcp.json'));
+if(fs.existsSync(path.join(ROOT,'commands'))){
+  fs.mkdirSync(path.join(c,'commands'),{recursive:true});
+  fs.cpSync(path.join(ROOT,'commands'),path.join(c,'commands'),{recursive:true});
+}
 fs.mkdirSync(path.join(c,'hooks'),{recursive:true});
 fs.copyFileSync(path.join(ROOT,'adapters/claude/hooks.json'),path.join(c,'hooks','hooks.json'));
 fs.copyFileSync(path.join(ROOT,'adapters/hooks/pretool-guard.mjs'),path.join(c,'hooks','pretool-guard.mjs'));
