@@ -1,0 +1,66 @@
+{
+  "schema": "agent-sdlc/root-sync-validation/v1",
+  "version": "3.0.0-alpha6",
+  "checks": 7,
+  "passes": 7,
+  "failures": 0,
+  "mirrors": [
+    {
+      "source": "adapters/hooks/pretool-guard.mjs",
+      "root_copy": "hooks/pretool-guard.mjs",
+      "status": "PASS",
+      "source_sha256": "64e05af0ba2472ee",
+      "root_sha256": "64e05af0ba2472ee",
+      "problems": []
+    },
+    {
+      "source": "adapters/hooks/claude-session-start.mjs",
+      "root_copy": "hooks/claude-session-start.mjs",
+      "status": "PASS",
+      "source_sha256": "383d9a46e866d3d6",
+      "root_sha256": "383d9a46e866d3d6",
+      "problems": []
+    },
+    {
+      "source": "adapters/hooks/antigravity-preinvocation.mjs",
+      "root_copy": "hooks/antigravity-preinvocation.mjs",
+      "status": "PASS",
+      "source_sha256": "bc45cb723ea2402b",
+      "root_sha256": "bc45cb723ea2402b",
+      "problems": []
+    },
+    {
+      "source": "adapters/antigravity/hooks.json",
+      "root_copy": "hooks.json",
+      "status": "PASS",
+      "source_sha256": "5115fb0fc18276e5",
+      "root_sha256": "5115fb0fc18276e5",
+      "problems": []
+    },
+    {
+      "source": "adapters/antigravity/mcp_config.json",
+      "root_copy": "mcp_config.json",
+      "status": "PASS",
+      "source_sha256": "271698bc5b577f4c",
+      "root_sha256": "271698bc5b577f4c",
+      "problems": []
+    },
+    {
+      "source": "adapters/antigravity/plugin.json",
+      "root_copy": "plugin.json",
+      "status": "PASS",
+      "source_sha256": "2cf6e125f238b240",
+      "root_sha256": "2cf6e125f238b240",
+      "problems": []
+    },
+    {
+      "source": "adapters/antigravity/rules.md",
+      "root_copy": "rules/agent-sdlc.md",
+      "status": "PASS",
+      "source_sha256": "2a3f46ea86e2e0e7",
+      "root_sha256": "2a3f46ea86e2e0e7",
+      "problems": []
+    }
+  ],
+  "status": "PASS"
+}

@@ -17,7 +17,7 @@ Do not move the internal capability modules back under the native `skills/` disc
 ## Recommended repository workflow
 
 1. Create a new GitHub repository.
-2. Extract `agent-sdlc-harness-source-3.0.0-alpha4.zip`.
+2. Extract `agent-sdlc-harness-source-3.0.0-alpha6.zip`.
 3. Push the extracted contents to repository root.
 4. Run the GitHub Actions `CI` workflow.
 5. Test marketplace/direct install from a clean account or throwaway host profile.

@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 221,
-  "passes": 221,
+  "checks": 226,
+  "passes": 226,
   "failures": 0,
   "results": [
     {
@@ -251,6 +251,26 @@
     },
     {
       "name": "provider-probe-is-nonfatal",
+      "status": "PASS"
+    },
+    {
+      "name": "archive-roundtrip-preserves-tree",
+      "status": "PASS"
+    },
+    {
+      "name": "archive-is-byte-deterministic",
+      "status": "PASS"
+    },
+    {
+      "name": "archive-entry-names-use-forward-slashes",
+      "status": "PASS"
+    },
+    {
+      "name": "archive-refuses-path-traversal-entry",
+      "status": "PASS"
+    },
+    {
+      "name": "archive-keeps-entrypoint-executable",
       "status": "PASS"
     },
     {

@@ -18,6 +18,7 @@ import {validateReplay} from '../runtime/replay.mjs';
 import {sha256} from '../runtime/util.mjs';
 import {probe,capabilities} from '../runtime/provider.mjs';
 import {invokeTool} from '../runtime/tools.mjs';
+import {zipDir,unzipTo} from '../scripts/archive.mjs';
 import {routeModel} from '../runtime/model-router.mjs';
 import {addUsage,reportUsage} from '../runtime/cost.mjs';
 import {resolveConfig} from '../runtime/config.mjs';
@@ -124,6 +125,96 @@ test('mcp-route-call',()=>{const input='{"jsonrpc":"2.0","id":1,"method":"tools/
 test('host-guard-asks-production-command',()=>{const r=spawnSync(process.execPath,[path.join(ROOT,'adapters','hooks','pretool-guard.mjs')],{input:JSON.stringify({tool_name:'Bash',tool_input:{command:'terraform apply'}}),encoding:'utf8'});const out=JSON.parse(r.stdout.trim());if(out.hookSpecificOutput?.permissionDecision!=='ask')throw Error(r.stdout);});
 test('provider-adapter-json-valid',()=>{for(const p of ['adapters/claude/plugin.json','adapters/claude/hooks.json','adapters/claude/.mcp.json','adapters/codex/plugin.json','adapters/codex/hooks.json','adapters/codex/.mcp.json','adapters/antigravity/plugin.json','adapters/antigravity/hooks.json','adapters/antigravity/mcp_config.json'])JSON.parse(fs.readFileSync(path.join(ROOT,p),'utf8'));});
 test('provider-probe-is-nonfatal',()=>{for(const h of ['claude','codex','antigravity'])capabilities(h,probe(h));});
+
+// Packaging archive: the zip writer/reader is the only thing between the built
+// tree and what a host actually installs, and it runs on developer machines of
+// every platform. These pin the properties that made the previous shell-out
+// implementation ship broken packages from Windows.
+function archiveFixture(){
+  const base=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-zip-'));
+  const src=path.join(base,'pkg');
+  fs.mkdirSync(path.join(src,'inner','deep'),{recursive:true});
+  fs.mkdirSync(path.join(src,'bin'),{recursive:true});
+  fs.writeFileSync(path.join(src,'inner','x.txt'),'hello\nworld\n');
+  fs.writeFileSync(path.join(src,'inner','deep','y.json'),'{"a":1}\n');
+  fs.writeFileSync(path.join(src,'bin','tool'),'#!/usr/bin/env bash\nexit 0\n');
+  fs.writeFileSync(path.join(src,'blob.bin'),Buffer.from([0,1,2,255,254,0,0,7]));
+  return {base,src};
+}
+test('archive-roundtrip-preserves-tree',()=>{
+  const {base,src}=archiveFixture();
+  try{
+    const zip=path.join(base,'out.zip');
+    zipDir(src,zip);
+    const dest=path.join(base,'extracted');
+    unzipTo(zip,dest);
+    const root=path.join(dest,'pkg');
+    if(fs.readFileSync(path.join(root,'inner','x.txt'),'utf8')!=='hello\nworld\n')throw Error('text content lost');
+    if(fs.readFileSync(path.join(root,'inner','deep','y.json'),'utf8')!=='{"a":1}\n')throw Error('nested content lost');
+    if(!fs.readFileSync(path.join(root,'blob.bin')).equals(Buffer.from([0,1,2,255,254,0,0,7])))throw Error('binary content altered');
+  }finally{fs.rmSync(base,{recursive:true,force:true});}
+});
+test('archive-is-byte-deterministic',()=>{
+  const {base,src}=archiveFixture();
+  try{
+    const a=path.join(base,'a.zip'),b=path.join(base,'b.zip');
+    zipDir(src,a);zipDir(src,b);
+    if(sha256(fs.readFileSync(a).toString('latin1'))!==sha256(fs.readFileSync(b).toString('latin1')))
+      throw Error('same tree produced different archive bytes; dist/SHA256SUMS.txt would be meaningless');
+  }finally{fs.rmSync(base,{recursive:true,force:true});}
+});
+test('archive-entry-names-use-forward-slashes',()=>{
+  const {base,src}=archiveFixture();
+  try{
+    const zip=path.join(base,'out.zip');
+    zipDir(src,zip);
+    // APPNOTE 4.4.17: entry names must use '/'. Compress-Archive did not, which
+    // is what produced flat `dir\sub\file` files when extracted on Linux.
+    const raw=fs.readFileSync(zip).toString('latin1');
+    if(raw.includes('pkg\\'))throw Error('entry names contain backslash separators');
+    if(!raw.includes('pkg/inner/x.txt'))throw Error('expected forward-slash entry name missing');
+  }finally{fs.rmSync(base,{recursive:true,force:true});}
+});
+test('archive-refuses-path-traversal-entry',()=>{
+  const {base,src}=archiveFixture();
+  try{
+    const zip=path.join(base,'evil.zip');
+    zipDir(src,zip);
+    // Rewrite the entry name in place (same length, so every offset and CRC in
+    // the archive stays valid) into one that escapes the destination.
+    const patched=fs.readFileSync(zip).toString('latin1').split('inner/x').join('../../y');
+    fs.writeFileSync(zip,Buffer.from(patched,'latin1'));
+    let threw=false;
+    try{unzipTo(zip,path.join(base,'dest'));}catch{threw=true;}
+    if(!threw)throw Error('extraction wrote an entry outside the destination');
+    if(fs.existsSync(path.join(base,'y.txt')))throw Error('traversal entry escaped the destination');
+  }finally{fs.rmSync(base,{recursive:true,force:true});}
+});
+test('archive-keeps-entrypoint-executable',()=>{
+  const {base,src}=archiveFixture();
+  try{
+    const zip=path.join(base,'out.zip');
+    zipDir(src,zip);
+    const dest=path.join(base,'extracted');
+    unzipTo(zip,dest);
+    // Windows has no execute bit and nothing there consults one; the archive
+    // still records 0755 so a POSIX extraction of the same bytes is runnable.
+    if(process.platform==='win32'){
+      const raw=fs.readFileSync(zip);
+      let found=false;
+      for(let i=0;i<raw.length-46;i++){
+        if(raw.readUInt32LE(i)!==0x02014b50)continue;
+        const nameLen=raw.readUInt16LE(i+28);
+        if(raw.toString('utf8',i+46,i+46+nameLen)!=='pkg/bin/tool')continue;
+        found=(raw.readUInt32LE(i+38)>>>16)===0o100755;
+        break;
+      }
+      if(!found)throw Error('bin/ entry does not record mode 0755');
+    }else if(!(fs.statSync(path.join(dest,'pkg','bin','tool')).mode&0o111)){
+      throw Error('extracted bin/ entrypoint is not executable');
+    }
+  }finally{fs.rmSync(base,{recursive:true,force:true});}
+});
 
 // Live qualification harness: fixed corpus, tiering, bindings and fail-closed preflight
 test('live-corpus-84-plus-8',()=>{const c=loadCases();if(c.activation.length!==18||c.semantic.length!==50||c.security.length!==16||c.e2e.length!==8)throw Error(JSON.stringify(Object.fromEntries(Object.entries(c).map(([k,v])=>[k,v.length]))));});

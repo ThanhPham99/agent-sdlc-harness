@@ -39,6 +39,43 @@ Preflight is intentionally fail-honest: an unavailable host reports `PENDING`, n
 
 Replay supports offline integrity/regression analysis; model generation itself is not claimed to be bit-for-bit deterministic.
 
+## Integrity gates
+
+```bash
+npm run test:integrity
+```
+
+Four cheap, offline suites that assert properties no other suite covered. Each one exists
+because the property it checks had already drifted when it was written, and each writes its
+own evidence file:
+
+- **`npm run test:versions`** (`evals/VERSION-CONSISTENCY.json`) — `VERSION` is the single
+  source of truth. Distribution manifests, marketplace entries, public skill metadata and doc
+  titles must state it *exactly*; internal registry and policy stamps must merely not claim a
+  release that does not exist yet, and any laggard is listed under `behind` so the drift stays
+  visible. `docs/releases/*`, `(vX)` feature labels and versions quoted as inline code are
+  history and are never rewritten.
+- **`npm run test:registry`** (`evals/REGISTRY-VALIDATION.json`) — `config/skills.json` is what
+  makes an internal skill real: `build-dist` copies exactly the registered entries. This fails on
+  an entry pointing at a missing file, an entry naming a stage the run state machine does not
+  have or a tool the registry does not define, a discoverable skill directory that is not in the
+  public list, a workflow stage with no skill able to serve it, and any *new* unregistered file
+  under `harness/internal-skills/`. Files that were already orphaned are listed as accepted debt,
+  so the count can only go down.
+- **`npm run test:root-sync`** (`evals/ROOT-SYNC-VALIDATION.json`) — the repository root doubles
+  as an Antigravity plugin root, so seven files there are copies of files under `adapters/`. The
+  adapter file is authoritative; this asserts the copies are byte-identical (line endings
+  normalized) so a one-sided edit fails CI instead of shipping a stale root.
+- **`npm run test:guard`** (`evals/GUARD-VALIDATION.json`) — the PreToolUse guard runs inside the
+  host and is the only layer that still applies when every other rule has been argued away.
+  `evals/guard/cases.json` pins 43 cases in both directions across POSIX and Windows shells:
+  destructive commands must be stopped, and everyday commands (`rm -rf node_modules`,
+  `git push origin feat/x`, `Get-ChildItem -Recurse -Force`) must not be. Failures are classed
+  as `MISSED_DESTRUCTIVE` or `FALSE_POSITIVE`, because a guard that blocks ordinary work gets
+  switched off and then protects nothing. The suite also asserts matcher coverage: every host
+  adapter must route every shell-capable tool name — `Bash` *and* `PowerShell` — into the guard,
+  since a perfect guard behind a matcher that never fires protects nothing either.
+
 ## Gate quality suites (v3.0.0-alpha4)
 
 ```bash

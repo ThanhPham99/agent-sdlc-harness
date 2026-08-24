@@ -1,0 +1,61 @@
+{
+  "schema": "agent-sdlc/version-consistency/v1",
+  "version": "3.0.0-alpha6",
+  "checks": 54,
+  "passes": 54,
+  "failures": 0,
+  "behind": [
+    {
+      "where": "config/roles.json#version",
+      "found": "3.0.0-alpha3",
+      "current": "3.0.0-alpha6"
+    },
+    {
+      "where": "config/router-rules.json#version",
+      "found": "3.0.0-alpha3",
+      "current": "3.0.0-alpha6"
+    },
+    {
+      "where": "config/tools.json#version",
+      "found": "3.0.0-alpha3",
+      "current": "3.0.0-alpha6"
+    },
+    {
+      "where": "config/workflows.json#version",
+      "found": "3.0.0-alpha3",
+      "current": "3.0.0-alpha6"
+    },
+    {
+      "where": "policies/context-policy.json#version",
+      "found": "3.0.0-alpha3",
+      "current": "3.0.0-alpha6"
+    },
+    {
+      "where": "policies/failure-policy.json#version",
+      "found": "3.0.0-alpha3",
+      "current": "3.0.0-alpha6"
+    },
+    {
+      "where": "policies/model-routing.json#version",
+      "found": "3.0.0-alpha3",
+      "current": "3.0.0-alpha6"
+    },
+    {
+      "where": "policies/parallelism-policy.json#version",
+      "found": "3.0.0-alpha3",
+      "current": "3.0.0-alpha6"
+    },
+    {
+      "where": "policies/security-policy.json#version",
+      "found": "3.0.0-alpha3",
+      "current": "3.0.0-alpha6"
+    },
+    {
+      "where": "evals/PROVIDER-PREFLIGHT.json#version",
+      "found": "3.0.0-alpha3",
+      "current": "3.0.0-alpha6"
+    }
+  ],
+  "problems": [],
+  "status": "PASS"
+}

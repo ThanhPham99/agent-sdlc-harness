@@ -9,7 +9,32 @@ const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-install-test-'));
 const bin=path.join(tmp,'bin');fs.mkdirSync(bin);
 const log=path.join(tmp,'calls.log');
-const toBashPath=(p)=>p.replace(/^([A-Za-z]):/,(_,d)=>`/mnt/${d.toLowerCase()}`).replace(/\\/g,'/');
+// Windows paths have to be handed to the POSIX shell in that shell's own
+// vocabulary, and the vocabularies differ: Git Bash/MSYS mounts D: at /d, WSL at
+// /mnt/d, Cygwin at /cygdrive/d. Hard-coding /mnt/<drive> made every path the
+// fake host CLIs wrote invisible to the test that read it back, so this suite
+// failed on Windows for a reason that had nothing to do with the installers.
+// Ask the shell rather than guessing: cygpath knows, and when it is absent the
+// /mnt probe separates WSL from MSYS.
+const bashPathStyle=(()=>{
+  if(process.platform!=='win32')return 'posix';
+  if(spawnSync('bash',['-c','command -v cygpath >/dev/null'],{encoding:'utf8'}).status===0)return 'cygpath';
+  const mnt=spawnSync('bash',['-c','test -d /mnt/c && echo mnt || echo msys'],{encoding:'utf8'});
+  return (mnt.stdout||'').trim()==='mnt'?'wsl':'msys';
+})();
+const toBashPath=(p)=>{
+  if(bashPathStyle==='posix')return p;
+  if(bashPathStyle==='cygpath'){
+    // Pass through the environment: a Windows path inside a shell-quoted string
+    // loses its backslashes before cygpath ever sees it.
+    const r=spawnSync('bash',['-c','cygpath -u "$AGENT_SDLC_WINPATH"'],
+      {encoding:'utf8',env:{...process.env,AGENT_SDLC_WINPATH:p}});
+    const out=(r.stdout||'').trim();
+    if(out)return out;
+  }
+  const prefix=bashPathStyle==='wsl'?'/mnt/':'/';
+  return p.replace(/^([A-Za-z]):/,(_,d)=>`${prefix}${d.toLowerCase()}`).replace(/\\/g,'/');
+};
 const logPosix=toBashPath(log);
 const binPosix=toBashPath(bin);
 function fake(name){
@@ -104,6 +129,8 @@ console.log(JSON.stringify({
   install_invocations:must.length,
   uninstall_invocations:3,
   shell_node:shellNode.version,
+  platform:process.platform,
+  bash_path_style:bashPathStyle,
   auto_activation_cases:shellNode.usable?autoCases:[],
   auto_activation_status:shellNode.usable?'VERIFIED':'SKIPPED_SHELL_NODE_BELOW_ENGINE_FLOOR',
   skipped_cases:shellNode.usable?[]:autoCases

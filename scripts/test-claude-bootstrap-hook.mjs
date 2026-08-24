@@ -71,7 +71,13 @@ test('claude-hooks-json-declares-sessionstart-and-pretooluse',()=>{
   assert(ss.hooks[0].command.includes('hooks/claude-session-start.mjs'),'wrong SessionStart command');
   assert(ss.hooks[0].timeout<=5,'SessionStart timeout too generous');
   const guard=cfg.hooks?.PreToolUse?.[0];
-  assert(guard?.matcher==='Bash'&&guard.hooks[0].command.includes('pretool-guard.mjs'),'destructive-command guard lost');
+  assert(guard?.hooks?.[0]?.command.includes('pretool-guard.mjs'),'destructive-command guard lost');
+  // The matcher must cover every shell-capable tool the host exposes, not just
+  // Bash: a Windows session drives PowerShell, and an unmatched tool bypasses
+  // the guard entirely. scripts/validate-guard.mjs enforces the same property
+  // against the guard corpus.
+  for(const tool of ['Bash','PowerShell'])
+    assert(new RegExp(`^(?:${guard.matcher})$`).test(tool),`guard matcher does not cover ${tool}`);
 });
 
 const report={schema:'agent-sdlc/claude-bootstrap-hook-test/v1',checks:rows.length,passes:rows.length-fail,failures:fail,status:fail?'FAIL':'PASS',results:rows};

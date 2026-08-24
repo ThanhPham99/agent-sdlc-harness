@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [master, main]
   pull_request:
   workflow_dispatch:
 permissions:
@@ -17,6 +17,8 @@ jobs:
           node-version: '22'
       - name: Deterministic regression
         run: npm test
+      - name: Integrity gates (versions, skill registry, root sync, host guard)
+        run: npm run test:integrity
       - name: Auto-activation contract and per-host bootstrap hooks
         run: npm run test:activation
       - name: Validate GitHub-native install surfaces
@@ -37,5 +39,9 @@ jobs:
             release/*
             evals/DETERMINISTIC-VALIDATION.json
             evals/AUTO-ACTIVATION-VALIDATION.json
+            evals/VERSION-CONSISTENCY.json
+            evals/REGISTRY-VALIDATION.json
+            evals/ROOT-SYNC-VALIDATION.json
+            evals/GUARD-VALIDATION.json
           if-no-files-found: error
           retention-days: 14

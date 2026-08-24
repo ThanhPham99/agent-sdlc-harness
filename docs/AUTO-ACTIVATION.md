@@ -1,4 +1,4 @@
-# Auto-Activation — 3.0.0-alpha4
+# Auto-Activation — 3.0.0-alpha6
 
 Agent SDLC routes real repository/system engineering work into the SDLC workflow without
 the user naming a skill. The mechanism is one compact always-on instruction, not a large
@@ -116,7 +116,7 @@ otherwise `$CODEX_HOME/AGENTS.md`, before repository-level `AGENTS.md` files. Th
 exactly one delimited block in the global `AGENTS.md`:
 
 ```md
-<!-- agent-sdlc:auto-bootstrap:start version=3.0.0-alpha4 hash=sha256:... -->
+<!-- agent-sdlc:auto-bootstrap:start version=3.0.0-alpha6 hash=sha256:... -->
 Agent SDLC auto-activation: ...
 <!-- agent-sdlc:auto-bootstrap:end -->
 ```

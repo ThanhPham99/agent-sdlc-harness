@@ -2,7 +2,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash|Shell|shell|shell_command|exec_command|local_shell",
+        "matcher": "Bash|PowerShell|pwsh|Shell|shell|shell_command|exec_command|local_shell",
         "hooks": [
           {
             "type": "command",
