@@ -42,7 +42,7 @@ function fake(name){
   fs.writeFileSync(path.join(bin,name),body,{mode:0o755});
 }
 for(const n of ['claude','codex','agy'])fake(n);
-spawnSync('bash',['-c',`chmod +x "${binPosix}"/*`]);
+spawnSync('bash',['-c',`chmod +x "${binPosix}"/* "${toBashPath(ROOT)}"/*.sh "${toBashPath(ROOT)}"/bin/* 2>/dev/null || true`]);
 function bash(script,env={}){
   const exports=Object.entries(env).map(([k,v])=>`export ${k}="${toBashPath(v)}";`).join(' ');
   return spawnSync('bash',['-c',`export PATH="${binPosix}:$PATH"; ${exports} ${script}`],{cwd:ROOT,encoding:'utf8'});
