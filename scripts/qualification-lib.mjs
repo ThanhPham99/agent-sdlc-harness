@@ -52,10 +52,23 @@ export function activationExpectations(){return JSON.parse(fs.readFileSync(path.
 export function packagePath(host){return path.join(ROOT,'dist',`agent-sdlc-${host}-${VERSION}.zip`);}
 export function packageDir(host){return path.join(ROOT,'dist',`agent-sdlc-${host}-${VERSION}`);}
 export function packageDigest(host){const p=packagePath(host);return fs.existsSync(p)?sha256File(p):null;}
-export function resolveBinary(host,override){const candidates=[override,process.env[HOST_BIN_ENV[host]],HOST_BIN[host],...(host==='antigravity'?['antigravity']:[])].filter(Boolean);for(const bin of candidates){const r=spawnSync(bin,['--version'],{encoding:'utf8',timeout:10000});if(r.status===0)return {binary:bin,version:(r.stdout||r.stderr||'').trim()};}return null;}
+// A host "binary" may be a real executable or a Node script (the offline
+// transport regression uses a fake host CLI). Windows cannot exec an
+// extensionless JS file, so script binaries are launched through this process's
+// Node executable on every platform.
+export function launcher(bin){return /\.(mjs|cjs|js)$/i.test(String(bin||''))?{bin:process.execPath,prefix:[String(bin)]}:{bin:String(bin),prefix:[]};}
+export function spawnHost(bin,args,opts={}){const l=launcher(bin);return spawnSync(l.bin,[...l.prefix,...args],opts);}
+export function resolveBinary(host,override){
+  // An explicit override never falls back to another candidate: a regression
+  // harness that silently measures the real host instead of its fake shim
+  // would report a PASS it did not earn.
+  const candidates=override?[override]:[process.env[HOST_BIN_ENV[host]],HOST_BIN[host],...(host==='antigravity'?['antigravity']:[])].filter(Boolean);
+  for(const bin of candidates){const r=spawnHost(bin,['--version'],{encoding:'utf8',timeout:10000});if(r.status===0)return {binary:bin,version:(r.stdout||r.stderr||'').trim()};}
+  return null;
+}
 export function hostPreflight(host,{binary=null}={}){
   const resolved=resolveBinary(host,binary); if(!resolved)return {schema:'agent-sdlc/host-preflight/v2',version:VERSION,host,status:'PENDING',reason:'HOST_CLI_NOT_FOUND',resolved_binary:null,host_version:null,checks:[]};
-  const h=spawnSync(resolved.binary,HOST_HELP_ARGS[host],{encoding:'utf8',timeout:15000,maxBuffer:5*1024*1024});
+  const h=spawnHost(resolved.binary,HOST_HELP_ARGS[host],{encoding:'utf8',timeout:15000,maxBuffer:5*1024*1024});
   const help=(h.stdout||'')+'\n'+(h.stderr||''); if(h.status!==0)return {schema:'agent-sdlc/host-preflight/v2',version:VERSION,host,status:'FAIL',reason:'HELP_COMMAND_FAILED',resolved_binary:resolved.binary,host_version:resolved.version,checks:[{name:'help',status:'FAIL',exit_code:h.status}]};
   const missing=HOST_REQUIRED_TOKENS[host].filter(t=>!help.includes(t));
   return {schema:'agent-sdlc/host-preflight/v2',version:VERSION,host,status:missing.length?'BLOCKED':'READY',reason:missing.length?'CLI_CAPABILITY_MISMATCH':null,resolved_binary:resolved.binary,host_version:resolved.version,checks:[{name:'version',status:'PASS'},{name:'cli_contract',status:missing.length?'BLOCKED':'PASS',required_tokens:HOST_REQUIRED_TOKENS[host],missing_tokens:missing}]};

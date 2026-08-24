@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/task-plan/v1",
+  "title": "TaskPlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "plan_id",
+    "objective",
+    "tasks"
+  ],
+  "properties": {
+    "schema": {
+      "const": "agent-sdlc/task-plan/v1"
+    },
+    "plan_id": {
+      "type": "string",
+      "pattern": "^PLAN-[0-9]{3,}$"
+    },
+    "run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "profile": {
+      "enum": [
+        "FAST",
+        "STANDARD",
+        "STRICT"
+      ],
+      "default": "STANDARD"
+    },
+    "workflow": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "overlays": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source_revision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Acceptance criterion IDs the plan must cover."
+    },
+    "unresolved_requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "design_decisions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unresolved_design_decisions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "required_categories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Task categories mandated by the selected workflow / risk overlays."
+    },
+    "forbidden_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Plan-wide boundaries no task may write to."
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "agent-sdlc/planned-task/v1"
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "from",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "depends_on"
+            ],
+            "default": "depends_on"
+          }
+        }
+      },
+      "description": "Optional explicit edge list; derived from task depends_on when absent, and must agree with it when present."
+    },
+    "integration_tasks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Task IDs that verify the assembled result rather than one slice."
+    },
+    "generated_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

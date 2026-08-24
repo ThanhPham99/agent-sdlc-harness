@@ -6,7 +6,9 @@ import {fileURLToPath} from 'node:url';
 import {execFileSync,spawnSync} from 'node:child_process';
 import {route} from '../runtime/router.mjs';
 import {initProject} from '../runtime/store.mjs';
-import {newRun,transition,nextState} from '../runtime/orchestrator.mjs';
+import {newRun,transition,nextState,recordDesignDecision,recordTaskPlan} from '../runtime/orchestrator.mjs';
+import {selectDesignDiscoveryMode,validateDesignDecision,getDesignDiscoveryPolicy,requiredGateEvidence} from '../runtime/design-discovery.mjs';
+import {validateTaskPlan,computeTaskGraph,findCycles,computeReadySets,computeCoverage,planGateEvidence} from '../runtime/plan-validator.mjs';
 import {checkTool} from '../runtime/policy.mjs';
 import {buildContext,renderPrompt} from '../runtime/context.mjs';
 import {putArtifact,getArtifact} from '../runtime/store.mjs';
@@ -69,7 +71,7 @@ test('gate-blocks-missing-evidence',()=>{let ok=false;try{transition(ROOT,tmp,ru
 test('gate-accepts-evidence',()=>{transition(ROOT,tmp,run,'DESIGN',{evidence:['requirements_confirmed']});if(run.state!=='DESIGN')throw Error('no transition');});
 test('side-state-suspend-resume',()=>{transition(ROOT,tmp,run,'NEEDS_CONFIRMATION');if(run.suspended_from!=='DESIGN'||nextState(run)!=='DESIGN')throw Error('not suspended');transition(ROOT,tmp,run,'DESIGN');if(run.suspended_from!==null||run.state!=='DESIGN')throw Error('not resumed');});
 test('side-state-wrong-resume-blocked',()=>{transition(ROOT,tmp,run,'BLOCKED');let ok=false;try{transition(ROOT,tmp,run,'PLAN');}catch(e){ok=/resume must return/.test(e.message);}transition(ROOT,tmp,run,'DESIGN');if(!ok)throw Error('wrong resume accepted');});
-test('invalid-reentry-blocked',()=>{transition(ROOT,tmp,run,'PLAN',{evidence:['design_or_skip_decision']});let ok=false;try{transition(ROOT,tmp,run,'INTAKE');}catch(e){ok=/reentry/.test(e.message);}if(!ok)throw Error('invalid reentry accepted');});
+test('invalid-reentry-blocked',()=>{transition(ROOT,tmp,run,'PLAN',{evidence:['design_or_skip_decision'],internal:true});let ok=false;try{transition(ROOT,tmp,run,'INTAKE');}catch(e){ok=/reentry/.test(e.message);}if(!ok)throw Error('invalid reentry accepted');});
 
 // Context compiler / progressive disclosure
 const contextRun=newRun(ROOT,tmp,{objective:'Migrate customer schema',route:route(ROOT,'database migration')});
@@ -160,6 +162,194 @@ test('antigravity-preinvocation-hook-emits-canonical-bootstrap',()=>{
   const r=spawnSync(process.execPath,[path.join(ROOT,'hooks','antigravity-preinvocation.mjs')],{input:'{}',encoding:'utf8',timeout:5000});
   const out=JSON.parse(r.stdout.trim());
   if(out.injectSteps?.[0]?.ephemeralMessage!==BOOTSTRAP_TEXT)throw Error(r.stdout||r.stderr);
+});
+
+// ---------------------------------------------------------------------------
+// Conditional design discovery (alpha4 section 5)
+// ---------------------------------------------------------------------------
+const ddPolicy=getDesignDiscoveryPolicy();
+const ddCases=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','design-discovery','cases.json'),'utf8'));
+const ddAdversarial=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','design-discovery','adversarial-cases.json'),'utf8'));
+
+test('design-discovery-is-internal-only',()=>{
+  const reg=skills;
+  if(reg.public.length!==2)throw Error(`public skills ${reg.public.join(',')}`);
+  const dd=reg.internal['design-discovery'];
+  if(!dd)throw Error('design-discovery is not registered as an internal module');
+  if(!dd.instructions.startsWith('harness/internal-skills/'))throw Error(dd.instructions);
+  if(!fs.existsSync(path.join(ROOT,dd.instructions)))throw Error(`missing ${dd.instructions}`);
+  if(fs.existsSync(path.join(ROOT,'skills','design-discovery')))throw Error('design-discovery leaked into the public skills root');
+});
+test('design-discovery-mode-selection-is-deterministic',()=>{
+  for(const c of ddCases.cases){
+    const a=selectDesignDiscoveryMode({profile:c.profile,objective:c.objective,declaredSignals:c.declared_signals||[]});
+    const b=selectDesignDiscoveryMode({profile:c.profile,objective:c.objective,declaredSignals:c.declared_signals||[]});
+    if(JSON.stringify(a)!==JSON.stringify(b))throw Error(`${c.id} is not deterministic`);
+  }
+});
+test('design-discovery-cases-match-selector',()=>{
+  for(const c of ddCases.cases){
+    const got=selectDesignDiscoveryMode({profile:c.profile,objective:c.objective,declaredSignals:c.declared_signals||[]});
+    const e=c.expected;
+    if(e.mode&&got.mode!==e.mode)throw Error(`${c.id}: mode ${got.mode} != ${e.mode} (${got.reason_codes.join(' ')})`);
+    if(e.mode_in&&!e.mode_in.includes(got.mode))throw Error(`${c.id}: mode ${got.mode} not in ${e.mode_in.join('|')}`);
+    if(e.signal&&!got.escalation_signals.includes(e.signal))throw Error(`${c.id}: missing signal ${e.signal}`);
+    if(e.human_approval_required!==undefined&&got.human_approval_required!==e.human_approval_required)throw Error(`${c.id}: human_approval_required ${got.human_approval_required}`);
+    if(got.approval_implied!==false)throw Error(`${c.id}: selecting a mode must never imply approval`);
+  }
+});
+test('design-discovery-strict-never-skips',()=>{
+  for(const c of ddCases.cases){
+    const got=selectDesignDiscoveryMode({profile:'STRICT',objective:c.objective,declaredSignals:c.declared_signals||[]});
+    if(got.mode==='SKIP')throw Error(`${c.id} reached SKIP under STRICT`);
+  }
+});
+test('design-discovery-hard-signals-survive-deescalation',()=>{
+  // A docs-flavoured wrapper must not talk a contract decision down to SKIP.
+  const got=selectDesignDiscoveryMode({profile:'FAST',objective:'Small docs tweak plus a breaking change to the public API'});
+  if(got.mode!=='FULL')throw Error(`${got.mode}: ${got.reason_codes.join(' ')}`);
+});
+test('design-decision-validator-adversarial-cases',()=>{
+  for(const c of ddAdversarial.cases){
+    const v=validateDesignDecision(c.decision);
+    if(v.valid!==c.expected.valid)throw Error(`${c.id}: valid=${v.valid} errors=${v.errors.join(',')}`);
+    if(c.expected.error&&!v.errors.includes(c.expected.error))throw Error(`${c.id}: missing ${c.expected.error} in ${v.errors.join(',')}`);
+  }
+});
+test('design-mode-evidence-tokens-are-policy-canonical',()=>{
+  for(const m of ['SKIP','COMPACT','FULL']){
+    const ev=requiredGateEvidence(m,false);
+    if(ev[0]!==ddPolicy.gate.mode_evidence[m])throw Error(`${m} -> ${ev[0]}`);
+    if(!ddPolicy.gate.evidence_any_of.includes(ev[0]))throw Error(`${ev[0]} is not an accepted DESIGN gate token`);
+  }
+  if(requiredGateEvidence('FULL',true)[1]!==ddPolicy.gate.human_approval_evidence)throw Error('missing human approval evidence');
+});
+
+// ---------------------------------------------------------------------------
+// Plan quality gate (alpha4 section 6)
+// ---------------------------------------------------------------------------
+const pqCases=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','plan-quality','cases.json'),'utf8'));
+const planFor=(c)=>({...structuredClone(pqCases.base),...structuredClone(c.override||{})});
+
+test('plan-validator-cases',()=>{
+  for(const c of pqCases.cases){
+    const v=validateTaskPlan(planFor(c));
+    const e=c.expected;
+    const codes=v.errors.map(x=>x.code);
+    const warns=v.warnings.map(x=>x.code);
+    if(v.valid!==e.valid)throw Error(`${c.id}: valid=${v.valid} errors=${codes.join(',')}`);
+    for(const key of ['error','also_error']){
+      if(e[key]&&!codes.includes(e[key]))throw Error(`${c.id}: missing ${e[key]} in ${codes.join(',')}`);
+    }
+    if(e.warning&&!warns.includes(e.warning))throw Error(`${c.id}: missing warning ${e.warning} in ${warns.join(',')}`);
+    for(const key of ['task_count','edge_count','cycle_count','conflict_count','parallel_candidate_count','wave_count','ac_coverage','micro_plan']){
+      if(e[key]!==undefined&&v[key]!==e[key])throw Error(`${c.id}: ${key}=${v[key]} != ${e[key]}`);
+    }
+  }
+});
+test('plan-validator-is-deterministic',()=>{
+  for(const c of pqCases.cases){
+    const p=planFor(c);
+    if(JSON.stringify(validateTaskPlan(p))!==JSON.stringify(validateTaskPlan(p)))throw Error(`${c.id} is not deterministic`);
+  }
+});
+test('plan-graph-helpers-agree-with-validator',()=>{
+  const fanout=planFor(pqCases.cases.find(c=>c.id==='PQ-002-valid-fan-out-fan-in'));
+  const g=computeTaskGraph(fanout);
+  if(g.node_count!==4||g.edge_count!==4)throw Error(JSON.stringify(g));
+  if(findCycles(fanout).length)throw Error('false cycle');
+  const {waves,unreachable}=computeReadySets(fanout);
+  if(waves.length!==3||unreachable.length)throw Error(JSON.stringify(waves));
+  if(waves[0].join(',')!=='TASK-001')throw Error(JSON.stringify(waves[0]));
+  if(waves[1].join(',')!=='TASK-002,TASK-003')throw Error(JSON.stringify(waves[1]));
+  const cyclic=planFor(pqCases.cases.find(c=>c.id==='PQ-004-cycle'));
+  if(!findCycles(cyclic).length)throw Error('cycle not detected');
+  if(computeReadySets(cyclic).unreachable.length!==2)throw Error('cyclic nodes not reported unreachable');
+  const cov=computeCoverage(planFor(pqCases.cases.find(c=>c.id==='PQ-006-uncovered-acceptance-criterion')));
+  if(cov.uncovered.join(',')!=='AC-003')throw Error(JSON.stringify(cov.uncovered));
+});
+
+// ---------------------------------------------------------------------------
+// Gate integration: DESIGN and PLAN evidence cannot be asserted by hand
+// ---------------------------------------------------------------------------
+const gateRun=newRun(ROOT,tmp,{objective:'Add password reset confirmation',route:route(ROOT,'Add password reset feature')});
+transition(ROOT,tmp,gateRun,'REQUIREMENTS');
+transition(ROOT,tmp,gateRun,'DESIGN',{evidence:['requirements_confirmed']});
+
+test('design-gate-blocks-without-decision',()=>{
+  let ok=false;try{transition(ROOT,tmp,gateRun,'PLAN');}catch(e){ok=/design_or_skip_decision/.test(e.message);}
+  if(!ok)throw Error('DESIGN gate did not block');
+});
+test('design-gate-evidence-cannot-be-asserted-by-caller',()=>{
+  for(const token of ddPolicy.gate.evidence_any_of.concat([ddPolicy.gate.derived_evidence])){
+    let ok=false;try{transition(ROOT,tmp,gateRun,'PLAN',{evidence:[token]});}catch(e){ok=/deterministic validator/.test(e.message);}
+    if(!ok)throw Error(`${token} was accepted as caller-asserted evidence`);
+  }
+});
+test('design-human-approval-evidence-requires-recorded-approval',()=>{
+  let ok=false;
+  try{transition(ROOT,tmp,gateRun,'PLAN',{evidence:[ddPolicy.gate.human_approval_evidence]});}
+  catch(e){ok=/requires a recorded human approval/.test(e.message);}
+  if(!ok)throw Error('human-authority evidence accepted without approval');
+});
+test('design-record-rejects-unapproved-human-decision',()=>{
+  const out=recordDesignDecision(ROOT,tmp,gateRun,{
+    schema:'agent-sdlc/design-decision/v1',decision_id:'DESIGN-010',objective:'Change the public order API',mode:'FULL',
+    requirements:['AC-001'],
+    options:[
+      {id:'OPTION-A',summary:'Versioned endpoint',benefits:['no break'],tradeoffs:['two paths']},
+      {id:'OPTION-B',summary:'Break clients',benefits:['one path'],tradeoffs:['client work']}
+    ],
+    recommended_option:'OPTION-A',decision:'Versioned endpoint',
+    approval:{required:true,status:'PENDING'},
+    affected_interfaces:['GET /v1/orders'],verification_obligations:['contract test']
+  });
+  if(out.recorded)throw Error('unapproved human design decision was recorded');
+  if((gateRun.evidence.DESIGN||[]).length)throw Error('rejected decision leaked evidence');
+});
+test('design-record-opens-plan-on-valid-decision',()=>{
+  const out=recordDesignDecision(ROOT,tmp,gateRun,{
+    schema:'agent-sdlc/design-decision/v1',decision_id:'DESIGN-011',objective:'Add password reset confirmation',
+    mode:'COMPACT',requirements:['AC-001','AC-002'],
+    decision:'Reuse the existing token store; add a single-use confirmation path',
+    approval:{required:false,status:'NOT_REQUIRED'},
+    verification_obligations:['targeted reset-confirm tests']
+  });
+  if(!out.recorded)throw Error(JSON.stringify(out.validation.errors));
+  if(!out.evidence.includes('compact_design_accepted'))throw Error(JSON.stringify(out.evidence));
+  if(!out.evidence.includes(ddPolicy.gate.derived_evidence))throw Error('derived evidence missing');
+  transition(ROOT,tmp,gateRun,'PLAN');
+  if(gateRun.state!=='PLAN')throw Error(gateRun.state);
+});
+test('plan-gate-blocks-without-validated-plan',()=>{
+  let ok=false;try{transition(ROOT,tmp,gateRun,'IMPLEMENT');}catch(e){ok=/plan_schema_valid|plan_artifact_created/.test(e.message);}
+  if(!ok)throw Error('PLAN gate did not block');
+});
+test('plan-gate-evidence-cannot-be-asserted-by-caller',()=>{
+  for(const token of planGateEvidence()){
+    let ok=false;try{transition(ROOT,tmp,gateRun,'IMPLEMENT',{evidence:[token]});}catch(e){ok=/deterministic validator/.test(e.message);}
+    if(!ok)throw Error(`${token} was accepted as caller-asserted evidence`);
+  }
+});
+test('plan-record-rejects-invalid-plan',()=>{
+  const bad=planFor(pqCases.cases.find(c=>c.id==='PQ-004-cycle'));
+  const out=recordTaskPlan(ROOT,tmp,gateRun,bad);
+  if(out.recorded)throw Error('cyclic plan was recorded');
+  if((gateRun.evidence.PLAN||[]).length)throw Error('rejected plan leaked evidence');
+  let ok=false;try{transition(ROOT,tmp,gateRun,'IMPLEMENT');}catch(e){ok=/plan_/.test(e.message);}
+  if(!ok)throw Error('PLAN gate opened after a rejected plan');
+});
+test('plan-record-opens-implement-on-valid-plan',()=>{
+  const out=recordTaskPlan(ROOT,tmp,gateRun,structuredClone(pqCases.base));
+  if(!out.recorded)throw Error(JSON.stringify(out.validation.errors));
+  transition(ROOT,tmp,gateRun,'IMPLEMENT');
+  if(gateRun.state!=='IMPLEMENT')throw Error(gateRun.state);
+});
+test('gate-records-are-stage-scoped',()=>{
+  let ok=false;try{recordTaskPlan(ROOT,tmp,gateRun,structuredClone(pqCases.base));}catch(e){ok=/recorded in PLAN/.test(e.message);}
+  if(!ok)throw Error('plan recorded outside PLAN');
+  let ok2=false;try{recordDesignDecision(ROOT,tmp,gateRun,{schema:'agent-sdlc/design-decision/v1',decision_id:'DESIGN-012',objective:'x',mode:'SKIP',skip_reason:'y'});}catch(e){ok2=/recorded in DESIGN/.test(e.message);}
+  if(!ok2)throw Error('design recorded outside DESIGN');
 });
 
 const report={schema:'agent-sdlc/deterministic-validation/v1',version:manifest.version,checks:rows.length,passes:pass,failures:fail,results:rows};

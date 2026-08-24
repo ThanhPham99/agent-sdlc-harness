@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 const argv=process.argv.slice(2);
-const hostBase=path.basename(process.argv[1]);
+const hostBase=path.basename(process.argv[1]).replace(/\.(mjs|cjs|js)$/i,'');
 const host=hostBase==='agy'?'antigravity':hostBase;
 const help={
   claude:'--bare --plugin-dir --print -p --output-format --json-schema --no-session-persistence --max-turns --model --effort',

@@ -17,8 +17,14 @@ fs.mkdirSync(dist,{recursive:true});
 // Never place internal skills under a host-native `skills/` discovery root.
 // Only the two public entry skills are discoverable. Internal stage guidance is
 // copied under harness/internal-skills and referenced by a generated registry.
-const common=['bin','runtime','protocol','config','policies','prompts','workflows','roles','tools','templates','overlays','docs','agent-sdlc.manifest.json'];
-function cp(src,dst){fs.cpSync(path.join(ROOT,src),path.join(dst,src),{recursive:true});}
+// The canonical tool registry lives at config/tools.json; there is no top-level
+// tools/ directory to copy.
+const common=['bin','runtime','protocol','config','policies','prompts','workflows','roles','templates','overlays','docs','agent-sdlc.manifest.json'];
+function cp(src,dst){
+  const from=path.join(ROOT,src);
+  if(!fs.existsSync(from))throw new Error(`build input missing: ${src}`);
+  fs.cpSync(from,path.join(dst,src),{recursive:true});
+}
 function copyInternalSkills(out){
   const internalDir=path.join(out,'harness','internal-skills');
   fs.mkdirSync(internalDir,{recursive:true});

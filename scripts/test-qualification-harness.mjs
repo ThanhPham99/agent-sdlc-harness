@@ -12,13 +12,16 @@ let pass=0,fail=0;const rows=[];
 function test(name,fn){try{fn();pass++;rows.push({name,status:'PASS'});}catch(e){fail++;rows.push({name,status:'FAIL',error:e.message});}}
 const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-qual-reg-'));
 function fakeCli(name,missing=''){
-  const p=path.join(tmp,name);
+  // A Node script rather than a /bin/sh script: qualification spawns host
+  // binaries through `spawnHost`, so this fixture runs on Windows too.
+  const p=path.join(tmp,`${name}.mjs`);
   const all={
     claude:'--bare --plugin-dir --print --output-format --json-schema --no-session-persistence --max-turns',
     codex:'--ephemeral --json --output-schema --output-last-message --sandbox --skip-git-repo-check',
     antigravity:'--sandbox --print --print-timeout --output-format --json-schema'
   }[name].split(' ').filter(x=>x!==missing).join(' ');
-  fs.writeFileSync(p,`#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo '${name} fake-1.0'; exit 0; fi\necho '${all}'\nexit 0\n`);fs.chmodSync(p,0o755);return p;
+  fs.writeFileSync(p,`const a=process.argv.slice(2);\nif(a.includes('--version')){console.log(${JSON.stringify(`${name} fake-1.0`)});process.exit(0);}\nconsole.log(${JSON.stringify(all)});\nprocess.exit(0);\n`);
+  return p;
 }
 for(const h of HOSTS)test(`preflight-compatible-${h}`,()=>{const p=hostPreflight(h,{binary:fakeCli(h)});if(p.status!=='READY')throw Error(JSON.stringify(p));});
 test('preflight-incompatible-blocked',()=>{const p=hostPreflight('claude',{binary:fakeCli('claude','--json-schema')});if(p.status!=='BLOCKED'||!p.checks[1].missing_tokens.includes('--json-schema'))throw Error(JSON.stringify(p));});

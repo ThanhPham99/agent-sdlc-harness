@@ -35,4 +35,14 @@ You are the workflow authority after `sdlc-router`. You may be entered automatic
 6. Write artifacts/handoff.
 7. Transition with evidence using `bin/agent-sdlc transition`.
 
+## DESIGN -> PLAN -> IMPLEMENT
+
+Two gates are machine-checked and their evidence cannot be asserted by hand.
+
+**DESIGN.** Ask `bin/agent-sdlc design mode --run-id <id>` for the discovery depth (`SKIP` / `COMPACT` / `FULL`) and obey it; declare a missing signal with `--signals` rather than overriding the answer in prose. Load `design-discovery` internal module, produce a `agent-sdlc/design-decision/v1` object, then `bin/agent-sdlc design record --run-id <id> --file design-decision.json`. When the selector reports `human_approval_required`, suspend to `NEEDS_CONFIRMATION` and obtain real user approval; never write your own.
+
+**PLAN.** Produce a structured `agent-sdlc/task-plan/v1` object, not Markdown prose. `bin/agent-sdlc plan validate` first, then `bin/agent-sdlc plan record --run-id <id> --file task-plan.json`. An invalid dependency graph, an uncovered acceptance criterion, a behaviour-changing task without verification, or two overlapping parallel candidates keeps `PLAN -> IMPLEMENT` closed. Fix the plan; do not `--force` past it.
+
+`--force` exists for operators, is audited, and is never the agent's answer to a blocked gate.
+
 Before declaring completion, the workflow must reach `CLOSE` with the required verification, review/release/deploy evidence for its selected workflow.

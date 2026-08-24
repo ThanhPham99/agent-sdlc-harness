@@ -23,3 +23,17 @@ is a routing instruction, not an enforcement boundary: stage policy, approvals a
 guard remain authoritative, and it can only be disabled by an operator environment/config decision.
 
 The local-first runtime intentionally has zero npm runtime dependencies. The canonical protocol is language-neutral, so a later team/enterprise control plane can replace file stores with Postgres/object storage/OTel without changing workflow contracts.
+
+## Design and plan gates
+
+`DESIGN` and `PLAN` are enforced by deterministic validators rather than by model prose:
+
+- `policies/design-discovery.json` + `runtime/design-discovery.mjs` select `SKIP` / `COMPACT` /
+  `FULL` design discovery and validate the resulting `agent-sdlc/design-decision/v1` artifact;
+- `runtime/plan-validator.mjs` validates the `agent-sdlc/task-plan/v1` dependency graph, coverage,
+  obligations and parallel scope conflicts.
+
+Both gates' evidence tokens carry `runtime` (or `human`) authority in
+`policies/stage-policy.json.evidence_authority`, so they cannot be asserted through
+`transition --evidence`; they exist only when `design record` / `plan record` produced them.
+See `docs/architecture/DESIGN-DISCOVERY.md` and `docs/architecture/PLAN-QUALITY.md`.

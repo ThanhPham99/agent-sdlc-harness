@@ -1,0 +1,771 @@
+{
+  "schema": "agent-sdlc/plan-quality-cases/v1",
+  "version": "3.0.0-alpha4",
+  "note": "Each case shallow-merges `override` onto `base`. `tasks` is replaced wholesale when present.",
+  "base": {
+    "schema": "agent-sdlc/task-plan/v1",
+    "plan_id": "PLAN-001",
+    "run_id": null,
+    "objective": "Add password reset confirmation",
+    "profile": "STANDARD",
+    "requirements": [
+      "AC-001",
+      "AC-002"
+    ],
+    "design_decisions": [
+      "DESIGN-001"
+    ],
+    "tasks": [
+      {
+        "task_id": "TASK-001",
+        "title": "Persist reset tokens",
+        "goal": "Store single-use reset tokens with an expiry",
+        "category": "implementation",
+        "acceptance_criteria": [
+          "AC-001"
+        ],
+        "design_decisions": [
+          "DESIGN-001"
+        ],
+        "modules": [
+          "auth"
+        ],
+        "write_scope": [
+          "src/auth/token-store.js"
+        ],
+        "verification": {
+          "targeted_tests": [
+            "tests/auth/token-store.test.js"
+          ],
+          "expected_behavior": [
+            "an expired token is rejected"
+          ]
+        },
+        "done_conditions": [
+          "token store persists and expires tokens; targeted tests pass"
+        ]
+      },
+      {
+        "task_id": "TASK-002",
+        "title": "Confirm reset",
+        "goal": "Allow a valid unused reset token to change the password",
+        "category": "implementation",
+        "depends_on": [
+          "TASK-001"
+        ],
+        "acceptance_criteria": [
+          "AC-002"
+        ],
+        "design_decisions": [
+          "DESIGN-001"
+        ],
+        "modules": [
+          "auth"
+        ],
+        "write_scope": [
+          "src/auth/reset-confirm.js"
+        ],
+        "verification": {
+          "targeted_tests": [
+            "tests/auth/reset-confirm.test.js"
+          ],
+          "expected_behavior": [
+            "a used token cannot be replayed"
+          ]
+        },
+        "done_conditions": [
+          "password changes only for a valid unused token; targeted tests pass"
+        ]
+      }
+    ]
+  },
+  "cases": [
+    {
+      "id": "PQ-001-valid-linear-dag",
+      "override": {},
+      "expected": {
+        "valid": true,
+        "task_count": 2,
+        "edge_count": 1,
+        "ac_coverage": 1,
+        "cycle_count": 0
+      }
+    },
+    {
+      "id": "PQ-002-valid-fan-out-fan-in",
+      "override": {
+        "requirements": [
+          "AC-001",
+          "AC-002",
+          "AC-003"
+        ],
+        "tasks": [
+          {
+            "task_id": "TASK-001",
+            "title": "Token store",
+            "goal": "Store reset tokens",
+            "acceptance_criteria": [
+              "AC-001"
+            ],
+            "write_scope": [
+              "src/auth/token-store.js"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "tests/auth/token-store.test.js"
+              ]
+            },
+            "done_conditions": [
+              "tests pass"
+            ]
+          },
+          {
+            "task_id": "TASK-002",
+            "title": "Request endpoint",
+            "goal": "Expose reset request",
+            "depends_on": [
+              "TASK-001"
+            ],
+            "acceptance_criteria": [
+              "AC-002"
+            ],
+            "parallel_candidate": true,
+            "write_scope": [
+              "src/api/reset-request.js"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "tests/api/reset-request.test.js"
+              ]
+            },
+            "done_conditions": [
+              "tests pass"
+            ]
+          },
+          {
+            "task_id": "TASK-003",
+            "title": "Notification",
+            "goal": "Send the reset email",
+            "depends_on": [
+              "TASK-001"
+            ],
+            "acceptance_criteria": [
+              "AC-003"
+            ],
+            "parallel_candidate": true,
+            "write_scope": [
+              "src/notify/reset-email.js"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "tests/notify/reset-email.test.js"
+              ]
+            },
+            "done_conditions": [
+              "tests pass"
+            ]
+          },
+          {
+            "task_id": "TASK-004",
+            "title": "Integration",
+            "goal": "Verify the assembled reset flow",
+            "category": "integration",
+            "depends_on": [
+              "TASK-002",
+              "TASK-003"
+            ],
+            "changes_behavior": false,
+            "verification": {
+              "targeted_tests": [
+                "tests/e2e/reset-flow.test.js"
+              ]
+            },
+            "done_conditions": [
+              "end-to-end reset flow passes"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "valid": true,
+        "task_count": 4,
+        "edge_count": 4,
+        "parallel_candidate_count": 2,
+        "conflict_count": 0,
+        "wave_count": 3
+      }
+    },
+    {
+      "id": "PQ-003-missing-dependency-task",
+      "override": {
+        "tasks": [
+          {
+            "task_id": "TASK-001",
+            "title": "A",
+            "goal": "g",
+            "acceptance_criteria": [
+              "AC-001",
+              "AC-002"
+            ],
+            "write_scope": [
+              "src/a.js"
+            ],
+            "depends_on": [
+              "TASK-099"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "t"
+              ]
+            },
+            "done_conditions": [
+              "d"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "UNKNOWN_DEPENDENCY"
+      }
+    },
+    {
+      "id": "PQ-004-cycle",
+      "override": {
+        "tasks": [
+          {
+            "task_id": "TASK-001",
+            "title": "A",
+            "goal": "g",
+            "acceptance_criteria": [
+              "AC-001"
+            ],
+            "write_scope": [
+              "src/a.js"
+            ],
+            "depends_on": [
+              "TASK-002"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "t"
+              ]
+            },
+            "done_conditions": [
+              "d"
+            ]
+          },
+          {
+            "task_id": "TASK-002",
+            "title": "B",
+            "goal": "g",
+            "acceptance_criteria": [
+              "AC-002"
+            ],
+            "write_scope": [
+              "src/b.js"
+            ],
+            "depends_on": [
+              "TASK-001"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "t"
+              ]
+            },
+            "done_conditions": [
+              "d"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "CYCLE_DETECTED",
+        "cycle_count": 1
+      }
+    },
+    {
+      "id": "PQ-005-duplicate-task-id",
+      "override": {
+        "tasks": [
+          {
+            "task_id": "TASK-001",
+            "title": "A",
+            "goal": "g",
+            "acceptance_criteria": [
+              "AC-001"
+            ],
+            "write_scope": [
+              "src/a.js"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "t"
+              ]
+            },
+            "done_conditions": [
+              "d"
+            ]
+          },
+          {
+            "task_id": "TASK-001",
+            "title": "B",
+            "goal": "g",
+            "acceptance_criteria": [
+              "AC-002"
+            ],
+            "write_scope": [
+              "src/b.js"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "t"
+              ]
+            },
+            "done_conditions": [
+              "d"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "DUPLICATE_TASK_ID"
+      }
+    },
+    {
+      "id": "PQ-006-uncovered-acceptance-criterion",
+      "override": {
+        "requirements": [
+          "AC-001",
+          "AC-002",
+          "AC-003"
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "UNCOVERED_ACCEPTANCE_CRITERION"
+      }
+    },
+    {
+      "id": "PQ-007-task-without-done-condition",
+      "override": {
+        "tasks": [
+          {
+            "task_id": "TASK-001",
+            "title": "A",
+            "goal": "g",
+            "acceptance_criteria": [
+              "AC-001",
+              "AC-002"
+            ],
+            "write_scope": [
+              "src/a.js"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "t"
+              ]
+            },
+            "done_conditions": []
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "TASK_MISSING_DONE_CONDITION"
+      }
+    },
+    {
+      "id": "PQ-008-behavior-task-without-verification",
+      "override": {
+        "tasks": [
+          {
+            "task_id": "TASK-001",
+            "title": "A",
+            "goal": "g",
+            "acceptance_criteria": [
+              "AC-001",
+              "AC-002"
+            ],
+            "write_scope": [
+              "src/a.js"
+            ],
+            "done_conditions": [
+              "d"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "BEHAVIOR_TASK_WITHOUT_VERIFICATION"
+      }
+    },
+    {
+      "id": "PQ-009-overlapping-parallel-write-scope",
+      "override": {
+        "tasks": [
+          {
+            "task_id": "TASK-001",
+            "title": "A",
+            "goal": "g",
+            "acceptance_criteria": [
+              "AC-001"
+            ],
+            "parallel_candidate": true,
+            "write_scope": [
+              "src/auth/"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "t"
+              ]
+            },
+            "done_conditions": [
+              "d"
+            ]
+          },
+          {
+            "task_id": "TASK-002",
+            "title": "B",
+            "goal": "g",
+            "acceptance_criteria": [
+              "AC-002"
+            ],
+            "parallel_candidate": true,
+            "write_scope": [
+              "src/auth/reset.js"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "t"
+              ]
+            },
+            "done_conditions": [
+              "d"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "PARALLEL_WRITE_SCOPE_CONFLICT",
+        "conflict_count": 1
+      }
+    },
+    {
+      "id": "PQ-010-overlapping-parallel-interface-scope",
+      "override": {
+        "tasks": [
+          {
+            "task_id": "TASK-001",
+            "title": "A",
+            "goal": "g",
+            "acceptance_criteria": [
+              "AC-001"
+            ],
+            "parallel_candidate": true,
+            "write_scope": [
+              "src/a.js"
+            ],
+            "interface_scope": [
+              "GET /v1/orders"
+            ],
+            "compatibility_obligations": [
+              "keep v1 response shape"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "t"
+              ]
+            },
+            "done_conditions": [
+              "d"
+            ]
+          },
+          {
+            "task_id": "TASK-002",
+            "title": "B",
+            "goal": "g",
+            "acceptance_criteria": [
+              "AC-002"
+            ],
+            "parallel_candidate": true,
+            "write_scope": [
+              "src/b.js"
+            ],
+            "interface_scope": [
+              "GET /v1/orders"
+            ],
+            "compatibility_obligations": [
+              "keep v1 response shape"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "t"
+              ]
+            },
+            "done_conditions": [
+              "d"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "PARALLEL_INTERFACE_SCOPE_CONFLICT"
+      }
+    },
+    {
+      "id": "PQ-011-destructive-migration-without-rollback",
+      "override": {
+        "tasks": [
+          {
+            "task_id": "TASK-001",
+            "title": "Drop legacy column",
+            "goal": "Remove orders.legacy_status",
+            "category": "migration",
+            "acceptance_criteria": [
+              "AC-001",
+              "AC-002"
+            ],
+            "write_scope": [
+              "migrations/0007-drop-legacy-status.sql"
+            ],
+            "risk": {
+              "profile": "STRICT",
+              "data": "HIGH",
+              "destructive_data_change": true
+            },
+            "verification": {
+              "targeted_tests": [
+                "tests/migrations/0007.test.js"
+              ]
+            },
+            "done_conditions": [
+              "migration applies cleanly on a copy"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "DESTRUCTIVE_TASK_WITHOUT_ROLLBACK"
+      }
+    },
+    {
+      "id": "PQ-012-interface-task-without-compatibility-obligation",
+      "override": {
+        "tasks": [
+          {
+            "task_id": "TASK-001",
+            "title": "Rename response field",
+            "goal": "Rename status to state",
+            "acceptance_criteria": [
+              "AC-001",
+              "AC-002"
+            ],
+            "write_scope": [
+              "src/api/orders.js"
+            ],
+            "interface_scope": [
+              "GET /v1/orders"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "tests/api/orders.test.js"
+              ]
+            },
+            "done_conditions": [
+              "tests pass"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "INTERFACE_TASK_WITHOUT_COMPATIBILITY_OBLIGATION"
+      }
+    },
+    {
+      "id": "PQ-013-missing-required-task-category",
+      "override": {
+        "required_categories": [
+          "documentation"
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "MISSING_REQUIRED_TASK_CATEGORY"
+      }
+    },
+    {
+      "id": "PQ-014-giant-task-without-justification",
+      "override": {
+        "tasks": [
+          {
+            "task_id": "TASK-001",
+            "title": "Do everything",
+            "goal": "Rework auth, billing and notifications",
+            "acceptance_criteria": [
+              "AC-001",
+              "AC-002"
+            ],
+            "modules": [
+              "auth",
+              "billing",
+              "notify"
+            ],
+            "write_scope": [
+              "src/auth/",
+              "src/billing/",
+              "src/notify/"
+            ],
+            "verification": {
+              "targeted_tests": [
+                "t"
+              ]
+            },
+            "done_conditions": [
+              "d"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "GIANT_TASK_WITHOUT_JUSTIFICATION"
+      }
+    },
+    {
+      "id": "PQ-015-giant-task-with-justification-accepted",
+      "override": {
+        "tasks": [
+          {
+            "task_id": "TASK-001",
+            "title": "Coordinated rename across call sites",
+            "goal": "Apply one mechanical rename atomically",
+            "acceptance_criteria": [
+              "AC-001",
+              "AC-002"
+            ],
+            "modules": [
+              "auth",
+              "billing",
+              "notify"
+            ],
+            "write_scope": [
+              "src/auth/",
+              "src/billing/",
+              "src/notify/"
+            ],
+            "scope_justification": "a single compiler-enforced rename cannot be split without leaving the build broken between slices",
+            "verification": {
+              "targeted_tests": [
+                "npm test"
+              ]
+            },
+            "done_conditions": [
+              "build and full suite pass"
+            ]
+          }
+        ]
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "id": "PQ-016-forbidden-scope-violation",
+      "override": {
+        "forbidden_scope": [
+          "src/auth/"
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "FORBIDDEN_SCOPE_VIOLATION"
+      }
+    },
+    {
+      "id": "PQ-017-unresolved-design-decision",
+      "override": {
+        "unresolved_design_decisions": [
+          "DESIGN-002"
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "UNRESOLVED_DESIGN_DECISION"
+      }
+    },
+    {
+      "id": "PQ-018-unresolved-requirement",
+      "override": {
+        "unresolved_requirements": [
+          "AC-009"
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "UNRESOLVED_REQUIREMENT"
+      }
+    },
+    {
+      "id": "PQ-019-fast-micro-plan-relaxes-coverage",
+      "override": {
+        "profile": "FAST",
+        "requirements": [
+          "AC-001",
+          "AC-002",
+          "AC-003"
+        ]
+      },
+      "expected": {
+        "valid": true,
+        "micro_plan": true,
+        "warning": "UNCOVERED_ACCEPTANCE_CRITERION"
+      }
+    },
+    {
+      "id": "PQ-020-fast-micro-plan-still-needs-the-four-minimums",
+      "override": {
+        "profile": "FAST",
+        "tasks": [
+          {
+            "task_id": "TASK-001",
+            "title": "A",
+            "goal": "g",
+            "write_scope": [
+              "src/a.js"
+            ],
+            "done_conditions": []
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "TASK_MISSING_DONE_CONDITION",
+        "also_error": "BEHAVIOR_TASK_WITHOUT_VERIFICATION"
+      }
+    },
+    {
+      "id": "PQ-021-explicit-edges-must-agree-with-depends-on",
+      "override": {
+        "edges": [
+          {
+            "from": "TASK-002",
+            "to": "TASK-001",
+            "kind": "depends_on"
+          }
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "EDGE_NOT_IN_DEPENDS_ON"
+      }
+    }
+  ]
+}

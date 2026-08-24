@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/skill-registry/v1",
-  "version": "3.0.0-alpha3",
+  "version": "3.0.0-alpha4",
   "public": [
     "sdlc-router",
     "sdlc-orchestrator"
@@ -25,6 +25,30 @@
       "instructions": "harness/internal-skills/requirements.md",
       "output_schema": "protocol/schemas/StageResult.schema.json",
       "max_response_words": 700
+    },
+    "design-discovery": {
+      "id": "design-discovery",
+      "version": "1.0.0",
+      "description": "Select SKIP/COMPACT/FULL design discovery, produce alternatives and trade-offs when warranted, and persist an approved design decision.",
+      "stages": [
+        "DESIGN"
+      ],
+      "roles": [
+        "architect",
+        "pm",
+        "security",
+        "dba",
+        "sre"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.search",
+        "repo.symbol",
+        "repo.diff"
+      ],
+      "instructions": "harness/internal-skills/design-discovery.md",
+      "output_schema": "protocol/schemas/DesignDecision.schema.json",
+      "max_response_words": 900
     },
     "architecture": {
       "id": "architecture",

@@ -1,9 +1,33 @@
 import path from 'node:path';
 import {now,readJson,uuid} from './util.mjs';
 import {emit,saveRun} from './store.mjs';
+import {validateDesignDecision,evaluateDesignGate,getDesignDiscoveryPolicy} from './design-discovery.mjs';
+import {validateTaskPlan,planGateEvidence} from './plan-validator.mjs';
 
 const SIDE_STATES=['NEEDS_CONFIRMATION','BLOCKED','FAILED','DEFERRED','SUPERSEDED'];
 const TERMINAL_STATES=['FAILED','DEFERRED','SUPERSEDED'];
+
+const stagePolicyOf=(root)=>readJson(path.join(root,'policies','stage-policy.json'));
+
+// Some gate evidence may not be asserted by a caller. `runtime` tokens exist
+// only when a deterministic validator produced them; `human` tokens exist only
+// alongside a recorded approval. `--force` remains the documented operator
+// escape hatch and is audited as such.
+function guardEvidenceAuthority(root,run,evidence,{approval=null,internal=false,force=false}={}){
+  if(internal||force||!evidence.length)return;
+  const authority=stagePolicyOf(root).evidence_authority||{};
+  for(const token of evidence){
+    const required=authority[token];
+    if(required==='runtime')throw new Error(`evidence ${token} must be produced by the deterministic validator (use design record / plan record), not asserted`);
+    if(required==='human'&&!approval)throw new Error(`evidence ${token} requires a recorded human approval`);
+  }
+}
+
+function addEvidence(projectRoot,run,stage,tokens){
+  run.evidence[stage]=[...new Set([...(run.evidence[stage]||[]),...tokens])];
+  saveRun(projectRoot,run);
+  return run.evidence[stage];
+}
 
 export function newRun(root,projectRoot,{objective,route}){
   const workflows=readJson(path.join(root,'config','workflows.json')).workflows;
@@ -12,9 +36,10 @@ export function newRun(root,projectRoot,{objective,route}){
   saveRun(projectRoot,run);emit(projectRoot,run,{type:'run.created',payload:{workflow:run.workflow,profile:run.profile}});return run;
 }
 
-export function transition(root,projectRoot,run,to,{evidence=[],approval=null,force=false}={}){
+export function transition(root,projectRoot,run,to,{evidence=[],approval=null,force=false,internal=false}={}){
   if(TERMINAL_STATES.includes(run.state))throw new Error(`terminal state ${run.state}`);
-  const stagePolicy=readJson(path.join(root,'policies','stage-policy.json')).stages;
+  guardEvidenceAuthority(root,run,evidence,{approval,internal,force});
+  const stagePolicy=stagePolicyOf(root).stages;
   const workflowOrder=run.stages;
   const from=run.state;
 
@@ -53,6 +78,58 @@ export function transition(root,projectRoot,run,to,{evidence=[],approval=null,fo
   if(approval)run.approvals.push({stage:run.state,approval,time:now()});
   run.state=to;run.stage_index=targetIdx;run.suspended_from=null;
   saveRun(projectRoot,run);emit(projectRoot,run,{type:'stage.transition',payload:{from,to,evidence,force}});return run;
+}
+
+/**
+ * DESIGN gate: validate a structured design decision and, only on success,
+ * record the gate evidence the stage policy demands. A HUMAN-required decision
+ * without recorded approval cannot produce evidence here.
+ */
+export function recordDesignDecision(root,projectRoot,run,decision,{artifactRef=null,approvals=null}={}){
+  if(run.state!=='DESIGN')throw new Error(`design decisions are recorded in DESIGN, not ${run.state}`);
+  const validation=validateDesignDecision(decision);
+  const humanApprovalRequired=decision?.approval?.required===true;
+  const gate=evaluateDesignGate({
+    mode:decision?.mode??null,
+    evidence:validation.gate_evidence,
+    humanApprovalRequired,
+    approvals:approvals??(run.approvals||[]).map(a=>a.approval)
+  });
+  const derived=getDesignDiscoveryPolicy().gate.derived_evidence;
+  if(!validation.valid||!gate.valid){
+    emit(projectRoot,run,{type:'design.decision_rejected',payload:{errors:validation.errors,missing:gate.missing}});
+    return {schema:'agent-sdlc/design-gate-record/v1',recorded:false,validation,gate,evidence:[]};
+  }
+  const evidence=[...validation.gate_evidence,derived];
+  addEvidence(projectRoot,run,'DESIGN',evidence);
+  emit(projectRoot,run,{
+    type:'design.decision_recorded',
+    artifact_refs:artifactRef?[artifactRef]:[],
+    payload:{decision_id:decision.decision_id,mode:decision.mode,evidence}
+  });
+  return {schema:'agent-sdlc/design-gate-record/v1',recorded:true,validation,gate,evidence};
+}
+
+/**
+ * PLAN gate: validate a structured TaskPlan and, only on success, record the
+ * plan gate evidence. An invalid graph or uncovered acceptance criterion means
+ * PLAN -> IMPLEMENT stays closed.
+ */
+export function recordTaskPlan(root,projectRoot,run,plan,{artifactRef=null,thresholds=null}={}){
+  if(run.state!=='PLAN')throw new Error(`task plans are recorded in PLAN, not ${run.state}`);
+  const validation=validateTaskPlan(plan,{profile:plan?.profile||run.profile,...(thresholds?{thresholds}:{})});
+  if(!validation.valid){
+    emit(projectRoot,run,{type:'plan.rejected',payload:{plan_id:plan?.plan_id??null,errors:validation.errors}});
+    return {schema:'agent-sdlc/plan-gate-record/v1',recorded:false,validation,evidence:[]};
+  }
+  const evidence=planGateEvidence();
+  addEvidence(projectRoot,run,'PLAN',evidence);
+  emit(projectRoot,run,{
+    type:'plan.validated',
+    artifact_refs:artifactRef?[artifactRef]:[],
+    payload:{plan_id:plan.plan_id,task_count:validation.task_count,edge_count:validation.edge_count,evidence}
+  });
+  return {schema:'agent-sdlc/plan-gate-record/v1',recorded:true,validation,evidence};
 }
 
 export function nextState(run){

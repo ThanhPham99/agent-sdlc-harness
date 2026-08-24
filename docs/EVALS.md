@@ -38,3 +38,28 @@ node evals/provider-conformance/preflight.mjs
 Preflight is intentionally fail-honest: an unavailable host reports `PENDING`, never `PASS`. A release candidate should additionally execute live semantic/e2e evaluation on installed and authenticated Claude Code, Codex and Antigravity hosts, bind results to the exact package digest, record host/model versions, and compare verified-task success, escaped defects, latency and cost against a pinned baseline.
 
 Replay supports offline integrity/regression analysis; model generation itself is not claimed to be bit-for-bit deterministic.
+
+## Gate quality suites (v3.0.0-alpha4)
+
+```bash
+npm run test:gates
+```
+
+- `evals/design-discovery/cases.json` — 13 mode-selection cases: docs-only and dependency bumps
+  reach `SKIP`; a known local behaviour change reaches `COMPACT`; a new integration, a breaking
+  public API, a security policy design, a data migration and an explicit "give me 3 approaches"
+  reach `FULL`; a restored known policy is not turned into brainstorming; `STRICT` never reaches
+  `SKIP`; and `FAST` cannot dodge a contract decision.
+- `evals/design-discovery/adversarial-cases.json` — 7 decision-contract cases: FULL mode with no
+  options, a single option without rejection evidence, an invented approval, an interface change
+  with no verification obligation, and a bare `SKIP`.
+- `evals/plan-quality/cases.json` — 21 plan cases over one shared base plan: valid linear and
+  fan-out/fan-in DAGs plus every rejection the validator owns (unknown dependency, cycle, duplicate
+  ID, uncovered acceptance criterion, missing done condition, testless behaviour task, overlapping
+  parallel write and interface scope, destructive migration without rollback, interface change
+  without a compatibility obligation, missing required category, giant task, forbidden scope,
+  unresolved design decision or requirement, FAST micro-plan relaxation, and edge/`depends_on`
+  disagreement).
+
+Evidence: `evals/DESIGN-DISCOVERY-VALIDATION.json`, `evals/PLAN-QUALITY-VALIDATION.json`. Both
+record `PENDING_LIVE_QUALIFICATION` for anything only a live host can establish.

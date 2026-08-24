@@ -16,7 +16,9 @@
     "stage_policy": "policies/stage-policy.json",
     "model_routing": "policies/model-routing.json",
     "context_policy": "policies/context-policy.json",
-    "failure_policy": "policies/failure-policy.json"
+    "failure_policy": "policies/failure-policy.json",
+    "auto_activation_policy": "policies/auto-activation.json",
+    "design_discovery_policy": "policies/design-discovery.json"
   },
   "runtime": {
     "entrypoint": "bin/agent-sdlc",

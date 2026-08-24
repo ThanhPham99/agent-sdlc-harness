@@ -71,3 +71,72 @@ naming `sdlc-router`, while the always-on context stays tiny and non-project Q&A
 Canonical bootstrap: 303 chars / **76 rough tokens** (budgets: canonical 120, Claude 90,
 Antigravity 80, Codex 120). No internal skill body is injected at session start; public skill count
 stays exactly two.
+
+---
+
+# Addendum â€” design discovery and plan quality
+
+The alpha4 scope in the master upgrade plan has three themes, not one. Auto-bootstrap shipped
+first; conditional design discovery and the machine-checkable plan gate complete the release.
+
+## Added
+
+- `policies/design-discovery.json` â€” canonical design-discovery policy: modes, profile defaults and
+  bounds, escalation signals (with `deescalatable` marking), de-escalation ceilings, human-approval
+  signals and profiles, option requirements, gate evidence mapping.
+- `runtime/design-discovery.mjs` â€” deterministic `selectDesignDiscoveryMode`, `evaluateDesignGate`,
+  `validateDesignDecision`, `requiredGateEvidence`. No repository reads, no network, no inference.
+- `harness/internal-skills/design-discovery.md` â€” internal module (not a public skill) with the
+  SKIP/COMPACT/FULL protocol: minimum context, one focused question at a time, 2â€“3 materially
+  distinct approaches, a recommendation, and recorded rejection evidence when only one legitimate
+  option exists.
+- `protocol/schemas/DesignDecision.schema.json` â€” `agent-sdlc/design-decision/v1`.
+- `protocol/schemas/TaskPlan.schema.json`, `protocol/schemas/PlannedTask.schema.json`.
+- `runtime/plan-validator.mjs` â€” `validateTaskPlan`, `computeTaskGraph`, `findCycles`,
+  `computeReadySets`, `computeCoverage`, `computeScopeConflicts`, `planGateEvidence`.
+- `agent-sdlc design mode|policy|validate|record` and `agent-sdlc plan validate|graph|record`.
+- `evals/design-discovery/cases.json` (13), `evals/design-discovery/adversarial-cases.json` (7),
+  `evals/plan-quality/cases.json` (21); `scripts/validate-gates.mjs` and `npm run test:gates`
+  producing `evals/DESIGN-DISCOVERY-VALIDATION.json` and `evals/PLAN-QUALITY-VALIDATION.json`.
+- `docs/architecture/DESIGN-DISCOVERY.md`, `docs/architecture/PLAN-QUALITY.md`.
+
+## Changed
+
+- `policies/stage-policy.json`: `PLAN.gate_requirements` is now `plan_artifact_created`,
+  `plan_schema_valid`, `plan_graph_valid`, `plan_acceptance_coverage_valid`,
+  `plan_scope_conflicts_resolved`. A new top-level `evidence_authority` map marks design and plan
+  gate tokens as `runtime` (produced only by a validator) and `design_human_approved` as `human`
+  (accepted only alongside a recorded approval).
+- `runtime/orchestrator.mjs`: `transition` refuses caller-asserted `runtime`/`human` authority
+  evidence, and gains stage-scoped `recordDesignDecision` / `recordTaskPlan` recorders that emit
+  `design.decision_recorded` / `design.decision_rejected` / `plan.validated` / `plan.rejected`.
+- `config/skills.json` registers `design-discovery` as the 19th internal module; `planning.md`,
+  `implementation-plan.md` and `architecture.md` now point at the structured artifacts and the
+  recorder commands. `sdlc-orchestrator` documents the DESIGN -> PLAN -> IMPLEMENT contract.
+- `agent-sdlc.manifest.json` `canonical` now lists the auto-activation and design-discovery
+  policies. `npm run check` gained `test:gates` and runs `build` before the package validations.
+
+## Fixed
+
+- `scripts/build-dist.mjs` copied a non-existent top-level `tools/` directory, so `npm run build`
+  (and therefore `verify:dist` and every packaging step) failed outright. The canonical tool
+  registry is `config/tools.json`; the bogus entry is gone and missing build inputs now fail with a
+  named error.
+- `scripts/qualification-lib.mjs` `resolveBinary()` silently fell through an explicit `--binary`
+  override to the next candidate, so the offline transport regression measured the *real* installed
+  host CLI instead of its fake shim â€” a PASS it had not earned. An explicit override is now the
+  only candidate tried.
+- Host binaries are launched through `spawnHost()`, which routes `.mjs`/`.js` "binaries" via the
+  current Node executable. `scripts/qualify-host.mjs` also extracts the exact release package with
+  the portable `unzipTo()` helper instead of requiring Info-ZIP `unzip`. Together with Node-script
+  fixtures in `scripts/test-qualification-harness.mjs`, the qualification regressions now run on
+  Windows as well as POSIX.
+
+## Boundaries
+
+- `--force` remains the operator escape hatch for a blocked gate. It is audited and is never the
+  agent's answer to a validation failure.
+- Selecting `FULL` design discovery grants no tool authority; every decision carries
+  `approval_implied: false`.
+- Offline gate evidence records `PENDING_LIVE_QUALIFICATION` for anything only a live host can
+  establish.

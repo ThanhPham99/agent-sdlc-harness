@@ -1,0 +1,182 @@
+{
+  "schema": "agent-sdlc/design-discovery-adversarial-cases/v1",
+  "version": "3.0.0-alpha4",
+  "cases": [
+    {
+      "id": "DDA-001-full-mode-without-options-rejected",
+      "decision": {
+        "schema": "agent-sdlc/design-decision/v1",
+        "decision_id": "DESIGN-001",
+        "objective": "Add a new payment provider",
+        "mode": "FULL",
+        "options": [],
+        "recommended_option": "OPTION-A",
+        "decision": "Use OPTION-A"
+      },
+      "expected": {
+        "valid": false,
+        "error": "FULL_MODE_WITHOUT_OPTIONS"
+      }
+    },
+    {
+      "id": "DDA-002-single-option-without-rejection-evidence",
+      "decision": {
+        "schema": "agent-sdlc/design-decision/v1",
+        "decision_id": "DESIGN-002",
+        "objective": "Rotate signing keys",
+        "mode": "FULL",
+        "options": [
+          {
+            "id": "OPTION-A",
+            "summary": "Rotate in place",
+            "benefits": [
+              "simple"
+            ],
+            "tradeoffs": [
+              "brief downtime"
+            ]
+          }
+        ],
+        "recommended_option": "OPTION-A",
+        "decision": "Rotate in place"
+      },
+      "expected": {
+        "valid": false,
+        "error": "SINGLE_OPTION_WITHOUT_REJECTION_EVIDENCE"
+      }
+    },
+    {
+      "id": "DDA-003-single-option-with-rejection-evidence-accepted",
+      "decision": {
+        "schema": "agent-sdlc/design-decision/v1",
+        "decision_id": "DESIGN-003",
+        "objective": "Rotate signing keys",
+        "mode": "FULL",
+        "requirements": [
+          "AC-001"
+        ],
+        "options": [
+          {
+            "id": "OPTION-A",
+            "summary": "Rotate in place",
+            "benefits": [
+              "simple"
+            ],
+            "tradeoffs": [
+              "brief downtime"
+            ]
+          }
+        ],
+        "rejected_alternatives": [
+          {
+            "summary": "Dual-key overlap window",
+            "rejection_evidence": "runtime/keys.mjs supports a single active kid; overlap requires a storage change out of scope"
+          }
+        ],
+        "recommended_option": "OPTION-A",
+        "decision": "Rotate in place",
+        "approval": {
+          "required": false,
+          "status": "NOT_REQUIRED"
+        }
+      },
+      "expected": {
+        "valid": true
+      }
+    },
+    {
+      "id": "DDA-004-invented-approval-rejected",
+      "decision": {
+        "schema": "agent-sdlc/design-decision/v1",
+        "decision_id": "DESIGN-004",
+        "objective": "Change the public order API",
+        "mode": "FULL",
+        "options": [
+          {
+            "id": "OPTION-A",
+            "summary": "Versioned endpoint",
+            "benefits": [
+              "no break"
+            ],
+            "tradeoffs": [
+              "two code paths"
+            ]
+          },
+          {
+            "id": "OPTION-B",
+            "summary": "Break and migrate clients",
+            "benefits": [
+              "one path"
+            ],
+            "tradeoffs": [
+              "client work"
+            ]
+          }
+        ],
+        "recommended_option": "OPTION-A",
+        "decision": "Versioned endpoint",
+        "approval": {
+          "required": true,
+          "status": "PENDING"
+        },
+        "affected_interfaces": [
+          "GET /v1/orders"
+        ],
+        "verification_obligations": [
+          "contract test for /v1 and /v2"
+        ]
+      },
+      "expected": {
+        "valid": false,
+        "error": "APPROVAL_REQUIRED_NOT_APPROVED"
+      }
+    },
+    {
+      "id": "DDA-005-interface-change-without-verification-obligation",
+      "decision": {
+        "schema": "agent-sdlc/design-decision/v1",
+        "decision_id": "DESIGN-005",
+        "objective": "Rename an event payload field",
+        "mode": "COMPACT",
+        "decision": "Rename with a compatibility shim",
+        "affected_interfaces": [
+          "OrderCreated"
+        ],
+        "verification_obligations": []
+      },
+      "expected": {
+        "valid": false,
+        "error": "INTERFACE_CHANGE_WITHOUT_VERIFICATION_OBLIGATION"
+      }
+    },
+    {
+      "id": "DDA-006-skip-without-reason-rejected",
+      "decision": {
+        "schema": "agent-sdlc/design-decision/v1",
+        "decision_id": "DESIGN-006",
+        "objective": "Fix a typo",
+        "mode": "SKIP"
+      },
+      "expected": {
+        "valid": false,
+        "error": "SKIP_WITHOUT_REASON"
+      }
+    },
+    {
+      "id": "DDA-007-skip-with-reason-accepted",
+      "decision": {
+        "schema": "agent-sdlc/design-decision/v1",
+        "decision_id": "DESIGN-007",
+        "objective": "Fix a typo in README",
+        "mode": "SKIP",
+        "requirements": [
+          "AC-001"
+        ],
+        "skip_reason": "documentation wording only; no component, contract or data change"
+      },
+      "expected": {
+        "valid": true
+      }
+    }
+  ]
+}

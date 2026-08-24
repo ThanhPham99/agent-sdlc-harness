@@ -1,0 +1,189 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/planned-task/v1",
+  "title": "PlannedTask",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "task_id",
+    "title",
+    "goal"
+  ],
+  "properties": {
+    "task_id": {
+      "type": "string",
+      "pattern": "^TASK-[0-9]{3,}$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "goal": {
+      "type": "string",
+      "minLength": 1,
+      "description": "One bounded independently verifiable objective."
+    },
+    "category": {
+      "enum": [
+        "implementation",
+        "migration",
+        "verification",
+        "security",
+        "integration",
+        "documentation",
+        "release",
+        "operability"
+      ],
+      "default": "implementation"
+    },
+    "depends_on": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "design_decisions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "changes_behavior": {
+      "type": "boolean",
+      "default": true,
+      "description": "False only for genuinely behaviour-neutral work (docs, formatting)."
+    },
+    "read_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "write_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "interface_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Public APIs / events / schemas this task may change."
+    },
+    "forbidden_scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "likely_symbols": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "modules": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Logical modules touched; used for giant-task detection."
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "targeted_tests": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expected_behavior": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required_evidence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "compatibility_obligations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "rollback_obligations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "done_conditions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "risk": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "profile": {
+          "enum": [
+            "FAST",
+            "STANDARD",
+            "STRICT"
+          ]
+        },
+        "security": {
+          "enum": [
+            "LOW",
+            "MEDIUM",
+            "HIGH"
+          ]
+        },
+        "data": {
+          "enum": [
+            "LOW",
+            "MEDIUM",
+            "HIGH"
+          ]
+        },
+        "destructive_data_change": {
+          "type": "boolean"
+        }
+      }
+    },
+    "estimated_seconds": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "parallel_candidate": {
+      "type": "boolean",
+      "default": false
+    },
+    "scope_justification": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Required when a task deliberately spans multiple unrelated modules."
+    }
+  }
+}

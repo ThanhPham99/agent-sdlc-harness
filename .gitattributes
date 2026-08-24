@@ -1,0 +1,19 @@
+# POSIX shell scripts must keep LF endings. With core.autocrlf=true a Windows
+# checkout otherwise rewrites the shebang to `#!/usr/bin/env bash\r`, and the
+# installers and their regression test fail with a bogus "no such file" error.
+* text=auto eol=lf
+
+*.sh text eol=lf
+bin/agent-sdlc text eol=lf
+
+# Windows-native scripts keep CRLF.
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Never normalize binaries.
+*.zip binary
+*.png binary
+*.jpg binary
+*.gz binary
+*.pdf binary

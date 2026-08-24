@@ -90,3 +90,32 @@ Do not use `--force` in normal operation; it exists for operator recovery/testin
 ```
 
 Use artifacts/handoffs at stage boundaries as external memory, then start the next bounded context instead of carrying transient conversation history forward.
+
+## 8. Design gate and plan gate (v3.0.0-alpha4)
+
+Two gates are machine-checked. Their evidence cannot be supplied through `transition --evidence`.
+
+### DESIGN
+
+```bash
+./bin/agent-sdlc design mode     --run-id <id>
+./bin/agent-sdlc design policy
+./bin/agent-sdlc design validate --file design-decision.json
+./bin/agent-sdlc design record   --run-id <id> --file design-decision.json
+```
+
+`design mode` returns `SKIP` / `COMPACT` / `FULL` with reason codes, the escalation and de-escalation signals that fired, and whether human approval is required. Declare a signal the objective text does not express with `--signals ARCHITECTURE_BOUNDARY,...` rather than overriding the answer by hand.
+
+`design record` validates the `agent-sdlc/design-decision/v1` artifact, stores it, and writes the DESIGN gate evidence only on success.
+
+### PLAN
+
+```bash
+./bin/agent-sdlc plan validate --file task-plan.json
+./bin/agent-sdlc plan graph    --file task-plan.json
+./bin/agent-sdlc plan record   --run-id <id> --file task-plan.json
+```
+
+`plan graph` prints the derived dependency graph, cycles, ready-set waves, acceptance-criterion coverage and parallel scope conflicts. `plan record` is the only source of PLAN gate evidence.
+
+See `docs/architecture/DESIGN-DISCOVERY.md` and `docs/architecture/PLAN-QUALITY.md`.

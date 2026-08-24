@@ -1,0 +1,134 @@
+{
+  "schema": "agent-sdlc/design-discovery-cases/v1",
+  "version": "3.0.0-alpha4",
+  "cases": [
+    {
+      "id": "DD-001-docs-only-skips",
+      "profile": "FAST",
+      "objective": "Fix a typo in the README documentation",
+      "expected": {
+        "mode": "SKIP",
+        "human_approval_required": false
+      }
+    },
+    {
+      "id": "DD-002-mechanical-refactor-compact-at-most",
+      "profile": "STANDARD",
+      "objective": "Rename the internal helper function extractToken for clarity",
+      "expected": {
+        "mode_in": [
+          "SKIP",
+          "COMPACT"
+        ],
+        "human_approval_required": false
+      }
+    },
+    {
+      "id": "DD-003-known-local-behavior-change-compact",
+      "profile": "STANDARD",
+      "objective": "Add a pagination endpoint for the orders list using the existing query layer",
+      "expected": {
+        "mode": "COMPACT",
+        "human_approval_required": false
+      }
+    },
+    {
+      "id": "DD-004-new-integration-with-alternatives-full",
+      "profile": "STANDARD",
+      "objective": "Add support for a new payment provider alongside the existing gateway",
+      "expected": {
+        "mode": "FULL",
+        "signal": "MULTIPLE_APPROACHES"
+      }
+    },
+    {
+      "id": "DD-005-breaking-public-api-full",
+      "profile": "STANDARD",
+      "objective": "Introduce a breaking change to the public API for order status",
+      "expected": {
+        "mode": "FULL",
+        "signal": "PUBLIC_CONTRACT_CHANGE",
+        "human_approval_required": true
+      }
+    },
+    {
+      "id": "DD-006-security-policy-design-full-human",
+      "profile": "STRICT",
+      "objective": "Design a new tenant-scoped authorization model for the admin API",
+      "expected": {
+        "mode": "FULL",
+        "signal": "SECURITY_POLICY_DESIGN",
+        "human_approval_required": true
+      }
+    },
+    {
+      "id": "DD-007-restoring-known-policy-is-not-brainstorming",
+      "profile": "STANDARD",
+      "objective": "Fix a regression where expired reset tokens are accepted; restore the documented policy",
+      "expected": {
+        "mode": "COMPACT",
+        "human_approval_required": false
+      }
+    },
+    {
+      "id": "DD-008-user-explicitly-asks-for-options",
+      "profile": "STANDARD",
+      "objective": "Give me 3 approaches for caching the product catalog and the trade-offs",
+      "expected": {
+        "mode": "FULL",
+        "signal": "USER_REQUESTED_OPTIONS"
+      }
+    },
+    {
+      "id": "DD-009-strict-never-falls-to-skip",
+      "profile": "STRICT",
+      "objective": "Update the release documentation wording",
+      "expected": {
+        "mode": "COMPACT",
+        "human_approval_required": false
+      }
+    },
+    {
+      "id": "DD-010-data-migration-strategy-full-human",
+      "profile": "STANDARD",
+      "objective": "Backfill the orders table with a new tenant_id column",
+      "expected": {
+        "mode": "FULL",
+        "signal": "DATA_MIGRATION_STRATEGY",
+        "human_approval_required": true
+      }
+    },
+    {
+      "id": "DD-011-fast-cannot-dodge-contract-decision",
+      "profile": "FAST",
+      "objective": "Quick fix: change the public API response field name",
+      "expected": {
+        "mode": "FULL",
+        "signal": "PUBLIC_CONTRACT_CHANGE",
+        "human_approval_required": true
+      }
+    },
+    {
+      "id": "DD-012-dependency-bump-no-decision-skips",
+      "profile": "FAST",
+      "objective": "Bump the lodash patch version in the lockfile",
+      "expected": {
+        "mode": "SKIP",
+        "human_approval_required": false
+      }
+    },
+    {
+      "id": "DD-013-declared-signal-escalates-without-keywords",
+      "profile": "STANDARD",
+      "objective": "Continue the work item from the previous session",
+      "declared_signals": [
+        "ARCHITECTURE_BOUNDARY"
+      ],
+      "expected": {
+        "mode": "FULL",
+        "signal": "ARCHITECTURE_BOUNDARY",
+        "human_approval_required": false
+      }
+    }
+  ]
+}

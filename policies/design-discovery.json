@@ -1,0 +1,235 @@
+{
+  "schema": "agent-sdlc/design-discovery-policy/v1",
+  "version": "3.0.0-alpha4",
+  "internal_module": "harness/internal-skills/design-discovery.md",
+  "public_skill": false,
+  "modes": [
+    "SKIP",
+    "COMPACT",
+    "FULL"
+  ],
+  "mode_rank": {
+    "SKIP": 0,
+    "COMPACT": 1,
+    "FULL": 2
+  },
+  "profile_defaults": {
+    "FAST": "SKIP",
+    "STANDARD": "COMPACT",
+    "STRICT": "FULL"
+  },
+  "profile_bounds": {
+    "FAST": {
+      "floor": "SKIP",
+      "ceiling": "FULL"
+    },
+    "STANDARD": {
+      "floor": "SKIP",
+      "ceiling": "FULL"
+    },
+    "STRICT": {
+      "floor": "COMPACT",
+      "ceiling": "FULL"
+    }
+  },
+  "escalation_signals": [
+    {
+      "id": "USER_REQUESTED_OPTIONS",
+      "min_mode": "FULL",
+      "deescalatable": false,
+      "description": "User explicitly asked for design, brainstorming, options or trade-offs.",
+      "patterns": [
+        "\\bbrainstorm(ing)?\\b",
+        "\\b(give|show|propose|list)\\b[^.]{0,40}\\b(\\d+|two|three|several|multiple)\\b[^.]{0,20}\\b(approach|approaches|option|options|alternative|alternatives|design|designs)\\b",
+        "\\btrade[- ]?offs?\\b",
+        "\\bwhich (approach|option|design)\\b",
+        "\\bdesign (the|a|an) (architecture|solution|approach)\\b",
+        "\\bevaluate (the )?(alternatives|options)\\b"
+      ]
+    },
+    {
+      "id": "PUBLIC_CONTRACT_CHANGE",
+      "min_mode": "FULL",
+      "deescalatable": false,
+      "description": "A public API, event, schema or wire contract changes.",
+      "patterns": [
+        "\\bbreaking change\\b",
+        "\\bpublic api\\b",
+        "\\bapi (contract|version|versioning)\\b",
+        "\\b(event|message) (contract|schema|payload)\\b",
+        "\\bgraphql schema\\b",
+        "\\bproto(buf)? (schema|contract)\\b",
+        "\\bbackward(s)?[- ]incompatible\\b",
+        "\\bdeprecat(e|ion) (of )?(the )?(endpoint|api|field)\\b"
+      ]
+    },
+    {
+      "id": "ARCHITECTURE_BOUNDARY",
+      "min_mode": "FULL",
+      "deescalatable": true,
+      "description": "Module, service or ownership boundaries may move.",
+      "patterns": [
+        "\\bnew (service|microservice|module|package|bounded context)\\b",
+        "\\b(extract|split|merge|decompose)\\b[^.]{0,30}\\b(service|module|monolith|package)\\b",
+        "\\bre[- ]?architect\\b",
+        "\\barchitecture (change|redesign|boundary)\\b",
+        "\\bintroduce (a )?(queue|broker|cache layer|gateway|sidecar)\\b"
+      ]
+    },
+    {
+      "id": "SECURITY_POLICY_DESIGN",
+      "min_mode": "FULL",
+      "deescalatable": false,
+      "description": "Trust, authorization or cryptography policy is being designed rather than restored.",
+      "patterns": [
+        "\\bdesign\\b[^.]{0,40}\\b(auth|authn|authz|authorization|authentication|permission|tenant isolation|trust)\\b",
+        "\\b(new|introduce)\\b[^.]{0,30}\\b(authorization|permission|rbac|abac|scopes?|token) (model|scheme|policy)\\b",
+        "\\b(key rotation|secret management|encryption at rest|threat model)\\b",
+        "\\bmulti[- ]?tenan(cy|t) isolation\\b"
+      ]
+    },
+    {
+      "id": "DATA_MIGRATION_STRATEGY",
+      "min_mode": "FULL",
+      "deescalatable": false,
+      "description": "A data migration with meaningful strategy alternatives.",
+      "patterns": [
+        "\\b(schema|data) migration\\b",
+        "\\bbackfill\\b",
+        "\\bre[- ]?shard\\b",
+        "\\b(dual[- ]write|expand and contract|zero[- ]downtime migration)\\b",
+        "\\bmigrate\\b[^.]{0,30}\\b(database|table|datastore|postgres|mysql|mongo)\\b"
+      ]
+    },
+    {
+      "id": "MULTIPLE_APPROACHES",
+      "min_mode": "FULL",
+      "deescalatable": true,
+      "description": "Materially different implementation approaches exist.",
+      "patterns": [
+        "\\b(build|buy|adopt)\\b[^.]{0,30}\\bor\\b",
+        "\\b(integrate|add support for)\\b[^.]{0,40}\\b(provider|gateway|vendor|third[- ]party)\\b",
+        "\\bpayment (integration|provider|gateway)\\b",
+        "\\breplace\\b[^.]{0,30}\\bwith\\b"
+      ]
+    },
+    {
+      "id": "REQUIREMENT_AMBIGUITY",
+      "min_mode": "FULL",
+      "deescalatable": true,
+      "description": "Unresolved product or behaviour ambiguity remains in requirements.",
+      "patterns": [
+        "\\bnot sure (how|what|whether)\\b",
+        "\\b(unclear|undecided|to be decided|tbd)\\b",
+        "\\bsomehow\\b",
+        "\\bfigure out (how|what)\\b"
+      ]
+    },
+    {
+      "id": "NON_TRIVIAL_LOCAL_DECISION",
+      "min_mode": "COMPACT",
+      "deescalatable": true,
+      "description": "A bounded local design choice exists but architecture is stable.",
+      "patterns": [
+        "\\badd\\b[^.]{0,30}\\b(endpoint|command|flag|field|column|job|handler)\\b",
+        "\\b(rate limit|retry|idempoten(t|cy)|caching|pagination|validation) (policy|strategy|behaviour|behavior)\\b",
+        "\\bfeature flag\\b"
+      ]
+    }
+  ],
+  "deescalation_signals": [
+    {
+      "id": "DOCS_ONLY",
+      "max_mode": "SKIP",
+      "description": "Documentation-only change.",
+      "patterns": [
+        "\\b(readme|changelog|docs?|documentation|comment|typo|wording)\\b"
+      ]
+    },
+    {
+      "id": "TEST_ONLY",
+      "max_mode": "SKIP",
+      "description": "Test-only change with already known desired behaviour.",
+      "patterns": [
+        "\\badd (a )?(unit |integration )?tests?\\b",
+        "\\btest coverage\\b",
+        "\\bflaky test\\b"
+      ]
+    },
+    {
+      "id": "MECHANICAL_REFACTOR",
+      "max_mode": "COMPACT",
+      "description": "Behaviour-preserving mechanical refactor.",
+      "patterns": [
+        "\\brename\\b",
+        "\\bextract (a )?(helper|function|constant|method)\\b",
+        "\\b(mechanical|behaviou?r[- ]preserving) refactor\\b",
+        "\\bformat(ting)?\\b",
+        "\\bdead code\\b"
+      ]
+    },
+    {
+      "id": "TRIVIAL_LOCAL_FIX",
+      "max_mode": "COMPACT",
+      "description": "Small local fix with stable design.",
+      "patterns": [
+        "\\b(off[- ]by[- ]one|typo in|null (pointer|check)|missing (guard|check))\\b",
+        "\\bone[- ]line fix\\b"
+      ]
+    },
+    {
+      "id": "DEPENDENCY_BUMP_NO_DECISION",
+      "max_mode": "COMPACT",
+      "description": "Dependency bump without architecture or compatibility decision.",
+      "patterns": [
+        "\\b(bump|upgrade)\\b[^.]{0,30}\\b(patch|minor) (version|release)\\b",
+        "\\blockfile\\b"
+      ]
+    },
+    {
+      "id": "RESTORE_CONFIRMED_BEHAVIOR",
+      "max_mode": "COMPACT",
+      "description": "Restoring already-confirmed and authoritative behaviour.",
+      "patterns": [
+        "\\brestore\\b[^.]{0,40}\\b(behaviou?r|policy|rule)\\b",
+        "\\bregression\\b",
+        "\\bwas working (before|previously)\\b",
+        "\\bshould (still )?(enforce|reject|deny)\\b"
+      ]
+    }
+  ],
+  "human_approval_required_signals": [
+    "PUBLIC_CONTRACT_CHANGE",
+    "SECURITY_POLICY_DESIGN",
+    "DATA_MIGRATION_STRATEGY"
+  ],
+  "human_approval_required_profiles": [
+    "STRICT"
+  ],
+  "options": {
+    "min_options_full_mode": 2,
+    "max_options_full_mode": 3,
+    "single_option_requires_rejection_evidence": true,
+    "one_question_at_a_time": true
+  },
+  "gate": {
+    "stage": "DESIGN",
+    "evidence_any_of": [
+      "design_skipped_with_reason",
+      "compact_design_accepted",
+      "full_design_approved_or_policy_auto"
+    ],
+    "derived_evidence": "design_or_skip_decision",
+    "mode_evidence": {
+      "SKIP": "design_skipped_with_reason",
+      "COMPACT": "compact_design_accepted",
+      "FULL": "full_design_approved_or_policy_auto"
+    },
+    "human_approval_evidence": "design_human_approved"
+  },
+  "budget": {
+    "max_context_tokens_estimate": 60000,
+    "max_model_calls": 10,
+    "max_clarifying_questions": 5
+  }
+}

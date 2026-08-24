@@ -1,0 +1,267 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/design-decision/v1",
+  "title": "DesignDecision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "decision_id",
+    "objective",
+    "mode"
+  ],
+  "properties": {
+    "schema": {
+      "const": "agent-sdlc/design-decision/v1"
+    },
+    "decision_id": {
+      "type": "string",
+      "pattern": "^DESIGN-[0-9]{3,}$"
+    },
+    "run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mode": {
+      "enum": [
+        "SKIP",
+        "COMPACT",
+        "FULL"
+      ]
+    },
+    "mode_reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "skip_reason": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Required when mode is SKIP; the DESIGN gate will not accept a bare skip."
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Acceptance criterion / requirement IDs this decision serves."
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "question"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "resolved_by": {
+            "enum": [
+              "USER",
+              "REPOSITORY_EVIDENCE",
+              "UNRESOLVED"
+            ]
+          },
+          "answer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "options": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "summary"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "architecture": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "benefits": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tradeoffs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "complexity": {
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH"
+            ]
+          },
+          "compatibility_impact": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "risks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "migration": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "verification_burden": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "rejected_alternatives": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "summary",
+          "rejection_evidence"
+        ],
+        "properties": {
+          "summary": {
+            "type": "string"
+          },
+          "rejection_evidence": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Required when FULL mode records fewer options than policy minimum."
+    },
+    "recommended_option": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "recommendation_reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "decision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "approval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required",
+        "status"
+      ],
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "NOT_REQUIRED",
+            "PENDING",
+            "APPROVED",
+            "REJECTED"
+          ]
+        },
+        "approver": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "time": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "affected_interfaces": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "affected_data": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verification_obligations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "source_revision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "created_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

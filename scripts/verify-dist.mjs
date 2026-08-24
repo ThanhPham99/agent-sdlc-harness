@@ -55,7 +55,9 @@ for(const host of hosts){
     check(host,'internal-skill-registry',()=>{
       const reg=JSON.parse(fs.readFileSync(path.join(root,'config','skills.json'),'utf8'));
       const internal=Object.values(reg.internal||{});
-      if(internal.length!==18)throw Error(`expected 18 internal skills, got ${internal.length}`);
+      // Count is derived from the canonical source registry so it cannot drift.
+      const expectedInternal=Object.keys(JSON.parse(fs.readFileSync(path.join(ROOT,'config','skills.json'),'utf8')).internal||{}).length;
+      if(internal.length!==expectedInternal)throw Error(`expected ${expectedInternal} internal skills, got ${internal.length}`);
       for(const s of internal){
         if(!s.instructions.startsWith('harness/internal-skills/'))throw Error(`unsafe discovery path: ${s.instructions}`);
         if(!fs.existsSync(path.join(root,s.instructions)))throw Error(`missing ${s.instructions}`);

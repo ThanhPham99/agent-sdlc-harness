@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/stage-policy/v1",
-  "version": "3.0.0-alpha3",
+  "version": "3.0.0-alpha4",
   "stages": {
     "INTAKE": {
       "roles": [
@@ -106,7 +106,11 @@
         "max_output_tokens": 6000
       },
       "gate_requirements": [
-        "plan_ready"
+        "plan_artifact_created",
+        "plan_schema_valid",
+        "plan_graph_valid",
+        "plan_acceptance_coverage_valid",
+        "plan_scope_conflicts_resolved"
       ]
     },
     "IMPLEMENT": {
@@ -308,5 +312,18 @@
         "docs_reconciled"
       ]
     }
+  },
+  "evidence_authority": {
+    "design_skipped_with_reason": "runtime",
+    "compact_design_accepted": "runtime",
+    "full_design_approved_or_policy_auto": "runtime",
+    "design_or_skip_decision": "runtime",
+    "design_human_approved": "human",
+    "plan_artifact_created": "runtime",
+    "plan_schema_valid": "runtime",
+    "plan_graph_valid": "runtime",
+    "plan_acceptance_coverage_valid": "runtime",
+    "plan_scope_conflicts_resolved": "runtime",
+    "plan_ready": "runtime"
   }
 }

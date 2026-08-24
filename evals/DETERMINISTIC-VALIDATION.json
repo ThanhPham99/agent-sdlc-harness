@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha4",
-  "checks": 79,
-  "passes": 79,
+  "checks": 99,
+  "passes": 99,
   "failures": 0,
   "results": [
     {
@@ -319,6 +319,86 @@
     },
     {
       "name": "antigravity-preinvocation-hook-emits-canonical-bootstrap",
+      "status": "PASS"
+    },
+    {
+      "name": "design-discovery-is-internal-only",
+      "status": "PASS"
+    },
+    {
+      "name": "design-discovery-mode-selection-is-deterministic",
+      "status": "PASS"
+    },
+    {
+      "name": "design-discovery-cases-match-selector",
+      "status": "PASS"
+    },
+    {
+      "name": "design-discovery-strict-never-skips",
+      "status": "PASS"
+    },
+    {
+      "name": "design-discovery-hard-signals-survive-deescalation",
+      "status": "PASS"
+    },
+    {
+      "name": "design-decision-validator-adversarial-cases",
+      "status": "PASS"
+    },
+    {
+      "name": "design-mode-evidence-tokens-are-policy-canonical",
+      "status": "PASS"
+    },
+    {
+      "name": "plan-validator-cases",
+      "status": "PASS"
+    },
+    {
+      "name": "plan-validator-is-deterministic",
+      "status": "PASS"
+    },
+    {
+      "name": "plan-graph-helpers-agree-with-validator",
+      "status": "PASS"
+    },
+    {
+      "name": "design-gate-blocks-without-decision",
+      "status": "PASS"
+    },
+    {
+      "name": "design-gate-evidence-cannot-be-asserted-by-caller",
+      "status": "PASS"
+    },
+    {
+      "name": "design-human-approval-evidence-requires-recorded-approval",
+      "status": "PASS"
+    },
+    {
+      "name": "design-record-rejects-unapproved-human-decision",
+      "status": "PASS"
+    },
+    {
+      "name": "design-record-opens-plan-on-valid-decision",
+      "status": "PASS"
+    },
+    {
+      "name": "plan-gate-blocks-without-validated-plan",
+      "status": "PASS"
+    },
+    {
+      "name": "plan-gate-evidence-cannot-be-asserted-by-caller",
+      "status": "PASS"
+    },
+    {
+      "name": "plan-record-rejects-invalid-plan",
+      "status": "PASS"
+    },
+    {
+      "name": "plan-record-opens-implement-on-valid-plan",
+      "status": "PASS"
+    },
+    {
+      "name": "gate-records-are-stage-scoped",
       "status": "PASS"
     }
   ]

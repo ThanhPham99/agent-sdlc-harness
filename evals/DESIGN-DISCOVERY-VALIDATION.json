@@ -1,0 +1,357 @@
+{
+  "schema": "agent-sdlc/design-discovery-validation/v1",
+  "version": "3.0.0-alpha4",
+  "policy_version": "3.0.0-alpha4",
+  "public_skill_count": 2,
+  "design_discovery_is_internal": true,
+  "modes": [
+    "SKIP",
+    "COMPACT",
+    "FULL"
+  ],
+  "gate": {
+    "stage": "DESIGN",
+    "stage_policy_requirements": [
+      "design_or_skip_decision"
+    ],
+    "accepted_mode_evidence": [
+      "design_skipped_with_reason",
+      "compact_design_accepted",
+      "full_design_approved_or_policy_auto"
+    ],
+    "derived_evidence": "design_or_skip_decision",
+    "human_approval_evidence": "design_human_approved",
+    "evidence_authority": {
+      "design_skipped_with_reason": "runtime",
+      "compact_design_accepted": "runtime",
+      "full_design_approved_or_policy_auto": "runtime",
+      "design_or_skip_decision": "runtime",
+      "design_human_approved": "human"
+    },
+    "required_evidence_by_mode": {
+      "SKIP": [
+        "design_skipped_with_reason"
+      ],
+      "COMPACT": [
+        "compact_design_accepted"
+      ],
+      "FULL": [
+        "full_design_approved_or_policy_auto"
+      ]
+    }
+  },
+  "mode_selection": {
+    "checks": 13,
+    "passes": 13,
+    "failures": 0,
+    "distribution": {
+      "SKIP": 2,
+      "COMPACT": 4,
+      "FULL": 7
+    },
+    "results": [
+      {
+        "case_id": "DD-001-docs-only-skips",
+        "profile": "FAST",
+        "status": "PASS",
+        "mode": "SKIP",
+        "human_approval_required": false,
+        "escalation_signals": [],
+        "deescalation_signals": [
+          "DOCS_ONLY",
+          "TRIVIAL_LOCAL_FIX"
+        ],
+        "reason_codes": [
+          "PROFILE_DEFAULT:FAST:SKIP",
+          "DEESCALATE:DOCS_ONLY:SKIP",
+          "DEESCALATE:TRIVIAL_LOCAL_FIX:COMPACT"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-002-mechanical-refactor-compact-at-most",
+        "profile": "STANDARD",
+        "status": "PASS",
+        "mode": "COMPACT",
+        "human_approval_required": false,
+        "escalation_signals": [],
+        "deescalation_signals": [
+          "MECHANICAL_REFACTOR"
+        ],
+        "reason_codes": [
+          "PROFILE_DEFAULT:STANDARD:COMPACT",
+          "DEESCALATE:MECHANICAL_REFACTOR:COMPACT"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-003-known-local-behavior-change-compact",
+        "profile": "STANDARD",
+        "status": "PASS",
+        "mode": "COMPACT",
+        "human_approval_required": false,
+        "escalation_signals": [
+          "NON_TRIVIAL_LOCAL_DECISION"
+        ],
+        "deescalation_signals": [],
+        "reason_codes": [
+          "PROFILE_DEFAULT:STANDARD:COMPACT",
+          "ESCALATE:NON_TRIVIAL_LOCAL_DECISION:COMPACT"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-004-new-integration-with-alternatives-full",
+        "profile": "STANDARD",
+        "status": "PASS",
+        "mode": "FULL",
+        "human_approval_required": false,
+        "escalation_signals": [
+          "MULTIPLE_APPROACHES"
+        ],
+        "deescalation_signals": [],
+        "reason_codes": [
+          "PROFILE_DEFAULT:STANDARD:COMPACT",
+          "ESCALATE:MULTIPLE_APPROACHES:FULL"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-005-breaking-public-api-full",
+        "profile": "STANDARD",
+        "status": "PASS",
+        "mode": "FULL",
+        "human_approval_required": true,
+        "escalation_signals": [
+          "PUBLIC_CONTRACT_CHANGE"
+        ],
+        "deescalation_signals": [],
+        "reason_codes": [
+          "PROFILE_DEFAULT:STANDARD:COMPACT",
+          "ESCALATE_HARD:PUBLIC_CONTRACT_CHANGE:FULL",
+          "HUMAN_APPROVAL_REQUIRED:PUBLIC_CONTRACT_CHANGE"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-006-security-policy-design-full-human",
+        "profile": "STRICT",
+        "status": "PASS",
+        "mode": "FULL",
+        "human_approval_required": true,
+        "escalation_signals": [
+          "SECURITY_POLICY_DESIGN"
+        ],
+        "deescalation_signals": [],
+        "reason_codes": [
+          "PROFILE_DEFAULT:STRICT:FULL",
+          "ESCALATE_HARD:SECURITY_POLICY_DESIGN:FULL",
+          "HUMAN_APPROVAL_REQUIRED:SECURITY_POLICY_DESIGN"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-007-restoring-known-policy-is-not-brainstorming",
+        "profile": "STANDARD",
+        "status": "PASS",
+        "mode": "COMPACT",
+        "human_approval_required": false,
+        "escalation_signals": [],
+        "deescalation_signals": [
+          "RESTORE_CONFIRMED_BEHAVIOR"
+        ],
+        "reason_codes": [
+          "PROFILE_DEFAULT:STANDARD:COMPACT",
+          "DEESCALATE:RESTORE_CONFIRMED_BEHAVIOR:COMPACT"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-008-user-explicitly-asks-for-options",
+        "profile": "STANDARD",
+        "status": "PASS",
+        "mode": "FULL",
+        "human_approval_required": false,
+        "escalation_signals": [
+          "USER_REQUESTED_OPTIONS"
+        ],
+        "deescalation_signals": [],
+        "reason_codes": [
+          "PROFILE_DEFAULT:STANDARD:COMPACT",
+          "ESCALATE_HARD:USER_REQUESTED_OPTIONS:FULL"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-009-strict-never-falls-to-skip",
+        "profile": "STRICT",
+        "status": "PASS",
+        "mode": "COMPACT",
+        "human_approval_required": false,
+        "escalation_signals": [],
+        "deescalation_signals": [
+          "DOCS_ONLY"
+        ],
+        "reason_codes": [
+          "PROFILE_DEFAULT:STRICT:FULL",
+          "DEESCALATE:DOCS_ONLY:SKIP",
+          "PROFILE_BOUND:STRICT:COMPACT"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-010-data-migration-strategy-full-human",
+        "profile": "STANDARD",
+        "status": "PASS",
+        "mode": "FULL",
+        "human_approval_required": true,
+        "escalation_signals": [
+          "DATA_MIGRATION_STRATEGY"
+        ],
+        "deescalation_signals": [],
+        "reason_codes": [
+          "PROFILE_DEFAULT:STANDARD:COMPACT",
+          "ESCALATE_HARD:DATA_MIGRATION_STRATEGY:FULL",
+          "HUMAN_APPROVAL_REQUIRED:DATA_MIGRATION_STRATEGY"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-011-fast-cannot-dodge-contract-decision",
+        "profile": "FAST",
+        "status": "PASS",
+        "mode": "FULL",
+        "human_approval_required": true,
+        "escalation_signals": [
+          "PUBLIC_CONTRACT_CHANGE"
+        ],
+        "deescalation_signals": [],
+        "reason_codes": [
+          "PROFILE_DEFAULT:FAST:SKIP",
+          "ESCALATE_HARD:PUBLIC_CONTRACT_CHANGE:FULL",
+          "HUMAN_APPROVAL_REQUIRED:PUBLIC_CONTRACT_CHANGE"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-012-dependency-bump-no-decision-skips",
+        "profile": "FAST",
+        "status": "PASS",
+        "mode": "SKIP",
+        "human_approval_required": false,
+        "escalation_signals": [],
+        "deescalation_signals": [
+          "DEPENDENCY_BUMP_NO_DECISION"
+        ],
+        "reason_codes": [
+          "PROFILE_DEFAULT:FAST:SKIP",
+          "DEESCALATE:DEPENDENCY_BUMP_NO_DECISION:COMPACT"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-013-declared-signal-escalates-without-keywords",
+        "profile": "STANDARD",
+        "status": "PASS",
+        "mode": "FULL",
+        "human_approval_required": false,
+        "escalation_signals": [
+          "ARCHITECTURE_BOUNDARY"
+        ],
+        "deescalation_signals": [],
+        "reason_codes": [
+          "PROFILE_DEFAULT:STANDARD:COMPACT",
+          "ESCALATE:ARCHITECTURE_BOUNDARY:FULL"
+        ],
+        "problems": []
+      }
+    ]
+  },
+  "decision_contract": {
+    "checks": 7,
+    "passes": 7,
+    "failures": 0,
+    "results": [
+      {
+        "case_id": "DDA-001-full-mode-without-options-rejected",
+        "status": "PASS",
+        "valid": false,
+        "errors": [
+          "FULL_MODE_WITHOUT_OPTIONS"
+        ],
+        "warnings": [
+          "NO_LINKED_REQUIREMENTS"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DDA-002-single-option-without-rejection-evidence",
+        "status": "PASS",
+        "valid": false,
+        "errors": [
+          "SINGLE_OPTION_WITHOUT_REJECTION_EVIDENCE"
+        ],
+        "warnings": [
+          "NO_LINKED_REQUIREMENTS"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DDA-003-single-option-with-rejection-evidence-accepted",
+        "status": "PASS",
+        "valid": true,
+        "errors": [],
+        "warnings": [
+          "SINGLE_OPTION_WITH_RECORDED_REJECTIONS"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DDA-004-invented-approval-rejected",
+        "status": "PASS",
+        "valid": false,
+        "errors": [
+          "APPROVAL_REQUIRED_NOT_APPROVED"
+        ],
+        "warnings": [
+          "NO_LINKED_REQUIREMENTS"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DDA-005-interface-change-without-verification-obligation",
+        "status": "PASS",
+        "valid": false,
+        "errors": [
+          "INTERFACE_CHANGE_WITHOUT_VERIFICATION_OBLIGATION"
+        ],
+        "warnings": [
+          "NO_LINKED_REQUIREMENTS"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DDA-006-skip-without-reason-rejected",
+        "status": "PASS",
+        "valid": false,
+        "errors": [
+          "SKIP_WITHOUT_REASON"
+        ],
+        "warnings": [
+          "NO_LINKED_REQUIREMENTS"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DDA-007-skip-with-reason-accepted",
+        "status": "PASS",
+        "valid": true,
+        "errors": [],
+        "warnings": [],
+        "problems": []
+      }
+    ]
+  },
+  "live_qualification": "PENDING_LIVE_QUALIFICATION",
+  "status": "PASS"
+}

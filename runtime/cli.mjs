@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';import path from 'node:path';import os from 'node:os';
 import {parseArgs,readJson,rootFrom,writeJson,gitSha,appendJsonl} from './util.mjs';
-import {detectProject} from './init.mjs';import {initProject,loadRun,saveRun,putArtifact,getArtifact,listArtifacts,emit,stateDir} from './store.mjs';import {route} from './router.mjs';import {newRun,nextState,transition} from './orchestrator.mjs';import {buildContext,renderPrompt} from './context.mjs';import {checkTool} from './policy.mjs';import {invokeTool} from './tools.mjs';import {addUsage,reportUsage} from './cost.mjs';import {probe,capabilities,buildInvocation,runHost} from './provider.mjs';import {routeModel} from './model-router.mjs';import {resolveConfig} from './config.mjs';import {compatCheck,migrateState} from './compat.mjs';import {parallelPlan} from './parallel.mjs';import {metrics} from './telemetry.mjs';import {putHandoff,getHandoff,listHandoffs} from './handoff.mjs';import {exportReplay,validateReplay} from './replay.mjs';import {normalizeInput} from './normalize.mjs';import {activationStatus,getBootstrapInstruction,getActivationPolicy,estimateBootstrapCost,classifyActivationFixture,buildActivationEvent,ACTIVATION_EVENTS} from './activation.mjs';import * as codexBootstrap from './codex-bootstrap.mjs';
+import {detectProject} from './init.mjs';import {initProject,loadRun,saveRun,putArtifact,getArtifact,listArtifacts,emit,stateDir} from './store.mjs';import {route} from './router.mjs';import {newRun,nextState,transition,recordDesignDecision,recordTaskPlan} from './orchestrator.mjs';import {buildContext,renderPrompt} from './context.mjs';import {checkTool} from './policy.mjs';import {invokeTool} from './tools.mjs';import {addUsage,reportUsage} from './cost.mjs';import {probe,capabilities,buildInvocation,runHost} from './provider.mjs';import {routeModel} from './model-router.mjs';import {resolveConfig} from './config.mjs';import {compatCheck,migrateState} from './compat.mjs';import {parallelPlan} from './parallel.mjs';import {metrics} from './telemetry.mjs';import {putHandoff,getHandoff,listHandoffs} from './handoff.mjs';import {exportReplay,validateReplay} from './replay.mjs';import {normalizeInput} from './normalize.mjs';import {activationStatus,getBootstrapInstruction,getActivationPolicy,estimateBootstrapCost,classifyActivationFixture,buildActivationEvent,ACTIVATION_EVENTS} from './activation.mjs';import * as codexBootstrap from './codex-bootstrap.mjs';import {selectDesignDiscoveryMode,validateDesignDecision,getDesignDiscoveryPolicy} from './design-discovery.mjs';import {validateTaskPlan,computeTaskGraph,computeReadySets,computeCoverage,computeScopeConflicts,findCycles} from './plan-validator.mjs';
 const ROOT=rootFrom(import.meta.url);const args=parseArgs(process.argv.slice(2));const cmd=args._[0];const projectRoot=path.resolve(args.project||process.cwd());
 const print=x=>console.log(typeof x==='string'?x:JSON.stringify(x,null,2));
 function needRun(){if(!args['run-id'])throw new Error('--run-id required');return loadRun(projectRoot,args['run-id']);}
@@ -74,6 +74,53 @@ try{
    }
    else throw new Error(`unknown activation subcommand ${sub}`);
  }
+ else if(cmd==='design'){
+   const sub=args._[1]||'mode';
+   const loadFile=()=>{if(!args.file)throw new Error('--file required');return readJson(path.resolve(args.file));};
+   if(sub==='mode'){
+     const run=args['run-id']?needRun():null;
+     print(selectDesignDiscoveryMode({
+       profile:args.profile||run?.profile||'STANDARD',
+       objective:args.objective||run?.objective||args._.slice(2).join(' '),
+       declaredSignals:args.signals?String(args.signals).split(',').map(s=>s.trim()).filter(Boolean):[],
+       designAlreadyApproved:!!args.approved
+     }));
+   }
+   else if(sub==='policy')print(getDesignDiscoveryPolicy());
+   else if(sub==='validate')print(validateDesignDecision(loadFile()));
+   else if(sub==='record'){
+     const run=needRun();const decision=loadFile();
+     let artifact=null;
+     if(!args['no-artifact'])artifact=putArtifact(projectRoot,{kind:'design-decision',content:JSON.stringify(decision,null,2)+'\n',runId:run.run_id,stage:run.state,sourceRevision:gitSha(projectRoot),filename:'design-decision.json'});
+     const out=recordDesignDecision(ROOT,projectRoot,run,decision,{artifactRef:artifact?.artifact_id||null});
+     if(out.recorded&&artifact){run.artifacts=[...new Set([...(run.artifacts||[]),artifact.artifact_id])];saveRun(projectRoot,run);}
+     print({...out,artifact});
+     if(!out.recorded)process.exitCode=1;
+   }
+   else throw new Error(`unknown design subcommand ${sub}`);
+ }
+ else if(cmd==='plan'){
+   const sub=args._[1]||'validate';
+   const loadFile=()=>{if(!args.file)throw new Error('--file required');return readJson(path.resolve(args.file));};
+   if(sub==='validate'){
+     const v=validateTaskPlan(loadFile(),{...(args.profile?{profile:args.profile}:{})});
+     print(v);if(!v.valid)process.exitCode=1;
+   }
+   else if(sub==='graph'){
+     const plan=loadFile();
+     print({...computeTaskGraph(plan),cycles:findCycles(plan),...computeReadySets(plan),coverage:computeCoverage(plan),conflicts:computeScopeConflicts(plan)});
+   }
+   else if(sub==='record'){
+     const run=needRun();const plan=loadFile();
+     let artifact=null;
+     if(!args['no-artifact'])artifact=putArtifact(projectRoot,{kind:'task-plan',content:JSON.stringify(plan,null,2)+'\n',runId:run.run_id,stage:run.state,sourceRevision:gitSha(projectRoot),filename:'task-plan.json'});
+     const out=recordTaskPlan(ROOT,projectRoot,run,plan,{artifactRef:artifact?.artifact_id||null});
+     if(out.recorded&&artifact){run.artifacts=[...new Set([...(run.artifacts||[]),artifact.artifact_id])];saveRun(projectRoot,run);}
+     print({...out,artifact});
+     if(!out.recorded)process.exitCode=1;
+   }
+   else throw new Error(`unknown plan subcommand ${sub}`);
+ }
  else if(cmd==='doctor'){const proj=fs.existsSync(path.join(projectRoot,'.agent-sdlc','project.json'))?'READY':'NOT_INITIALIZED';print({version:readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version,node:process.version,project:proj,providers:['claude','codex','antigravity'].map(h=>capabilities(h,probe(h))),auto_activation:['claude','codex','antigravity'].map(h=>{const s=activationStatus({host:h,config:resolveConfig(projectRoot).effective,codexManagedBootstrap:h==='codex'?codexBootstrap.status({}):null});return {host:h,enabled:s.enabled,delivery_mode:s.delivery_mode,activation_class:s.activation_class,rough_tokens:s.rough_tokens};})});}
- else {print(`agent-sdlc ${readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version}\n\nCommands: init, route, start, status, next, transition, context, normalize, artifact-put/get/list, handoff-put/get/list, tool-check/run, usage-add/report, config-show, compat-check, migrate, parallel-plan, metrics, model-route, provider-probe/command/run, replay-export/validate, activation, doctor\n\nactivation subcommands: status, enable, disable, print-bootstrap, policy, cost, classify, events, record, doctor, codex-bootstrap install|uninstall|status`);process.exit(cmd?2:0);}
+ else {print(`agent-sdlc ${readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version}\n\nCommands: init, route, start, status, next, transition, context, normalize, artifact-put/get/list, handoff-put/get/list, tool-check/run, usage-add/report, config-show, compat-check, migrate, parallel-plan, metrics, model-route, provider-probe/command/run, replay-export/validate, activation, design, plan, doctor\n\nactivation subcommands: status, enable, disable, print-bootstrap, policy, cost, classify, events, record, doctor, codex-bootstrap install|uninstall|status\ndesign subcommands: mode, policy, validate, record\nplan subcommands: validate, graph, record`);process.exit(cmd?2:0);}
 }catch(e){console.error(JSON.stringify({status:'ERROR',error:e.message},null,2));process.exit(1);}

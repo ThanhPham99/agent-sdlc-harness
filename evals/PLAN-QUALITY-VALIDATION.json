@@ -1,0 +1,604 @@
+{
+  "schema": "agent-sdlc/plan-quality-validation/v1",
+  "version": "3.0.0-alpha4",
+  "schemas": [
+    "agent-sdlc/task-plan/v1",
+    "agent-sdlc/planned-task/v1"
+  ],
+  "thresholds": {
+    "giant_task_module_threshold": 3,
+    "giant_task_write_scope_threshold": 12,
+    "micro_plan_profiles": [
+      "FAST"
+    ],
+    "required_task_fields": [
+      "goal",
+      "scope",
+      "done_condition",
+      "verification"
+    ]
+  },
+  "gate": {
+    "stage": "PLAN",
+    "stage_policy_requirements": [
+      "plan_artifact_created",
+      "plan_schema_valid",
+      "plan_graph_valid",
+      "plan_acceptance_coverage_valid",
+      "plan_scope_conflicts_resolved"
+    ],
+    "recorded_evidence": [
+      "plan_artifact_created",
+      "plan_schema_valid",
+      "plan_graph_valid",
+      "plan_acceptance_coverage_valid",
+      "plan_scope_conflicts_resolved",
+      "plan_ready"
+    ],
+    "evidence_authority": {
+      "plan_artifact_created": "runtime",
+      "plan_schema_valid": "runtime",
+      "plan_graph_valid": "runtime",
+      "plan_acceptance_coverage_valid": "runtime",
+      "plan_scope_conflicts_resolved": "runtime",
+      "plan_ready": "runtime"
+    },
+    "caller_assertable": false
+  },
+  "invariants_exercised": [
+    "BEHAVIOR_TASK_WITHOUT_VERIFICATION",
+    "CYCLE_DETECTED",
+    "DESTRUCTIVE_TASK_WITHOUT_ROLLBACK",
+    "DUPLICATE_TASK_ID",
+    "EDGE_NOT_IN_DEPENDS_ON",
+    "FORBIDDEN_SCOPE_VIOLATION",
+    "GIANT_TASK_WITHOUT_JUSTIFICATION",
+    "INTERFACE_TASK_WITHOUT_COMPATIBILITY_OBLIGATION",
+    "MISSING_REQUIRED_TASK_CATEGORY",
+    "PARALLEL_INTERFACE_SCOPE_CONFLICT",
+    "PARALLEL_WRITE_SCOPE_CONFLICT",
+    "TASK_MISSING_DONE_CONDITION",
+    "UNCOVERED_ACCEPTANCE_CRITERION",
+    "UNKNOWN_DEPENDENCY",
+    "UNRESOLVED_DESIGN_DECISION",
+    "UNRESOLVED_REQUIREMENT",
+    "UNVERIFIED_ACCEPTANCE_CRITERION"
+  ],
+  "graph_helpers": {
+    "fan_out_graph": {
+      "schema": "agent-sdlc/task-graph-view/v1",
+      "plan_id": "PLAN-001",
+      "run_id": null,
+      "node_count": 4,
+      "edge_count": 4,
+      "nodes": [
+        {
+          "task_id": "TASK-001",
+          "category": "implementation",
+          "depends_on": [],
+          "parallel_candidate": false
+        },
+        {
+          "task_id": "TASK-002",
+          "category": "implementation",
+          "depends_on": [
+            "TASK-001"
+          ],
+          "parallel_candidate": true
+        },
+        {
+          "task_id": "TASK-003",
+          "category": "implementation",
+          "depends_on": [
+            "TASK-001"
+          ],
+          "parallel_candidate": true
+        },
+        {
+          "task_id": "TASK-004",
+          "category": "integration",
+          "depends_on": [
+            "TASK-002",
+            "TASK-003"
+          ],
+          "parallel_candidate": false
+        }
+      ],
+      "edges": [
+        {
+          "from": "TASK-001",
+          "to": "TASK-002",
+          "kind": "depends_on"
+        },
+        {
+          "from": "TASK-001",
+          "to": "TASK-003",
+          "kind": "depends_on"
+        },
+        {
+          "from": "TASK-002",
+          "to": "TASK-004",
+          "kind": "depends_on"
+        },
+        {
+          "from": "TASK-003",
+          "to": "TASK-004",
+          "kind": "depends_on"
+        }
+      ],
+      "unknown_dependencies": []
+    },
+    "fan_out_waves": [
+      [
+        "TASK-001"
+      ],
+      [
+        "TASK-002",
+        "TASK-003"
+      ],
+      [
+        "TASK-004"
+      ]
+    ],
+    "cyclic_cycles": [
+      [
+        "TASK-001",
+        "TASK-002"
+      ]
+    ],
+    "cyclic_unreachable": [
+      "TASK-001",
+      "TASK-002"
+    ]
+  },
+  "checks": 21,
+  "passes": 21,
+  "failures": 0,
+  "results": [
+    {
+      "case_id": "PQ-001-valid-linear-dag",
+      "status": "PASS",
+      "valid": true,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 2,
+        "edge_count": 1,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 2
+      },
+      "errors": [],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-002-valid-fan-out-fan-in",
+      "status": "PASS",
+      "valid": true,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 4,
+        "edge_count": 4,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 2,
+        "conflict_count": 0,
+        "wave_count": 3
+      },
+      "errors": [],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-003-missing-dependency-task",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 1,
+        "edge_count": 0,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 1
+      },
+      "errors": [
+        "UNKNOWN_DEPENDENCY"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-004-cycle",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 2,
+        "edge_count": 2,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 1,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 0
+      },
+      "errors": [
+        "CYCLE_DETECTED"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-005-duplicate-task-id",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 2,
+        "edge_count": 0,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 1
+      },
+      "errors": [
+        "DUPLICATE_TASK_ID"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-006-uncovered-acceptance-criterion",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 2,
+        "edge_count": 1,
+        "ac_coverage": 0.6667,
+        "verification_coverage": 0.6667,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 2
+      },
+      "errors": [
+        "UNCOVERED_ACCEPTANCE_CRITERION"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-007-task-without-done-condition",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 1,
+        "edge_count": 0,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 1
+      },
+      "errors": [
+        "TASK_MISSING_DONE_CONDITION"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-008-behavior-task-without-verification",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 1,
+        "edge_count": 0,
+        "ac_coverage": 1,
+        "verification_coverage": 0,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 1
+      },
+      "errors": [
+        "BEHAVIOR_TASK_WITHOUT_VERIFICATION",
+        "UNVERIFIED_ACCEPTANCE_CRITERION",
+        "UNVERIFIED_ACCEPTANCE_CRITERION"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-009-overlapping-parallel-write-scope",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 2,
+        "edge_count": 0,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 2,
+        "conflict_count": 1,
+        "wave_count": 1
+      },
+      "errors": [
+        "PARALLEL_WRITE_SCOPE_CONFLICT"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-010-overlapping-parallel-interface-scope",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 2,
+        "edge_count": 0,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 2,
+        "conflict_count": 1,
+        "wave_count": 1
+      },
+      "errors": [
+        "PARALLEL_INTERFACE_SCOPE_CONFLICT"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-011-destructive-migration-without-rollback",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 1,
+        "edge_count": 0,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 1
+      },
+      "errors": [
+        "DESTRUCTIVE_TASK_WITHOUT_ROLLBACK"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-012-interface-task-without-compatibility-obligation",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 1,
+        "edge_count": 0,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 1
+      },
+      "errors": [
+        "INTERFACE_TASK_WITHOUT_COMPATIBILITY_OBLIGATION"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-013-missing-required-task-category",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 2,
+        "edge_count": 1,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 2
+      },
+      "errors": [
+        "MISSING_REQUIRED_TASK_CATEGORY"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-014-giant-task-without-justification",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 1,
+        "edge_count": 0,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 1
+      },
+      "errors": [
+        "GIANT_TASK_WITHOUT_JUSTIFICATION"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-015-giant-task-with-justification-accepted",
+      "status": "PASS",
+      "valid": true,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 1,
+        "edge_count": 0,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 1
+      },
+      "errors": [],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-016-forbidden-scope-violation",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 2,
+        "edge_count": 1,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 2
+      },
+      "errors": [
+        "FORBIDDEN_SCOPE_VIOLATION",
+        "FORBIDDEN_SCOPE_VIOLATION"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-017-unresolved-design-decision",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 2,
+        "edge_count": 1,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 2
+      },
+      "errors": [
+        "UNRESOLVED_DESIGN_DECISION"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-018-unresolved-requirement",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 2,
+        "edge_count": 1,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 2
+      },
+      "errors": [
+        "UNRESOLVED_REQUIREMENT"
+      ],
+      "warnings": [],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-019-fast-micro-plan-relaxes-coverage",
+      "status": "PASS",
+      "valid": true,
+      "micro_plan": true,
+      "metrics": {
+        "task_count": 2,
+        "edge_count": 1,
+        "ac_coverage": 0.6667,
+        "verification_coverage": 0.6667,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 2
+      },
+      "errors": [],
+      "warnings": [
+        "UNCOVERED_ACCEPTANCE_CRITERION"
+      ],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-020-fast-micro-plan-still-needs-the-four-minimums",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": true,
+      "metrics": {
+        "task_count": 1,
+        "edge_count": 0,
+        "ac_coverage": 0,
+        "verification_coverage": 0,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 1
+      },
+      "errors": [
+        "TASK_MISSING_DONE_CONDITION",
+        "BEHAVIOR_TASK_WITHOUT_VERIFICATION"
+      ],
+      "warnings": [
+        "UNCOVERED_ACCEPTANCE_CRITERION",
+        "UNCOVERED_ACCEPTANCE_CRITERION"
+      ],
+      "problems": []
+    },
+    {
+      "case_id": "PQ-021-explicit-edges-must-agree-with-depends-on",
+      "status": "PASS",
+      "valid": false,
+      "micro_plan": false,
+      "metrics": {
+        "task_count": 2,
+        "edge_count": 1,
+        "ac_coverage": 1,
+        "verification_coverage": 1,
+        "cycle_count": 0,
+        "parallel_candidate_count": 0,
+        "conflict_count": 0,
+        "wave_count": 2
+      },
+      "errors": [
+        "EDGE_NOT_IN_DEPENDS_ON"
+      ],
+      "warnings": [
+        "DEPENDS_ON_NOT_IN_EDGES"
+      ],
+      "problems": []
+    }
+  ],
+  "status": "PASS"
+}
