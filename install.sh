@@ -3,15 +3,15 @@ set -euo pipefail
 
 PLUGIN="agent-sdlc-harness"
 MARKETPLACE="agent-sdlc-github"
-REPO="${AGENT_SDLC_GITHUB_REPO:-}"
+REPO="${AGENT_SDLC_GITHUB_REPO:-ThanhPham99/agent-sdlc-harness}"
 HOST="all"
 
 usage() {
   cat <<'EOF'
-Usage: ./install.sh --repo OWNER/REPO [--host claude|codex|antigravity|all]
+Usage: ./install.sh [--repo ThanhPham99/agent-sdlc-harness] [--host claude|codex|antigravity|all]
 
-You can also set AGENT_SDLC_GITHUB_REPO=OWNER/REPO.
-When run from a git checkout, the script tries to infer OWNER/REPO from origin.
+You can also set AGENT_SDLC_GITHUB_REPO=ThanhPham99/agent-sdlc-harness.
+When run from a git checkout, the script tries to infer repository from origin.
 EOF
 }
 
@@ -40,7 +40,7 @@ done
 
 if [[ -z "$REPO" ]]; then REPO="$(infer_repo || true)"; fi
 if [[ -z "$REPO" || "$REPO" != */* || "$REPO" == http* ]]; then
-  echo "A GitHub repository coordinate OWNER/REPO is required." >&2
+  echo "A GitHub repository coordinate (e.g. ThanhPham99/agent-sdlc-harness) is required." >&2
   usage >&2
   exit 2
 fi

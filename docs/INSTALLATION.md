@@ -7,14 +7,14 @@ The source repository itself is installable through each supported host. Generat
 The repository root contains `.claude-plugin/marketplace.json` whose single entry points to `./`, and `.claude-plugin/plugin.json` contains the Claude plugin metadata and component paths.
 
 ```text
-/plugin marketplace add OWNER/REPO
+/plugin marketplace add ThanhPham99/agent-sdlc-harness
 /plugin install agent-sdlc-harness@agent-sdlc-github
 ```
 
 CLI automation:
 
 ```bash
-claude plugin marketplace add OWNER/REPO
+claude plugin marketplace add ThanhPham99/agent-sdlc-harness
 claude plugin install agent-sdlc-harness@agent-sdlc-github
 ```
 
@@ -25,7 +25,7 @@ For a tag/ref, Claude's marketplace command supports pinning the GitHub marketpl
 The repository contains `.agents/plugins/marketplace.json` and `.codex-plugin/plugin.json`.
 
 ```bash
-codex plugin marketplace add OWNER/REPO
+codex plugin marketplace add ThanhPham99/agent-sdlc-harness
 codex plugin add agent-sdlc-harness@agent-sdlc-github
 ```
 
@@ -36,7 +36,7 @@ Use a new Codex thread after install/update. `codex plugin add` is intentionally
 The repository root is also a valid Antigravity plugin root (`plugin.json`, `mcp_config.json`, `hooks.json`, `skills/`, `agents/`, `rules/`).
 
 ```bash
-agy plugin install https://github.com/OWNER/REPO
+agy plugin install https://github.com/ThanhPham99/agent-sdlc-harness
 ```
 
 Reinstall with the same command to update.
@@ -44,10 +44,10 @@ Reinstall with the same command to update.
 ## Universal bootstrap
 
 ```bash
-./install.sh --repo OWNER/REPO --host all
-./install.sh --repo OWNER/REPO --host claude
-./install.sh --repo OWNER/REPO --host codex
-./install.sh --repo OWNER/REPO --host antigravity
+./install.sh --repo ThanhPham99/agent-sdlc-harness --host all
+./install.sh --repo ThanhPham99/agent-sdlc-harness --host claude
+./install.sh --repo ThanhPham99/agent-sdlc-harness --host codex
+./install.sh --repo ThanhPham99/agent-sdlc-harness --host antigravity
 ```
 
 The script invokes native host commands only; it does not write host-owned settings files directly.

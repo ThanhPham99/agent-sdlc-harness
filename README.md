@@ -6,26 +6,24 @@ The repository is intentionally **GitHub-installable**: the same source tree is 
 
 ## Install from GitHub
 
-Replace `OWNER/REPO` with the repository you push this source tree to.
-
 ### Claude Code
 
 ```text
-/plugin marketplace add OWNER/REPO
+/plugin marketplace add ThanhPham99/agent-sdlc-harness
 /plugin install agent-sdlc-harness@agent-sdlc-github
 ```
 
 Non-interactive equivalents:
 
 ```bash
-claude plugin marketplace add OWNER/REPO
+claude plugin marketplace add ThanhPham99/agent-sdlc-harness
 claude plugin install agent-sdlc-harness@agent-sdlc-github
 ```
 
 ### Codex CLI / Codex App
 
 ```bash
-codex plugin marketplace add OWNER/REPO
+codex plugin marketplace add ThanhPham99/agent-sdlc-harness
 codex plugin add agent-sdlc-harness@agent-sdlc-github
 ```
 
@@ -34,7 +32,7 @@ Then start a new Codex thread/session so the installed skills and MCP surface ar
 ### Antigravity CLI
 
 ```bash
-agy plugin install https://github.com/OWNER/REPO
+agy plugin install https://github.com/ThanhPham99/agent-sdlc-harness
 ```
 
 Re-run the same command to refresh/reinstall from the repository.
@@ -44,19 +42,19 @@ Re-run the same command to refresh/reinstall from the repository.
 From a checkout:
 
 ```bash
-./install.sh --repo OWNER/REPO
+./install.sh --repo ThanhPham99/agent-sdlc-harness
 ```
 
 Or from a raw GitHub URL after the repo exists:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/OWNER/REPO/main/install.sh | bash -s -- --repo OWNER/REPO
+curl -fsSL https://raw.githubusercontent.com/ThanhPham99/agent-sdlc-harness/main/install.sh | bash -s -- --repo ThanhPham99/agent-sdlc-harness
 ```
 
 PowerShell:
 
 ```powershell
-./install.ps1 -Repo OWNER/REPO -HostName all
+./install.ps1 -Repo ThanhPham99/agent-sdlc-harness -HostName all
 ```
 
 The bootstrap installer delegates to each host's **native plugin/marketplace command**. It does not hand-edit Claude/Codex/Antigravity user configuration files.

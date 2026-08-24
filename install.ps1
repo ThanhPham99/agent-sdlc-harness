@@ -1,11 +1,11 @@
 param(
-  [Parameter(Mandatory=$true)][string]$Repo,
+  [Parameter(Mandatory=$false)][string]$Repo = 'ThanhPham99/agent-sdlc-harness',
   [ValidateSet('all','claude','codex','antigravity')][string]$HostName='all'
 )
 $ErrorActionPreference = 'Stop'
 $Plugin = 'agent-sdlc-harness'
 $Marketplace = 'agent-sdlc-github'
-if ($Repo -notmatch '^[^/]+/[^/]+$') { throw 'Repo must be OWNER/REPO' }
+if ($Repo -notmatch '^[^/]+/[^/]+$') { throw 'Repo must be in OWNER/REPO format (e.g. ThanhPham99/agent-sdlc-harness)' }
 function Has($name) { return [bool](Get-Command $name -ErrorAction SilentlyContinue) }
 function Install-Claude {
   if (-not (Has 'claude')) { Write-Host '[claude] CLI not found; skipped'; return }
