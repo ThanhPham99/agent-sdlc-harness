@@ -1,0 +1,170 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/task-context-manifest/v1",
+  "title": "TaskContextManifest",
+  "description": "Exactly what one bounded task was shown. Persisted with hashes and refs so a replay can prove it, and so the omissions are as auditable as the inclusions.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "run_id",
+    "task_id",
+    "objective",
+    "context_hash"
+  ],
+  "properties": {
+    "schema": {
+      "const": "agent-sdlc/task-context-manifest/v1"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "plan_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "objective": {
+      "type": "string",
+      "description": "The task goal, not the whole run objective."
+    },
+    "outer_stage": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "acceptance_criteria": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "design_decisions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dependency_outputs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "task_id"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "artifact_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "diff_hash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "symbols": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "project_invariants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risk_constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verification_commands": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "handoff_contract": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Exactly what the writer must return: required evidence, artifact kinds, done conditions."
+    },
+    "artifact_summaries": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "excluded": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Named categories deliberately withheld (full chat history, all requirements, whole repo tree, unrelated logs, all tool schemas, prior worker reasoning)."
+    },
+    "budget": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "estimated_tokens": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "context_budget_status": {
+      "enum": [
+        "WITHIN_BUDGET",
+        "OVER_BUDGET"
+      ]
+    },
+    "context_hash": {
+      "type": "string"
+    },
+    "git_sha": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "created_at": {
+      "type": "string"
+    }
+  }
+}

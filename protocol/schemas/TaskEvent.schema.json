@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/task-event/v1",
+  "title": "TaskEvent",
+  "description": "Append-only task lifecycle event. Carries IDs, refs and hashes; never prompt text, file content or secrets.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "event_id",
+    "run_id",
+    "task_id",
+    "seq",
+    "type",
+    "time"
+  ],
+  "properties": {
+    "schema": {
+      "const": "agent-sdlc/task-event/v1"
+    },
+    "event_id": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "type": {
+      "enum": [
+        "task.created",
+        "task.transition",
+        "task.transition_rejected",
+        "task.dispatched",
+        "task.context_compiled",
+        "task.workspace_created",
+        "task.workspace_cleaned",
+        "task.diff_captured",
+        "task.verified",
+        "task.verification_failed",
+        "task.spec_reviewed",
+        "task.quality_reviewed",
+        "task.blocked",
+        "task.failed",
+        "task.invalidated",
+        "task.superseded",
+        "task.recovered",
+        "task.done",
+        "task.scope_violation",
+        "task.provider_fallback"
+      ]
+    },
+    "status": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "attempt": {
+      "type": "integer"
+    },
+    "provider": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "artifact_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "usage": {
+      "type": "object"
+    },
+    "payload": {
+      "type": "object"
+    },
+    "time": {
+      "type": "string"
+    }
+  }
+}

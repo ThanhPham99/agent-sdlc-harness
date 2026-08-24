@@ -1,16 +1,24 @@
 {
   "name": "agent-sdlc-github",
   "description": "GitHub-distributed development marketplace for Agent SDLC Harness",
-  "owner": {"name": "Agent SDLC Harness Contributors"},
+  "owner": {
+    "name": "Agent SDLC Harness Contributors"
+  },
   "plugins": [
     {
       "name": "agent-sdlc-harness",
       "source": "./",
       "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for coding agents.",
-      "version": "3.0.0-alpha4",
+      "version": "3.0.0-alpha5",
       "strict": true,
       "category": "development",
-      "tags": ["sdlc", "coding", "testing", "security", "devops"]
+      "tags": [
+        "sdlc",
+        "coding",
+        "testing",
+        "security",
+        "devops"
+      ]
     }
   ]
 }

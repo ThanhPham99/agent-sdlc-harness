@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';import path from 'node:path';import os from 'node:os';
 import {parseArgs,readJson,rootFrom,writeJson,gitSha,appendJsonl} from './util.mjs';
-import {detectProject} from './init.mjs';import {initProject,loadRun,saveRun,putArtifact,getArtifact,listArtifacts,emit,stateDir} from './store.mjs';import {route} from './router.mjs';import {newRun,nextState,transition,recordDesignDecision,recordTaskPlan} from './orchestrator.mjs';import {buildContext,renderPrompt} from './context.mjs';import {checkTool} from './policy.mjs';import {invokeTool} from './tools.mjs';import {addUsage,reportUsage} from './cost.mjs';import {probe,capabilities,buildInvocation,runHost} from './provider.mjs';import {routeModel} from './model-router.mjs';import {resolveConfig} from './config.mjs';import {compatCheck,migrateState} from './compat.mjs';import {parallelPlan} from './parallel.mjs';import {metrics} from './telemetry.mjs';import {putHandoff,getHandoff,listHandoffs} from './handoff.mjs';import {exportReplay,validateReplay} from './replay.mjs';import {normalizeInput} from './normalize.mjs';import {activationStatus,getBootstrapInstruction,getActivationPolicy,estimateBootstrapCost,classifyActivationFixture,buildActivationEvent,ACTIVATION_EVENTS} from './activation.mjs';import * as codexBootstrap from './codex-bootstrap.mjs';import {selectDesignDiscoveryMode,validateDesignDecision,getDesignDiscoveryPolicy} from './design-discovery.mjs';import {validateTaskPlan,computeTaskGraph,computeReadySets,computeCoverage,computeScopeConflicts,findCycles} from './plan-validator.mjs';
+import {detectProject} from './init.mjs';import {initProject,loadRun,saveRun,putArtifact,getArtifact,listArtifacts,emit,stateDir} from './store.mjs';import {route} from './router.mjs';import {newRun,nextState,transition,recordDesignDecision,recordTaskPlan,materializeRunTasks,recordImplementationComplete} from './orchestrator.mjs';import {buildContext,renderPrompt} from './context.mjs';import {checkTool} from './policy.mjs';import {invokeTool} from './tools.mjs';import {addUsage,reportUsage} from './cost.mjs';import {probe,capabilities,buildInvocation,runHost} from './provider.mjs';import {routeModel} from './model-router.mjs';import {resolveConfig} from './config.mjs';import {compatCheck,migrateState} from './compat.mjs';import {parallelPlan} from './parallel.mjs';import {metrics} from './telemetry.mjs';import {putHandoff,getHandoff,listHandoffs} from './handoff.mjs';import {exportReplay,validateReplay} from './replay.mjs';import {normalizeInput} from './normalize.mjs';import {activationStatus,getBootstrapInstruction,getActivationPolicy,estimateBootstrapCost,classifyActivationFixture,buildActivationEvent,ACTIVATION_EVENTS} from './activation.mjs';import * as codexBootstrap from './codex-bootstrap.mjs';import {selectDesignDiscoveryMode,validateDesignDecision,getDesignDiscoveryPolicy} from './design-discovery.mjs';import {validateTaskPlan,computeTaskGraph,computeReadySets,computeCoverage,computeScopeConflicts,findCycles} from './plan-validator.mjs';import {listTasks,loadTask,loadTaskGraph,listTaskEvents,getTaskContextManifest} from './store.mjs';import {refreshReadiness,transitionTask,evaluateTransition,taskProgress,requireTask,getTaskStateMachine} from './task-engine.mjs';import {scheduleTasks,readySet,scheduleView} from './task-scheduler.mjs';import {buildTaskContext,renderTaskPrompt} from './task-context.mjs';import {startTask,advanceTask,captureTaskDiff,taskCheckpoint,recordTaskUsage} from './task-runner.mjs';import {verifyTask} from './task-verification.mjs';import {validateSpecComplianceReview,validateCodeQualityReview,recordTaskReview} from './task-review.mjs';import {classifyTaskFailure,planRecovery,getTaskFailurePolicy,FAILURE_CLASSES} from './task-recovery.mjs';import {migrateRunToTaskRuntime} from './task-migration.mjs';import {listTaskWorkspaces,checkWriterIsolation,cleanupTaskWorkspace} from './workspace.mjs';import {reportTaskUsage,reportRunTaskUsage} from './cost.mjs';import {taskMetrics} from './telemetry.mjs';
 const ROOT=rootFrom(import.meta.url);const args=parseArgs(process.argv.slice(2));const cmd=args._[0];const projectRoot=path.resolve(args.project||process.cwd());
 const print=x=>console.log(typeof x==='string'?x:JSON.stringify(x,null,2));
 function needRun(){if(!args['run-id'])throw new Error('--run-id required');return loadRun(projectRoot,args['run-id']);}
@@ -121,6 +121,102 @@ try{
    }
    else throw new Error(`unknown plan subcommand ${sub}`);
  }
+ else if(cmd==='task'){
+   const sub=args._[1]||'list';
+   const loadFile=()=>{if(!args.file)throw new Error('--file required');return readJson(path.resolve(args.file));};
+   const needTaskId=()=>{if(!args['task-id'])throw new Error('--task-id required');return args['task-id'];};
+   if(sub==='list'){const run=needRun();print(listTasks(projectRoot,run.run_id).map(t=>({task_id:t.task_id,status:t.status,category:t.category,attempt:t.attempt,depends_on:t.depends_on,writer:t.execution?.primary_writer||null})));}
+   else if(sub==='show'){const run=needRun();print(requireTask(projectRoot,run.run_id,needTaskId()));}
+   else if(sub==='graph'){const run=needRun();print(scheduleView(projectRoot,run.run_id));}
+   else if(sub==='events'){const run=needRun();print(listTaskEvents(projectRoot,run.run_id,args['task-id']||null));}
+   else if(sub==='progress'){const run=needRun();print(taskProgress(projectRoot,run.run_id));}
+   else if(sub==='state-machine')print(getTaskStateMachine(ROOT));
+   else if(sub==='materialize'){
+     const run=needRun();const plan=loadFile();
+     const out=materializeRunTasks(ROOT,projectRoot,run,plan,{planArtifactRef:args['plan-ref']||null,sourceRevision:gitSha(projectRoot)});
+     print(out);if(!out.materialized)process.exitCode=1;
+   }
+   else if(sub==='migrate'){const run=needRun();print(migrateRunToTaskRuntime(ROOT,projectRoot,run,{dryRun:!!args['dry-run']}));}
+   else if(sub==='refresh'){const run=needRun();print(refreshReadiness(ROOT,projectRoot,run.run_id));}
+   else if(sub==='ready'){const run=needRun();print(readySet(projectRoot,run.run_id,{outerStage:args.stage||run.state,root:ROOT}));}
+   else if(sub==='schedule'){
+     const run=needRun();
+     const budget=args['remaining-model-calls']?{remaining_model_calls:Number(args['remaining-model-calls'])}:null;
+     print(scheduleTasks(ROOT,projectRoot,run,{outerStage:args.stage||run.state,budget,maxParallelOverride:args['max-parallel']||null}));
+   }
+   else if(sub==='transition'){
+     const run=needRun();const task=requireTask(projectRoot,run.run_id,needTaskId());
+     const tasks=listTasks(projectRoot,run.run_id);
+     const opts={tasks,reason:args.reason||null,force:!!args.force,
+       newEvidence:!!args['new-evidence'],recoveryDecision:!!args['recovery-decision'],
+       upstreamRefreshed:!!args['upstream-refreshed'],upstreamChange:!!args['upstream-change'],
+       blockerResolved:!!args['blocker-resolved'],primaryWriter:args.writer||null,
+       failureClass:args['failure-class']||null,invalidationSource:args['invalidation-source']||null};
+     if(args['dry-run'])print(evaluateTransition(ROOT,task,args.to,opts));
+     else print(transitionTask(ROOT,projectRoot,task,args.to,opts));
+   }
+   else if(sub==='context'){
+     const run=needRun();const task=requireTask(projectRoot,run.run_id,needTaskId());
+     const m=buildTaskContext(ROOT,projectRoot,run,task,{persist:!args['no-persist']});
+     print(args.prompt?renderTaskPrompt(ROOT,m):m);
+   }
+   else if(sub==='context-show'){const run=needRun();print(getTaskContextManifest(projectRoot,run.run_id,needTaskId()));}
+   else if(sub==='start'){const run=needRun();print(startTask(ROOT,projectRoot,run,needTaskId(),{writer:args.writer||null,model:args.model||null}));}
+   else if(sub==='capture'){const run=needRun();const task=requireTask(projectRoot,run.run_id,needTaskId());print(captureTaskDiff(projectRoot,run,task));}
+   else if(sub==='verify'){
+     const run=needRun();const task=requireTask(projectRoot,run.run_id,needTaskId());
+     const out=verifyTask(ROOT,projectRoot,run,task,{escalate:!!args.escalate,dryRun:!!args['dry-run']});
+     print(out);if(out.evidence.status!=='PASS')process.exitCode=1;
+   }
+   else if(sub==='review'){
+     const run=needRun();const task=requireTask(projectRoot,run.run_id,needTaskId());
+     const kind=args.kind||'spec';const review=loadFile();
+     const validation=kind==='spec'?validateSpecComplianceReview(review,task):validateCodeQualityReview(review,task);
+     if(args['dry-run'])print(validation);
+     else print(recordTaskReview(projectRoot,run,task,review,{kind}));
+     if(!validation.valid)process.exitCode=1;
+   }
+   else if(sub==='advance'){
+     const run=needRun();
+     const out=advanceTask(ROOT,projectRoot,run,needTaskId(),{
+       specReview:args['spec-review']?readJson(path.resolve(args['spec-review'])):null,
+       qualityReview:args['quality-review']?readJson(path.resolve(args['quality-review'])):null,
+       escalateVerification:!!args.escalate,
+       providerError:args['provider-error']||null,
+       permissionDenied:!!args['permission-denied'],
+       budgetExhausted:!!args['budget-exhausted'],
+       designInvalidated:!!args['design-invalidated'],
+       requirementAmbiguity:!!args['requirement-ambiguity'],
+       recoveryDecision:!!args['recovery-decision'],
+       dryRunVerification:!!args['dry-run-verification']
+     });
+     print(out);
+   }
+   else if(sub==='checkpoint'){const run=needRun();const task=requireTask(projectRoot,run.run_id,needTaskId());print(taskCheckpoint(projectRoot,run,task));}
+   else if(sub==='usage-add'){const run=needRun();const task=requireTask(projectRoot,run.run_id,needTaskId());print(recordTaskUsage(projectRoot,run,task,{provider:args.provider,model:args.model,input_tokens:Number(args.input||0),cached_input_tokens:Number(args.cached||0),output_tokens:Number(args.output||0),reasoning_tokens:Number(args.reasoning||0),wall_ms:Number(args['wall-ms']||0),model_calls:Number(args['model-calls']||0),tool_calls:Number(args['tool-calls']||0),review_calls:Number(args['review-calls']||0),context_tokens:Number(args['context-tokens']||0),provider_fallback:!!args['provider-fallback']}));}
+   else if(sub==='usage'){const run=needRun();print(args['task-id']?reportTaskUsage(projectRoot,run.run_id,args['task-id']):reportRunTaskUsage(projectRoot,run.run_id,listTasks(projectRoot,run.run_id)));}
+   else if(sub==='metrics'){const run=needRun();print(taskMetrics(projectRoot,run.run_id));}
+   else if(sub==='workspaces'){const run=needRun();print({workspaces:listTaskWorkspaces(projectRoot,run.run_id),isolation:checkWriterIsolation(projectRoot,run.run_id)});}
+   else if(sub==='workspace-clean'){const run=needRun();const task=requireTask(projectRoot,run.run_id,needTaskId());print(cleanupTaskWorkspace(projectRoot,{run,task,force:!!args.force}));}
+   else if(sub==='failure-policy')print({...getTaskFailurePolicy(ROOT),classes_list:FAILURE_CLASSES});
+   else if(sub==='classify'){
+     const run=needRun();const task=requireTask(projectRoot,run.run_id,needTaskId());
+     const failure=classifyTaskFailure({
+       verification:args.verification?readJson(path.resolve(args.verification)):null,
+       specReview:args['spec-review']?readJson(path.resolve(args['spec-review'])):null,
+       qualityReview:args['quality-review']?readJson(path.resolve(args['quality-review'])):null,
+       providerError:args['provider-error']||null,
+       permissionDenied:!!args['permission-denied'],budgetExhausted:!!args['budget-exhausted'],
+       designInvalidated:!!args['design-invalidated'],requirementAmbiguity:!!args['requirement-ambiguity']
+     });
+     print({failure,recovery:planRecovery(ROOT,task,failure,{newEvidence:!!args['new-evidence']})});
+   }
+   else if(sub==='implementation-complete'){
+     const run=needRun();const out=recordImplementationComplete(ROOT,projectRoot,run);
+     print(out);if(!out.recorded)process.exitCode=1;
+   }
+   else throw new Error(`unknown task subcommand ${sub}`);
+ }
  else if(cmd==='doctor'){const proj=fs.existsSync(path.join(projectRoot,'.agent-sdlc','project.json'))?'READY':'NOT_INITIALIZED';print({version:readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version,node:process.version,project:proj,providers:['claude','codex','antigravity'].map(h=>capabilities(h,probe(h))),auto_activation:['claude','codex','antigravity'].map(h=>{const s=activationStatus({host:h,config:resolveConfig(projectRoot).effective,codexManagedBootstrap:h==='codex'?codexBootstrap.status({}):null});return {host:h,enabled:s.enabled,delivery_mode:s.delivery_mode,activation_class:s.activation_class,rough_tokens:s.rough_tokens};})});}
- else {print(`agent-sdlc ${readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version}\n\nCommands: init, route, start, status, next, transition, context, normalize, artifact-put/get/list, handoff-put/get/list, tool-check/run, usage-add/report, config-show, compat-check, migrate, parallel-plan, metrics, model-route, provider-probe/command/run, replay-export/validate, activation, design, plan, doctor\n\nactivation subcommands: status, enable, disable, print-bootstrap, policy, cost, classify, events, record, doctor, codex-bootstrap install|uninstall|status\ndesign subcommands: mode, policy, validate, record\nplan subcommands: validate, graph, record`);process.exit(cmd?2:0);}
+ else {print(`agent-sdlc ${readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version}\n\nCommands: init, route, start, status, next, transition, context, normalize, artifact-put/get/list, handoff-put/get/list, tool-check/run, usage-add/report, config-show, compat-check, migrate, parallel-plan, metrics, model-route, provider-probe/command/run, replay-export/validate, activation, design, plan, task, doctor\n\nactivation subcommands: status, enable, disable, print-bootstrap, policy, cost, classify, events, record, doctor, codex-bootstrap install|uninstall|status\ndesign subcommands: mode, policy, validate, record\nplan subcommands: validate, graph, record\ntask subcommands: list, show, graph, events, progress, state-machine, materialize, migrate, refresh, ready, schedule, transition, context, context-show, start, capture, verify, review, advance, checkpoint, usage-add, usage, metrics, workspaces, workspace-clean, failure-policy, classify, implementation-complete`);process.exit(cmd?2:0);}
 }catch(e){console.error(JSON.stringify({status:'ERROR',error:e.message},null,2));process.exit(1);}

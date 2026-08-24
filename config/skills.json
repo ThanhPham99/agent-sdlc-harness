@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/skill-registry/v1",
-  "version": "3.0.0-alpha4",
+  "version": "3.0.0-alpha5",
   "public": [
     "sdlc-router",
     "sdlc-orchestrator"
@@ -115,6 +115,34 @@
       "instructions": "harness/internal-skills/implementation.md",
       "output_schema": "protocol/schemas/StageResult.schema.json",
       "max_response_words": 700
+    },
+    "task-execution": {
+      "id": "task-execution",
+      "version": "1.0.0",
+      "description": "Execute the persistent task graph: schedule, bind one writer per task, verify, review in two stages, and recover on failure.",
+      "stages": [
+        "IMPLEMENT",
+        "VERIFY"
+      ],
+      "roles": [
+        "developer",
+        "qa",
+        "architect"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.search",
+        "repo.symbol",
+        "repo.diff",
+        "repo.patch",
+        "git.status",
+        "test.run_targeted",
+        "build.run",
+        "security.secret_scan"
+      ],
+      "instructions": "harness/internal-skills/task-execution.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 900
     },
     "testing": {
       "id": "testing",

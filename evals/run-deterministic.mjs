@@ -9,6 +9,7 @@ import {initProject} from '../runtime/store.mjs';
 import {newRun,transition,nextState,recordDesignDecision,recordTaskPlan} from '../runtime/orchestrator.mjs';
 import {selectDesignDiscoveryMode,validateDesignDecision,getDesignDiscoveryPolicy,requiredGateEvidence} from '../runtime/design-discovery.mjs';
 import {validateTaskPlan,computeTaskGraph,findCycles,computeReadySets,computeCoverage,planGateEvidence} from '../runtime/plan-validator.mjs';
+import {runTaskRuntimeSuite} from './task-runtime.mjs';
 import {checkTool} from '../runtime/policy.mjs';
 import {buildContext,renderPrompt} from '../runtime/context.mjs';
 import {putArtifact,getArtifact} from '../runtime/store.mjs';
@@ -351,6 +352,19 @@ test('gate-records-are-stage-scoped',()=>{
   let ok2=false;try{recordDesignDecision(ROOT,tmp,gateRun,{schema:'agent-sdlc/design-decision/v1',decision_id:'DESIGN-012',objective:'x',mode:'SKIP',skip_reason:'y'});}catch(e){ok2=/recorded in DESIGN/.test(e.message);}
   if(!ok2)throw Error('design recorded outside DESIGN');
 });
+
+// ---------------------------------------------------------------------------
+// Task runtime (alpha5). The suite is shared with scripts/validate-task-engine.mjs
+// so the gate and the release evidence can never disagree.
+// ---------------------------------------------------------------------------
+const taskSuite=runTaskRuntimeSuite(ROOT);
+for(const g of taskSuite.groups){
+  for(const r of g.results){
+    pass+= r.status==='PASS'?1:0;
+    fail+= r.status==='PASS'?0:1;
+    rows.push({name:`task-${g.group}/${r.name}`,status:r.status,...(r.error?{error:r.error}:{})});
+  }
+}
 
 const report={schema:'agent-sdlc/deterministic-validation/v1',version:manifest.version,checks:rows.length,passes:pass,failures:fail,results:rows};
 fs.writeFileSync(path.join(ROOT,'evals','DETERMINISTIC-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');

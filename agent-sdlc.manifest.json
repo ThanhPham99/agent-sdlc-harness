@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/plugin-manifest/v1",
   "name": "agent-sdlc-harness",
-  "version": "3.0.0-alpha4",
+  "version": "3.0.0-alpha5",
   "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for Claude Code, Codex, and Antigravity.",
   "public_skills": [
     "sdlc-router",
@@ -18,7 +18,10 @@
     "context_policy": "policies/context-policy.json",
     "failure_policy": "policies/failure-policy.json",
     "auto_activation_policy": "policies/auto-activation.json",
-    "design_discovery_policy": "policies/design-discovery.json"
+    "design_discovery_policy": "policies/design-discovery.json",
+    "task_state_machine": "config/task-state-machine.json",
+    "task_scheduling_policy": "policies/task-scheduling.json",
+    "task_failure_policy": "policies/task-failure-policy.json"
   },
   "runtime": {
     "entrypoint": "bin/agent-sdlc",

@@ -2,10 +2,20 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agent-sdlc-harness",
   "displayName": "Agent SDLC Harness",
-  "version": "3.0.0-alpha4",
+  "version": "3.0.0-alpha5",
   "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for software delivery and maintenance.",
-  "author": {"name": "Agent SDLC Harness Contributors"},
-  "keywords": ["sdlc", "coding-agents", "tdd", "review", "security", "devops", "token-efficiency"],
+  "author": {
+    "name": "Agent SDLC Harness Contributors"
+  },
+  "keywords": [
+    "sdlc",
+    "coding-agents",
+    "tdd",
+    "review",
+    "security",
+    "devops",
+    "token-efficiency"
+  ],
   "skills": "./skills/",
   "agents": [
     "./adapters/common-scoped-investigator.md",

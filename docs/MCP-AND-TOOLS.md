@@ -9,3 +9,20 @@ Built-in deterministic tools include `input.normalize`, repository read/search/d
 `input.normalize` is the preprocess-before-LLM path. It handles common text formats directly, DOCX/XLSX via deterministic ZIP/XML extraction, and text-bearing PDFs through `pdftotext` when available. Native images and image-only PDFs return `NEEDS_MULTIMODAL`; the harness does not silently OCR or hallucinate missing source material.
 
 Privileged production actions are never authorized by prompt text alone. Hooks are defense in depth; the canonical policy/tool gateway remains the enforcement point for harness-managed actions.
+
+## Task runtime tools (alpha5)
+
+Six read-mostly MCP tools expose the task graph to host orchestration:
+
+| Tool | Purpose |
+|---|---|
+| `agent_sdlc_task_list` | task records with status, category, dependencies |
+| `agent_sdlc_task_status` | one task, or whole-run progress when `task_id` is omitted |
+| `agent_sdlc_task_ready` | dependency-satisfied set, with a reason per exclusion |
+| `agent_sdlc_task_schedule` | bounded dispatch decision and why the rest was deferred |
+| `agent_sdlc_task_context` | bounded per-task context manifest (or rendered prompt) |
+| `agent_sdlc_task_evidence` | evidence/review refs, diff binding, failure state, events |
+
+State-changing task operations are deliberately **not** exposed over MCP. Transitions,
+verification, review recording and recovery stay behind `bin/agent-sdlc task`, where the
+engine's policy checks cannot be bypassed.

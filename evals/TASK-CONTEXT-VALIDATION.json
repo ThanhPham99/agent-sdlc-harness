@@ -1,0 +1,68 @@
+{
+  "schema": "agent-sdlc/task-context-validation/v1",
+  "version": "3.0.0-alpha5",
+  "invariant": "one bounded task -> one bounded context package -> one primary writer",
+  "manifest_schema": "agent-sdlc/task-context-manifest/v1",
+  "excluded_by_default": [
+    "full_chat_history",
+    "all_requirements",
+    "all_design_documents",
+    "all_tasks",
+    "full_repository_tree",
+    "unrelated_logs",
+    "all_tool_schemas",
+    "previous_worker_reasoning"
+  ],
+  "workspace": {
+    "modes": [
+      "shared-readonly",
+      "isolated-worktree",
+      "provider-sandbox"
+    ],
+    "one_writer_per_task": true,
+    "evidence_binding": "base revision + workspace diff hash",
+    "cleanup_refuses_unpersisted_evidence": true,
+    "production_credentials_stripped": true
+  },
+  "budget": "derived from the active stage budget in policies/stage-policy.json, narrowed to the task",
+  "replayability": "context_hash excludes created_at, so identical inputs produce an identical hash",
+  "checks": 8,
+  "passes": 8,
+  "failures": 0,
+  "results": [
+    {
+      "name": "task-context-carries-only-this-task-scope",
+      "status": "PASS"
+    },
+    {
+      "name": "dependency-outputs-are-included-for-declared-dependencies-only",
+      "status": "PASS"
+    },
+    {
+      "name": "context-names-what-it-excluded",
+      "status": "PASS"
+    },
+    {
+      "name": "context-budget-is-derived-from-the-stage-and-enforced",
+      "status": "PASS"
+    },
+    {
+      "name": "context-manifest-is-persisted-and-replayable",
+      "status": "PASS"
+    },
+    {
+      "name": "oversized-artifacts-are-truncated-not-dropped-silently",
+      "status": "PASS"
+    },
+    {
+      "name": "rendered-prompt-forbids-state-mutation-and-scope-escape",
+      "status": "PASS"
+    },
+    {
+      "name": "risk-constraints-are-derived-from-task-risk",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "live_qualification": "PENDING_LIVE_QUALIFICATION"
+}

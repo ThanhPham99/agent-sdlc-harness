@@ -1,0 +1,90 @@
+{
+  "schema": "agent-sdlc/task-scheduling-policy/v1",
+  "version": "3.0.0-alpha5",
+  "note": "Parallelism is an optimization, not a default. This policy reuses the principles in policies/parallelism-policy.json and never contradicts stage max_parallel_agents.",
+  "writers": {
+    "default_max_concurrent": 1,
+    "hard_default_max": 2,
+    "absolute_max": 4,
+    "one_primary_writer_per_task": true,
+    "one_workspace_per_writer": true
+  },
+  "read_only": {
+    "default_max_concurrent": 2,
+    "hard_default_max": 4
+  },
+  "profile_max_writers": {
+    "FAST": 2,
+    "STANDARD": 2,
+    "STRICT": 1
+  },
+  "parallel_requires": [
+    "dependencies_satisfied",
+    "write_scopes_disjoint",
+    "interface_scopes_disjoint",
+    "no_shared_serialized_boundary",
+    "wall_time_benefit_justified",
+    "risk_policy_permits",
+    "budget_permits"
+  ],
+  "serialize_on": {
+    "categories": [
+      "migration",
+      "release"
+    ],
+    "risk": {
+      "security": [
+        "HIGH"
+      ],
+      "data": [
+        "MEDIUM",
+        "HIGH"
+      ]
+    },
+    "destructive_data_change": true,
+    "interface_scope_present": false,
+    "reason": "shared migration/schema/security boundaries and release ordering must not interleave"
+  },
+  "benefit_threshold": {
+    "min_estimated_seconds": 60,
+    "note": "Below this, coordination and review cost exceeds the wall-clock saving; dispatch serially."
+  },
+  "stage_categories": {
+    "IMPLEMENT": [
+      "implementation",
+      "migration",
+      "security",
+      "verification",
+      "integration"
+    ],
+    "VERIFY": [
+      "verification",
+      "integration",
+      "security"
+    ],
+    "REVIEW": [
+      "verification",
+      "security"
+    ],
+    "RELEASE": [
+      "release",
+      "documentation",
+      "operability"
+    ],
+    "DEPLOY": [
+      "release",
+      "operability"
+    ],
+    "OBSERVE": [
+      "operability"
+    ],
+    "CLOSE": [
+      "documentation"
+    ]
+  },
+  "budget": {
+    "respect_stage_max_parallel_agents": true,
+    "respect_stage_max_model_calls": true,
+    "min_remaining_model_calls_per_dispatch": 2
+  }
+}

@@ -1,0 +1,100 @@
+{
+  "schema": "agent-sdlc/task-failure-policy/v1",
+  "version": "3.0.0-alpha5",
+  "retry_invariant": "No same-task retry without new concrete evidence, changed context, changed plan, changed implementation, or an explicit recovery decision.",
+  "default_max_retries": 2,
+  "profile_max_retries": {
+    "FAST": 2,
+    "STANDARD": 2,
+    "STRICT": 1
+  },
+  "infrastructure_max_retries": 3,
+  "classes": {
+    "IMPLEMENTATION_DEFECT": {
+      "action": "RETRY_TASK",
+      "to": "RUNNING",
+      "requires_new_evidence": true,
+      "counts_against_retry_budget": true,
+      "note": "Retry with the concrete failure evidence attached to the next context."
+    },
+    "VERIFICATION_FAILURE": {
+      "action": "RETRY_TASK",
+      "to": "RUNNING",
+      "requires_new_evidence": true,
+      "counts_against_retry_budget": true
+    },
+    "SPEC_MISMATCH": {
+      "action": "RETRY_TASK",
+      "to": "RUNNING",
+      "requires_new_evidence": true,
+      "counts_against_retry_budget": true,
+      "escalate_when_budget_exhausted": "INVALIDATE_UPSTREAM"
+    },
+    "QUALITY_BLOCKER": {
+      "action": "RETRY_TASK",
+      "to": "RUNNING",
+      "requires_new_evidence": true,
+      "counts_against_retry_budget": true
+    },
+    "DEPENDENCY_BLOCKED": {
+      "action": "BLOCK",
+      "to": "BLOCKED",
+      "requires_new_evidence": false,
+      "counts_against_retry_budget": false
+    },
+    "DESIGN_INVALIDATED": {
+      "action": "INVALIDATE",
+      "to": "INVALIDATED",
+      "requires_new_evidence": false,
+      "counts_against_retry_budget": false,
+      "outer_reentry": "DESIGN"
+    },
+    "REQUIREMENT_AMBIGUITY": {
+      "action": "ESCALATE_OUTER",
+      "to": "BLOCKED",
+      "requires_new_evidence": false,
+      "counts_against_retry_budget": false,
+      "outer_state": "NEEDS_CONFIRMATION"
+    },
+    "SCOPE_EXPANSION": {
+      "action": "ESCALATE_OUTER",
+      "to": "BLOCKED",
+      "requires_new_evidence": false,
+      "counts_against_retry_budget": false,
+      "outer_reentry": "PLAN",
+      "note": "A diff outside approved write scope is a planning event, not a retry."
+    },
+    "INFRA_TRANSIENT": {
+      "action": "RETRY_INFRASTRUCTURE",
+      "to": "RUNNING",
+      "requires_new_evidence": false,
+      "counts_against_retry_budget": false,
+      "bounded_by": "infrastructure_max_retries"
+    },
+    "PROVIDER_FAILURE": {
+      "action": "PROVIDER_FALLBACK",
+      "to": "RUNNING",
+      "requires_new_evidence": false,
+      "counts_against_retry_budget": false,
+      "note": "Resume from the task checkpoint: context manifest, base revision, diff hash, artifact refs. Never transfer hidden reasoning."
+    },
+    "PERMISSION_DENIED": {
+      "action": "BLOCK",
+      "to": "BLOCKED",
+      "requires_new_evidence": false,
+      "counts_against_retry_budget": false,
+      "requires_approval_or_alternative": true
+    },
+    "BUDGET_EXHAUSTED": {
+      "action": "BLOCK",
+      "to": "BLOCKED",
+      "requires_new_evidence": false,
+      "counts_against_retry_budget": false,
+      "escalate": true
+    }
+  },
+  "terminal_after_budget": {
+    "to": "FAILED",
+    "note": "A retryable class whose budget is exhausted becomes FAILED; returning to READY then needs an explicit recovery decision."
+  }
+}

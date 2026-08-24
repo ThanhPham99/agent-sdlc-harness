@@ -45,4 +45,8 @@ Two gates are machine-checked and their evidence cannot be asserted by hand.
 
 `--force` exists for operators, is audited, and is never the agent's answer to a blocked gate.
 
+**IMPLEMENT.** The validated plan becomes a persistent task graph, and `IMPLEMENT` means executing it: `bin/agent-sdlc task materialize`, then `task refresh` / `task schedule` / `task start` / `task advance` per the `task-execution` internal module. A task reaches `DONE` only with verification evidence bound to its current attempt and diff, a clean spec-compliance review and a clean code-quality review. `implementation_artifact` is derived by `bin/agent-sdlc task implementation-complete` once every required task is `DONE`; it cannot be asserted either.
+
+One task, one bounded context, one primary writer, one workspace. A worker returns a structured result and never transitions run or task state. A diff outside a task's approved write scope is a planning event that re-enters `PLAN`, not a retry. A retry needs new concrete evidence; the engine refuses an identical repeat.
+
 Before declaring completion, the workflow must reach `CLOSE` with the required verification, review/release/deploy evidence for its selected workflow.

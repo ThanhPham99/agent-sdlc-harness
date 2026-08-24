@@ -119,3 +119,35 @@ Two gates are machine-checked. Their evidence cannot be supplied through `transi
 `plan graph` prints the derived dependency graph, cycles, ready-set waves, acceptance-criterion coverage and parallel scope conflicts. `plan record` is the only source of PLAN gate evidence.
 
 See `docs/architecture/DESIGN-DISCOVERY.md` and `docs/architecture/PLAN-QUALITY.md`.
+
+## 9. Task execution (v3.0.0-alpha5)
+
+`IMPLEMENT` executes a persistent task graph rather than "writing the code".
+
+```bash
+./bin/agent-sdlc task materialize --run-id <id> --file task-plan.json
+./bin/agent-sdlc task refresh     --run-id <id>
+./bin/agent-sdlc task schedule    --run-id <id>
+./bin/agent-sdlc task start       --run-id <id> --task-id TASK-001 --writer dev-1
+./bin/agent-sdlc task advance     --run-id <id> --task-id TASK-001 \
+    --spec-review spec.json --quality-review quality.json
+./bin/agent-sdlc task implementation-complete --run-id <id>
+```
+
+Inspection and diagnostics:
+
+```bash
+./bin/agent-sdlc task list|graph|progress|events --run-id <id>
+./bin/agent-sdlc task ready      --run-id <id> --stage IMPLEMENT
+./bin/agent-sdlc task context    --run-id <id> --task-id TASK-001 [--prompt]
+./bin/agent-sdlc task verify     --run-id <id> --task-id TASK-001
+./bin/agent-sdlc task classify   --run-id <id> --task-id TASK-001 --verification v.json
+./bin/agent-sdlc task workspaces --run-id <id>
+./bin/agent-sdlc task usage|metrics --run-id <id>
+./bin/agent-sdlc task migrate    --run-id <id> [--dry-run]
+```
+
+`task schedule` reports every ready task it did not dispatch, with a reason. `task metrics`
+reports cost per verified DONE task, `success@1` and retry rate.
+
+See `docs/architecture/TASK-ENGINE.md` and `docs/architecture/TASK-SCHEDULER.md`.

@@ -1,8 +1,11 @@
 import path from 'node:path';
 import {now,readJson,uuid} from './util.mjs';
-import {emit,saveRun} from './store.mjs';
+import {emit,saveRun,loadTaskGraph,listTasks} from './store.mjs';
 import {validateDesignDecision,evaluateDesignGate,getDesignDiscoveryPolicy} from './design-discovery.mjs';
 import {validateTaskPlan,planGateEvidence} from './plan-validator.mjs';
+import {materializeTaskGraph,taskProgress} from './task-engine.mjs';
+
+const arr=x=>Array.isArray(x)?x:[];
 
 const SIDE_STATES=['NEEDS_CONFIRMATION','BLOCKED','FAILED','DEFERRED','SUPERSEDED'];
 const TERMINAL_STATES=['FAILED','DEFERRED','SUPERSEDED'];
@@ -130,6 +133,58 @@ export function recordTaskPlan(root,projectRoot,run,plan,{artifactRef=null,thres
     payload:{plan_id:plan.plan_id,task_count:validation.task_count,edge_count:validation.edge_count,evidence}
   });
   return {schema:'agent-sdlc/plan-gate-record/v1',recorded:true,validation,evidence};
+}
+
+/**
+ * PLAN -> IMPLEMENT handoff: turn the validated plan into a durable task graph.
+ * Refuses outside PLAN/IMPLEMENT so a task runtime cannot appear from nowhere.
+ */
+export function materializeRunTasks(root,projectRoot,run,plan,{planArtifactRef=null,sourceRevision=null}={}){
+  if(!['PLAN','IMPLEMENT'].includes(run.state)){
+    throw new Error(`task graphs are materialized in PLAN or IMPLEMENT, not ${run.state}`);
+  }
+  const out=materializeTaskGraph(root,projectRoot,run,plan,{planArtifactRef,sourceRevision});
+  emit(projectRoot,run,{
+    type:out.materialized?'tasks.materialized':'tasks.materialization_rejected',
+    artifact_refs:planArtifactRef?[planArtifactRef]:[],
+    payload:out.materialized
+      ?{plan_id:plan.plan_id,created:out.created,preserved:out.preserved,node_count:out.graph.nodes.length}
+      :{plan_id:plan?.plan_id??null,errors:out.validation.errors}
+  });
+  return out;
+}
+
+/**
+ * IMPLEMENT gate: `implementation_artifact` is derived from the task graph, not
+ * asserted. Every non-superseded task must be DONE, and integration-category
+ * obligations must be among them.
+ */
+export function recordImplementationComplete(root,projectRoot,run,{artifactRef=null}={}){
+  if(run.state!=='IMPLEMENT')throw new Error(`implementation completion is recorded in IMPLEMENT, not ${run.state}`);
+  const progress=taskProgress(projectRoot,run.run_id);
+  const graph=loadTaskGraph(projectRoot,run.run_id);
+  const problems=[];
+  if(!progress.graph_present)problems.push('NO_TASK_GRAPH');
+  if(!progress.total)problems.push('NO_TASKS');
+  if(!progress.complete)problems.push(`TASKS_NOT_DONE:${progress.open.map(t=>`${t.task_id}(${t.status})`).join(',')}`);
+  const integration=new Set(arr(graph?.integration_tasks));
+  if(integration.size){
+    const tasks=listTasks(projectRoot,run.run_id);
+    const unfinished=tasks.filter(t=>integration.has(t.task_id)&&t.status!=='DONE').map(t=>t.task_id);
+    if(unfinished.length)problems.push(`INTEGRATION_TASKS_NOT_DONE:${unfinished.join(',')}`);
+  }
+  if(problems.length){
+    emit(projectRoot,run,{type:'implementation.incomplete',payload:{problems,progress:progress.by_status}});
+    return {schema:'agent-sdlc/implementation-gate-record/v1',recorded:false,problems,progress,evidence:[]};
+  }
+  const evidence=['implementation_artifact','task_graph_complete'];
+  addEvidence(projectRoot,run,'IMPLEMENT',evidence);
+  emit(projectRoot,run,{
+    type:'implementation.complete',
+    artifact_refs:artifactRef?[artifactRef]:[],
+    payload:{tasks:progress.total,done:progress.done_count,evidence}
+  });
+  return {schema:'agent-sdlc/implementation-gate-record/v1',recorded:true,problems:[],progress,evidence};
 }
 
 export function nextState(run){

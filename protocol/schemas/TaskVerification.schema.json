@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/task-verification/v1",
+  "title": "TaskVerification",
+  "description": "Observable verification evidence for one task attempt. A task cannot reach DONE on a worker self-claim; this record is the claim's replacement.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "task_id",
+    "run_id",
+    "attempt",
+    "base_revision",
+    "diff_hash",
+    "commands",
+    "status"
+  ],
+  "properties": {
+    "schema": {
+      "const": "agent-sdlc/task-verification/v1"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "base_revision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "diff_hash": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "strategy": {
+      "enum": [
+        "TARGETED",
+        "AFFECTED_INTEGRATION",
+        "BROAD_SUITE"
+      ],
+      "description": "Escalation ladder: nearest targeted test, then affected integration/contract tests, then a broader suite only when policy or risk requires it."
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "command",
+          "exit_code"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "test_targeted",
+              "test_full",
+              "build",
+              "lint",
+              "security_sast",
+              "security_sca",
+              "security_secret_scan",
+              "custom"
+            ]
+          },
+          "command": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "exit_code": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "duration_ms": {
+            "type": "integer"
+          },
+          "log_ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Artifact ref for the raw log; raw output never travels inline."
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "tests": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "passed": {
+          "type": "integer"
+        },
+        "failed": {
+          "type": "integer"
+        },
+        "skipped": {
+          "type": "integer"
+        },
+        "failing_names": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "build": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "SKIPPED"
+          ]
+        }
+      }
+    },
+    "security": {
+      "type": [
+        "object",
+        "null"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "boolean"
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "SKIPPED"
+          ]
+        },
+        "new_high_findings": {
+          "type": "integer"
+        }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "changed_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "out_of_scope_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "respected": {
+          "type": "boolean"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Environment fingerprint: platform, arch, runtime version."
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "PENDING",
+        "BLOCKED"
+      ]
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "artifact_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recorded_at": {
+      "type": "string"
+    }
+  }
+}

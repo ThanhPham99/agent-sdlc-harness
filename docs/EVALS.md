@@ -63,3 +63,38 @@ npm run test:gates
 
 Evidence: `evals/DESIGN-DISCOVERY-VALIDATION.json`, `evals/PLAN-QUALITY-VALIDATION.json`. Both
 record `PENDING_LIVE_QUALIFICATION` for anything only a live host can establish.
+
+## Task runtime suite (v3.0.0-alpha5)
+
+```bash
+npm run test:tasks
+```
+
+`evals/task-runtime.mjs` — 67 offline checks over a temporary git fixture, grouped as:
+
+- **state_machine** (15) — the legal forward flow to DONE, illegal status skips, DONE
+  without verification, DONE with a blocking finding, retry with and without new
+  evidence, terminal DONE, unsatisfied and failed dependencies, invalidation resume,
+  one-writer-per-task, credential scrubbing, invalid-plan refusal, idempotent
+  re-materialization, and the IMPLEMENT gate.
+- **scheduler** (13) — linear DAG progression, disjoint parallel dispatch, write and
+  interface conflicts, the benefit threshold, read-only fan-out, writer caps under
+  STANDARD and STRICT, serialized migration boundaries, stage-category legality,
+  blocked tasks, budget exhaustion, determinism, prefix-aware overlap.
+- **context** (8) — scope containment, dependency outputs, named exclusions, budget
+  derivation, manifest persistence and hash stability, artifact truncation, prompt
+  prohibitions, risk-derived constraints.
+- **verification_review** (16) — worker self-claim rejection, failing targeted tests,
+  scope expansion, no-change-captured, spec and quality blockers re-entering RUNNING,
+  the two contracts being distinct, diff/attempt binding, acceptance-criteria coverage,
+  clean-verdict consistency, failure scenarios for blocking correctness findings,
+  independence honesty, the escalation ladder, revision binding, scope auditing.
+- **recovery** (9) — structural classification precedence, identical-retry refusal,
+  budget exhaustion, upstream escalation, bounded infrastructure retries, ambiguity and
+  design invalidation escalations, permission denial, checkpoint contents.
+- **migration_telemetry** (6) — dry run, migration, idempotence, legacy stage evidence,
+  fail-closed on an unknown schema, stable ID assignment, per-task cost attribution,
+  evidence-safe workspace cleanup.
+
+The same suite backs `npm test`, so a green gate and the release evidence describe the
+same run.

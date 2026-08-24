@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/stage-policy/v1",
-  "version": "3.0.0-alpha4",
+  "version": "3.0.0-alpha5",
   "stages": {
     "INTAKE": {
       "roles": [
@@ -140,7 +140,8 @@
         "max_output_tokens": 6000
       },
       "gate_requirements": [
-        "implementation_artifact"
+        "implementation_artifact",
+        "task_graph_complete"
       ]
     },
     "VERIFY": {
@@ -324,6 +325,8 @@
     "plan_graph_valid": "runtime",
     "plan_acceptance_coverage_valid": "runtime",
     "plan_scope_conflicts_resolved": "runtime",
-    "plan_ready": "runtime"
+    "plan_ready": "runtime",
+    "implementation_artifact": "runtime",
+    "task_graph_complete": "runtime"
   }
 }

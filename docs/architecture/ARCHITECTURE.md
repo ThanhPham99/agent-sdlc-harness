@@ -37,3 +37,23 @@ Both gates' evidence tokens carry `runtime` (or `human`) authority in
 `policies/stage-policy.json.evidence_authority`, so they cannot be asserted through
 `transition --evidence`; they exist only when `design record` / `plan record` produced them.
 See `docs/architecture/DESIGN-DISCOVERY.md` and `docs/architecture/PLAN-QUALITY.md`.
+
+## Task runtime (alpha5)
+
+`IMPLEMENT` executes a persistent task graph. The outer run state machine stays
+canonical; a second, inner state machine (`config/task-state-machine.json`) governs
+individual tasks and never mutates outer state — it reports the escalation the
+orchestrator performs.
+
+```text
+validated TaskPlan
+  -> materialized TaskGraph + durable Task records (.agent-sdlc/tasks/<run_id>/)
+  -> scheduler: dependency-satisfied, conflict-free, budget-bounded dispatch
+  -> per task: bounded context manifest + exactly one primary writer + one workspace
+  -> verification evidence bound to (base revision, diff hash, attempt)
+  -> spec compliance review, then code quality review
+  -> DONE, or evidence-driven recovery
+  -> implementation_artifact derived from the graph
+```
+
+See `docs/architecture/TASK-ENGINE.md` and `docs/architecture/TASK-SCHEDULER.md`.

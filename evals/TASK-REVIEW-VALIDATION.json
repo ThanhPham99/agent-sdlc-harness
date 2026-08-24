@@ -1,0 +1,103 @@
+{
+  "schema": "agent-sdlc/task-review-validation/v1",
+  "version": "3.0.0-alpha5",
+  "contracts": [
+    "agent-sdlc/task-verification/v1",
+    "agent-sdlc/spec-compliance-review/v1",
+    "agent-sdlc/code-quality-review/v1"
+  ],
+  "verification": {
+    "ladder": [
+      "TARGETED",
+      "AFFECTED_INTEGRATION",
+      "BROAD_SUITE"
+    ],
+    "required_before_done": true,
+    "bound_to": [
+      "base_revision",
+      "diff_hash",
+      "attempt"
+    ],
+    "worker_self_claim_accepted": false
+  },
+  "reviews": {
+    "two_distinct_contracts": true,
+    "order": [
+      "SPEC_REVIEW",
+      "QUALITY_REVIEW"
+    ],
+    "blocking_finding_blocks_done": true,
+    "independence": "recorded truthfully; an achieved claim contradicting its mode is rejected, and an unachieved claim requires a recorded limitation"
+  },
+  "checks": 16,
+  "passes": 16,
+  "failures": 0,
+  "results": [
+    {
+      "name": "worker-self-claim-is-not-enough-for-done",
+      "status": "PASS"
+    },
+    {
+      "name": "targeted-test-failure-prevents-done",
+      "status": "PASS"
+    },
+    {
+      "name": "out-of-scope-change-is-a-scope-expansion-not-a-defect",
+      "status": "PASS"
+    },
+    {
+      "name": "no-change-captured-is-an-implementation-defect",
+      "status": "PASS"
+    },
+    {
+      "name": "spec-review-blocking-finding-re-enters-running",
+      "status": "PASS"
+    },
+    {
+      "name": "quality-blocker-re-enters-running",
+      "status": "PASS"
+    },
+    {
+      "name": "reviews-are-two-distinct-contracts",
+      "status": "PASS"
+    },
+    {
+      "name": "review-must-be-bound-to-the-current-diff-and-attempt",
+      "status": "PASS"
+    },
+    {
+      "name": "acceptance-criteria-must-actually-be-checked",
+      "status": "PASS"
+    },
+    {
+      "name": "a-clean-verdict-cannot-carry-blocking-findings",
+      "status": "PASS"
+    },
+    {
+      "name": "blocking-correctness-finding-needs-a-failure-scenario",
+      "status": "PASS"
+    },
+    {
+      "name": "strict-independence-limitation-is-recorded-not-faked",
+      "status": "PASS"
+    },
+    {
+      "name": "independent-review-must-not-see-worker-reasoning",
+      "status": "PASS"
+    },
+    {
+      "name": "verification-strategy-escalates-with-risk",
+      "status": "PASS"
+    },
+    {
+      "name": "verification-evidence-is-bound-to-a-revision-and-diff",
+      "status": "PASS"
+    },
+    {
+      "name": "scope-audit-treats-declared-directories-as-covering",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "live_qualification": "PENDING_LIVE_QUALIFICATION"
+}

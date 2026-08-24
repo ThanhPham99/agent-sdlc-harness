@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
-  "version": "3.0.0-alpha4",
-  "checks": 99,
-  "passes": 99,
+  "version": "3.0.0-alpha5",
+  "checks": 166,
+  "passes": 166,
   "failures": 0,
   "results": [
     {
@@ -399,6 +399,274 @@
     },
     {
       "name": "gate-records-are-stage-scoped",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/legal-forward-flow-reaches-done",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/illegal-status-skip-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/done-requires-verification-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/done-blocked-by-blocking-review-finding",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/retry-requires-new-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/terminal-done-cannot-restart",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/dependency-not-done-keeps-downstream-unready",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/failed-dependency-blocks-downstream",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/invalidated-resume-requires-refreshed-upstream",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/one-primary-writer-per-task-enforced",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/writer-workspace-strips-production-credentials",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/materialization-refuses-an-invalid-plan",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/materialization-is-idempotent",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/implement-gate-closed-until-every-task-is-done",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/implement-gate-evidence-cannot-be-asserted",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/linear-dag-dispatches-one-then-the-next",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/disjoint-parallel-candidates-dispatch-together",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/overlapping-write-scope-serializes",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/overlapping-interface-scope-serializes",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/short-writer-tasks-are-not-worth-parallelizing",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/read-only-tasks-parallelize-without-a-time-threshold",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/writer-cap-is-two-by-default-and-one-under-strict",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/migration-category-runs-alone",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/categories-illegal-in-the-outer-stage-are-excluded",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/blocked-and-in-flight-tasks-are-never-dispatched",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/budget-exhaustion-prevents-dispatch",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/scheduling-is-deterministic",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/scope-overlap-is-prefix-aware",
+      "status": "PASS"
+    },
+    {
+      "name": "task-context/task-context-carries-only-this-task-scope",
+      "status": "PASS"
+    },
+    {
+      "name": "task-context/dependency-outputs-are-included-for-declared-dependencies-only",
+      "status": "PASS"
+    },
+    {
+      "name": "task-context/context-names-what-it-excluded",
+      "status": "PASS"
+    },
+    {
+      "name": "task-context/context-budget-is-derived-from-the-stage-and-enforced",
+      "status": "PASS"
+    },
+    {
+      "name": "task-context/context-manifest-is-persisted-and-replayable",
+      "status": "PASS"
+    },
+    {
+      "name": "task-context/oversized-artifacts-are-truncated-not-dropped-silently",
+      "status": "PASS"
+    },
+    {
+      "name": "task-context/rendered-prompt-forbids-state-mutation-and-scope-escape",
+      "status": "PASS"
+    },
+    {
+      "name": "task-context/risk-constraints-are-derived-from-task-risk",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/worker-self-claim-is-not-enough-for-done",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/targeted-test-failure-prevents-done",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/out-of-scope-change-is-a-scope-expansion-not-a-defect",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/no-change-captured-is-an-implementation-defect",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/spec-review-blocking-finding-re-enters-running",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/quality-blocker-re-enters-running",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/reviews-are-two-distinct-contracts",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/review-must-be-bound-to-the-current-diff-and-attempt",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/acceptance-criteria-must-actually-be-checked",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/a-clean-verdict-cannot-carry-blocking-findings",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/blocking-correctness-finding-needs-a-failure-scenario",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/strict-independence-limitation-is-recorded-not-faked",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/independent-review-must-not-see-worker-reasoning",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/verification-strategy-escalates-with-risk",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/verification-evidence-is-bound-to-a-revision-and-diff",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/scope-audit-treats-declared-directories-as-covering",
+      "status": "PASS"
+    },
+    {
+      "name": "task-recovery/classification-prefers-the-structural-cause",
+      "status": "PASS"
+    },
+    {
+      "name": "task-recovery/identical-retry-without-new-evidence-is-refused",
+      "status": "PASS"
+    },
+    {
+      "name": "task-recovery/retry-budget-exhaustion-fails-the-task",
+      "status": "PASS"
+    },
+    {
+      "name": "task-recovery/spec-mismatch-escalates-upstream-when-retries-run-out",
+      "status": "PASS"
+    },
+    {
+      "name": "task-recovery/infrastructure-retries-are-bounded-and-free",
+      "status": "PASS"
+    },
+    {
+      "name": "task-recovery/requirement-ambiguity-escalates-to-needs-confirmation",
+      "status": "PASS"
+    },
+    {
+      "name": "task-recovery/design-invalidation-escalates-the-outer-workflow",
+      "status": "PASS"
+    },
+    {
+      "name": "task-recovery/permission-denied-blocks-and-requires-approval-or-an-alternative",
+      "status": "PASS"
+    },
+    {
+      "name": "task-recovery/provider-fallback-checkpoint-carries-artifacts-not-reasoning",
+      "status": "PASS"
+    },
+    {
+      "name": "task-migration_telemetry/migration-materializes-tasks-from-a-recorded-plan",
+      "status": "PASS"
+    },
+    {
+      "name": "task-migration_telemetry/migration-of-a-post-implement-run-marks-legacy-stage-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "task-migration_telemetry/migration-fails-closed-on-an-unknown-plan-schema",
+      "status": "PASS"
+    },
+    {
+      "name": "task-migration_telemetry/migration-assigns-stable-ids-only-when-absent",
+      "status": "PASS"
+    },
+    {
+      "name": "task-migration_telemetry/per-task-cost-and-telemetry-are-attributed",
+      "status": "PASS"
+    },
+    {
+      "name": "task-migration_telemetry/workspace-cleanup-refuses-to-destroy-unpersisted-evidence",
       "status": "PASS"
     }
   ]

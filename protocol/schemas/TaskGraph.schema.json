@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/task-graph/v1",
+  "title": "TaskGraph",
+  "description": "Materialized dependency graph for one run. Holds IDs and refs only; task bodies live in the task records.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "run_id",
+    "plan_id",
+    "nodes",
+    "edges"
+  ],
+  "properties": {
+    "schema": {
+      "const": "agent-sdlc/task-graph/v1"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "plan_id": {
+      "type": "string"
+    },
+    "plan_artifact_ref": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Content-addressed ref of the validated TaskPlan this graph was materialized from."
+    },
+    "plan_sha256": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_revision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "design_decisions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "integration_tasks": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "task_id"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "depends_on": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "from",
+          "to"
+        ],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "depends_on"
+            ]
+          }
+        }
+      }
+    },
+    "legacy_stage_evidence": {
+      "type": "boolean",
+      "description": "True when the graph was migrated from a run that already executed with stage-level evidence only."
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

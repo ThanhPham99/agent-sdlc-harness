@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/spec-compliance-review/v1",
+  "title": "SpecComplianceReview",
+  "description": "Did the implementation satisfy exactly the task goal, acceptance criteria, design decisions and scope boundaries? Nothing about style or maintainability belongs here.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "task_id",
+    "run_id",
+    "attempt",
+    "verdict",
+    "findings"
+  ],
+  "properties": {
+    "schema": {
+      "const": "agent-sdlc/spec-compliance-review/v1"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "base_revision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "diff_hash": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "acceptance_criteria_checked": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "design_decisions_checked": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "verdict": {
+      "enum": [
+        "COMPLIANT",
+        "NON_COMPLIANT",
+        "PENDING"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category",
+          "severity",
+          "summary",
+          "evidence"
+        ],
+        "properties": {
+          "category": {
+            "enum": [
+              "MISSING_REQUIRED_BEHAVIOR",
+              "EXTRA_UNINTENDED_BEHAVIOR",
+              "ACCEPTANCE_CRITERION_MISMATCH",
+              "DESIGN_VIOLATION",
+              "SCOPE_CREEP",
+              "UNAPPROVED_CONTRACT_CHANGE"
+            ]
+          },
+          "severity": {
+            "enum": [
+              "BLOCKING",
+              "MAJOR",
+              "MINOR",
+              "INFO"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string",
+            "description": "Concrete pointer: file:line, symbol, test name, or diff hunk reference."
+          },
+          "acceptance_criterion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "resolved": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "independence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested",
+        "achieved"
+      ],
+      "properties": {
+        "requested": {
+          "type": "boolean"
+        },
+        "achieved": {
+          "type": "boolean"
+        },
+        "mode": {
+          "enum": [
+            "FRESH_CONTEXT_SUBAGENT",
+            "SEPARATE_PROVIDER",
+            "SAME_CONTEXT",
+            "UNAVAILABLE"
+          ]
+        },
+        "limitation": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "Recorded truthfully when independence could not be achieved. Never claim independence you did not get."
+        },
+        "worker_reasoning_withheld": {
+          "type": "boolean"
+        }
+      }
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "artifact_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recorded_at": {
+      "type": "string"
+    }
+  }
+}

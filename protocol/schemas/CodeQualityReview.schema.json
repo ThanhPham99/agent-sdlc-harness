@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/code-quality-review/v1",
+  "title": "CodeQualityReview",
+  "description": "Given that the specification is accepted, is the implementation safe and maintainable? Runs only after spec compliance is clean, so it never re-argues what the task was supposed to do.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "task_id",
+    "run_id",
+    "attempt",
+    "verdict",
+    "findings"
+  ],
+  "properties": {
+    "schema": {
+      "const": "agent-sdlc/code-quality-review/v1"
+    },
+    "task_id": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "base_revision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "diff_hash": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "verdict": {
+      "enum": [
+        "ACCEPTED",
+        "CHANGES_REQUIRED",
+        "PENDING"
+      ]
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "category",
+          "severity",
+          "summary",
+          "evidence"
+        ],
+        "properties": {
+          "category": {
+            "enum": [
+              "CORRECTNESS",
+              "CONCURRENCY_OR_IDEMPOTENCY",
+              "ERROR_HANDLING",
+              "SECURITY_OR_PRIVACY",
+              "MAINTAINABILITY",
+              "TEST_QUALITY",
+              "PERFORMANCE"
+            ]
+          },
+          "severity": {
+            "enum": [
+              "BLOCKING",
+              "MAJOR",
+              "MINOR",
+              "INFO"
+            ]
+          },
+          "summary": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "failure_scenario": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Concrete inputs/state leading to the wrong outcome. Required in spirit for BLOCKING correctness findings."
+          },
+          "resolved": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "independence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "requested",
+        "achieved"
+      ],
+      "properties": {
+        "requested": {
+          "type": "boolean"
+        },
+        "achieved": {
+          "type": "boolean"
+        },
+        "mode": {
+          "enum": [
+            "FRESH_CONTEXT_SUBAGENT",
+            "SEPARATE_PROVIDER",
+            "SAME_CONTEXT",
+            "UNAVAILABLE"
+          ]
+        },
+        "limitation": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "worker_reasoning_withheld": {
+          "type": "boolean"
+        }
+      }
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "artifact_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "recorded_at": {
+      "type": "string"
+    }
+  }
+}

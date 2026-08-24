@@ -1,0 +1,151 @@
+{
+  "schema": "agent-sdlc/task-recovery-validation/v1",
+  "version": "3.0.0-alpha5",
+  "retry_invariant": "No same-task retry without new concrete evidence, changed context, changed plan, changed implementation, or an explicit recovery decision.",
+  "failure_classes": [
+    "IMPLEMENTATION_DEFECT",
+    "VERIFICATION_FAILURE",
+    "SPEC_MISMATCH",
+    "QUALITY_BLOCKER",
+    "DEPENDENCY_BLOCKED",
+    "DESIGN_INVALIDATED",
+    "REQUIREMENT_AMBIGUITY",
+    "SCOPE_EXPANSION",
+    "INFRA_TRANSIENT",
+    "PROVIDER_FAILURE",
+    "PERMISSION_DENIED",
+    "BUDGET_EXHAUSTED"
+  ],
+  "policy": {
+    "default_max_retries": 2,
+    "profile_max_retries": {
+      "FAST": 2,
+      "STANDARD": 2,
+      "STRICT": 1
+    },
+    "infrastructure_max_retries": 3,
+    "actions": {
+      "IMPLEMENTATION_DEFECT": {
+        "action": "RETRY_TASK",
+        "to": "RUNNING",
+        "requires_new_evidence": true
+      },
+      "VERIFICATION_FAILURE": {
+        "action": "RETRY_TASK",
+        "to": "RUNNING",
+        "requires_new_evidence": true
+      },
+      "SPEC_MISMATCH": {
+        "action": "RETRY_TASK",
+        "to": "RUNNING",
+        "requires_new_evidence": true
+      },
+      "QUALITY_BLOCKER": {
+        "action": "RETRY_TASK",
+        "to": "RUNNING",
+        "requires_new_evidence": true
+      },
+      "DEPENDENCY_BLOCKED": {
+        "action": "BLOCK",
+        "to": "BLOCKED",
+        "requires_new_evidence": false
+      },
+      "DESIGN_INVALIDATED": {
+        "action": "INVALIDATE",
+        "to": "INVALIDATED",
+        "requires_new_evidence": false
+      },
+      "REQUIREMENT_AMBIGUITY": {
+        "action": "ESCALATE_OUTER",
+        "to": "BLOCKED",
+        "requires_new_evidence": false
+      },
+      "SCOPE_EXPANSION": {
+        "action": "ESCALATE_OUTER",
+        "to": "BLOCKED",
+        "requires_new_evidence": false
+      },
+      "INFRA_TRANSIENT": {
+        "action": "RETRY_INFRASTRUCTURE",
+        "to": "RUNNING",
+        "requires_new_evidence": false
+      },
+      "PROVIDER_FAILURE": {
+        "action": "PROVIDER_FALLBACK",
+        "to": "RUNNING",
+        "requires_new_evidence": false
+      },
+      "PERMISSION_DENIED": {
+        "action": "BLOCK",
+        "to": "BLOCKED",
+        "requires_new_evidence": false
+      },
+      "BUDGET_EXHAUSTED": {
+        "action": "BLOCK",
+        "to": "BLOCKED",
+        "requires_new_evidence": false
+      }
+    }
+  },
+  "outer_boundary": "the task engine never mutates outer run state; it reports the required escalation and the orchestrator performs it",
+  "provider_fallback": {
+    "checkpoint_schema": "agent-sdlc/task-checkpoint/v1",
+    "transfers": [
+      "context manifest ref",
+      "base revision",
+      "diff hash",
+      "artifact refs",
+      "evidence refs",
+      "review refs",
+      "failure class"
+    ],
+    "never_transfers": [
+      "provider_conversation_history",
+      "hidden_chain_of_thought",
+      "worker_scratch_reasoning"
+    ]
+  },
+  "checks": 9,
+  "passes": 9,
+  "failures": 0,
+  "results": [
+    {
+      "name": "classification-prefers-the-structural-cause",
+      "status": "PASS"
+    },
+    {
+      "name": "identical-retry-without-new-evidence-is-refused",
+      "status": "PASS"
+    },
+    {
+      "name": "retry-budget-exhaustion-fails-the-task",
+      "status": "PASS"
+    },
+    {
+      "name": "spec-mismatch-escalates-upstream-when-retries-run-out",
+      "status": "PASS"
+    },
+    {
+      "name": "infrastructure-retries-are-bounded-and-free",
+      "status": "PASS"
+    },
+    {
+      "name": "requirement-ambiguity-escalates-to-needs-confirmation",
+      "status": "PASS"
+    },
+    {
+      "name": "design-invalidation-escalates-the-outer-workflow",
+      "status": "PASS"
+    },
+    {
+      "name": "permission-denied-blocks-and-requires-approval-or-an-alternative",
+      "status": "PASS"
+    },
+    {
+      "name": "provider-fallback-checkpoint-carries-artifacts-not-reasoning",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "live_qualification": "PENDING_LIVE_QUALIFICATION"
+}

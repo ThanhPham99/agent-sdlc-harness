@@ -1,0 +1,316 @@
+{
+  "schema": "agent-sdlc/task-state-machine/v1",
+  "version": "3.0.0-alpha5",
+  "note": "Inner task lifecycle. The outer run/feature state machine in config/state-machine.json remains canonical; this machine only operates inside execution-relevant outer stages.",
+  "initial": "CREATED",
+  "statuses": [
+    "CREATED",
+    "READY",
+    "RUNNING",
+    "VERIFYING",
+    "SPEC_REVIEW",
+    "QUALITY_REVIEW",
+    "DONE",
+    "BLOCKED",
+    "FAILED",
+    "INVALIDATED",
+    "SUPERSEDED"
+  ],
+  "terminal": [
+    "DONE",
+    "SUPERSEDED"
+  ],
+  "recoverable": [
+    "BLOCKED",
+    "FAILED",
+    "INVALIDATED"
+  ],
+  "dispatchable": [
+    "READY"
+  ],
+  "in_flight": [
+    "RUNNING",
+    "VERIFYING",
+    "SPEC_REVIEW",
+    "QUALITY_REVIEW"
+  ],
+  "edges": [
+    {
+      "from": "CREATED",
+      "to": "READY",
+      "kind": "forward",
+      "requires": [
+        "dependencies_satisfied"
+      ]
+    },
+    {
+      "from": "READY",
+      "to": "RUNNING",
+      "kind": "forward",
+      "requires": [
+        "dependencies_satisfied",
+        "primary_writer_bound",
+        "context_manifest"
+      ]
+    },
+    {
+      "from": "RUNNING",
+      "to": "VERIFYING",
+      "kind": "forward",
+      "requires": [
+        "diff_captured"
+      ]
+    },
+    {
+      "from": "VERIFYING",
+      "to": "SPEC_REVIEW",
+      "kind": "forward",
+      "requires": [
+        "verification_evidence"
+      ]
+    },
+    {
+      "from": "SPEC_REVIEW",
+      "to": "QUALITY_REVIEW",
+      "kind": "forward",
+      "requires": [
+        "spec_review_clean"
+      ]
+    },
+    {
+      "from": "QUALITY_REVIEW",
+      "to": "DONE",
+      "kind": "forward",
+      "requires": [
+        "quality_review_clean",
+        "verification_evidence",
+        "scope_respected"
+      ]
+    },
+    {
+      "from": "VERIFYING",
+      "to": "RUNNING",
+      "kind": "retry",
+      "requires": [
+        "new_evidence",
+        "retry_budget"
+      ],
+      "reason": "concrete verification failure"
+    },
+    {
+      "from": "SPEC_REVIEW",
+      "to": "RUNNING",
+      "kind": "retry",
+      "requires": [
+        "new_evidence",
+        "retry_budget"
+      ],
+      "reason": "concrete spec gap"
+    },
+    {
+      "from": "QUALITY_REVIEW",
+      "to": "RUNNING",
+      "kind": "retry",
+      "requires": [
+        "new_evidence",
+        "retry_budget"
+      ],
+      "reason": "concrete blocking quality finding"
+    },
+    {
+      "from": "RUNNING",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "VERIFYING",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "SPEC_REVIEW",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "QUALITY_REVIEW",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "READY",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "CREATED",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "RUNNING",
+      "to": "FAILED",
+      "kind": "fail"
+    },
+    {
+      "from": "VERIFYING",
+      "to": "FAILED",
+      "kind": "fail"
+    },
+    {
+      "from": "SPEC_REVIEW",
+      "to": "FAILED",
+      "kind": "fail"
+    },
+    {
+      "from": "QUALITY_REVIEW",
+      "to": "FAILED",
+      "kind": "fail"
+    },
+    {
+      "from": "BLOCKED",
+      "to": "READY",
+      "kind": "resume",
+      "requires": [
+        "blocker_resolved",
+        "dependencies_satisfied"
+      ]
+    },
+    {
+      "from": "FAILED",
+      "to": "READY",
+      "kind": "resume",
+      "requires": [
+        "recovery_decision",
+        "dependencies_satisfied"
+      ]
+    },
+    {
+      "from": "INVALIDATED",
+      "to": "READY",
+      "kind": "resume",
+      "requires": [
+        "upstream_refreshed",
+        "dependencies_satisfied"
+      ]
+    },
+    {
+      "from": "CREATED",
+      "to": "INVALIDATED",
+      "kind": "invalidate"
+    },
+    {
+      "from": "READY",
+      "to": "INVALIDATED",
+      "kind": "invalidate"
+    },
+    {
+      "from": "RUNNING",
+      "to": "INVALIDATED",
+      "kind": "invalidate"
+    },
+    {
+      "from": "VERIFYING",
+      "to": "INVALIDATED",
+      "kind": "invalidate"
+    },
+    {
+      "from": "SPEC_REVIEW",
+      "to": "INVALIDATED",
+      "kind": "invalidate"
+    },
+    {
+      "from": "QUALITY_REVIEW",
+      "to": "INVALIDATED",
+      "kind": "invalidate"
+    },
+    {
+      "from": "BLOCKED",
+      "to": "INVALIDATED",
+      "kind": "invalidate"
+    },
+    {
+      "from": "FAILED",
+      "to": "INVALIDATED",
+      "kind": "invalidate"
+    },
+    {
+      "from": "DONE",
+      "to": "INVALIDATED",
+      "kind": "invalidate",
+      "requires": [
+        "upstream_change"
+      ],
+      "reason": "a completed task whose requirement, design or interface changed materially"
+    },
+    {
+      "from": "CREATED",
+      "to": "SUPERSEDED",
+      "kind": "supersede"
+    },
+    {
+      "from": "READY",
+      "to": "SUPERSEDED",
+      "kind": "supersede"
+    },
+    {
+      "from": "RUNNING",
+      "to": "SUPERSEDED",
+      "kind": "supersede"
+    },
+    {
+      "from": "VERIFYING",
+      "to": "SUPERSEDED",
+      "kind": "supersede"
+    },
+    {
+      "from": "SPEC_REVIEW",
+      "to": "SUPERSEDED",
+      "kind": "supersede"
+    },
+    {
+      "from": "QUALITY_REVIEW",
+      "to": "SUPERSEDED",
+      "kind": "supersede"
+    },
+    {
+      "from": "BLOCKED",
+      "to": "SUPERSEDED",
+      "kind": "supersede"
+    },
+    {
+      "from": "FAILED",
+      "to": "SUPERSEDED",
+      "kind": "supersede"
+    },
+    {
+      "from": "INVALIDATED",
+      "to": "SUPERSEDED",
+      "kind": "supersede"
+    }
+  ],
+  "conditions": {
+    "dependencies_satisfied": "every depends_on task is DONE",
+    "primary_writer_bound": "exactly one writer is bound to this task's workspace",
+    "context_manifest": "a bounded task context manifest exists and is within budget",
+    "diff_captured": "a diff hash bound to a base revision exists",
+    "verification_evidence": "an agent-sdlc/task-verification/v1 record with executed commands and exit codes exists",
+    "spec_review_clean": "no blocking finding in the spec compliance review",
+    "quality_review_clean": "no blocking finding in the code quality review",
+    "scope_respected": "the captured diff touches nothing outside the approved write scope",
+    "new_evidence": "the retry carries concrete new evidence, changed context, changed plan or an explicit recovery decision",
+    "retry_budget": "attempt count is below execution.max_retries",
+    "blocker_resolved": "the recorded blocker no longer applies",
+    "recovery_decision": "an explicit authorized recovery decision exists",
+    "upstream_refreshed": "the invalidating upstream artifact was refreshed",
+    "upstream_change": "a material upstream requirement/design/interface change was recorded"
+  },
+  "forbidden": [
+    "same task repeats unchanged with no new evidence",
+    "DONE without required verification evidence",
+    "DONE with a blocking review finding",
+    "diff outside the approved write scope without re-impact or replan",
+    "dependency treated as complete while it is not DONE",
+    "silent expansion of interface scope"
+  ]
+}

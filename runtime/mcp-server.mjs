@@ -3,7 +3,10 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {rootFrom} from './util.mjs';
 import {detectProject} from './init.mjs';
-import {initProject,loadRun,putArtifact,saveRun,emit} from './store.mjs';
+import {initProject,loadRun,putArtifact,saveRun,emit,listTasks,listTaskEvents} from './store.mjs';
+import {requireTask,taskProgress} from './task-engine.mjs';
+import {readySet,scheduleTasks} from './task-scheduler.mjs';
+import {buildTaskContext,renderTaskPrompt} from './task-context.mjs';
 import {route} from './router.mjs';
 import {newRun,transition,nextState} from './orchestrator.mjs';
 import {buildContext} from './context.mjs';
@@ -22,7 +25,16 @@ const toolDefs=[
   {name:'agent_sdlc_tool_check',description:'Check canonical stage/tool policy before execution.',inputSchema:{type:'object',required:['run_id','tool'],properties:{project_root:{type:'string'},run_id:{type:'string'},tool:{type:'string'}}}},
   {name:'agent_sdlc_tool_run',description:'Run a deterministic built-in project tool through stage policy and bounded-output handling.',inputSchema:{type:'object',required:['run_id','tool'],properties:{project_root:{type:'string'},run_id:{type:'string'},tool:{type:'string'},args:{type:'object'}}}},
   {name:'agent_sdlc_artifact_put',description:'Store durable external memory as a content-addressed artifact and attach it to a run.',inputSchema:{type:'object',required:['run_id','kind','content'],properties:{project_root:{type:'string'},run_id:{type:'string'},kind:{type:'string'},content:{type:'string'}}}},
-  {name:'agent_sdlc_model_route',description:'Choose deterministic vs model execution and the cheapest qualified model tier subject to risk floor.',inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},task:{type:'string'},provider:{type:'string'},require_structured:{type:'boolean'}}}}
+  {name:'agent_sdlc_model_route',description:'Choose deterministic vs model execution and the cheapest qualified model tier subject to risk floor.',inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},task:{type:'string'},provider:{type:'string'},require_structured:{type:'boolean'}}}},
+  // Task runtime. Deliberately read-mostly: the host needs to see the graph and
+  // ask what to dispatch next, not to hand-edit task state. State-changing task
+  // operations stay behind the CLI and the engine's policy checks.
+  {name:'agent_sdlc_task_list',description:'List the persistent task records for a run with status, category and dependencies.',inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'}}}},
+  {name:'agent_sdlc_task_status',description:'Read one task record, or the whole run task progress when task_id is omitted.',inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},task_id:{type:'string'}}}},
+  {name:'agent_sdlc_task_ready',description:'Dependency-satisfied task set for a run, with an explicit reason for every excluded task.',inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},outer_stage:{type:'string'}}}},
+  {name:'agent_sdlc_task_schedule',description:'Compute the bounded dispatch decision: which ready tasks may run now and why the rest may not.',inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},outer_stage:{type:'string'},remaining_model_calls:{type:'number'}}}},
+  {name:'agent_sdlc_task_context',description:'Compile the bounded per-task context package and persist its manifest for replay.',inputSchema:{type:'object',required:['run_id','task_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},task_id:{type:'string'},prompt:{type:'boolean'}}}},
+  {name:'agent_sdlc_task_evidence',description:'Read a task verification/review evidence summary: refs, diff binding and current status.',inputSchema:{type:'object',required:['run_id','task_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},task_id:{type:'string'}}}}
 ];
 function pr(a){return path.resolve(a.project_root||process.cwd());}
 function execute(name,a={}){
@@ -42,6 +54,30 @@ function execute(name,a={}){
     const art=putArtifact(projectRoot,{kind:a.kind,content:a.content,runId:run.run_id,stage:run.state});run.artifacts=[...new Set([...(run.artifacts||[]),art.artifact_id])];saveRun(projectRoot,run);emit(projectRoot,run,{type:'artifact.created',artifact_refs:[art.artifact_id],payload:{kind:a.kind}});return art;
   }
   if(name==='agent_sdlc_model_route')return routeModel(ROOT,projectRoot,run,{task:a.task||'stage',provider:a.provider||'auto',requireStructured:!!a.require_structured});
+  if(name==='agent_sdlc_task_list')return listTasks(projectRoot,run.run_id).map(t=>({task_id:t.task_id,status:t.status,category:t.category,attempt:t.attempt,depends_on:t.depends_on,parallel_candidate:t.execution?.parallel_candidate===true}));
+  if(name==='agent_sdlc_task_status')return a.task_id?requireTask(projectRoot,run.run_id,a.task_id):taskProgress(projectRoot,run.run_id);
+  if(name==='agent_sdlc_task_ready')return readySet(projectRoot,run.run_id,{outerStage:a.outer_stage||run.state,root:ROOT});
+  if(name==='agent_sdlc_task_schedule')return scheduleTasks(ROOT,projectRoot,run,{
+    outerStage:a.outer_stage||run.state,
+    budget:a.remaining_model_calls!==undefined?{remaining_model_calls:Number(a.remaining_model_calls)}:null
+  });
+  if(name==='agent_sdlc_task_context'){
+    const task=requireTask(projectRoot,run.run_id,a.task_id);
+    const m=buildTaskContext(ROOT,projectRoot,run,task);
+    return a.prompt?{context_hash:m.context_hash,prompt:renderTaskPrompt(ROOT,m)}:m;
+  }
+  if(name==='agent_sdlc_task_evidence'){
+    const task=requireTask(projectRoot,run.run_id,a.task_id);
+    return {
+      schema:'agent-sdlc/task-evidence-summary/v1',
+      run_id:run.run_id,task_id:task.task_id,status:task.status,attempt:task.attempt,
+      base_revision:task.base_revision,diff_hash:task.diff_hash,
+      context_manifest_ref:task.context_manifest_ref,
+      evidence_refs:task.evidence_refs||[],review_refs:task.review_refs||[],
+      failure:task.failure||null,blocker:task.blocker||null,invalidation:task.invalidation||null,
+      events:listTaskEvents(projectRoot,run.run_id,task.task_id).map(e=>({seq:e.seq,type:e.type,time:e.time}))
+    };
+  }
   throw new Error(`unknown MCP tool ${name}`);
 }
 function send(obj){process.stdout.write(JSON.stringify(obj)+'\n');}

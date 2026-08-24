@@ -1,10 +1,19 @@
 {
   "name": "agent-sdlc-harness",
-  "version": "3.0.0-alpha4",
+  "version": "3.0.0-alpha5",
   "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for coding agents.",
-  "author": {"name": "Agent SDLC Harness Contributors"},
+  "author": {
+    "name": "Agent SDLC Harness Contributors"
+  },
   "license": "UNLICENSED",
-  "keywords": ["sdlc", "coding-agents", "testing", "security", "devops", "token-efficiency"],
+  "keywords": [
+    "sdlc",
+    "coding-agents",
+    "testing",
+    "security",
+    "devops",
+    "token-efficiency"
+  ],
   "skills": "./skills/",
   "mcpServers": "./adapters/codex/.mcp.json",
   "interface": {
@@ -13,7 +22,11 @@
     "longDescription": "Route and execute feature, bugfix, review, testing, security, release, incident, maintenance, upgrade and modernization work with bounded context, deterministic verification and durable artifacts.",
     "developerName": "Agent SDLC Harness Contributors",
     "category": "Developer Tools",
-    "capabilities": ["Interactive", "Read", "Write"],
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
     "defaultPrompt": [
       "Implement this feature using the SDLC workflow.",
       "Fix this bug with evidence-driven verification.",

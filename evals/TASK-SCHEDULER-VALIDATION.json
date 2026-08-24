@@ -1,0 +1,149 @@
+{
+  "schema": "agent-sdlc/task-scheduler-validation/v1",
+  "version": "3.0.0-alpha5",
+  "policy": {
+    "version": "3.0.0-alpha5",
+    "writers": {
+      "default_max_concurrent": 1,
+      "hard_default_max": 2,
+      "absolute_max": 4,
+      "one_primary_writer_per_task": true,
+      "one_workspace_per_writer": true
+    },
+    "read_only": {
+      "default_max_concurrent": 2,
+      "hard_default_max": 4
+    },
+    "profile_max_writers": {
+      "FAST": 2,
+      "STANDARD": 2,
+      "STRICT": 1
+    },
+    "parallel_requires": [
+      "dependencies_satisfied",
+      "write_scopes_disjoint",
+      "interface_scopes_disjoint",
+      "no_shared_serialized_boundary",
+      "wall_time_benefit_justified",
+      "risk_policy_permits",
+      "budget_permits"
+    ],
+    "serialize_on": {
+      "categories": [
+        "migration",
+        "release"
+      ],
+      "risk": {
+        "security": [
+          "HIGH"
+        ],
+        "data": [
+          "MEDIUM",
+          "HIGH"
+        ]
+      },
+      "destructive_data_change": true,
+      "interface_scope_present": false,
+      "reason": "shared migration/schema/security boundaries and release ordering must not interleave"
+    },
+    "benefit_threshold": {
+      "min_estimated_seconds": 60,
+      "note": "Below this, coordination and review cost exceeds the wall-clock saving; dispatch serially."
+    },
+    "stage_categories": {
+      "IMPLEMENT": [
+        "implementation",
+        "migration",
+        "security",
+        "verification",
+        "integration"
+      ],
+      "VERIFY": [
+        "verification",
+        "integration",
+        "security"
+      ],
+      "REVIEW": [
+        "verification",
+        "security"
+      ],
+      "RELEASE": [
+        "release",
+        "documentation",
+        "operability"
+      ],
+      "DEPLOY": [
+        "release",
+        "operability"
+      ],
+      "OBSERVE": [
+        "operability"
+      ],
+      "CLOSE": [
+        "documentation"
+      ]
+    }
+  },
+  "shared_primitives": "runtime/parallel.mjs and runtime/task-scheduler.mjs share scopeConflicts/benefit predicates; there is one policy model",
+  "decision_artifact": "agent-sdlc/task-schedule-decision/v1",
+  "no_silent_caps": "every non-dispatched ready task is reported in `deferred` or `excluded` with a reason",
+  "checks": 13,
+  "passes": 13,
+  "failures": 0,
+  "results": [
+    {
+      "name": "linear-dag-dispatches-one-then-the-next",
+      "status": "PASS"
+    },
+    {
+      "name": "disjoint-parallel-candidates-dispatch-together",
+      "status": "PASS"
+    },
+    {
+      "name": "overlapping-write-scope-serializes",
+      "status": "PASS"
+    },
+    {
+      "name": "overlapping-interface-scope-serializes",
+      "status": "PASS"
+    },
+    {
+      "name": "short-writer-tasks-are-not-worth-parallelizing",
+      "status": "PASS"
+    },
+    {
+      "name": "read-only-tasks-parallelize-without-a-time-threshold",
+      "status": "PASS"
+    },
+    {
+      "name": "writer-cap-is-two-by-default-and-one-under-strict",
+      "status": "PASS"
+    },
+    {
+      "name": "migration-category-runs-alone",
+      "status": "PASS"
+    },
+    {
+      "name": "categories-illegal-in-the-outer-stage-are-excluded",
+      "status": "PASS"
+    },
+    {
+      "name": "blocked-and-in-flight-tasks-are-never-dispatched",
+      "status": "PASS"
+    },
+    {
+      "name": "budget-exhaustion-prevents-dispatch",
+      "status": "PASS"
+    },
+    {
+      "name": "scheduling-is-deterministic",
+      "status": "PASS"
+    },
+    {
+      "name": "scope-overlap-is-prefix-aware",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "live_qualification": "PENDING_LIVE_QUALIFICATION"
+}

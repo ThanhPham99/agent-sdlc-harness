@@ -1,0 +1,178 @@
+{
+  "schema": "agent-sdlc/task-engine-validation/v1",
+  "version": "3.0.0-alpha5",
+  "state_machine": {
+    "version": "3.0.0-alpha5",
+    "statuses": [
+      "CREATED",
+      "READY",
+      "RUNNING",
+      "VERIFYING",
+      "SPEC_REVIEW",
+      "QUALITY_REVIEW",
+      "DONE",
+      "BLOCKED",
+      "FAILED",
+      "INVALIDATED",
+      "SUPERSEDED"
+    ],
+    "terminal": [
+      "DONE",
+      "SUPERSEDED"
+    ],
+    "edge_count": 40,
+    "conditions": [
+      "dependencies_satisfied",
+      "primary_writer_bound",
+      "context_manifest",
+      "diff_captured",
+      "verification_evidence",
+      "spec_review_clean",
+      "quality_review_clean",
+      "scope_respected",
+      "new_evidence",
+      "retry_budget",
+      "blocker_resolved",
+      "recovery_decision",
+      "upstream_refreshed",
+      "upstream_change"
+    ],
+    "forbidden": [
+      "same task repeats unchanged with no new evidence",
+      "DONE without required verification evidence",
+      "DONE with a blocking review finding",
+      "diff outside the approved write scope without re-impact or replan",
+      "dependency treated as complete while it is not DONE",
+      "silent expansion of interface scope"
+    ]
+  },
+  "schemas": [
+    "agent-sdlc/task/v1",
+    "agent-sdlc/task-graph/v1",
+    "agent-sdlc/task-event/v1",
+    "agent-sdlc/task-context-manifest/v1"
+  ],
+  "storage": {
+    "root": ".agent-sdlc",
+    "directories": [
+      "tasks/<run_id>/",
+      "task-events/",
+      "task-evidence/",
+      "task-context/",
+      "workspaces/"
+    ],
+    "atomic_writes": true,
+    "large_evidence": "content-addressed artifact store; task records hold refs"
+  },
+  "outer_gate": {
+    "stage": "IMPLEMENT",
+    "requirements": [
+      "implementation_artifact",
+      "task_graph_complete"
+    ],
+    "evidence_authority": {
+      "implementation_artifact": "runtime",
+      "task_graph_complete": "runtime"
+    },
+    "caller_assertable": false
+  },
+  "checks": 15,
+  "passes": 15,
+  "failures": 0,
+  "results": [
+    {
+      "name": "legal-forward-flow-reaches-done",
+      "status": "PASS"
+    },
+    {
+      "name": "illegal-status-skip-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "done-requires-verification-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "done-blocked-by-blocking-review-finding",
+      "status": "PASS"
+    },
+    {
+      "name": "retry-requires-new-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "terminal-done-cannot-restart",
+      "status": "PASS"
+    },
+    {
+      "name": "dependency-not-done-keeps-downstream-unready",
+      "status": "PASS"
+    },
+    {
+      "name": "failed-dependency-blocks-downstream",
+      "status": "PASS"
+    },
+    {
+      "name": "invalidated-resume-requires-refreshed-upstream",
+      "status": "PASS"
+    },
+    {
+      "name": "one-primary-writer-per-task-enforced",
+      "status": "PASS"
+    },
+    {
+      "name": "writer-workspace-strips-production-credentials",
+      "status": "PASS"
+    },
+    {
+      "name": "materialization-refuses-an-invalid-plan",
+      "status": "PASS"
+    },
+    {
+      "name": "materialization-is-idempotent",
+      "status": "PASS"
+    },
+    {
+      "name": "implement-gate-closed-until-every-task-is-done",
+      "status": "PASS"
+    },
+    {
+      "name": "implement-gate-evidence-cannot-be-asserted",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "migration": {
+    "checks": 6,
+    "passes": 6,
+    "failures": 0,
+    "results": [
+      {
+        "name": "migration-materializes-tasks-from-a-recorded-plan",
+        "status": "PASS"
+      },
+      {
+        "name": "migration-of-a-post-implement-run-marks-legacy-stage-evidence",
+        "status": "PASS"
+      },
+      {
+        "name": "migration-fails-closed-on-an-unknown-plan-schema",
+        "status": "PASS"
+      },
+      {
+        "name": "migration-assigns-stable-ids-only-when-absent",
+        "status": "PASS"
+      },
+      {
+        "name": "per-task-cost-and-telemetry-are-attributed",
+        "status": "PASS"
+      },
+      {
+        "name": "workspace-cleanup-refuses-to-destroy-unpersisted-evidence",
+        "status": "PASS"
+      }
+    ],
+    "status": "PASS"
+  },
+  "live_qualification": "PENDING_LIVE_QUALIFICATION"
+}
