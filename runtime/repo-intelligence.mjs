@@ -1,0 +1,223 @@
+// Repository intelligence: the provider-neutral query surface over the index
+// and symbol graph.
+//
+// Its job is to make the task context compiler stop guessing. Instead of
+// "search the repo for anything about refunds", the compiler asks for the
+// minimal change surface and gets exact symbols, files, tests, interfaces and
+// data entities — with the capability tier that produced them attached, so a
+// weak answer is visibly weak.
+import path from 'node:path';
+import {loadIndex,buildIndex,indexStale,detectCapability,IMPLEMENTED_TIER,moduleOf} from './repo-index.mjs';
+import {buildSymbolGraph,dependentClosure,testsForSymbol,testsForFiles,moduleBoundary} from './symbol-graph.mjs';
+import {git} from './util.mjs';
+
+const arr=x=>Array.isArray(x)?x:[];
+const norm=p=>String(p||'').replace(/\\/g,'/').replace(/^\.\//,'');
+
+/** Open (and cache per call site) the intelligence view of a project. */
+export function openIntelligence(projectRoot,{refresh=false}={}){
+  const index=refresh?buildIndex(projectRoot,{force:true}):loadIndex(projectRoot);
+  const graph=buildSymbolGraph(projectRoot,{index});
+  return {
+    schema:'agent-sdlc/repo-intelligence/v1',
+    project_root:projectRoot,
+    revision:index?.revision??null,
+    capability:index?.capability??detectCapability(projectRoot),
+    stale:indexStale(projectRoot,index),
+    counts:index?.counts??null,
+    index,graph
+  };
+}
+
+const withCapability=(intel,payload)=>({
+  ...payload,
+  capability_tier:intel.capability?.tier??IMPLEMENTED_TIER,
+  revision:intel.revision
+});
+
+export function findSymbol(intel,name){
+  return withCapability(intel,{
+    query:'findSymbol',symbol:name,
+    locations:intel.graph.symbols.get(name)||[]
+  });
+}
+
+/** Files that reference a symbol: importers of its definition plus textual hits. */
+export function findReferences(intel,name){
+  const locations=intel.graph.symbols.get(name)||[];
+  const definingFiles=locations.filter(l=>!l.is_test).map(l=>l.path);
+  const importers=new Set();
+  for(const d of definingFiles)for(const dep of intel.graph.dependents.get(d)||[])importers.add(dep);
+  const textual=[];
+  for(const [p,f] of intel.graph.files){
+    if(definingFiles.includes(p))continue;
+    if(arr(f.symbols).includes(name)||arr(f.referenced).includes(name))textual.push(p);
+  }
+  return withCapability(intel,{
+    query:'findReferences',symbol:name,
+    defined_in:definingFiles,
+    importers:[...importers].sort(),
+    textual_references:textual.sort(),
+    // Structural importers are evidence; textual hits are candidates.
+    confidence:importers.size?'STRUCTURAL':(textual.length?'TEXTUAL':'NONE')
+  });
+}
+
+export function findTestsForSymbol(intel,name){
+  return withCapability(intel,{query:'findTestsForSymbol',symbol:name,tests:testsForSymbol(intel.graph,name)});
+}
+
+export function findTestsForFiles(intel,paths,opts={}){
+  return withCapability(intel,{query:'findTestsForFiles',paths:arr(paths).map(norm),tests:testsForFiles(intel.graph,paths,opts)});
+}
+
+export function findModuleBoundary(intel,targetPath){
+  return withCapability(intel,{query:'findModuleBoundary',...moduleBoundary(intel.graph,targetPath)});
+}
+
+export function findDependents(intel,target,opts={}){
+  return withCapability(intel,{query:'findDependents',target:norm(target),dependents:dependentClosure(intel.graph,target,opts)});
+}
+
+/** Public surface of the given paths: exported symbols plus HTTP routes. */
+export function findPublicInterfaces(intel,paths){
+  const set=new Set(arr(paths).map(norm));
+  const rows=[];
+  for(const [p,f] of intel.graph.files){
+    if(set.size&&!set.has(p))continue;
+    if(arr(f.exports).length||arr(f.routes).length){
+      rows.push({path:p,module:f.module,exports:arr(f.exports),routes:arr(f.routes)});
+    }
+  }
+  return withCapability(intel,{
+    query:'findPublicInterfaces',
+    files:rows.sort((a,b)=>a.path.localeCompare(b.path)),
+    routes:[...new Set(rows.flatMap(r=>r.routes))].sort()
+  });
+}
+
+/** Data entities and the migrations that touch them. */
+export function findDataEntities(intel,paths=[]){
+  const set=new Set(arr(paths).map(norm));
+  const byEntity=new Map();
+  for(const [p,f] of intel.graph.files){
+    if(set.size&&!set.has(p))continue;
+    for(const e of arr(f.entities)){
+      if(!byEntity.has(e))byEntity.set(e,{entity:e,files:[],migrations:[]});
+      byEntity.get(e).files.push(p);
+      if(f.is_migration)byEntity.get(e).migrations.push(p);
+    }
+  }
+  return withCapability(intel,{
+    query:'findDataEntities',
+    entities:[...byEntity.values()].sort((a,b)=>a.entity.localeCompare(b.entity))
+  });
+}
+
+/** Event/message contracts and where they are produced or consumed. */
+export function findEventContracts(intel,paths=[]){
+  const set=new Set(arr(paths).map(norm));
+  const byEvent=new Map();
+  for(const [p,f] of intel.graph.files){
+    if(set.size&&!set.has(p))continue;
+    for(const e of arr(f.events)){
+      if(!byEvent.has(e))byEvent.set(e,{event:e,files:[]});
+      byEvent.get(e).files.push(p);
+    }
+  }
+  return withCapability(intel,{query:'findEventContracts',events:[...byEvent.values()].sort((a,b)=>a.event.localeCompare(b.event))});
+}
+
+/** Recently changed paths, with a change count, from git history. */
+export function findRecentChanges(intel,paths=[],{limit=50,since='30'}={}){
+  const r=git(['log',`-${Number(limit)}`,'--name-only','--pretty=format:%H',`--since=${since} days ago`],intel.project_root);
+  const counts=new Map();
+  if(r.code===0){
+    for(const line of r.stdout.split('\n')){
+      const p=line.trim();
+      if(!p||/^[0-9a-f]{7,40}$/.test(p))continue;
+      counts.set(p,(counts.get(p)||0)+1);
+    }
+  }
+  const set=new Set(arr(paths).map(norm));
+  const rows=[...counts.entries()]
+    .filter(([p])=>!set.size||set.has(p))
+    .map(([path,changes])=>({path,changes}))
+    .sort((a,b)=>b.changes-a.changes||a.path.localeCompare(b.path));
+  return withCapability(intel,{query:'findRecentChanges',available:r.code===0,changed:rows});
+}
+
+// --- minimal change surface -------------------------------------------------
+
+const STOP=new Set(['the','a','an','and','or','for','to','in','on','of','with','add','fix','update','make','support','implement','change','new','use','from','into','when','that','this','it','is','be','should','must','allow','ensure','so']);
+function keywords(objective){
+  return [...new Set(String(objective||'').toLowerCase().split(/[^a-z0-9_]+/).filter(w=>w.length>2&&!STOP.has(w)))];
+}
+const splitIdentifier=name=>String(name).replace(/([a-z0-9])([A-Z])/g,'$1 $2').split(/[^A-Za-z0-9]+/).map(s=>s.toLowerCase()).filter(Boolean);
+
+/**
+ * The bounded set of symbols, files, tests, interfaces and data entities an
+ * objective plausibly touches — the answer that replaces a broad repo scan.
+ *
+ * Deterministic scoring: identifier-word matches on symbol names, then the
+ * files that define them, then the dependent closure, then the tests that
+ * cover those files. Everything reports why it is included.
+ */
+export function getMinimalChangeSurface(intel,objective,{maxSymbols=12,maxFiles=15,maxTests=10,dependentDepth=2}={}){
+  const words=keywords(objective);
+  const scored=[];
+  for(const [name,locations] of intel.graph.symbols){
+    const parts=splitIdentifier(name);
+    const hits=words.filter(w=>parts.includes(w)||parts.some(p=>p.startsWith(w)&&w.length>=4));
+    if(hits.length)scored.push({symbol:name,score:hits.length,matched:hits,locations});
+  }
+  scored.sort((a,b)=>b.score-a.score||a.symbol.localeCompare(b.symbol));
+  const symbols=scored.slice(0,maxSymbols);
+
+  const seedFiles=[...new Set(symbols.flatMap(s=>s.locations.filter(l=>!l.is_test).map(l=>l.path)))];
+  // Files whose own path words match, even when no symbol name did.
+  const pathMatches=[...intel.graph.files.keys()]
+    .filter(p=>!seedFiles.includes(p)&&!intel.graph.files.get(p).is_test)
+    .filter(p=>{const parts=splitIdentifier(path.posix.basename(p));return words.some(w=>parts.includes(w));});
+  const primary=[...new Set([...seedFiles,...pathMatches])].slice(0,maxFiles);
+
+  const dependents=[...new Set(primary.flatMap(p=>dependentClosure(intel.graph,p,{maxDepth:dependentDepth}).map(d=>d.path)))]
+    .filter(p=>!primary.includes(p));
+  const tests=testsForFiles(intel.graph,primary).slice(0,maxTests);
+  const interfaces=findPublicInterfaces(intel,primary);
+  const entities=findDataEntities(intel,[...primary,...dependents]);
+  const modules=[...new Set(primary.map(p=>moduleOf(p)))].sort();
+
+  return withCapability(intel,{
+    query:'getMinimalChangeSurface',
+    objective:String(objective||''),
+    keywords:words,
+    symbols:symbols.map(s=>({symbol:s.symbol,score:s.score,matched:s.matched,paths:s.locations.map(l=>l.path)})),
+    files:primary,
+    dependent_files:dependents.slice(0,maxFiles),
+    tests:tests.map(t=>t.path),
+    modules,
+    public_interfaces:interfaces.routes,
+    exported_symbols:[...new Set(interfaces.files.flatMap(f=>f.exports))].sort().slice(0,40),
+    data_entities:entities.entities.map(e=>e.entity),
+    bounded:true,
+    // When nothing matched, say so instead of returning the whole repository.
+    empty_reason:symbols.length||primary.length?null:'NO_DETERMINISTIC_MATCH_BROADER_SEARCH_REQUIRED'
+  });
+}
+
+/** One compact summary suitable for a task context package. */
+export function changeSurfaceSummary(intel,objective,opts={}){
+  const s=getMinimalChangeSurface(intel,objective,opts);
+  return {
+    capability_tier:s.capability_tier,
+    revision:s.revision,
+    symbols:s.symbols.map(x=>x.symbol),
+    files:s.files,
+    tests:s.tests,
+    modules:s.modules,
+    public_interfaces:s.public_interfaces,
+    data_entities:s.data_entities,
+    empty_reason:s.empty_reason
+  };
+}

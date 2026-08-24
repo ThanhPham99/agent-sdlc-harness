@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/design-discovery-validation/v1",
-  "version": "3.0.0-alpha5",
-  "policy_version": "3.0.0-alpha4",
+  "version": "3.0.0-alpha6",
+  "policy_version": "3.0.0-alpha6",
   "public_skill_count": 2,
   "design_discovery_is_internal": true,
   "modes": [

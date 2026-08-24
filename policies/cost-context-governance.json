@@ -1,0 +1,93 @@
+{
+  "schema": "agent-sdlc/cost-context-governance-policy/v1",
+  "version": "3.0.0-alpha6",
+  "objective": "verified successful task / (model + runner + human rework cost)",
+  "hard_rule": "Never downgrade a mandatory security or review requirement to save cost. Cost governance chooses how to spend effort, never whether a gate applies.",
+  "inputs": [
+    "stage",
+    "task_risk",
+    "task_complexity",
+    "context_estimate",
+    "provider_capability",
+    "historical_success_rate",
+    "cache_availability",
+    "retry_count",
+    "budget_remaining"
+  ],
+  "decisions": [
+    "USE_DETERMINISTIC_TOOL_FIRST",
+    "USE_ECONOMY_MODEL",
+    "USE_STANDARD_MODEL",
+    "ESCALATE_HIGH_REASONING",
+    "SPAWN_INDEPENDENT_REVIEWER",
+    "AVOID_PARALLEL_FAN_OUT",
+    "COMPACT_CONTEXT",
+    "STOP_AND_REQUEST_CONFIRMATION"
+  ],
+  "complexity": {
+    "signals": {
+      "write_scope_entries": [
+        1,
+        4,
+        10
+      ],
+      "module_count": [
+        1,
+        2,
+        3
+      ],
+      "estimated_seconds": [
+        60,
+        300,
+        900
+      ]
+    },
+    "levels": [
+      "LOW",
+      "MEDIUM",
+      "HIGH"
+    ]
+  },
+  "model_floor": {
+    "risk_profile": {
+      "FAST": "ECONOMY",
+      "STANDARD": "STANDARD",
+      "STRICT": "HIGH_REASONING"
+    },
+    "security_risk": {
+      "LOW": null,
+      "MEDIUM": "STANDARD",
+      "HIGH": "HIGH_REASONING"
+    },
+    "data_risk": {
+      "LOW": null,
+      "MEDIUM": "STANDARD",
+      "HIGH": "HIGH_REASONING"
+    },
+    "note": "A floor may only be raised by risk, never lowered by budget."
+  },
+  "mandatory_independent_review": {
+    "risk_profiles": [
+      "STRICT"
+    ],
+    "security_risk": [
+      "HIGH"
+    ],
+    "destructive_data_change": true,
+    "interface_scope_present": true
+  },
+  "context": {
+    "compact_when_over_ratio": 0.85,
+    "hard_stop_over_ratio": 1.25,
+    "note": "Compaction drops artifact payload and dependency summaries, never scope, risk constraints or verification obligations."
+  },
+  "retry": {
+    "escalate_reasoning_after_attempts": 2,
+    "avoid_parallel_after_attempts": 1,
+    "stop_and_confirm_after_attempts": 3
+  },
+  "budget": {
+    "reserve_fraction_for_verification_and_review": 0.35,
+    "stop_and_confirm_below_remaining_model_calls": 2
+  }
+}

@@ -1,0 +1,95 @@
+{
+  "schema": "agent-sdlc/repo-intelligence-validation/v1",
+  "version": "3.0.0-alpha6",
+  "capability": {
+    "tiers": [
+      "LSP_OR_COMPILER",
+      "LANGUAGE_PARSER",
+      "DETERMINISTIC_SYNTAX",
+      "LLM_INFERENCE"
+    ],
+    "implemented": "DETERMINISTIC_SYNTAX",
+    "claim": "deterministic syntax extraction only; a higher tier requires an external index this harness does not bundle",
+    "llm_inference_used": false,
+    "every_query_reports_its_tier": true
+  },
+  "index": {
+    "location": ".agent-sdlc/index/repo-index.json",
+    "incremental": "content-hash cache; a clean tree re-parses nothing",
+    "revision_bound": true,
+    "scope": "git-tracked files, honouring .gitignore"
+  },
+  "query_api": [
+    "findSymbol",
+    "findReferences",
+    "findTestsForSymbol",
+    "findTestsForFiles",
+    "findModuleBoundary",
+    "findDependents",
+    "findPublicInterfaces",
+    "findDataEntities",
+    "findEventContracts",
+    "findRecentChanges",
+    "getMinimalChangeSurface"
+  ],
+  "context_integration": {
+    "module": "runtime/task-context.mjs scopeIntelligence()",
+    "rule": "anchored to the task declared scope, consulted before any broad repo.search, never mined from free text",
+    "no_match_behaviour": "reports NO_DETERMINISTIC_MATCH_BROADER_SEARCH_REQUIRED instead of returning the repository"
+  },
+  "checks": 12,
+  "passes": 12,
+  "failures": 0,
+  "results": [
+    {
+      "name": "index-is-built-and-classifies-files",
+      "status": "PASS"
+    },
+    {
+      "name": "capability-tier-is-reported-honestly",
+      "status": "PASS"
+    },
+    {
+      "name": "index-is-incremental-and-detects-staleness",
+      "status": "PASS"
+    },
+    {
+      "name": "symbol-resolution-finds-definitions",
+      "status": "PASS"
+    },
+    {
+      "name": "dependency-mapping-is-structural",
+      "status": "PASS"
+    },
+    {
+      "name": "test-mapping-links-tests-to-the-code-they-import",
+      "status": "PASS"
+    },
+    {
+      "name": "module-boundary-reports-its-public-surface",
+      "status": "PASS"
+    },
+    {
+      "name": "public-interfaces-data-entities-and-events-are-extracted",
+      "status": "PASS"
+    },
+    {
+      "name": "minimal-change-surface-is-bounded-and-relevant",
+      "status": "PASS"
+    },
+    {
+      "name": "no-deterministic-match-says-so-instead-of-returning-everything",
+      "status": "PASS"
+    },
+    {
+      "name": "external-and-unresolved-imports-are-separated-not-guessed",
+      "status": "PASS"
+    },
+    {
+      "name": "task-context-uses-scope-intelligence-before-broad-search",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "live_qualification": "PENDING_LIVE_QUALIFICATION"
+}

@@ -98,3 +98,39 @@ npm run test:tasks
 
 The same suite backs `npm test`, so a green gate and the release evidence describe the
 same run.
+
+## Alpha6 suite (v3.0.0-alpha6)
+
+```bash
+npm run test:alpha6
+```
+
+`evals/alpha6-runtime.mjs` — 55 offline checks over a small but realistic git fixture
+(modules, tests, HTTP routes, a SQL migration, an event contract):
+
+- **repo_intelligence** (12) — file classification, honest capability reporting, index
+  incrementality and staleness, symbol resolution, structural dependency mapping and
+  transitive dependents, strong test links, module surfaces, route/entity/event extraction,
+  bounded change surfaces, honest empty results, separated external vs unresolved imports,
+  and scope-anchored task-context integration that never pulls in an unrelated module.
+- **traceability** (7) — full node/edge coverage, graph consistency, dangling-ref and
+  unknown-kind rejection, edge-derived acceptance coverage, an unedged claim reported as
+  uncovered, interface-to-compatibility mapping, and refs-not-content storage.
+- **invalidation** (8) — wording-only and documentation-only preservation, exact behaviour
+  closure, design and interface propagation, unrelated nodes staying valid, replayable
+  reasons and paths, and every delta class bounded and declared.
+- **delivery** (9) — protected-branch denial, revision-bound CI, required vs optional check
+  failures, PR_READY vs MERGED, base drift, cross-revision evidence rejection, missing CI
+  evidence, explicit stacked order, and per-branch isolation of interface and migration work.
+- **fallback** (7) — checkpoint contents, timeout and unavailable-provider continuation,
+  context-delta reporting, withheld reasoning, preserved risk policy, recorded events.
+- **governor** (7) — scope-derived complexity, risk-raised model floors that budget cannot
+  lower, non-negotiable independent review, deterministic-tools-first, context compaction
+  then stop, retry escalation, and full explainability.
+- **learning** (5) — secret and environment redaction, deterministic sanitized candidates,
+  rejection of unsanitized or absolute-path candidates, no automatic policy mutation, and a
+  runnable suite per source.
+
+Evidence: `REPO-INTELLIGENCE-VALIDATION.json`, `TRACEABILITY-VALIDATION.json`,
+`INVALIDATION-VALIDATION.json`, `DELIVERY-VALIDATION.json`, `FALLBACK-VALIDATION.json`,
+`GOVERNOR-VALIDATION.json`, `LEARNING-VALIDATION.json`.

@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/task-engine-validation/v1",
-  "version": "3.0.0-alpha5",
+  "version": "3.0.0-alpha6",
   "state_machine": {
-    "version": "3.0.0-alpha5",
+    "version": "3.0.0-alpha6",
     "statuses": [
       "CREATED",
       "READY",

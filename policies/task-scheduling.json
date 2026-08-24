@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/task-scheduling-policy/v1",
-  "version": "3.0.0-alpha5",
+  "version": "3.0.0-alpha6",
   "note": "Parallelism is an optimization, not a default. This policy reuses the principles in policies/parallelism-policy.json and never contradicts stage max_parallel_agents.",
   "writers": {
     "default_max_concurrent": 1,

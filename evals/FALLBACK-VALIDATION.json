@@ -1,0 +1,56 @@
+{
+  "schema": "agent-sdlc/fallback-validation/v1",
+  "version": "3.0.0-alpha6",
+  "checkpoint_schema": "agent-sdlc/task-checkpoint/v1",
+  "transfers": [
+    "context manifest hash",
+    "base revision",
+    "diff hash",
+    "artifact refs",
+    "evidence refs",
+    "review refs",
+    "failure class"
+  ],
+  "never_transfers": [
+    "provider_conversation_history",
+    "hidden_chain_of_thought",
+    "worker_scratch_reasoning"
+  ],
+  "risk": "risk profile, security/data risk and the independent-review requirement are properties of the task and survive a provider change",
+  "no_fallback_provider": "reported as NO_FALLBACK_PROVIDER rather than a silent no-op",
+  "checks": 7,
+  "passes": 7,
+  "failures": 0,
+  "results": [
+    {
+      "name": "checkpoint-carries-structured-state-only",
+      "status": "PASS"
+    },
+    {
+      "name": "provider-timeout-continues-from-the-checkpoint",
+      "status": "PASS"
+    },
+    {
+      "name": "provider-unavailable-without-a-fallback-does-not-pretend",
+      "status": "PASS"
+    },
+    {
+      "name": "context-hash-is-preserved-or-the-delta-is-reported",
+      "status": "PASS"
+    },
+    {
+      "name": "no-hidden-reasoning-is-transferred",
+      "status": "PASS"
+    },
+    {
+      "name": "security-critical-fallback-does-not-weaken-risk-policy",
+      "status": "PASS"
+    },
+    {
+      "name": "fallback-is-recorded-as-an-event",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "live_qualification": "PENDING_LIVE_QUALIFICATION"
+}

@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/plan-quality-validation/v1",
-  "version": "3.0.0-alpha5",
+  "version": "3.0.0-alpha6",
   "schemas": [
     "agent-sdlc/task-plan/v1",
     "agent-sdlc/planned-task/v1"

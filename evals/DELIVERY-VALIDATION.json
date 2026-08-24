@@ -1,0 +1,68 @@
+{
+  "schema": "agent-sdlc/delivery-validation/v1",
+  "version": "3.0.0-alpha6",
+  "targets": [
+    "PR_READY",
+    "MERGED",
+    "RELEASE_READY"
+  ],
+  "ci_statuses": [
+    "PASS",
+    "FAIL",
+    "PENDING",
+    "BLOCKED",
+    "UNKNOWN"
+  ],
+  "rules": [
+    "CI evidence is bound to an exact revision; a revision change invalidates it",
+    "a failing required check fails the record; an optional failure does not",
+    "MERGED requires an observed merge commit — a prepared PR is only PR_READY",
+    "target-base drift blocks delivery and requests re-impact and re-verification",
+    "protected-branch push is denied by default and needs a recorded operator approval",
+    "stacked dependency order must be explicit",
+    "interface-changing and migration work each get their own bounded branch"
+  ],
+  "checks": 9,
+  "passes": 9,
+  "failures": 0,
+  "results": [
+    {
+      "name": "protected-branch-push-is-denied-by-default",
+      "status": "PASS"
+    },
+    {
+      "name": "ci-evidence-is-revision-bound",
+      "status": "PASS"
+    },
+    {
+      "name": "a-failing-required-check-fails-the-record",
+      "status": "PASS"
+    },
+    {
+      "name": "pr-ready-is-not-merged",
+      "status": "PASS"
+    },
+    {
+      "name": "base-drift-blocks-delivery-and-asks-for-re-verification",
+      "status": "PASS"
+    },
+    {
+      "name": "ci-evidence-on-another-revision-does-not-vouch-for-this-one",
+      "status": "PASS"
+    },
+    {
+      "name": "missing-ci-evidence-blocks-delivery",
+      "status": "PASS"
+    },
+    {
+      "name": "stacked-dependency-order-must-be-explicit",
+      "status": "PASS"
+    },
+    {
+      "name": "interface-changing-and-migration-work-get-their-own-branch",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "live_qualification": "PENDING_LIVE_QUALIFICATION"
+}

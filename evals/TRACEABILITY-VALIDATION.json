@@ -1,0 +1,83 @@
+{
+  "schema": "agent-sdlc/traceability-validation/v1",
+  "version": "3.0.0-alpha6",
+  "graph_schema": "agent-sdlc/traceability-graph/v1",
+  "node_kinds": [
+    "REQUIREMENT",
+    "ACCEPTANCE_CRITERION",
+    "DESIGN_DECISION",
+    "TASK",
+    "SYMBOL",
+    "INTERFACE",
+    "DATA_ENTITY",
+    "TEST",
+    "EVIDENCE",
+    "REVIEW_FINDING",
+    "BUILD",
+    "RELEASE",
+    "DEPLOYMENT",
+    "OBSERVATION",
+    "DOCUMENTATION"
+  ],
+  "edge_kinds": [
+    "decomposes_to",
+    "addressed_by",
+    "implemented_by",
+    "changes",
+    "affects",
+    "verified_by",
+    "produces",
+    "reviewed_by",
+    "supports",
+    "contains",
+    "deploys",
+    "validates",
+    "documents"
+  ],
+  "storage": "IDs, refs and hashes only; never duplicated content",
+  "coverage": {
+    "derived_from": "graph edges, never from a claim",
+    "reports": [
+      "ac_coverage",
+      "verification_coverage",
+      "evidence_coverage",
+      "interfaces_without_compatibility_verification"
+    ]
+  },
+  "consistency": "dangling edges, unknown kinds, duplicate nodes and id/kind mismatches are rejected; orphans are warned",
+  "checks": 7,
+  "passes": 7,
+  "failures": 0,
+  "results": [
+    {
+      "name": "graph-connects-requirements-through-to-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "graph-is-consistent-and-has-no-dangling-refs",
+      "status": "PASS"
+    },
+    {
+      "name": "dangling-refs-and-unknown-kinds-are-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "acceptance-criteria-coverage-comes-from-edges-not-claims",
+      "status": "PASS"
+    },
+    {
+      "name": "a-claim-without-an-edge-is-reported-as-uncovered",
+      "status": "PASS"
+    },
+    {
+      "name": "interfaces-map-to-compatibility-verification",
+      "status": "PASS"
+    },
+    {
+      "name": "graph-stores-refs-and-hashes-not-content",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "live_qualification": "PENDING_LIVE_QUALIFICATION"
+}

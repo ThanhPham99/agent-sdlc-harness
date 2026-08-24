@@ -1,6 +1,6 @@
 {
   "name": "agent-sdlc-harness",
-  "version": "3.0.0-alpha5",
+  "version": "3.0.0-alpha6",
   "private": true,
   "type": "module",
   "engines": {
@@ -28,9 +28,11 @@
     "test:antigravity-bootstrap": "node scripts/test-antigravity-bootstrap-hook.mjs",
     "test:codex-bootstrap": "node scripts/test-codex-bootstrap.mjs",
     "test:activation": "npm run test:auto-bootstrap && npm run test:claude-bootstrap && npm run test:antigravity-bootstrap && npm run test:codex-bootstrap",
-    "check": "npm test && npm run test:activation && npm run test:gates && npm run test:tasks && npm run build && npm run validate:github && npm run test:github-installers && npm run test:qualification-harness && npm run test:qualification-transport && npm run verify:dist",
+    "check": "npm test && npm run test:activation && npm run test:gates && npm run test:tasks && npm run test:alpha6 && npm run build && npm run validate:github && npm run test:github-installers && npm run test:qualification-harness && npm run test:qualification-transport && npm run verify:dist",
     "package:release": "node scripts/package-release.mjs",
     "test:gates": "node scripts/validate-gates.mjs",
-    "test:tasks": "node scripts/validate-task-engine.mjs"
+    "test:tasks": "node scripts/validate-task-engine.mjs",
+    "test:alpha6": "node scripts/validate-alpha6.mjs",
+    "learn:promote": "node scripts/promote-regression-case.mjs"
   }
 }

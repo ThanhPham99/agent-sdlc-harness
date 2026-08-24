@@ -42,3 +42,37 @@ Note that `IMPLEMENT.gate_requirements` changed to `implementation_artifact` +
 `task_graph_complete`, both derived by `task implementation-complete`. A run already past
 `IMPLEMENT` is unaffected; a run sitting *in* `IMPLEMENT` needs either a migrated task
 graph or an audited `--force`.
+
+## alpha5 -> alpha6 (intelligence, traceability, delivery)
+
+Purely additive. No run, task or plan schema changed, and no existing gate requirement moved.
+
+New state directories, all created on demand:
+
+```
+.agent-sdlc/index/                  repository index (safe to delete; rebuilt on demand)
+.agent-sdlc/traceability/           traceability graphs and the invalidation log
+.agent-sdlc/delivery/               delivery records
+.agent-sdlc/ci-evidence/            revision-bound CI records
+evals/regressions/candidates/       regression candidates (never auto-adopted)
+```
+
+Nothing needs migrating. To adopt the new capabilities on an existing run:
+
+```bash
+./bin/agent-sdlc repo index                 # build the index once
+./bin/agent-sdlc trace build --run-id <id>   # build the graph from durable state
+./bin/agent-sdlc trace coverage --run-id <id>
+```
+
+`.agent-sdlc/index/` is a cache. Deleting it costs one rebuild and nothing else. If
+`repo status` reports `stale`, rebuild before relying on an answer.
+
+Two additions change behaviour you may notice:
+
+- Task contexts now include a `REPOSITORY FACTS` block for the task's declared scope. It is
+  bounded and anchored to that scope; when the index is unavailable the manifest records
+  `unavailable` with a reason instead of failing.
+- `runtime/parallel.mjs` uses prefix-aware scope overlap (shared with the task scheduler).
+  A task list declaring `src/auth/` and `src/auth/reset.js` is now correctly reported as
+  conflicting. File-level lists behave as before.

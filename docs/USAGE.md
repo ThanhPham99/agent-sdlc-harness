@@ -151,3 +151,47 @@ Inspection and diagnostics:
 reports cost per verified DONE task, `success@1` and retry rate.
 
 See `docs/architecture/TASK-ENGINE.md` and `docs/architecture/TASK-SCHEDULER.md`.
+
+## 10. Repository intelligence, traceability and delivery (v3.0.0-alpha6)
+
+```bash
+./bin/agent-sdlc repo index
+./bin/agent-sdlc repo status
+./bin/agent-sdlc repo surface     --objective "add refund idempotency"
+./bin/agent-sdlc repo symbol      --name PaymentService
+./bin/agent-sdlc repo references  --name RefundRepository
+./bin/agent-sdlc repo dependents  --path src/payments/refund-repository.js
+./bin/agent-sdlc repo tests       --name PaymentService
+./bin/agent-sdlc repo module|interfaces|entities|events|recent ...
+```
+
+```bash
+./bin/agent-sdlc trace build      --run-id <id>
+./bin/agent-sdlc trace coverage   --run-id <id>
+./bin/agent-sdlc trace closure    --run-id <id> --node ACCEPTANCE_CRITERION:AC-001 --delta BEHAVIOR_CHANGE
+./bin/agent-sdlc trace invalidate --run-id <id> --node INTERFACE:"POST /v1/refunds" --delta INTERFACE_CHANGE [--dry-run]
+./bin/agent-sdlc trace history    --run-id <id>
+```
+
+```bash
+./bin/agent-sdlc ci record        --run-id <id> --file ci.json --revision <sha>
+./bin/agent-sdlc ci status        --run-id <id>
+./bin/agent-sdlc delivery record  --run-id <id> --target PR_READY --base main --base-revision <sha>
+./bin/agent-sdlc delivery drift|push-check|group --run-id <id>
+```
+
+```bash
+./bin/agent-sdlc govern task      --run-id <id> --task-id TASK-001 --remaining-model-calls 20
+./bin/agent-sdlc govern report    --run-id <id>
+./bin/agent-sdlc fallback         --run-id <id> --task-id TASK-001 --from claude --to codex
+./bin/agent-sdlc learn candidate  --source VERIFICATION_FAILURE --title "..." --observed "..." --expected "..."
+npm run learn:promote -- --source VERIFICATION_FAILURE --title "..." --observed "..." --expected "..."
+```
+
+`repo surface` returns a bounded surface or says it could not narrow the objective. `trace coverage`
+derives coverage from graph edges, not from claims. `ci status` exits non-zero when the recorded
+evidence is not about the current revision. `delivery record` never reports a target its evidence
+cannot justify. `govern task` explains every decision and never trades a security or review
+requirement for cost.
+
+See `docs/architecture/REPOSITORY-INTELLIGENCE.md` and `docs/architecture/TRACEABILITY-GRAPH.md`.

@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/design-discovery-policy/v1",
-  "version": "3.0.0-alpha4",
+  "version": "3.0.0-alpha6",
   "internal_module": "harness/internal-skills/design-discovery.md",
   "public_skill": false,
   "modes": [

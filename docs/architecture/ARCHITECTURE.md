@@ -57,3 +57,26 @@ validated TaskPlan
 ```
 
 See `docs/architecture/TASK-ENGINE.md` and `docs/architecture/TASK-SCHEDULER.md`.
+
+## Graph-driven understanding (alpha6)
+
+```text
+git-tracked files
+  -> incremental content-hash index (.agent-sdlc/index/) with an honest capability tier
+  -> symbol/dependency graph: dependents, test mapping, module boundaries, interfaces
+  -> minimal change surface, or an explicit "could not narrow this"
+  -> task context anchored to declared scope, consulted before any broad search
+
+durable run state
+  -> traceability graph (requirements -> design -> tasks -> code/interfaces/data
+     -> tests/evidence -> build/release/deployment/observation)
+  -> coverage derived from edges, never from claims
+  -> invalidation propagating only through the edge kinds a delta class declares
+  -> revision-bound CI and delivery evidence; PR_READY is never MERGED
+```
+
+The cost/context governor (`runtime/governor.mjs`) turns per-task telemetry into explainable
+execution decisions. Risk raises its model floor; budget never lowers one, and a mandatory
+security or independent-review requirement is never traded for cost.
+
+See `docs/architecture/REPOSITORY-INTELLIGENCE.md` and `docs/architecture/TRACEABILITY-GRAPH.md`.

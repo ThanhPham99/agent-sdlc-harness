@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/state-machine/v1",
-  "version": "3.0.0-alpha5",
+  "version": "3.0.0-alpha6",
   "initial": "INTAKE",
   "lifecycle_order": [
     "INTAKE",

@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/qualification-transport-regression/v1",
-  "version": "3.0.0-alpha5",
+  "version": "3.0.0-alpha6",
   "checks": 3,
   "passes": 3,
   "failures": 0,

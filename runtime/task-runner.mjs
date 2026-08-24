@@ -180,6 +180,66 @@ export function recordTaskUsage(projectRoot,run,task,usage={}){
   });
 }
 
+/**
+ * Cross-provider continuation. The canonical handoff is the task checkpoint —
+ * artifacts, refs and hashes — never provider conversation history. Nothing
+ * about the risk policy relaxes because a provider changed.
+ */
+export function resumeFromCheckpoint(root,projectRoot,run,taskId,{
+  originalProvider=null,fallbackProvider=null,failureClass='PROVIDER_FAILURE',reason=null
+}={}){
+  const task=requireTask(projectRoot,run.run_id,taskId);
+  const before=taskCheckpoint(projectRoot,run,task);
+  if(!fallbackProvider){
+    return {schema:'agent-sdlc/task-fallback/v1',resumed:false,reason:'NO_FALLBACK_PROVIDER',checkpoint:before};
+  }
+  // Reconstruct the bounded context from durable state rather than replaying a
+  // conversation: same task, same scope, same risk constraints.
+  const manifest=buildTaskContext(root,projectRoot,run,task);
+  const contextDelta=before.context_manifest_ref&&before.context_manifest_ref!==manifest.context_hash
+    ?{changed:true,from:before.context_manifest_ref,to:manifest.context_hash}
+    :{changed:false,hash:manifest.context_hash};
+  task.context_manifest_ref=manifest.context_hash;
+  saveTask(projectRoot,task);
+
+  const record={
+    schema:'agent-sdlc/task-fallback/v1',
+    resumed:true,
+    run_id:run.run_id,
+    task_id:task.task_id,
+    original_provider:originalProvider,
+    fallback_provider:fallbackProvider,
+    failure_class:failureClass,
+    fallback_reason:reason||`continuing ${task.task_id} on ${fallbackProvider} from its task checkpoint`,
+    resumed_from_status:task.status,
+    attempt:task.attempt||0,
+    base_revision:before.base_revision,
+    diff_hash:before.diff_hash,
+    context_delta:contextDelta,
+    artifact_refs:before.artifact_refs,
+    evidence_refs:before.evidence_refs,
+    review_refs:before.review_refs,
+    // Risk policy is a property of the task, not of the provider.
+    risk_policy_preserved:{
+      profile:task.risk?.profile??null,
+      security:task.risk?.security??null,
+      data:task.risk?.data??null,
+      independent_review:task.execution?.independent_review===true
+    },
+    transferred:['context manifest hash','base revision','diff hash','artifact refs','evidence refs','review refs','failure class'],
+    not_transferred:before.excludes,
+    prompt:renderTaskPrompt(root,manifest),
+    time:now()
+  };
+  emitTaskEvent(projectRoot,task,{
+    type:'task.provider_fallback',
+    provider:fallbackProvider,
+    payload:{original_provider:originalProvider,failure_class:failureClass,
+      context_delta:contextDelta,diff_hash:before.diff_hash,base_revision:before.base_revision}
+  });
+  return record;
+}
+
 /** Everything a provider fallback needs, and nothing a provider must not carry. */
 export function taskCheckpoint(projectRoot,run,task){
   const ws=getTaskWorkspace(projectRoot,run.run_id,task.task_id);

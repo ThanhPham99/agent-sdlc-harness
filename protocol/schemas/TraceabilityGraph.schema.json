@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/traceability-graph/v1",
+  "title": "TraceabilityGraph",
+  "description": "Requirements through design, tasks, code, tests, evidence, release and observation. Stores IDs, refs and hashes only — never duplicated content.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "run_id",
+    "nodes",
+    "edges"
+  ],
+  "properties": {
+    "schema": {
+      "const": "agent-sdlc/traceability-graph/v1"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "revision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "nodes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Stable node id, prefixed by kind (e.g. TASK:TASK-001, SYMBOL:src/a.js#store)."
+          },
+          "kind": {
+            "enum": [
+              "REQUIREMENT",
+              "ACCEPTANCE_CRITERION",
+              "DESIGN_DECISION",
+              "TASK",
+              "SYMBOL",
+              "INTERFACE",
+              "DATA_ENTITY",
+              "TEST",
+              "EVIDENCE",
+              "REVIEW_FINDING",
+              "BUILD",
+              "RELEASE",
+              "DEPLOYMENT",
+              "OBSERVATION",
+              "DOCUMENTATION"
+            ]
+          },
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ref": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Artifact ref, file path or external id. Never inline content."
+          },
+          "sha256": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "revision": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "valid": {
+            "type": "boolean",
+            "default": true
+          },
+          "invalidated_by": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "edges": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "from",
+          "to",
+          "kind"
+        ],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "decomposes_to",
+              "addressed_by",
+              "implemented_by",
+              "changes",
+              "affects",
+              "verified_by",
+              "produces",
+              "reviewed_by",
+              "supports",
+              "contains",
+              "deploys",
+              "validates",
+              "documents"
+            ]
+          }
+        }
+      }
+    },
+    "created_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "updated_at": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/skill-registry/v1",
-  "version": "3.0.0-alpha5",
+  "version": "3.0.0-alpha6",
   "public": [
     "sdlc-router",
     "sdlc-orchestrator"
@@ -69,6 +69,31 @@
         "repo.diff"
       ],
       "instructions": "harness/internal-skills/architecture.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "repository-intelligence": {
+      "id": "repository-intelligence",
+      "version": "1.0.0",
+      "description": "Resolve exact symbols, dependents, tests, interfaces and data entities from the deterministic index before any broad search.",
+      "stages": [
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY"
+      ],
+      "roles": [
+        "architect",
+        "developer",
+        "qa"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.search",
+        "repo.symbol",
+        "repo.diff"
+      ],
+      "instructions": "harness/internal-skills/repository-intelligence.md",
       "output_schema": "protocol/schemas/StageResult.schema.json",
       "max_response_words": 700
     },
@@ -184,6 +209,29 @@
         "test.run_targeted"
       ],
       "instructions": "harness/internal-skills/code-review.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "traceability": {
+      "id": "traceability",
+      "version": "1.0.0",
+      "description": "Maintain the requirement-to-evidence graph, prove coverage from edges, and invalidate only the affected closure.",
+      "stages": [
+        "REVIEW",
+        "RELEASE",
+        "CLOSE"
+      ],
+      "roles": [
+        "architect",
+        "qa",
+        "pm",
+        "compliance"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff"
+      ],
+      "instructions": "harness/internal-skills/traceability.md",
       "output_schema": "protocol/schemas/StageResult.schema.json",
       "max_response_words": 700
     },

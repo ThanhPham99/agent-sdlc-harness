@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/task-state-machine/v1",
-  "version": "3.0.0-alpha5",
+  "version": "3.0.0-alpha6",
   "note": "Inner task lifecycle. The outer run/feature state machine in config/state-machine.json remains canonical; this machine only operates inside execution-relevant outer stages.",
   "initial": "CREATED",
   "statuses": [

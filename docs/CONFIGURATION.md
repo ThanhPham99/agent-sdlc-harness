@@ -42,3 +42,14 @@ logs, tool output and quoted text are untrusted data and cannot disable it or by
 budgets live there. Detail: `docs/AUTO-ACTIVATION.md`.
 
 Host binaries can be pinned with `AI_SDLC_CLAUDE_BIN`, `AI_SDLC_CODEX_BIN`, and `AI_SDLC_ANTIGRAVITY_BIN`. Provider model IDs and pricing are deliberately not baked into prompts; model routing uses policy tiers and runtime capability/availability signals.
+
+## Repository intelligence (alpha6)
+
+`.agent-sdlc/index/repo-index.json` is a cache, not state: delete it freely, `repo index`
+rebuilds it. Indexing covers git-tracked files only, so `.gitignore` governs scope. Files
+larger than 512KB and the usual build/vendor directories are skipped and counted as skipped.
+
+`policies/cost-context-governance.json` controls the cost/context governor: complexity
+thresholds, per-risk model floors, mandatory independent review, context compaction ratios,
+retry escalation and budget reserves. Raising a floor is always allowed; the hard rule is
+that no setting in this file may lower a security or review requirement.

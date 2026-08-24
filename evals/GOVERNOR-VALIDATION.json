@@ -1,0 +1,63 @@
+{
+  "schema": "agent-sdlc/governor-validation/v1",
+  "version": "3.0.0-alpha6",
+  "objective": "verified successful task / (model + runner + human rework cost)",
+  "hard_rule": "Never downgrade a mandatory security or review requirement to save cost. Cost governance chooses how to spend effort, never whether a gate applies.",
+  "inputs": [
+    "stage",
+    "task_risk",
+    "task_complexity",
+    "context_estimate",
+    "provider_capability",
+    "historical_success_rate",
+    "cache_availability",
+    "retry_count",
+    "budget_remaining"
+  ],
+  "decisions": [
+    "USE_DETERMINISTIC_TOOL_FIRST",
+    "USE_ECONOMY_MODEL",
+    "USE_STANDARD_MODEL",
+    "ESCALATE_HIGH_REASONING",
+    "SPAWN_INDEPENDENT_REVIEWER",
+    "AVOID_PARALLEL_FAN_OUT",
+    "COMPACT_CONTEXT",
+    "STOP_AND_REQUEST_CONFIRMATION"
+  ],
+  "explainability": "every decision records the inputs, the model floor and a reason per decision",
+  "checks": 7,
+  "passes": 7,
+  "failures": 0,
+  "results": [
+    {
+      "name": "complexity-is-derived-from-declared-scope",
+      "status": "PASS"
+    },
+    {
+      "name": "risk-raises-the-model-floor-and-budget-never-lowers-it",
+      "status": "PASS"
+    },
+    {
+      "name": "mandatory-independent-review-is-never-traded-for-cost",
+      "status": "PASS"
+    },
+    {
+      "name": "deterministic-tools-come-before-inference",
+      "status": "PASS"
+    },
+    {
+      "name": "context-pressure-compacts-then-stops",
+      "status": "PASS"
+    },
+    {
+      "name": "repeated-attempts-escalate-reasoning-and-stop-fan-out",
+      "status": "PASS"
+    },
+    {
+      "name": "every-decision-is-explainable",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "live_qualification": "PENDING_LIVE_QUALIFICATION"
+}

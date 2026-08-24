@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/task-scheduler-validation/v1",
-  "version": "3.0.0-alpha5",
+  "version": "3.0.0-alpha6",
   "policy": {
-    "version": "3.0.0-alpha5",
+    "version": "3.0.0-alpha6",
     "writers": {
       "default_max_concurrent": 1,
       "hard_default_max": 2,

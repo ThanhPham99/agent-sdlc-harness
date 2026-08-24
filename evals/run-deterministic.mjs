@@ -10,6 +10,7 @@ import {newRun,transition,nextState,recordDesignDecision,recordTaskPlan} from '.
 import {selectDesignDiscoveryMode,validateDesignDecision,getDesignDiscoveryPolicy,requiredGateEvidence} from '../runtime/design-discovery.mjs';
 import {validateTaskPlan,computeTaskGraph,findCycles,computeReadySets,computeCoverage,planGateEvidence} from '../runtime/plan-validator.mjs';
 import {runTaskRuntimeSuite} from './task-runtime.mjs';
+import {runAlpha6Suite} from './alpha6-runtime.mjs';
 import {checkTool} from '../runtime/policy.mjs';
 import {buildContext,renderPrompt} from '../runtime/context.mjs';
 import {putArtifact,getArtifact} from '../runtime/store.mjs';
@@ -354,15 +355,17 @@ test('gate-records-are-stage-scoped',()=>{
 });
 
 // ---------------------------------------------------------------------------
-// Task runtime (alpha5). The suite is shared with scripts/validate-task-engine.mjs
-// so the gate and the release evidence can never disagree.
+// Task runtime (alpha5) and repository intelligence / traceability / delivery /
+// fallback / governance / learning (alpha6). Both suites are shared with their
+// release-evidence scripts, so a gate and its evidence can never disagree.
 // ---------------------------------------------------------------------------
-const taskSuite=runTaskRuntimeSuite(ROOT);
-for(const g of taskSuite.groups){
-  for(const r of g.results){
-    pass+= r.status==='PASS'?1:0;
-    fail+= r.status==='PASS'?0:1;
-    rows.push({name:`task-${g.group}/${r.name}`,status:r.status,...(r.error?{error:r.error}:{})});
+for(const [prefix,suite] of [['task',runTaskRuntimeSuite(ROOT)],['a6',runAlpha6Suite(ROOT)]]){
+  for(const g of suite.groups){
+    for(const r of g.results){
+      pass+= r.status==='PASS'?1:0;
+      fail+= r.status==='PASS'?0:1;
+      rows.push({name:`${prefix}-${g.group}/${r.name}`,status:r.status,...(r.error?{error:r.error}:{})});
+    }
   }
 }
 

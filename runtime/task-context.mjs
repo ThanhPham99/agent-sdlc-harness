@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {estimateTokens,gitSha,readJson,sha256,truncateUtf8,now} from './util.mjs';
 import {getArtifact,listTasks,putTaskContextManifest} from './store.mjs';
+import {openIntelligence,findTestsForFiles,findPublicInterfaces,findDataEntities,findDependents} from './repo-intelligence.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -70,10 +71,61 @@ function verificationCommands(projectRoot,task){
 }
 
 /**
+ * Repository intelligence for the task's *declared scope*, not for the whole
+ * repository and not from free-text mining of the objective. Dependency,
+ * interface, entity and test facts come from the index before any broad
+ * `repo.search`, and everything returned is anchored to a declared path.
+ *
+ * A failure here degrades the context, it never breaks the task: the manifest
+ * records `unavailable` with the reason.
+ */
+export function scopeIntelligence(projectRoot,task,{maxItems=12}={}){
+  const scopePaths=[...new Set([...arr(task.scope?.write),...arr(task.scope?.read)])];
+  if(!scopePaths.length)return {available:false,reason:'NO_DECLARED_SCOPE'};
+  try{
+    const intel=openIntelligence(projectRoot);
+    const files=[...intel.graph.files.keys()];
+    // Expand declared prefixes to the indexed files they actually cover.
+    const inScope=files.filter(p=>scopePaths.some(s=>{
+      const stem=String(s).replace(/\\/g,'/').split(/[*?]/)[0].replace(/\/+$/,'');
+      return p===stem||(stem&&p.startsWith(stem+'/'));
+    }));
+    if(!inScope.length){
+      return {available:true,capability_tier:intel.capability?.tier??null,revision:intel.revision,
+        reason:'DECLARED_SCOPE_NOT_YET_INDEXED',files:[],symbols:[],tests:[],
+        public_interfaces:[],data_entities:[],dependents:[]};
+    }
+    const symbols=[...new Set(inScope.flatMap(p=>arr(intel.graph.files.get(p)?.symbols)))].sort().slice(0,maxItems*2);
+    const tests=findTestsForFiles(intel,inScope).tests.map(t=>t.path).slice(0,maxItems);
+    const interfaces=findPublicInterfaces(intel,inScope);
+    const entities=findDataEntities(intel,inScope).entities.map(e=>e.entity).slice(0,maxItems);
+    const dependents=[...new Set(arr(task.scope?.write).flatMap(p=>
+      findDependents(intel,p,{maxDepth:2}).dependents.map(d=>d.path)))]
+      .filter(p=>!inScope.includes(p)).slice(0,maxItems);
+    return {
+      available:true,
+      capability_tier:intel.capability?.tier??null,
+      revision:intel.revision,
+      stale:intel.stale?.stale===true,
+      files:inScope.slice(0,maxItems*2),
+      symbols,
+      tests,
+      public_interfaces:interfaces.routes.slice(0,maxItems),
+      exported_symbols:[...new Set(interfaces.files.flatMap(f=>arr(f.exports)))].sort().slice(0,maxItems*2),
+      data_entities:entities,
+      // Who breaks if this write scope changes — the reason to read further.
+      dependents
+    };
+  }catch(e){
+    return {available:false,reason:`INTELLIGENCE_UNAVAILABLE:${e.message.slice(0,120)}`};
+  }
+}
+
+/**
  * Compile one bounded task context package and persist its manifest with a
  * content hash, so a replay can prove exactly what the task was shown.
  */
-export function buildTaskContext(root,projectRoot,run,task,{extraArtifactRefs=[],extraConstraints=[],persist=true}={}){
+export function buildTaskContext(root,projectRoot,run,task,{extraArtifactRefs=[],extraConstraints=[],persist=true,intelligence=true}={}){
   const contextPolicy=readJson(path.join(root,'policies','context-policy.json'));
   const stagePolicy=readJson(path.join(root,'policies','stage-policy.json')).stages[run.state]
     ||readJson(path.join(root,'policies','stage-policy.json')).stages.IMPLEMENT;
@@ -124,6 +176,9 @@ export function buildTaskContext(root,projectRoot,run,task,{extraArtifactRefs=[]
     },
     symbols:arr(task.scope?.symbols),
     files:[...new Set([...arr(task.scope?.read),...arr(task.scope?.write)])],
+    // Deterministic repository facts for the declared scope, consulted before
+    // any broad search. Anchored to declared paths, never mined from prose.
+    intelligence:intelligence?scopeIntelligence(projectRoot,task):{available:false,reason:'DISABLED_BY_CALLER'},
     project_invariants:arr(cfg.context?.project_invariants),
     risk_constraints:[...riskConstraints,...extraConstraints],
     verification_commands:verificationCommands(projectRoot,task),
@@ -171,6 +226,14 @@ export function renderTaskPrompt(root,manifest){
     `INTERFACE SCOPE\n${list(manifest.scope?.interfaces)}`,
     `FORBIDDEN\n${list(manifest.scope?.forbidden)}`,
     `SYMBOLS\n${list(manifest.symbols,'(discover only as needed)')}`,
+    `REPOSITORY FACTS (deterministic, in scope)\n${manifest.intelligence?.available
+      ?[`tier: ${manifest.intelligence.capability_tier}`,
+        `symbols: ${arr(manifest.intelligence.symbols).join(', ')||'(none)'}`,
+        `tests: ${arr(manifest.intelligence.tests).join(', ')||'(none)'}`,
+        `interfaces: ${arr(manifest.intelligence.public_interfaces).join(', ')||'(none)'}`,
+        `data entities: ${arr(manifest.intelligence.data_entities).join(', ')||'(none)'}`,
+        `dependents of your write scope: ${arr(manifest.intelligence.dependents).join(', ')||'(none)'}`].join('\n')
+      :`unavailable: ${manifest.intelligence?.reason||'unknown'}`}`,
     `PROJECT INVARIANTS\n${list(manifest.project_invariants)}`,
     `RISK CONSTRAINTS\n${list(manifest.risk_constraints)}`,
     `VERIFICATION\n${list(manifest.verification_commands)}`,

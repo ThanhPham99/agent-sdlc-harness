@@ -1,0 +1,60 @@
+{
+  "schema": "agent-sdlc/learning-validation/v1",
+  "version": "3.0.0-alpha6",
+  "sources": [
+    "ESCAPED_DEFECT",
+    "INCIDENT_RCA",
+    "VERIFICATION_FAILURE",
+    "REVIEW_FINDING",
+    "INCORRECT_ROUTE",
+    "INCORRECT_GATE_DECISION",
+    "SCHEDULER_CONFLICT",
+    "CONTEXT_OMISSION",
+    "PROVIDER_COMPATIBILITY_FAILURE"
+  ],
+  "sanitization": [
+    "AWS key ids",
+    "private keys",
+    "provider tokens",
+    "JWTs",
+    "key/value secrets",
+    "emails",
+    "IP addresses",
+    "absolute and home paths",
+    "URLs"
+  ],
+  "guarantees": [
+    "a candidate is deterministic: the same failure yields the same candidate id",
+    "validation re-scans the serialized candidate and rejects any surviving secret or absolute path",
+    "no policy is mutated: a policy hypothesis is PROPOSED_NOT_APPLIED and adoption requires eval pass plus human review",
+    "each source routes to a runnable eval suite"
+  ],
+  "candidate_output": "evals/regressions/candidates/ (written only by scripts/promote-regression-case.mjs)",
+  "checks": 5,
+  "passes": 5,
+  "failures": 0,
+  "results": [
+    {
+      "name": "secrets-and-environment-identifiers-are-removed",
+      "status": "PASS"
+    },
+    {
+      "name": "candidate-generation-is-sanitized-and-deterministic",
+      "status": "PASS"
+    },
+    {
+      "name": "an-unsanitized-candidate-is-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "learning-never-mutates-policy-automatically",
+      "status": "PASS"
+    },
+    {
+      "name": "every-source-routes-to-a-runnable-suite",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "live_qualification": "PENDING_LIVE_QUALIFICATION"
+}

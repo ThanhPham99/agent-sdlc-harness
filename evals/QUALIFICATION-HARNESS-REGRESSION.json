@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/qualification-harness-regression/v1",
-  "version": "3.0.0-alpha5",
+  "version": "3.0.0-alpha6",
   "checks": 10,
   "passes": 10,
   "failures": 0,

@@ -1,0 +1,291 @@
+// Local-first, incremental repository index.
+//
+// Not an always-running platform: a content-hash cache under
+// .agent-sdlc/index/ plus deterministic per-file extraction. Re-indexing a
+// clean tree re-reads nothing.
+//
+// Capability tiers, most authoritative first:
+//
+//   LSP_OR_COMPILER  a language server / compiler index (not bundled; detected)
+//   LANGUAGE_PARSER  a real parser for the language (not bundled; detected)
+//   DETERMINISTIC_SYNTAX  the tier implemented here — regex/line extraction
+//   LLM_INFERENCE    only for relationships the tiers above cannot resolve
+//
+// This module reports the tier it actually used. It never claims a higher one.
+import fs from 'node:fs';
+import path from 'node:path';
+import {ensureDir,git,gitSha,now,readJson,sha256,writeJson} from './util.mjs';
+import {stateDir} from './store.mjs';
+
+export const CAPABILITY_TIERS=['LSP_OR_COMPILER','LANGUAGE_PARSER','DETERMINISTIC_SYNTAX','LLM_INFERENCE'];
+export const IMPLEMENTED_TIER='DETERMINISTIC_SYNTAX';
+
+const indexDir=projectRoot=>path.join(stateDir(projectRoot),'index');
+const indexPath=projectRoot=>path.join(indexDir(projectRoot),'repo-index.json');
+
+const LANG_BY_EXT={
+  '.js':'javascript','.mjs':'javascript','.cjs':'javascript','.jsx':'javascript',
+  '.ts':'typescript','.tsx':'typescript',
+  '.py':'python','.go':'go','.java':'java','.rb':'ruby','.rs':'rust','.cs':'csharp','.php':'php','.kt':'kotlin',
+  '.sql':'sql','.json':'json','.yml':'yaml','.yaml':'yaml','.md':'markdown'
+};
+const CODE_LANGS=new Set(['javascript','typescript','python','go','java','ruby','rust','csharp','php','kotlin']);
+
+const TEST_PATTERNS=[
+  /(^|\/)tests?\//i,/(^|\/)__tests__\//,/(^|\/)spec\//i,
+  /\.test\.[a-z]+$/i,/\.spec\.[a-z]+$/i,/_test\.[a-z]+$/i,/^test_[^/]*\.[a-z]+$/i,/\/test_[^/]*\.[a-z]+$/i
+];
+const MIGRATION_PATTERNS=[/(^|\/)migrations?\//i,/(^|\/)db\/migrate\//i,/(^|\/)alembic\//i];
+
+export const languageOf=rel=>LANG_BY_EXT[path.extname(rel).toLowerCase()]||'other';
+export const isTestPath=rel=>TEST_PATTERNS.some(p=>p.test(rel));
+export const isMigrationPath=rel=>MIGRATION_PATTERNS.some(p=>p.test(rel));
+
+/**
+ * Module boundary for a path. The first path segment under a recognised source
+ * root, or the top-level directory. Deliberately simple and predictable.
+ */
+export function moduleOf(rel){
+  const parts=String(rel).replace(/\\/g,'/').split('/').filter(Boolean);
+  if(parts.length<=1)return '(root)';
+  const roots=new Set(['src','lib','app','pkg','internal','cmd','packages','services','apps','source']);
+  if(roots.has(parts[0])&&parts.length>2)return `${parts[0]}/${parts[1]}`;
+  if(roots.has(parts[0]))return parts[0];
+  return parts[0];
+}
+
+// --- extraction -------------------------------------------------------------
+
+const RX={
+  javascript:{
+    symbols:[
+      /^\s*export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm,
+      /^\s*export\s+(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/gm,
+      /^\s*export\s+(?:const|let|var)\s+([A-Za-z_$][\w$]*)/gm,
+      /^\s*(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm,
+      /^\s*class\s+([A-Za-z_$][\w$]*)/gm
+    ],
+    exports:[
+      /^\s*export\s+(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)/gm,
+      /^\s*export\s+(?:abstract\s+)?class\s+([A-Za-z_$][\w$]*)/gm,
+      /^\s*export\s+(?:const|let|var)\s+([A-Za-z_$][\w$]*)/gm,
+      /^\s*export\s*\{([^}]*)\}/gm
+    ],
+    imports:[/^\s*import\s+[^'"]*from\s*['"]([^'"]+)['"]/gm,/^\s*import\s*['"]([^'"]+)['"]/gm,/require\(\s*['"]([^'"]+)['"]\s*\)/gm]
+  },
+  python:{
+    symbols:[/^\s*def\s+([A-Za-z_]\w*)/gm,/^\s*class\s+([A-Za-z_]\w*)/gm],
+    exports:[/^def\s+([A-Za-z_]\w*)/gm,/^class\s+([A-Za-z_]\w*)/gm],
+    imports:[/^\s*from\s+([\w.]+)\s+import/gm,/^\s*import\s+([\w.]+)/gm]
+  },
+  go:{
+    symbols:[/^\s*func\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)/gm,/^\s*type\s+([A-Za-z_]\w*)/gm],
+    exports:[/^func\s+(?:\([^)]*\)\s*)?([A-Z]\w*)/gm,/^type\s+([A-Z]\w*)/gm],
+    imports:[/^\s*import\s+"([^"]+)"/gm,/^\s+"([^"]+)"$/gm]
+  },
+  java:{
+    symbols:[/^\s*(?:public|protected|private)?\s*(?:static\s+)?(?:final\s+)?(?:class|interface|enum|record)\s+([A-Za-z_]\w*)/gm],
+    exports:[/^\s*public\s+(?:abstract\s+)?(?:class|interface|enum|record)\s+([A-Za-z_]\w*)/gm],
+    imports:[/^\s*import\s+(?:static\s+)?([\w.]+);/gm]
+  }
+};
+RX.typescript={
+  symbols:[...RX.javascript.symbols,/^\s*export\s+(?:type|interface|enum)\s+([A-Za-z_$][\w$]*)/gm],
+  exports:[...RX.javascript.exports,/^\s*export\s+(?:type|interface|enum)\s+([A-Za-z_$][\w$]*)/gm],
+  imports:RX.javascript.imports
+};
+
+// Identifier collection: a declared symbol or export name.
+const collect=(text,patterns)=>{
+  const out=new Set();
+  for(const rx of patterns||[]){
+    rx.lastIndex=0;
+    let m;
+    while((m=rx.exec(text))!==null){
+      for(const part of String(m[1]||'').split(',')){
+        const name=part.trim().split(/\s+as\s+/)[0].trim();
+        if(name&&/^[A-Za-z_$][\w$.]*$/.test(name))out.add(name);
+      }
+    }
+  }
+  return [...out].sort();
+};
+
+// Import specifiers are paths, not identifiers: `./refund-repository.js` and
+// `../../src/a.js` are valid and must survive collection.
+const collectSpecifiers=(text,patterns)=>{
+  const out=new Set();
+  for(const rx of patterns||[]){
+    rx.lastIndex=0;
+    let m;
+    while((m=rx.exec(text))!==null){
+      const spec=String(m[1]||'').trim();
+      if(spec&&!/\s/.test(spec))out.add(spec);
+    }
+  }
+  return [...out].sort();
+};
+
+// HTTP route declarations across the common frameworks, deterministically.
+const ROUTE_PATTERNS=[
+  /\b(?:app|router|server|api)\s*\.\s*(get|post|put|patch|delete|head|options)\s*\(\s*['"`]([^'"`]+)['"`]/gi,
+  /@(Get|Post|Put|Patch|Delete)\s*\(\s*['"`]?([^'"`)]*)['"`]?\s*\)/g,
+  /@(?:app|router|blueprint)\.route\s*\(\s*['"`]([^'"`]+)['"`](?:[^)]*methods\s*=\s*\[([^\]]*)\])?/gi,
+  /\brouter\.(?:Handle|HandleFunc)\s*\(\s*['"`]([^'"`]+)['"`]/g,
+  /@(?:RequestMapping|GetMapping|PostMapping|PutMapping|DeleteMapping)\s*\(\s*(?:value\s*=\s*)?['"]([^'"]+)['"]/g
+];
+function extractRoutes(text){
+  const out=new Set();
+  for(const rx of ROUTE_PATTERNS){
+    rx.lastIndex=0;let m;
+    while((m=rx.exec(text))!==null){
+      const a=m[1]||'',b=m[2]||'';
+      const method=/^(get|post|put|patch|delete|head|options)$/i.test(a)?a.toUpperCase():null;
+      const route=method?b:a;
+      if(route&&route.startsWith('/'))out.add(method?`${method} ${route}`:route);
+    }
+  }
+  return [...out].sort();
+}
+
+// Data entities: SQL DDL plus the common ORM table declarations.
+const ENTITY_PATTERNS=[
+  /create\s+table\s+(?:if\s+not\s+exists\s+)?[`"[]?([\w.]+)[`"\]]?/gi,
+  /alter\s+table\s+[`"[]?([\w.]+)[`"\]]?/gi,
+  /drop\s+table\s+(?:if\s+exists\s+)?[`"[]?([\w.]+)[`"\]]?/gi,
+  /__tablename__\s*=\s*['"]([\w.]+)['"]/g,
+  /@Table\s*\(\s*name\s*=\s*['"]([\w.]+)['"]/g,
+  /\btable\s*:\s*['"]([\w.]+)['"]/g
+];
+function extractEntities(text){
+  const out=new Set();
+  for(const rx of ENTITY_PATTERNS){
+    rx.lastIndex=0;let m;
+    while((m=rx.exec(text))!==null)if(m[1])out.add(m[1].toLowerCase());
+  }
+  return [...out].sort();
+}
+
+// Event/message contracts: publish/subscribe topic and event-name literals.
+const EVENT_PATTERNS=[
+  /\b(?:publish|emit|dispatch|produce|send)\s*\(\s*['"`]([A-Za-z][\w.:-]{2,})['"`]/g,
+  /\b(?:subscribe|on|consume|handle)\s*\(\s*['"`]([A-Za-z][\w.:-]{2,})['"`]/g,
+  /\b(?:topic|queue|event_name|eventType)\s*[:=]\s*['"`]([A-Za-z][\w.:-]{2,})['"`]/g
+];
+function extractEvents(text){
+  const out=new Set();
+  for(const rx of EVENT_PATTERNS){
+    rx.lastIndex=0;let m;
+    while((m=rx.exec(text))!==null)if(m[1])out.add(m[1]);
+  }
+  return [...out].sort();
+}
+
+function extractFile(rel,text){
+  const language=languageOf(rel);
+  const rx=RX[language];
+  const test=isTestPath(rel);
+  return {
+    path:rel,
+    language,
+    module:moduleOf(rel),
+    lines:text.split('\n').length,
+    is_test:test,
+    is_migration:isMigrationPath(rel),
+    symbols:rx?collect(text,rx.symbols):[],
+    exports:rx?collect(text,rx.exports):[],
+    imports:rx?collectSpecifiers(text,rx.imports):[],
+    // Route/entity/event extraction is language-independent by design.
+    routes:CODE_LANGS.has(language)?extractRoutes(text):[],
+    entities:extractEntities(text),
+    events:CODE_LANGS.has(language)?extractEvents(text):[],
+    // Tests reference the symbols they exercise; that is the mapping signal.
+    referenced:test&&rx?collect(text,[/\b([A-Z][A-Za-z0-9_]{2,})\b/g]):[]
+  };
+}
+
+/** Detect whether a more authoritative tier is available. Honest, not hopeful. */
+export function detectCapability(projectRoot){
+  const has=rel=>fs.existsSync(path.join(projectRoot,rel));
+  const signals={
+    typescript_config:has('tsconfig.json'),
+    go_module:has('go.mod'),
+    python_project:has('pyproject.toml'),
+    maven_or_gradle:has('pom.xml')||has('build.gradle')||has('build.gradle.kts')
+  };
+  return {
+    tier:IMPLEMENTED_TIER,
+    tiers:CAPABILITY_TIERS,
+    // These would enable a higher tier; nothing here claims one is in use.
+    higher_tier_signals:signals,
+    lsp_available:false,
+    language_parser_available:false,
+    llm_inference_used:false,
+    note:'deterministic syntax extraction only; a higher tier would need an external index this harness does not bundle'
+  };
+}
+
+/** Files git knows about, honouring .gitignore for free. */
+export function trackedFiles(projectRoot){
+  const r=git(['ls-files'],projectRoot);
+  if(r.code!==0)return [];
+  return r.stdout.split('\n').map(s=>s.trim()).filter(Boolean);
+}
+
+const SKIP_DIR=/(^|\/)(node_modules|\.git|dist|build|out|coverage|vendor|\.agent-sdlc|__pycache__|\.venv)\//;
+const MAX_FILE_BYTES=512*1024;
+
+/**
+ * Build or refresh the index. Incremental: a file whose content hash is
+ * unchanged keeps its cached entry and is not re-parsed.
+ */
+export function buildIndex(projectRoot,{force=false,maxFiles=20000}={}){
+  const cached=!force&&fs.existsSync(indexPath(projectRoot))?readJson(indexPath(projectRoot),null):null;
+  const previous=new Map((cached?.files||[]).map(f=>[f.path,f]));
+  const files=[];let reused=0,parsed=0,skipped=0;
+  for(const rel of trackedFiles(projectRoot).slice(0,maxFiles)){
+    if(SKIP_DIR.test(`/${rel}/`)){skipped++;continue;}
+    const abs=path.join(projectRoot,rel);
+    let stat;try{stat=fs.statSync(abs);}catch{skipped++;continue;}
+    if(!stat.isFile()||stat.size>MAX_FILE_BYTES){skipped++;continue;}
+    let text;try{text=fs.readFileSync(abs,'utf8');}catch{skipped++;continue;}
+    const hash=sha256(text);
+    const prev=previous.get(rel);
+    if(prev&&prev.sha256===hash){files.push(prev);reused++;continue;}
+    files.push({...extractFile(rel,text),sha256:hash});
+    parsed++;
+  }
+  const index={
+    schema:'agent-sdlc/repo-index/v1',
+    project_root:projectRoot,
+    revision:gitSha(projectRoot),
+    capability:detectCapability(projectRoot),
+    counts:{files:files.length,parsed,reused,skipped,
+      symbols:files.reduce((a,f)=>a+f.symbols.length,0),
+      tests:files.filter(f=>f.is_test).length,
+      migrations:files.filter(f=>f.is_migration).length},
+    files,
+    built_at:now()
+  };
+  ensureDir(indexDir(projectRoot));
+  writeJson(indexPath(projectRoot),index);
+  return index;
+}
+
+export function loadIndex(projectRoot,{build=true}={}){
+  const p=indexPath(projectRoot);
+  if(fs.existsSync(p)){
+    const idx=readJson(p,null);
+    if(idx&&idx.schema==='agent-sdlc/repo-index/v1')return idx;
+  }
+  return build?buildIndex(projectRoot):null;
+}
+
+/** True when the index no longer matches the working revision. */
+export function indexStale(projectRoot,index=null){
+  const idx=index||loadIndex(projectRoot,{build:false});
+  if(!idx)return {stale:true,reason:'NO_INDEX'};
+  const rev=gitSha(projectRoot);
+  if(idx.revision!==rev)return {stale:true,reason:'REVISION_CHANGED',indexed:idx.revision,current:rev};
+  return {stale:false,reason:null};
+}

@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
-  "version": "3.0.0-alpha5",
-  "checks": 166,
-  "passes": 166,
+  "version": "3.0.0-alpha6",
+  "checks": 221,
+  "passes": 221,
   "failures": 0,
   "results": [
     {
@@ -667,6 +667,226 @@
     },
     {
       "name": "task-migration_telemetry/workspace-cleanup-refuses-to-destroy-unpersisted-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/index-is-built-and-classifies-files",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/capability-tier-is-reported-honestly",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/index-is-incremental-and-detects-staleness",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/symbol-resolution-finds-definitions",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/dependency-mapping-is-structural",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/test-mapping-links-tests-to-the-code-they-import",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/module-boundary-reports-its-public-surface",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/public-interfaces-data-entities-and-events-are-extracted",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/minimal-change-surface-is-bounded-and-relevant",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/no-deterministic-match-says-so-instead-of-returning-everything",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/external-and-unresolved-imports-are-separated-not-guessed",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/task-context-uses-scope-intelligence-before-broad-search",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-traceability/graph-connects-requirements-through-to-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-traceability/graph-is-consistent-and-has-no-dangling-refs",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-traceability/dangling-refs-and-unknown-kinds-are-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-traceability/acceptance-criteria-coverage-comes-from-edges-not-claims",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-traceability/a-claim-without-an-edge-is-reported-as-uncovered",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-traceability/interfaces-map-to-compatibility-verification",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-traceability/graph-stores-refs-and-hashes-not-content",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-invalidation/wording-only-change-preserves-implementation",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-invalidation/documentation-only-change-does-not-touch-tasks",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-invalidation/behavior-change-invalidates-the-exact-closure",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-invalidation/design-change-invalidates-dependent-tasks",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-invalidation/interface-change-invalidates-consumers-and-compatibility-tests",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-invalidation/unrelated-nodes-remain-valid-after-invalidation",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-invalidation/invalidation-reason-and-path-are-replayable",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-invalidation/every-delta-class-is-declared-and-bounded",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/protected-branch-push-is-denied-by-default",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/ci-evidence-is-revision-bound",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/a-failing-required-check-fails-the-record",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/pr-ready-is-not-merged",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/base-drift-blocks-delivery-and-asks-for-re-verification",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/ci-evidence-on-another-revision-does-not-vouch-for-this-one",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/missing-ci-evidence-blocks-delivery",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/stacked-dependency-order-must-be-explicit",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/interface-changing-and-migration-work-get-their-own-branch",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-fallback/checkpoint-carries-structured-state-only",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-fallback/provider-timeout-continues-from-the-checkpoint",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-fallback/provider-unavailable-without-a-fallback-does-not-pretend",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-fallback/context-hash-is-preserved-or-the-delta-is-reported",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-fallback/no-hidden-reasoning-is-transferred",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-fallback/security-critical-fallback-does-not-weaken-risk-policy",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-fallback/fallback-is-recorded-as-an-event",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-governor/complexity-is-derived-from-declared-scope",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-governor/risk-raises-the-model-floor-and-budget-never-lowers-it",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-governor/mandatory-independent-review-is-never-traded-for-cost",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-governor/deterministic-tools-come-before-inference",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-governor/context-pressure-compacts-then-stops",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-governor/repeated-attempts-escalate-reasoning-and-stop-fan-out",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-governor/every-decision-is-explainable",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-learning/secrets-and-environment-identifiers-are-removed",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-learning/candidate-generation-is-sanitized-and-deterministic",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-learning/an-unsanitized-candidate-is-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-learning/learning-never-mutates-policy-automatically",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-learning/every-source-routes-to-a-runnable-suite",
       "status": "PASS"
     }
   ]

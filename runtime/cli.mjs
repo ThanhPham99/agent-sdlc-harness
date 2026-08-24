@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';import path from 'node:path';import os from 'node:os';
 import {parseArgs,readJson,rootFrom,writeJson,gitSha,appendJsonl} from './util.mjs';
-import {detectProject} from './init.mjs';import {initProject,loadRun,saveRun,putArtifact,getArtifact,listArtifacts,emit,stateDir} from './store.mjs';import {route} from './router.mjs';import {newRun,nextState,transition,recordDesignDecision,recordTaskPlan,materializeRunTasks,recordImplementationComplete} from './orchestrator.mjs';import {buildContext,renderPrompt} from './context.mjs';import {checkTool} from './policy.mjs';import {invokeTool} from './tools.mjs';import {addUsage,reportUsage} from './cost.mjs';import {probe,capabilities,buildInvocation,runHost} from './provider.mjs';import {routeModel} from './model-router.mjs';import {resolveConfig} from './config.mjs';import {compatCheck,migrateState} from './compat.mjs';import {parallelPlan} from './parallel.mjs';import {metrics} from './telemetry.mjs';import {putHandoff,getHandoff,listHandoffs} from './handoff.mjs';import {exportReplay,validateReplay} from './replay.mjs';import {normalizeInput} from './normalize.mjs';import {activationStatus,getBootstrapInstruction,getActivationPolicy,estimateBootstrapCost,classifyActivationFixture,buildActivationEvent,ACTIVATION_EVENTS} from './activation.mjs';import * as codexBootstrap from './codex-bootstrap.mjs';import {selectDesignDiscoveryMode,validateDesignDecision,getDesignDiscoveryPolicy} from './design-discovery.mjs';import {validateTaskPlan,computeTaskGraph,computeReadySets,computeCoverage,computeScopeConflicts,findCycles} from './plan-validator.mjs';import {listTasks,loadTask,loadTaskGraph,listTaskEvents,getTaskContextManifest} from './store.mjs';import {refreshReadiness,transitionTask,evaluateTransition,taskProgress,requireTask,getTaskStateMachine} from './task-engine.mjs';import {scheduleTasks,readySet,scheduleView} from './task-scheduler.mjs';import {buildTaskContext,renderTaskPrompt} from './task-context.mjs';import {startTask,advanceTask,captureTaskDiff,taskCheckpoint,recordTaskUsage} from './task-runner.mjs';import {verifyTask} from './task-verification.mjs';import {validateSpecComplianceReview,validateCodeQualityReview,recordTaskReview} from './task-review.mjs';import {classifyTaskFailure,planRecovery,getTaskFailurePolicy,FAILURE_CLASSES} from './task-recovery.mjs';import {migrateRunToTaskRuntime} from './task-migration.mjs';import {listTaskWorkspaces,checkWriterIsolation,cleanupTaskWorkspace} from './workspace.mjs';import {reportTaskUsage,reportRunTaskUsage} from './cost.mjs';import {taskMetrics} from './telemetry.mjs';
+import {detectProject} from './init.mjs';import {initProject,loadRun,saveRun,putArtifact,getArtifact,listArtifacts,emit,stateDir} from './store.mjs';import {route} from './router.mjs';import {newRun,nextState,transition,recordDesignDecision,recordTaskPlan,materializeRunTasks,recordImplementationComplete} from './orchestrator.mjs';import {buildContext,renderPrompt} from './context.mjs';import {checkTool} from './policy.mjs';import {invokeTool} from './tools.mjs';import {addUsage,reportUsage} from './cost.mjs';import {probe,capabilities,buildInvocation,runHost} from './provider.mjs';import {routeModel} from './model-router.mjs';import {resolveConfig} from './config.mjs';import {compatCheck,migrateState} from './compat.mjs';import {parallelPlan} from './parallel.mjs';import {metrics} from './telemetry.mjs';import {putHandoff,getHandoff,listHandoffs} from './handoff.mjs';import {exportReplay,validateReplay} from './replay.mjs';import {normalizeInput} from './normalize.mjs';import {activationStatus,getBootstrapInstruction,getActivationPolicy,estimateBootstrapCost,classifyActivationFixture,buildActivationEvent,ACTIVATION_EVENTS} from './activation.mjs';import * as codexBootstrap from './codex-bootstrap.mjs';import {selectDesignDiscoveryMode,validateDesignDecision,getDesignDiscoveryPolicy} from './design-discovery.mjs';import {validateTaskPlan,computeTaskGraph,computeReadySets,computeCoverage,computeScopeConflicts,findCycles} from './plan-validator.mjs';import {listTasks,loadTask,loadTaskGraph,listTaskEvents,getTaskContextManifest} from './store.mjs';import {refreshReadiness,transitionTask,evaluateTransition,taskProgress,requireTask,getTaskStateMachine} from './task-engine.mjs';import {scheduleTasks,readySet,scheduleView} from './task-scheduler.mjs';import {buildTaskContext,renderTaskPrompt} from './task-context.mjs';import {startTask,advanceTask,captureTaskDiff,taskCheckpoint,recordTaskUsage} from './task-runner.mjs';import {verifyTask} from './task-verification.mjs';import {validateSpecComplianceReview,validateCodeQualityReview,recordTaskReview} from './task-review.mjs';import {classifyTaskFailure,planRecovery,getTaskFailurePolicy,FAILURE_CLASSES} from './task-recovery.mjs';import {migrateRunToTaskRuntime} from './task-migration.mjs';import {listTaskWorkspaces,checkWriterIsolation,cleanupTaskWorkspace} from './workspace.mjs';import {reportTaskUsage,reportRunTaskUsage} from './cost.mjs';import {taskMetrics} from './telemetry.mjs';import {resumeFromCheckpoint} from './task-runner.mjs';import {buildIndex,loadIndex,indexStale,detectCapability} from './repo-index.mjs';import {openIntelligence,findSymbol,findReferences,findTestsForSymbol,findTestsForFiles,findModuleBoundary,findDependents,findPublicInterfaces,findDataEntities,findEventContracts,findRecentChanges,getMinimalChangeSurface} from './repo-intelligence.mjs';import {buildTraceabilityGraph,loadTraceabilityGraph,validateTraceabilityGraph,computeTraceCoverage,computeInvalidationClosure,applyInvalidation,invalidationHistory,DELTA_CLASSES,NODE_KINDS,EDGE_KINDS} from './traceability.mjs';import {recordDelivery,loadDelivery,baseDrift,checkPushTarget,branchFor,groupTaskBranches,DELIVERY_TARGETS} from './git-delivery.mjs';import {recordCiEvidence,loadCiEvidence,ciEvidenceCurrent,ciEvidenceHistory} from './ci-evidence.mjs';import {governTask,governorReport,getGovernancePolicy,taskComplexity} from './governor.mjs';import {buildRegressionCandidate,validateRegressionCandidate,toEvalCase,LEARNING_SOURCES} from './learning.mjs';
 const ROOT=rootFrom(import.meta.url);const args=parseArgs(process.argv.slice(2));const cmd=args._[0];const projectRoot=path.resolve(args.project||process.cwd());
 const print=x=>console.log(typeof x==='string'?x:JSON.stringify(x,null,2));
 function needRun(){if(!args['run-id'])throw new Error('--run-id required');return loadRun(projectRoot,args['run-id']);}
@@ -217,6 +217,134 @@ try{
    }
    else throw new Error(`unknown task subcommand ${sub}`);
  }
+ else if(cmd==='repo'){
+   const sub=args._[1]||'status';
+   const intel=()=>openIntelligence(projectRoot,{refresh:!!args.refresh});
+   const paths=()=>args.paths?String(args.paths).split(',').map(s=>s.trim()).filter(Boolean):[];
+   if(sub==='index'){const idx=buildIndex(projectRoot,{force:!!args.force});print({schema:idx.schema,revision:idx.revision,capability:idx.capability,counts:idx.counts,built_at:idx.built_at});}
+   else if(sub==='status'){const idx=loadIndex(projectRoot,{build:false});print({indexed:!!idx,capability:detectCapability(projectRoot),counts:idx?.counts||null,revision:idx?.revision||null,stale:indexStale(projectRoot,idx)});}
+   else if(sub==='capability')print(detectCapability(projectRoot));
+   else if(sub==='symbol')print(findSymbol(intel(),args.name||args._[2]));
+   else if(sub==='references')print(findReferences(intel(),args.name||args._[2]));
+   else if(sub==='tests')print(args.name?findTestsForSymbol(intel(),args.name):findTestsForFiles(intel(),paths()));
+   else if(sub==='module')print(findModuleBoundary(intel(),args.path||args._[2]));
+   else if(sub==='dependents')print(findDependents(intel(),args.path||args._[2],{maxDepth:Number(args.depth||3)}));
+   else if(sub==='interfaces')print(findPublicInterfaces(intel(),paths()));
+   else if(sub==='entities')print(findDataEntities(intel(),paths()));
+   else if(sub==='events')print(findEventContracts(intel(),paths()));
+   else if(sub==='recent')print(findRecentChanges(intel(),paths(),{limit:Number(args.limit||50),since:String(args.since||'30')}));
+   else if(sub==='surface')print(getMinimalChangeSurface(intel(),args.objective||args._.slice(2).join(' ')));
+   else throw new Error(`unknown repo subcommand ${sub}`);
+ }
+ else if(cmd==='trace'){
+   const sub=args._[1]||'show';
+   const need=()=>{const g=loadTraceabilityGraph(projectRoot,needRun().run_id);if(!g)throw new Error('no traceability graph; run `trace build` first');return g;};
+   if(sub==='build'){
+     const run=needRun();
+     const design=args.design?[readJson(path.resolve(args.design))].flat():[];
+     const release=args.release?readJson(path.resolve(args.release)):null;
+     const g=buildTraceabilityGraph(projectRoot,run.run_id,{run,revision:gitSha(projectRoot),designDecisions:design,release});
+     print({schema:g.schema,run_id:g.run_id,nodes:g.nodes.length,edges:g.edges.length,validation:validateTraceabilityGraph(g)});
+   }
+   else if(sub==='show')print(need());
+   else if(sub==='kinds')print({node_kinds:NODE_KINDS,edge_kinds:EDGE_KINDS,delta_classes:DELTA_CLASSES});
+   else if(sub==='validate'){const v=validateTraceabilityGraph(need());print(v);if(!v.valid)process.exitCode=1;}
+   else if(sub==='coverage')print(computeTraceCoverage(need()));
+   else if(sub==='closure'){
+     if(!args.node)throw new Error('--node required (e.g. ACCEPTANCE_CRITERION:AC-001)');
+     print(computeInvalidationClosure(need(),args.node,args.delta||'BEHAVIOR_CHANGE'));
+   }
+   else if(sub==='invalidate'){
+     if(!args.node)throw new Error('--node required');
+     const run=needRun();const g=need();
+     const closure=computeInvalidationClosure(g,args.node,args.delta||'BEHAVIOR_CHANGE');
+     if(args['dry-run'])print(closure);
+     else print(applyInvalidation(projectRoot,g,closure,{reason:args.reason||'upstream change'}));
+   }
+   else if(sub==='history')print(invalidationHistory(projectRoot,needRun().run_id));
+   else throw new Error(`unknown trace subcommand ${sub}`);
+ }
+ else if(cmd==='delivery'){
+   const sub=args._[1]||'status';
+   if(sub==='status')print(loadDelivery(projectRoot,needRun().run_id)||{status:'NO_DELIVERY_RECORD'});
+   else if(sub==='targets')print({targets:DELIVERY_TARGETS,note:'a prepared PR is PR_READY, never MERGED'});
+   else if(sub==='branch')print({branch:branchFor(needRun().run_id,args['task-id']||null)});
+   else if(sub==='push-check')print(checkPushTarget(args.branch||branchFor(needRun().run_id),{approvals:(needRun().approvals||[]).map(a=>a.approval)}));
+   else if(sub==='drift')print(baseDrift(projectRoot,{base:args.base||'main',recordedBaseRevision:args.revision||null}));
+   else if(sub==='group')print(groupTaskBranches(listTasks(projectRoot,needRun().run_id),{allowInterfaceGrouping:!!args['allow-interface-grouping']}));
+   else if(sub==='record'){
+     const run=needRun();
+     const out=recordDelivery(projectRoot,run,{
+       target:args.target||'PR_READY',branch:args.branch||null,base:args.base||'main',
+       recordedBaseRevision:args['base-revision']||null,
+       taskBranches:args['task-branches']?String(args['task-branches']).split(',').filter(Boolean):[],
+       stacked:args.stacked?readJson(path.resolve(args.stacked)):[],
+       ciEvidence:loadCiEvidence(projectRoot,run.run_id),
+       mergeCommit:args['merge-commit']||null,
+       approvals:(run.approvals||[]).map(a=>a.approval)
+     });
+     print(out);if(out.status!=='READY')process.exitCode=1;
+   }
+   else throw new Error(`unknown delivery subcommand ${sub}`);
+ }
+ else if(cmd==='ci'){
+   const sub=args._[1]||'status';
+   if(sub==='record'){
+     const run=needRun();const payload=args.file?readJson(path.resolve(args.file)):{};
+     print(recordCiEvidence(projectRoot,run,{
+       revision:args.revision||payload.revision||null,
+       provider:args.provider||payload.provider||'unknown',
+       workflow:args.workflow||payload.workflow||null,
+       run_url:args.url||payload.run_url||null,
+       checks:payload.checks||[],
+       logs:args.logs?fs.readFileSync(path.resolve(args.logs),'utf8'):null
+     }));
+   }
+   else if(sub==='status'){const c=ciEvidenceCurrent(projectRoot,needRun().run_id,{revision:args.revision||null});print(c);if(!c.current)process.exitCode=1;}
+   else if(sub==='show')print(loadCiEvidence(projectRoot,needRun().run_id)||{status:'NO_CI_EVIDENCE'});
+   else if(sub==='history')print(ciEvidenceHistory(projectRoot,needRun().run_id));
+   else throw new Error(`unknown ci subcommand ${sub}`);
+ }
+ else if(cmd==='govern'){
+   const sub=args._[1]||'report';
+   if(sub==='policy')print(getGovernancePolicy(ROOT));
+   else if(sub==='report')print(governorReport(ROOT,projectRoot,needRun()));
+   else if(sub==='complexity'){const run=needRun();print(taskComplexity(ROOT,requireTask(projectRoot,run.run_id,args['task-id'])));}
+   else if(sub==='task'){
+     const run=needRun();const task=requireTask(projectRoot,run.run_id,args['task-id']);
+     print(governTask(ROOT,projectRoot,run,task,{
+       contextEstimate:args['context-estimate']?Number(args['context-estimate']):null,
+       contextBudget:args['context-budget']?Number(args['context-budget']):null,
+       remainingModelCalls:args['remaining-model-calls']!==undefined?Number(args['remaining-model-calls']):null,
+       cacheAvailable:!!args['cache-available'],deterministicToolAvailable:args['no-deterministic-tool']?false:true
+     }));
+   }
+   else throw new Error(`unknown govern subcommand ${sub}`);
+ }
+ else if(cmd==='fallback'){
+   const run=needRun();
+   print(resumeFromCheckpoint(ROOT,projectRoot,run,args['task-id'],{
+     originalProvider:args.from||null,fallbackProvider:args.to||null,
+     failureClass:args['failure-class']||'PROVIDER_FAILURE',reason:args.reason||null
+   }));
+ }
+ else if(cmd==='learn'){
+   const sub=args._[1]||'sources';
+   if(sub==='sources')print({sources:LEARNING_SOURCES,note:'a candidate is proposed for eval validation; nothing here mutates policy'});
+   else if(sub==='candidate'){
+     const list=k=>args[k]?String(args[k]).split(',').map(s=>s.trim()).filter(Boolean):[];
+     const candidate=buildRegressionCandidate({
+       source:args.source,title:args.title,observed:args.observed,expected:args.expected,
+       failureClass:args['failure-class']||null,runId:args['run-id']||null,taskId:args['task-id']||null,
+       paths:list('paths'),evidence:list('evidence'),diagnostic:args.diagnostic||null,
+       policyHypothesis:args['policy-hypothesis']||null,projectRoot
+     });
+     const validation=validateRegressionCandidate(candidate);
+     print({candidate,validation,eval_case:toEvalCase(candidate)});
+     if(!validation.valid)process.exitCode=1;
+   }
+   else throw new Error(`unknown learn subcommand ${sub}`);
+ }
  else if(cmd==='doctor'){const proj=fs.existsSync(path.join(projectRoot,'.agent-sdlc','project.json'))?'READY':'NOT_INITIALIZED';print({version:readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version,node:process.version,project:proj,providers:['claude','codex','antigravity'].map(h=>capabilities(h,probe(h))),auto_activation:['claude','codex','antigravity'].map(h=>{const s=activationStatus({host:h,config:resolveConfig(projectRoot).effective,codexManagedBootstrap:h==='codex'?codexBootstrap.status({}):null});return {host:h,enabled:s.enabled,delivery_mode:s.delivery_mode,activation_class:s.activation_class,rough_tokens:s.rough_tokens};})});}
- else {print(`agent-sdlc ${readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version}\n\nCommands: init, route, start, status, next, transition, context, normalize, artifact-put/get/list, handoff-put/get/list, tool-check/run, usage-add/report, config-show, compat-check, migrate, parallel-plan, metrics, model-route, provider-probe/command/run, replay-export/validate, activation, design, plan, task, doctor\n\nactivation subcommands: status, enable, disable, print-bootstrap, policy, cost, classify, events, record, doctor, codex-bootstrap install|uninstall|status\ndesign subcommands: mode, policy, validate, record\nplan subcommands: validate, graph, record\ntask subcommands: list, show, graph, events, progress, state-machine, materialize, migrate, refresh, ready, schedule, transition, context, context-show, start, capture, verify, review, advance, checkpoint, usage-add, usage, metrics, workspaces, workspace-clean, failure-policy, classify, implementation-complete`);process.exit(cmd?2:0);}
+ else {print(`agent-sdlc ${readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version}\n\nCommands: init, route, start, status, next, transition, context, normalize, artifact-put/get/list, handoff-put/get/list, tool-check/run, usage-add/report, config-show, compat-check, migrate, parallel-plan, metrics, model-route, provider-probe/command/run, replay-export/validate, activation, design, plan, task, repo, trace, delivery, ci, govern, fallback, learn, doctor\n\nactivation subcommands: status, enable, disable, print-bootstrap, policy, cost, classify, events, record, doctor, codex-bootstrap install|uninstall|status\ndesign subcommands: mode, policy, validate, record\nplan subcommands: validate, graph, record\ntask subcommands: list, show, graph, events, progress, state-machine, materialize, migrate, refresh, ready, schedule, transition, context, context-show, start, capture, verify, review, advance, checkpoint, usage-add, usage, metrics, workspaces, workspace-clean, failure-policy, classify, implementation-complete\nrepo subcommands: index, status, capability, symbol, references, tests, module, dependents, interfaces, entities, events, recent, surface\ntrace subcommands: build, show, kinds, validate, coverage, closure, invalidate, history\ndelivery subcommands: status, targets, branch, push-check, drift, group, record\nci subcommands: record, status, show, history\ngovern subcommands: policy, report, complexity, task\nlearn subcommands: sources, candidate`);process.exit(cmd?2:0);}
 }catch(e){console.error(JSON.stringify({status:'ERROR',error:e.message},null,2));process.exit(1);}

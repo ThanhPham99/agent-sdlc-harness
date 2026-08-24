@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/stage-policy/v1",
-  "version": "3.0.0-alpha5",
+  "version": "3.0.0-alpha6",
   "stages": {
     "INTAKE": {
       "roles": [

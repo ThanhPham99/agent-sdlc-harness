@@ -1,0 +1,59 @@
+{
+  "schema": "agent-sdlc/invalidation-validation/v1",
+  "version": "3.0.0-alpha6",
+  "delta_classes": [
+    "WORDING_ONLY",
+    "BEHAVIOR_CHANGE",
+    "DESIGN_CHANGE",
+    "INTERFACE_CHANGE",
+    "DATA_CHANGE",
+    "DOCUMENTATION_ONLY",
+    "SCOPE_REMOVAL"
+  ],
+  "principles": [
+    "WORDING_ONLY and DOCUMENTATION_ONLY propagate through nothing that touches implementation",
+    "a public interface change invalidates consumers and compatibility tests even when the code still compiles",
+    "only declared edge kinds are traversed, so unrelated work is preserved by construction",
+    "every affected node carries the graph path that justified including it",
+    "each decision is appended to a replayable invalidation log with the earliest outer gate"
+  ],
+  "checks": 8,
+  "passes": 8,
+  "failures": 0,
+  "results": [
+    {
+      "name": "wording-only-change-preserves-implementation",
+      "status": "PASS"
+    },
+    {
+      "name": "documentation-only-change-does-not-touch-tasks",
+      "status": "PASS"
+    },
+    {
+      "name": "behavior-change-invalidates-the-exact-closure",
+      "status": "PASS"
+    },
+    {
+      "name": "design-change-invalidates-dependent-tasks",
+      "status": "PASS"
+    },
+    {
+      "name": "interface-change-invalidates-consumers-and-compatibility-tests",
+      "status": "PASS"
+    },
+    {
+      "name": "unrelated-nodes-remain-valid-after-invalidation",
+      "status": "PASS"
+    },
+    {
+      "name": "invalidation-reason-and-path-are-replayable",
+      "status": "PASS"
+    },
+    {
+      "name": "every-delta-class-is-declared-and-bounded",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS",
+  "live_qualification": "PENDING_LIVE_QUALIFICATION"
+}
