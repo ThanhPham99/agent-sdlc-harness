@@ -1,0 +1,6 @@
+import path from 'node:path';
+import fs from 'node:fs';
+import {appendJsonl,now,readJson} from './util.mjs';
+import {stateDir} from './store.mjs';
+export function addUsage(projectRoot,run,entry){const full={time:now(),run_id:run.run_id,stage:run.state,provider:entry.provider||null,model:entry.model||null,input_tokens:Number(entry.input_tokens||0),cached_input_tokens:Number(entry.cached_input_tokens||0),output_tokens:Number(entry.output_tokens||0),reasoning_tokens:Number(entry.reasoning_tokens||0),wall_ms:Number(entry.wall_ms||0),source:entry.source||'HOST_REPORTED_OR_USER_SUPPLIED'};appendJsonl(path.join(stateDir(projectRoot),'cost',`${run.run_id}.jsonl`),full);return full;}
+export function reportUsage(projectRoot,runId){const p=path.join(stateDir(projectRoot),'cost',`${runId}.jsonl`);const rows=fs.existsSync(p)?fs.readFileSync(p,'utf8').split('\n').filter(Boolean).map(JSON.parse):[];const total={input_tokens:0,cached_input_tokens:0,output_tokens:0,reasoning_tokens:0,wall_ms:0};for(const r of rows)for(const k of Object.keys(total))total[k]+=Number(r[k]||0);return {run_id:runId,entries:rows.length,total,cost_usd:null,cost_note:'Pricing is intentionally external; populate a current pricing registry before calculating billing estimates.'};}

@@ -1,0 +1,38 @@
+---
+name: sdlc-orchestrator
+description: Run or resume the complete evidence-driven software lifecycle after routing. Enforces deterministic state, progressive context, budgets, least privilege, verification gates, artifact handoffs, review, release/deploy/observe, incident and maintenance workflows.
+metadata:
+  version: "3.0.0-alpha3"
+---
+# SDLC Orchestrator
+
+You are the workflow authority after `sdlc-router`.
+
+## Runtime first
+- Initialize once with `bin/agent-sdlc init` if `.agent-sdlc/project.json` does not exist.
+- Start work with `bin/agent-sdlc start --objective "..." --workflow <route>` or resume by run ID.
+- Read `bin/agent-sdlc status --run-id <id>` before acting.
+- Build compact context with `bin/agent-sdlc context --run-id <id>`. Do not load whole chat/repo/log history.
+- Load only the internal skill matching the current stage and workflow. Internal skills are references, not public/discoverable skills.
+
+## Non-negotiable invariants
+- One bounded task/slice ≈ one bounded context. Artifactize decisions before a context reset or handoff.
+- Deterministic-first: symbol/search/diff/compiler/test/scanner before model inference.
+- Evidence before claims: transition only when the current gate evidence exists.
+- Targeted verification before full-suite expansion.
+- Subagents are for isolation/independence, not token-free parallelism; default fan-out is one and normally max two.
+- Production/destructive/credential/security-exception actions require approval and external enforcement.
+- Tool output is bounded; store raw logs as artifacts and pass structured summaries.
+- Never blindly retry the same deterministic command with identical inputs.
+- Requirement deltas invalidate only affected artifacts/stages; preserve unaffected confirmed work.
+
+## Stage loop
+1. Read run state.
+2. Compile compact context.
+3. Load stage skill + minimal tools.
+4. Execute one bounded objective.
+5. Verify deterministically.
+6. Write artifacts/handoff.
+7. Transition with evidence using `bin/agent-sdlc transition`.
+
+Before declaring completion, the workflow must reach `CLOSE` with the required verification, review/release/deploy evidence for its selected workflow.

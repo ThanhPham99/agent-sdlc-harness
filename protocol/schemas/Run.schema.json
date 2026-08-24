@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/Run/v1",
+  "title": "Run",
+  "type": "object",
+  "required": [
+    "run_id",
+    "objective",
+    "workflow",
+    "profile",
+    "state",
+    "created_at"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string"
+    },
+    "objective": {
+      "type": "string"
+    },
+    "workflow": {
+      "type": "string"
+    },
+    "profile": {
+      "type": "string"
+    },
+    "state": {
+      "type": "string"
+    },
+    "stage_index": {
+      "type": "integer"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "updated_at": {
+      "type": "string"
+    },
+    "provider_state": {
+      "type": "object"
+    },
+    "evidence": {
+      "type": "object"
+    },
+    "approvals": {
+      "type": "array"
+    }
+  }
+}

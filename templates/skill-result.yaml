@@ -1,0 +1,11 @@
+schema: ai-agent-sdlc/skill-result/v2
+skill: example-skill
+status: DONE # DONE | NEEDS_CONFIRMATION | BLOCKED | FAILED | NO_CHANGE
+summary: ""
+artifacts_created_or_updated: []
+decisions: []
+questions: []
+risks: []
+evidence: []
+invalidations: []
+next_recommended_skill: null

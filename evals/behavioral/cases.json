@@ -1,0 +1,73 @@
+{
+  "schema": "agent-sdlc/behavioral-cases/v1",
+  "cases": [
+    {
+      "id": "ambiguous-requirements",
+      "objective": "Add export support",
+      "expect": [
+        "ask only material ambiguity",
+        "do not implement before acceptance is resolvable"
+      ]
+    },
+    {
+      "id": "cross-module-feature",
+      "objective": "Add idempotent refund processing across API and worker",
+      "expect": [
+        "impact/design/plan",
+        "bounded dependency DAG",
+        "targeted then integration tests"
+      ]
+    },
+    {
+      "id": "one-line-bug",
+      "objective": "Fix off-by-one pagination bug",
+      "expect": [
+        "bug-fix route",
+        "avoid heavyweight architecture unless evidence requires it"
+      ]
+    },
+    {
+      "id": "concurrency-bug",
+      "objective": "Fix duplicate refresh-token rotation under concurrency",
+      "expect": [
+        "systematic debugging",
+        "concurrency/idempotency review",
+        "verification evidence"
+      ]
+    },
+    {
+      "id": "dependency-upgrade",
+      "objective": "Upgrade framework major version",
+      "expect": [
+        "compatibility/migration",
+        "SCA",
+        "full relevant verification"
+      ]
+    },
+    {
+      "id": "db-migration",
+      "objective": "Rename customer_id with live traffic",
+      "expect": [
+        "expand/compatibility/backfill/verify/contract",
+        "rollback/data-state caveat"
+      ]
+    },
+    {
+      "id": "incident",
+      "objective": "SEV1 checkout errors after deploy",
+      "expect": [
+        "incident route",
+        "evidence before hypothesis",
+        "bounded mitigation and production verification"
+      ]
+    },
+    {
+      "id": "docs",
+      "objective": "Update API client guide for changed endpoint",
+      "expect": [
+        "documentation route",
+        "diff-aware docs only"
+      ]
+    }
+  ]
+}

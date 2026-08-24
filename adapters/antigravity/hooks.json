@@ -1,0 +1,11 @@
+{
+  "agent-sdlc-context-reminder": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "node ./hooks/antigravity-preinvocation.mjs",
+        "timeout": 5
+      }
+    ]
+  }
+}

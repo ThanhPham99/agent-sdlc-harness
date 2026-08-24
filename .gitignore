@@ -1,0 +1,4 @@
+dist/*/
+.agent-sdlc/
+node_modules/
+*.log

@@ -1,0 +1,439 @@
+{
+  "schema": "agent-sdlc/skill-registry/v1",
+  "version": "3.0.0-alpha3",
+  "public": [
+    "sdlc-router",
+    "sdlc-orchestrator"
+  ],
+  "internal": {
+    "requirements": {
+      "id": "requirements",
+      "version": "1.0.0",
+      "description": "Normalize inputs, identify only material ambiguities, define acceptance criteria and NFRs.",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS"
+      ],
+      "roles": [
+        "pm",
+        "architect",
+        "qa"
+      ],
+      "tools": [
+        "repo.read"
+      ],
+      "instructions": "harness/internal-skills/requirements.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "architecture": {
+      "id": "architecture",
+      "version": "1.0.0",
+      "description": "Analyze impact, API/data contracts, architecture, threat model, ADRs and rollback constraints.",
+      "stages": [
+        "DESIGN"
+      ],
+      "roles": [
+        "architect",
+        "developer",
+        "security",
+        "sre"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.symbol",
+        "repo.diff"
+      ],
+      "instructions": "harness/internal-skills/architecture.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "planning": {
+      "id": "planning",
+      "version": "1.0.0",
+      "description": "Create dependency-aware implementation and verification plan with independently verifiable slices.",
+      "stages": [
+        "PLAN"
+      ],
+      "roles": [
+        "architect",
+        "developer",
+        "qa",
+        "devops"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.symbol",
+        "repo.diff"
+      ],
+      "instructions": "harness/internal-skills/planning.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "implementation": {
+      "id": "implementation",
+      "version": "1.0.0",
+      "description": "Implement minimal scoped change; prefer TDD where useful; preserve public contracts unless approved.",
+      "stages": [
+        "IMPLEMENT"
+      ],
+      "roles": [
+        "developer"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.symbol",
+        "repo.diff",
+        "repo.patch",
+        "test.run_targeted",
+        "build.run"
+      ],
+      "instructions": "harness/internal-skills/implementation.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "testing": {
+      "id": "testing",
+      "version": "1.0.0",
+      "description": "Run targeted verification first, escalate to broader suites based on affected dependency closure.",
+      "stages": [
+        "VERIFY"
+      ],
+      "roles": [
+        "developer",
+        "qa"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "test.run_targeted",
+        "test.run_full",
+        "build.run"
+      ],
+      "instructions": "harness/internal-skills/testing.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "code-review": {
+      "id": "code-review",
+      "version": "1.0.0",
+      "description": "Independent spec-compliance then code-quality review; report findings with evidence.",
+      "stages": [
+        "REVIEW"
+      ],
+      "roles": [
+        "architect",
+        "developer",
+        "qa"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "test.run_targeted"
+      ],
+      "instructions": "harness/internal-skills/code-review.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "security": {
+      "id": "security",
+      "version": "1.0.0",
+      "description": "Threat-model and review bounded change for security/privacy regressions.",
+      "stages": [
+        "DESIGN",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE"
+      ],
+      "roles": [
+        "security",
+        "developer"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "security.sast",
+        "security.sca",
+        "security.secret_scan"
+      ],
+      "instructions": "harness/internal-skills/security.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "ci-cd": {
+      "id": "ci-cd",
+      "version": "1.0.0",
+      "description": "Validate reproducible CI/build/package flow and provenance requirements.",
+      "stages": [
+        "VERIFY",
+        "RELEASE"
+      ],
+      "roles": [
+        "devops",
+        "developer"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "build.run",
+        "test.run_full"
+      ],
+      "instructions": "harness/internal-skills/ci-cd.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "deployment": {
+      "id": "deployment",
+      "version": "1.0.0",
+      "description": "Plan canary/rolling/blue-green rollout, explicit rollback and production approval.",
+      "stages": [
+        "RELEASE",
+        "DEPLOY"
+      ],
+      "roles": [
+        "sre",
+        "devops",
+        "ops",
+        "release-manager"
+      ],
+      "tools": [
+        "deploy.plan",
+        "deploy.production",
+        "observability.query"
+      ],
+      "instructions": "harness/internal-skills/deployment.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "monitoring": {
+      "id": "monitoring",
+      "version": "1.0.0",
+      "description": "Check declared health/business invariants and capture production verification evidence.",
+      "stages": [
+        "OBSERVE"
+      ],
+      "roles": [
+        "sre",
+        "ops"
+      ],
+      "tools": [
+        "observability.query"
+      ],
+      "instructions": "harness/internal-skills/monitoring.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "incident": {
+      "id": "incident",
+      "version": "1.0.0",
+      "description": "Evidence-first incident triage, bounded hypotheses, mitigation, verification, timeline and RCA.",
+      "stages": [
+        "INTAKE",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "DEPLOY",
+        "OBSERVE"
+      ],
+      "roles": [
+        "sre",
+        "ops",
+        "security",
+        "developer",
+        "support"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "observability.query",
+        "deploy.plan"
+      ],
+      "instructions": "harness/internal-skills/incident.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "maintenance": {
+      "id": "maintenance",
+      "version": "1.0.0",
+      "description": "Handle cleanup, bug hygiene, debt and low-risk maintenance without broad scope expansion.",
+      "stages": [
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY"
+      ],
+      "roles": [
+        "developer",
+        "sre"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.symbol",
+        "repo.diff",
+        "repo.patch",
+        "test.run_targeted"
+      ],
+      "instructions": "harness/internal-skills/maintenance.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "upgrade": {
+      "id": "upgrade",
+      "version": "1.0.0",
+      "description": "Assess compatibility, migration path, lockfile/provenance changes and rollback for upgrades.",
+      "stages": [
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW"
+      ],
+      "roles": [
+        "architect",
+        "developer",
+        "devops"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.symbol",
+        "repo.diff",
+        "repo.patch",
+        "test.run_targeted",
+        "test.run_full",
+        "security.sca"
+      ],
+      "instructions": "harness/internal-skills/upgrade.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "database": {
+      "id": "database",
+      "version": "1.0.0",
+      "description": "Use expand/compatibility/backfill/verify/contract; make data-state rollback limitations explicit.",
+      "stages": [
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "DEPLOY"
+      ],
+      "roles": [
+        "architect",
+        "developer",
+        "dba"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "db.migration_plan",
+        "test.run_targeted"
+      ],
+      "instructions": "harness/internal-skills/database.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "performance": {
+      "id": "performance",
+      "version": "1.0.0",
+      "description": "Baseline, profile, change one bottleneck at a time, verify performance and correctness regressions.",
+      "stages": [
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "OBSERVE"
+      ],
+      "roles": [
+        "architect",
+        "developer",
+        "sre"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.symbol",
+        "repo.diff",
+        "test.run_targeted",
+        "observability.query"
+      ],
+      "instructions": "harness/internal-skills/performance.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "compliance": {
+      "id": "compliance",
+      "version": "1.0.0",
+      "description": "Map declared controls to evidence; never invent jurisdiction/framework obligations.",
+      "stages": [
+        "REQUIREMENTS",
+        "DESIGN",
+        "REVIEW",
+        "RELEASE"
+      ],
+      "roles": [
+        "compliance",
+        "security",
+        "architect",
+        "pm"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff"
+      ],
+      "instructions": "harness/internal-skills/compliance.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "documentation": {
+      "id": "documentation",
+      "version": "1.0.0",
+      "description": "Update only impacted docs, API guidance, release notes and handoff; avoid wholesale regeneration.",
+      "stages": [
+        "REQUIREMENTS",
+        "REVIEW",
+        "CLOSE"
+      ],
+      "roles": [
+        "tech-writer",
+        "developer",
+        "pm"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "repo.patch"
+      ],
+      "instructions": "harness/internal-skills/documentation.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
+    "modernization": {
+      "id": "modernization",
+      "version": "1.0.0",
+      "description": "Strangler/parallel-run migration with compatibility gates, incremental slices and rollback checkpoints.",
+      "stages": [
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE"
+      ],
+      "roles": [
+        "architect",
+        "developer",
+        "sre"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.symbol",
+        "repo.diff",
+        "repo.patch",
+        "test.run_targeted",
+        "test.run_full"
+      ],
+      "instructions": "harness/internal-skills/modernization.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    }
+  }
+}

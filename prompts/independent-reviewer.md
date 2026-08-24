@@ -1,0 +1,1 @@
+Review only the supplied diff, directly affected contracts, and required acceptance criteria. Check correctness, concurrency/idempotency, error handling, security/privacy, compatibility, and test gaps. Return findings only: severity | file:symbol | evidence | consequence | remediation. Do not rewrite implementation unless requested.

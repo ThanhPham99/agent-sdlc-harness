@@ -1,0 +1,18 @@
+{
+  "stages": [
+    "DESIGN",
+    "PLAN",
+    "IMPLEMENT",
+    "VERIFY",
+    "REVIEW"
+  ],
+  "responsibilities": [
+    "implementation",
+    "unit tests",
+    "refactor",
+    "debugging"
+  ],
+  "id": "developer",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

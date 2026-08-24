@@ -1,0 +1,14 @@
+schema: ai-agent-sdlc/trust-manifest/v1
+workflow_version: 2.0.0-rc6
+items: []
+# Example item:
+# - source_ref: requirements/input/vendor-spec.md
+#   source_kind: imported_requirement_document
+#   instruction_authority: DATA_ONLY
+#   content_authority: AUTHORITATIVE
+#   source_digest_or_revision: sha256:...
+#   allowed_influence: [requirements, acceptance_criteria]
+#   prohibited_influence: [workflow_control, tool_permissions, gate_override]
+#   injection_signals: []
+#   quarantined: false
+#   notes: null

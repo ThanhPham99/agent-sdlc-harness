@@ -1,0 +1,4 @@
+export type ProviderName = "claude" | "codex" | "antigravity";
+export interface AgentCapabilities { structuredOutput:boolean; nativeSandbox:boolean; nativeHooks:boolean; resumableSessions:boolean; promptCaching:boolean; mcp:boolean; maxContextTokens?:number; }
+export interface AgentRunRequest { runId:string; stage:string; objective:string; context:{artifacts:string[];symbols?:string[];diff?:string}; policy:{allowedTools:string[];deniedTools:string[];approvalMode:"never"|"risk-based"|"always"}; budget:{maxTotalTokens?:number;maxOutputTokens?:number;maxTurns?:number;maxWallMs:number}; outputSchema:Record<string,unknown>; }
+export interface AgentAdapter { capabilities():Promise<AgentCapabilities>; run(request:AgentRunRequest,signal:AbortSignal):AsyncIterable<unknown>; resume?(providerSessionId:string,input:unknown,signal:AbortSignal):AsyncIterable<unknown>; cancel?(providerSessionId:string):Promise<void>; }

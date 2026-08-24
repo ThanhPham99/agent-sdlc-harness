@@ -1,0 +1,14 @@
+schema: ai-agent-sdlc/deprecation-register/v1
+workflow_version: 2.0.0-rc6
+updated_at: null
+items: []
+# - id: DEP-001
+#   subject: api://orders/v1
+#   scope: orders
+#   status: ANNOUNCED
+#   replacement: api://orders/v2
+#   consumers: []
+#   migration_evidence: []
+#   announced_revision: null
+#   ready_to_remove_revision: null
+#   removed_revision: null

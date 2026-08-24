@@ -1,0 +1,35 @@
+{
+  "schema": "agent-sdlc/security-policy/v1",
+  "version": "3.0.0-alpha3",
+  "network_default": "deny",
+  "repo_content_trust": "untrusted-data",
+  "human_approval_required": [
+    "deploy.production",
+    "destructive_database_change",
+    "credential_or_iam_change",
+    "network_perimeter_change",
+    "data_deletion",
+    "security_exception",
+    "compliance_exception",
+    "release_signing",
+    "irreversible_action"
+  ],
+  "secret_policy": "no ambient production credentials; prefer short-lived scoped credentials",
+  "protected_paths": [
+    ".github/workflows/**",
+    ".agent-sdlc/policies/**",
+    "agent-sdlc.manifest.json"
+  ],
+  "sensitive_read_patterns": [
+    ".env",
+    ".env.*",
+    "*.pem",
+    "*.key",
+    "id_rsa",
+    "id_ed25519",
+    ".aws/**",
+    ".ssh/**",
+    ".npmrc",
+    ".pypirc"
+  ]
+}

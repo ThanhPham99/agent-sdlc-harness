@@ -1,0 +1,131 @@
+{
+  "schema": "agent-sdlc/live-activation-cases/v1",
+  "cases": [
+    {
+      "id": "ACT001",
+      "prompt": "Explain what a hash table is.",
+      "expected": {
+        "activate": false
+      }
+    },
+    {
+      "id": "ACT002",
+      "prompt": "Show me a JavaScript debounce example; no repository change is needed.",
+      "expected": {
+        "activate": false
+      }
+    },
+    {
+      "id": "ACT003",
+      "prompt": "What is the difference between REST and GraphQL?",
+      "expected": {
+        "activate": false
+      }
+    },
+    {
+      "id": "ACT004",
+      "prompt": "Translate this error message into Vietnamese: connection reset by peer.",
+      "expected": {
+        "activate": false
+      }
+    },
+    {
+      "id": "ACT005",
+      "prompt": "Review this standalone 5-line pseudocode snippet conceptually; do not modify a repo.",
+      "expected": {
+        "activate": false
+      }
+    },
+    {
+      "id": "ACT006",
+      "prompt": "What git command lists local branches?",
+      "expected": {
+        "activate": false
+      }
+    },
+    {
+      "id": "ACT007",
+      "prompt": "Teach me what database normalization means.",
+      "expected": {
+        "activate": false
+      }
+    },
+    {
+      "id": "ACT008",
+      "prompt": "Write a regex example for an email-like string; this is not for a project.",
+      "expected": {
+        "activate": false
+      }
+    },
+    {
+      "id": "ACT009",
+      "prompt": "Summarize the CAP theorem.",
+      "expected": {
+        "activate": false
+      }
+    },
+    {
+      "id": "ACT010",
+      "prompt": "Add idempotent refund processing to this repository.",
+      "expected": {
+        "activate": true
+      }
+    },
+    {
+      "id": "ACT011",
+      "prompt": "Fix the login bug in this codebase.",
+      "expected": {
+        "activate": true
+      }
+    },
+    {
+      "id": "ACT012",
+      "prompt": "Update the repository README and integration guide.",
+      "expected": {
+        "activate": true
+      }
+    },
+    {
+      "id": "ACT013",
+      "prompt": "Upgrade the ORM dependency in this project.",
+      "expected": {
+        "activate": true
+      }
+    },
+    {
+      "id": "ACT014",
+      "prompt": "Investigate the production outage for this service.",
+      "expected": {
+        "activate": true
+      }
+    },
+    {
+      "id": "ACT015",
+      "prompt": "Migrate the customer table schema in this repository.",
+      "expected": {
+        "activate": true
+      }
+    },
+    {
+      "id": "ACT016",
+      "prompt": "Add tests for the payment retry module in this repo.",
+      "expected": {
+        "activate": true
+      }
+    },
+    {
+      "id": "ACT017",
+      "prompt": "Refactor the repository service layer without changing behavior.",
+      "expected": {
+        "activate": true
+      }
+    },
+    {
+      "id": "ACT018",
+      "prompt": "Continue phase 2 of the existing checkout feature in this project.",
+      "expected": {
+        "activate": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "schema": "agent-sdlc/context-policy/v1",
+  "version": "3.0.0-alpha3",
+  "assembly_order": [
+    "stable_system_policy",
+    "stable_tool_contract",
+    "role_stage_skill",
+    "project_invariants",
+    "artifact_summaries",
+    "symbols_or_diff",
+    "objective",
+    "output_schema"
+  ],
+  "deny_by_default": [
+    "entire_chat_history",
+    "entire_repo_tree",
+    "all_tool_definitions",
+    "full_test_stdout",
+    "full_application_log",
+    "all_failed_hypotheses"
+  ],
+  "limits": {
+    "max_tool_return_bytes": 24000,
+    "subagent_max_words": 600,
+    "context_estimate_chars_per_token": 4,
+    "default_irrelevant_context_ratio_target": 0.15
+  },
+  "cache_layers": [
+    "deterministic",
+    "artifact",
+    "provider-prefix",
+    "retrieval",
+    "eval"
+  ],
+  "stage_boundary": "write handoff artifact then discard transient reasoning/history"
+}

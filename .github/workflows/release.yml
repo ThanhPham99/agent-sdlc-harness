@@ -1,0 +1,36 @@
+name: Release
+on:
+  push:
+    tags:
+      - 'v*'
+permissions:
+  contents: write
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify tag matches VERSION
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="v$(cat VERSION)"
+          test "${GITHUB_REF_NAME}" = "$expected" || { echo "tag ${GITHUB_REF_NAME} != $expected"; exit 1; }
+      - run: npm test
+      - run: npm run validate:github
+      - run: npm run test:github-installers
+      - run: npm run build
+      - run: npm run verify:dist
+      - run: npm run package:release
+      - name: Publish GitHub Release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+          generate_release_notes: true
+          files: |
+            release/*.zip
+            release/SHA256SUMS.txt

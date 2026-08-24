@@ -1,0 +1,293 @@
+{
+  "schema": "agent-sdlc/deterministic-validation/v1",
+  "version": "3.0.0-alpha3",
+  "checks": 71,
+  "passes": 71,
+  "failures": 0,
+  "results": [
+    {
+      "name": "router-security-strict",
+      "status": "PASS"
+    },
+    {
+      "name": "router-docs-fast",
+      "status": "PASS"
+    },
+    {
+      "name": "router-incident-strict",
+      "status": "PASS"
+    },
+    {
+      "name": "router-database-strict",
+      "status": "PASS"
+    },
+    {
+      "name": "router-dependency",
+      "status": "PASS"
+    },
+    {
+      "name": "router-performance",
+      "status": "PASS"
+    },
+    {
+      "name": "router-refactor",
+      "status": "PASS"
+    },
+    {
+      "name": "router-default-feature",
+      "status": "PASS"
+    },
+    {
+      "name": "router-explicit-workflow",
+      "status": "PASS"
+    },
+    {
+      "name": "router-continue-feature-semantic-rule",
+      "status": "PASS"
+    },
+    {
+      "name": "router-requirement-update-semantic-rule",
+      "status": "PASS"
+    },
+    {
+      "name": "router-ignores-untrusted-quoted-tool-keywords",
+      "status": "PASS"
+    },
+    {
+      "name": "manifest-public-skill-count-2",
+      "status": "PASS"
+    },
+    {
+      "name": "workflow-count-22",
+      "status": "PASS"
+    },
+    {
+      "name": "all-workflows-have-valid-stages",
+      "status": "PASS"
+    },
+    {
+      "name": "all-stage-tools-registered",
+      "status": "PASS"
+    },
+    {
+      "name": "all-internal-skill-files-exist",
+      "status": "PASS"
+    },
+    {
+      "name": "public-skill-layout-valid",
+      "status": "PASS"
+    },
+    {
+      "name": "tool-output-limit-policy",
+      "status": "PASS"
+    },
+    {
+      "name": "parallelism-bounded",
+      "status": "PASS"
+    },
+    {
+      "name": "run-created",
+      "status": "PASS"
+    },
+    {
+      "name": "deploy-denied-in-intake",
+      "status": "PASS"
+    },
+    {
+      "name": "forward-intake-requirements",
+      "status": "PASS"
+    },
+    {
+      "name": "gate-blocks-missing-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "gate-accepts-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "side-state-suspend-resume",
+      "status": "PASS"
+    },
+    {
+      "name": "side-state-wrong-resume-blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "invalid-reentry-blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "context-bounded",
+      "status": "PASS"
+    },
+    {
+      "name": "context-loads-core-skill",
+      "status": "PASS"
+    },
+    {
+      "name": "context-loads-workflow-specialty",
+      "status": "PASS"
+    },
+    {
+      "name": "strict-context-loads-security",
+      "status": "PASS"
+    },
+    {
+      "name": "prompt-does-not-load-chat-history",
+      "status": "PASS"
+    },
+    {
+      "name": "artifact-roundtrip",
+      "status": "PASS"
+    },
+    {
+      "name": "artifact-content-addressed-dedup-id",
+      "status": "PASS"
+    },
+    {
+      "name": "replay-hash-validation",
+      "status": "PASS"
+    },
+    {
+      "name": "replay-tamper-detected",
+      "status": "PASS"
+    },
+    {
+      "name": "repo-read-path-traversal-blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "sensitive-read-blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "repo-search-no-match-is-pass",
+      "status": "PASS"
+    },
+    {
+      "name": "secret-scan-clean-is-pass",
+      "status": "PASS"
+    },
+    {
+      "name": "secret-scan-finding-redacts-value",
+      "status": "PASS"
+    },
+    {
+      "name": "targeted-test-built-in-pass",
+      "status": "PASS"
+    },
+    {
+      "name": "unknown-tool-denied",
+      "status": "PASS"
+    },
+    {
+      "name": "production-deploy-requires-approval",
+      "status": "PASS"
+    },
+    {
+      "name": "production-deploy-approval-recorded",
+      "status": "PASS"
+    },
+    {
+      "name": "model-router-mechanical-no-model",
+      "status": "PASS"
+    },
+    {
+      "name": "usage-ledger-aggregates",
+      "status": "PASS"
+    },
+    {
+      "name": "config-project-layer-resolves",
+      "status": "PASS"
+    },
+    {
+      "name": "compat-state-v1-compatible",
+      "status": "PASS"
+    },
+    {
+      "name": "parallel-disjoint-bounded-two",
+      "status": "PASS"
+    },
+    {
+      "name": "parallel-conflict-serial",
+      "status": "PASS"
+    },
+    {
+      "name": "handoff-roundtrip",
+      "status": "PASS"
+    },
+    {
+      "name": "telemetry-metrics-readable",
+      "status": "PASS"
+    },
+    {
+      "name": "normalize-text-deterministic",
+      "status": "PASS"
+    },
+    {
+      "name": "normalize-image-requires-multimodal",
+      "status": "PASS"
+    },
+    {
+      "name": "normalize-tool-creates-artifact",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-tools-list",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-route-call",
+      "status": "PASS"
+    },
+    {
+      "name": "host-guard-asks-production-command",
+      "status": "PASS"
+    },
+    {
+      "name": "provider-adapter-json-valid",
+      "status": "PASS"
+    },
+    {
+      "name": "provider-probe-is-nonfatal",
+      "status": "PASS"
+    },
+    {
+      "name": "live-corpus-84-plus-8",
+      "status": "PASS"
+    },
+    {
+      "name": "live-corpus-ids-unique",
+      "status": "PASS"
+    },
+    {
+      "name": "live-full-tier-covers-all-84-and-8",
+      "status": "PASS"
+    },
+    {
+      "name": "live-smoke-not-promotion-eligible",
+      "status": "PASS"
+    },
+    {
+      "name": "live-corpus-digest-stable-shape",
+      "status": "PASS"
+    },
+    {
+      "name": "qualification-subject-digest-stable-shape",
+      "status": "PASS"
+    },
+    {
+      "name": "host-preflight-fail-closed-status",
+      "status": "PASS"
+    },
+    {
+      "name": "live-qualification-schemas-json-valid",
+      "status": "PASS"
+    },
+    {
+      "name": "live-routing-corpus-agrees-deterministic-router",
+      "status": "PASS"
+    }
+  ]
+}

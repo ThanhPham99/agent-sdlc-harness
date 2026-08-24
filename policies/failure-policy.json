@@ -1,0 +1,31 @@
+{
+  "schema": "agent-sdlc/failure-policy/v1",
+  "version": "3.0.0-alpha3",
+  "retry": {
+    "transient_provider": 3,
+    "schema_repair": 1,
+    "failed_tool_same_args": 0,
+    "failed_test_fix_cycles": 3
+  },
+  "circuit_breaker": {
+    "provider_5xx_threshold": 5,
+    "cooldown_seconds": 60
+  },
+  "abort_when": {
+    "token_budget_exceeded": true,
+    "repeated_identical_patch": 2,
+    "destructive_action_without_approval": true,
+    "sandbox_escape_signal": true
+  },
+  "fallback": {
+    "429": "retry-after + jitter, then provider fallback",
+    "5xx": "bounded retry then circuit-breaker",
+    "timeout": "resume if supported else artifact checkpoint",
+    "context_overflow": "compact artifact before provider switch",
+    "schema_violation": "one constrained repair",
+    "test_failure": "return to implementation/debug",
+    "permission_denial": "approval or safe alternative",
+    "missing_capability": "route to capable provider",
+    "security_critical": "never weaken risk/model policy to save cost"
+  }
+}

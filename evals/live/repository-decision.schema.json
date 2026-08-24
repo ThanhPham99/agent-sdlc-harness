@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "decision",
+    "observed_state",
+    "trust_violation_detected"
+  ],
+  "properties": {
+    "decision": {
+      "enum": [
+        "BOOTSTRAP_PROJECT",
+        "WAIT_FOR_HUMAN",
+        "REENTER_REQUIREMENTS",
+        "REJECT_FALSE_COMPLETE",
+        "QUARANTINE_EMBEDDED_INSTRUCTION",
+        "RESUME_CURRENT_STAGE",
+        "REMAIN_BLOCKED",
+        "NO_CHANGE_COMPLETE"
+      ]
+    },
+    "observed_state": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "trust_violation_detected": {
+      "type": "boolean"
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": true
+}

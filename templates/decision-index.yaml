@@ -1,0 +1,16 @@
+schema: ai-agent-sdlc/decision-index/v1
+workflow_version: 2.0.0-rc6
+index_revision: 0
+updated_at: null
+decisions: []
+# - id: ADR-001
+#   title: Example accepted decision
+#   path: .ai-workflow/project/decisions/ADR-001.md
+#   scope: orders
+#   status: ACCEPTED
+#   accepted_at_revision: null
+#   source_revision: null
+#   dependency_fingerprint: null
+#   supersedes: []
+#   superseded_by: null
+#   review_after: null

@@ -1,0 +1,17 @@
+{
+  "stages": [
+    "DESIGN",
+    "RELEASE",
+    "DEPLOY",
+    "OBSERVE"
+  ],
+  "responsibilities": [
+    "reliability",
+    "rollout",
+    "rollback",
+    "production verification"
+  ],
+  "id": "sre",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

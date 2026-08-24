@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/ReviewFindings/v1",
+  "title": "ReviewFindings",
+  "type": "object",
+  "required": [
+    "findings",
+    "decision"
+  ],
+  "properties": {
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "severity",
+          "location",
+          "evidence",
+          "consequence",
+          "remediation"
+        ]
+      }
+    },
+    "decision": {
+      "enum": [
+        "PASS",
+        "CHANGES_REQUIRED",
+        "BLOCKED"
+      ]
+    }
+  }
+}

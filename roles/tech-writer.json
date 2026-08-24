@@ -1,0 +1,15 @@
+{
+  "stages": [
+    "REQUIREMENTS",
+    "REVIEW",
+    "CLOSE"
+  ],
+  "responsibilities": [
+    "documentation",
+    "handoff",
+    "release notes"
+  ],
+  "id": "tech-writer",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

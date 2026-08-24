@@ -1,0 +1,41 @@
+{
+  "schema": "agent-sdlc/plugin-manifest/v1",
+  "name": "agent-sdlc-harness",
+  "version": "3.0.0-alpha3",
+  "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for Claude Code, Codex, and Antigravity.",
+  "public_skills": [
+    "sdlc-router",
+    "sdlc-orchestrator"
+  ],
+  "canonical": {
+    "state_machine": "config/state-machine.json",
+    "workflow_registry": "config/workflows.json",
+    "role_registry": "config/roles.json",
+    "skill_registry": "config/skills.json",
+    "tool_registry": "config/tools.json",
+    "stage_policy": "policies/stage-policy.json",
+    "model_routing": "policies/model-routing.json",
+    "context_policy": "policies/context-policy.json",
+    "failure_policy": "policies/failure-policy.json"
+  },
+  "runtime": {
+    "entrypoint": "bin/agent-sdlc",
+    "node_min": "18",
+    "dependency_mode": "zero-runtime-dependencies"
+  },
+  "providers": [
+    "claude",
+    "codex",
+    "antigravity"
+  ],
+  "design_invariants": [
+    "provider-neutral",
+    "artifact-first",
+    "deterministic-first",
+    "progressive-disclosure",
+    "least-privilege",
+    "evidence-driven",
+    "replayable",
+    "token-aware"
+  ]
+}

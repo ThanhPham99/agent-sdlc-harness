@@ -1,0 +1,39 @@
+{
+  "schema": "agent-sdlc/project/v1",
+  "project": "example",
+  "risk_profile": "STANDARD",
+  "default_provider": "auto",
+  "commands": {
+    "test_targeted": [
+      "npm",
+      "test",
+      "--",
+      "{selector}"
+    ],
+    "test_full": [
+      "npm",
+      "test"
+    ],
+    "build": [
+      "npm",
+      "run",
+      "build"
+    ]
+  },
+  "context": {
+    "project_invariants": [
+      "preserve public API unless approved"
+    ],
+    "hot_paths": []
+  },
+  "approval": {
+    "mode": "risk-based"
+  },
+  "providers": {
+    "preferred": [
+      "claude",
+      "codex",
+      "antigravity"
+    ]
+  }
+}

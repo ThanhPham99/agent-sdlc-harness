@@ -1,0 +1,16 @@
+{
+  "name": "agent-sdlc-github",
+  "interface": {"displayName": "Agent SDLC Harness GitHub"},
+  "plugins": [
+    {
+      "name": "agent-sdlc-harness",
+      "source": {"source": "local", "path": "."},
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL",
+        "products": ["CODEX"]
+      },
+      "category": "Developer Tools"
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "stages": [
+    "DESIGN",
+    "PLAN",
+    "IMPLEMENT",
+    "VERIFY"
+  ],
+  "responsibilities": [
+    "pipelines",
+    "data contracts",
+    "migration"
+  ],
+  "id": "data-engineer",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

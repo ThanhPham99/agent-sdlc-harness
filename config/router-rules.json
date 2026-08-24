@@ -1,0 +1,249 @@
+{
+  "schema": "agent-sdlc/router-rules/v1",
+  "version": "3.0.0-alpha3",
+  "rules": [
+    {
+      "keywords": [
+        "auth bypass",
+        "cve",
+        "secret",
+        "security",
+        "vulnerability"
+      ],
+      "workflow": "security-remediation",
+      "profile": "STRICT",
+      "overlays": [
+        "security"
+      ]
+    },
+    {
+      "keywords": [
+        "incident",
+        "outage",
+        "production down",
+        "sev1",
+        "sev2"
+      ],
+      "workflow": "incident-response",
+      "profile": "STRICT",
+      "overlays": [
+        "incident"
+      ]
+    },
+    {
+      "keywords": [
+        "hotfix",
+        "rollback fix",
+        "urgent production"
+      ],
+      "workflow": "hotfix",
+      "profile": "STRICT",
+      "overlays": [
+        "hotfix"
+      ]
+    },
+    {
+      "keywords": [
+        "breaking api",
+        "breaking change",
+        "deprecate endpoint"
+      ],
+      "workflow": "api-breaking-change",
+      "profile": "STRICT",
+      "overlays": [
+        "api-breaking-change"
+      ]
+    },
+    {
+      "keywords": [
+        "deprecation removal",
+        "remove deprecated"
+      ],
+      "workflow": "deprecation-removal",
+      "profile": "STRICT",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "legacy migration",
+        "modernize",
+        "rewrite",
+        "strangler"
+      ],
+      "workflow": "modernization",
+      "profile": "STRICT",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "continue feature",
+        "continue phase",
+        "existing feature",
+        "phase 2",
+        "resume feature"
+      ],
+      "workflow": "continue-feature",
+      "profile": "STANDARD",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "requirement update",
+        "requirements changed",
+        "updated requirement",
+        "change request",
+        "requirement delta"
+      ],
+      "workflow": "requirement-update",
+      "profile": "STANDARD",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "backfill",
+        "database",
+        "migration",
+        "schema change"
+      ],
+      "workflow": "database-migration",
+      "profile": "STRICT",
+      "overlays": [
+        "db-migration"
+      ]
+    },
+    {
+      "keywords": [
+        "bump version",
+        "dependency",
+        "library upgrade",
+        "upgrade package"
+      ],
+      "workflow": "dependency-upgrade",
+      "profile": "STANDARD",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "latency",
+        "memory leak",
+        "performance",
+        "slow",
+        "throughput"
+      ],
+      "workflow": "performance",
+      "profile": "STANDARD",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "cleanup",
+        "refactor",
+        "restructure"
+      ],
+      "workflow": "refactor",
+      "profile": "STANDARD",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "build workflow",
+        "ci",
+        "github actions",
+        "pipeline"
+      ],
+      "workflow": "ci-cd-change",
+      "profile": "STANDARD",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "helm",
+        "infrastructure",
+        "kubernetes",
+        "terraform"
+      ],
+      "workflow": "infrastructure-change",
+      "profile": "STRICT",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "logging",
+        "metric",
+        "monitoring",
+        "observability",
+        "tracing"
+      ],
+      "workflow": "observability-change",
+      "profile": "STANDARD",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "audit evidence",
+        "compliance",
+        "privacy control"
+      ],
+      "workflow": "compliance-change",
+      "profile": "STRICT",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "docs",
+        "documentation",
+        "guide",
+        "readme"
+      ],
+      "workflow": "documentation",
+      "profile": "FAST",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "proof of concept",
+        "research prototype",
+        "spike"
+      ],
+      "workflow": "technical-spike",
+      "profile": "FAST",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "add tests",
+        "test coverage",
+        "test only"
+      ],
+      "workflow": "test-only",
+      "profile": "FAST",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "bug",
+        "defect",
+        "error",
+        "fix"
+      ],
+      "workflow": "bug-fix",
+      "profile": "STANDARD",
+      "overlays": []
+    },
+    {
+      "keywords": [
+        "chore",
+        "maintenance",
+        "tech debt"
+      ],
+      "workflow": "maintenance",
+      "profile": "FAST",
+      "overlays": []
+    }
+  ],
+  "default": {
+    "workflow": "new-feature",
+    "profile": "STANDARD",
+    "overlays": []
+  }
+}

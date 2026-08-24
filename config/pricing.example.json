@@ -1,0 +1,6 @@
+{
+  "schema": "agent-sdlc/pricing-registry/v1",
+  "updated_at": null,
+  "providers": {},
+  "note": "Populate from current provider pricing; cost ledger records usage even when prices are absent."
+}

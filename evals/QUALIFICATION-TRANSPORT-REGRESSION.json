@@ -1,0 +1,21 @@
+{
+  "schema": "agent-sdlc/qualification-transport-regression/v1",
+  "version": "3.0.0-alpha3",
+  "checks": 3,
+  "passes": 3,
+  "failures": 0,
+  "results": [
+    {
+      "name": "smoke-transport-claude",
+      "status": "PASS"
+    },
+    {
+      "name": "smoke-transport-codex",
+      "status": "PASS"
+    },
+    {
+      "name": "smoke-transport-antigravity",
+      "status": "PASS"
+    }
+  ]
+}

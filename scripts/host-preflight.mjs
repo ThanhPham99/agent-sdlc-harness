@@ -1,0 +1,3 @@
+#!/usr/bin/env node
+import fs from 'node:fs';import path from 'node:path';import {ROOT,VERSION,HOSTS,hostPreflight} from './qualification-lib.mjs';
+const results=HOSTS.map(host=>hostPreflight(host));const statuses=results.map(x=>x.status);const status=statuses.includes('FAIL')?'FAIL':statuses.includes('BLOCKED')?'BLOCKED':statuses.includes('PENDING')?'PENDING':'READY';const report={schema:'agent-sdlc/host-preflight-batch/v2',version:VERSION,generated_at:new Date().toISOString(),status,results};fs.mkdirSync(path.join(ROOT,'dist'),{recursive:true});fs.writeFileSync(path.join(ROOT,'dist','HOST-PREFLIGHT.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));process.exit(status==='READY'?0:status==='FAIL'?1:status==='PENDING'?2:3);

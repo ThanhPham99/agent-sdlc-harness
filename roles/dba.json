@@ -1,0 +1,17 @@
+{
+  "stages": [
+    "DESIGN",
+    "PLAN",
+    "VERIFY",
+    "DEPLOY"
+  ],
+  "responsibilities": [
+    "schema migration",
+    "data safety",
+    "rollback",
+    "performance"
+  ],
+  "id": "dba",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

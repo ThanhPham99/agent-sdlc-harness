@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/RouteDecision/v1",
+  "title": "RouteDecision",
+  "type": "object",
+  "required": [
+    "workflow",
+    "profile",
+    "reason_codes"
+  ],
+  "properties": {
+    "workflow": {
+      "type": "string"
+    },
+    "profile": {
+      "enum": [
+        "FAST",
+        "STANDARD",
+        "STRICT"
+      ]
+    },
+    "overlays": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "risk_flags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+schema: ai-agent-sdlc/delivery-board/v1
+workflow_version: 2.0.0-rc6
+revision: 0
+completion_target: PR_READY
+target_branch: main
+base_revision: null
+updated_at: null
+work_items: []
+merge_dependencies: []
+release_branches: []
+post_merge_reconciliation:
+  required: false
+  work_items: []
+  project_docs_status: NOT_REQUIRED
+notes: []
+release_board: release-board.yaml

@@ -1,0 +1,18 @@
+schema: ai-agent-sdlc/project-meta/v1
+workflow_version: 2.0.0-rc6
+state_schema_current: 10
+minimum_migratable_state_schema: 1
+project_initialized_at: null
+last_bootstrap_at: null
+last_migration_at: null
+last_migration_from_version: null
+migration_status: CURRENT
+migration_journal: migration-journal.md
+managed_paths:
+  - .ai-workflow/project
+  - .ai-workflow/features
+compatibility:
+  preserve_unknown_fields: true
+  backup_before_write: true
+  refuse_newer_unknown_schema: true
+  state_migration_idempotent: true

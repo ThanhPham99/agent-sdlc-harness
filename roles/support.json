@@ -1,0 +1,15 @@
+{
+  "stages": [
+    "INTAKE",
+    "OBSERVE",
+    "CLOSE"
+  ],
+  "responsibilities": [
+    "issue evidence",
+    "customer impact",
+    "post-release feedback"
+  ],
+  "id": "support",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/ToolResult/v1",
+  "title": "ToolResult",
+  "type": "object",
+  "required": [
+    "tool",
+    "status",
+    "exit_code",
+    "summary"
+  ],
+  "properties": {
+    "tool": {
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "DENY",
+        "APPROVAL_REQUIRED",
+        "ERROR"
+      ]
+    },
+    "exit_code": {
+      "type": [
+        "integer",
+        "null"
+      ]
+    },
+    "summary": {},
+    "failures": {
+      "type": "array"
+    },
+    "full_log_artifact": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "truncated": {
+      "type": "boolean"
+    }
+  }
+}

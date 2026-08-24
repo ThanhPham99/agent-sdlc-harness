@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/ContextManifest/v1",
+  "title": "ContextManifest",
+  "type": "object",
+  "required": [
+    "objective",
+    "run_id",
+    "stage",
+    "git_sha",
+    "artifacts",
+    "constraints",
+    "evidence_required"
+  ],
+  "properties": {
+    "objective": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "git_sha": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "stage": {
+      "type": "string"
+    },
+    "artifacts": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "symbols": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "constraints": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence_required": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "allowed_tools": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "budget": {
+      "type": "object"
+    },
+    "estimated_tokens": {
+      "type": "integer"
+    }
+  }
+}

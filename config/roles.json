@@ -1,0 +1,247 @@
+{
+  "schema": "agent-sdlc/role-registry/v1",
+  "version": "3.0.0-alpha3",
+  "roles": {
+    "pm": {
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "RELEASE",
+        "CLOSE"
+      ],
+      "responsibilities": [
+        "scope",
+        "acceptance criteria",
+        "priority",
+        "stakeholder decisions"
+      ],
+      "id": "pm",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "product-designer": {
+      "stages": [
+        "REQUIREMENTS",
+        "DESIGN"
+      ],
+      "responsibilities": [
+        "user flow",
+        "interaction constraints",
+        "design acceptance"
+      ],
+      "id": "product-designer",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "architect": {
+      "stages": [
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "REVIEW"
+      ],
+      "responsibilities": [
+        "architecture",
+        "contracts",
+        "tradeoffs",
+        "ADRs"
+      ],
+      "id": "architect",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "developer": {
+      "stages": [
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW"
+      ],
+      "responsibilities": [
+        "implementation",
+        "unit tests",
+        "refactor",
+        "debugging"
+      ],
+      "id": "developer",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "qa": {
+      "stages": [
+        "REQUIREMENTS",
+        "PLAN",
+        "VERIFY",
+        "REVIEW"
+      ],
+      "responsibilities": [
+        "test strategy",
+        "coverage",
+        "e2e",
+        "quality evidence"
+      ],
+      "id": "qa",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "security": {
+      "stages": [
+        "DESIGN",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE"
+      ],
+      "responsibilities": [
+        "threat model",
+        "SAST/SCA",
+        "security review",
+        "exceptions"
+      ],
+      "id": "security",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "sre": {
+      "stages": [
+        "DESIGN",
+        "RELEASE",
+        "DEPLOY",
+        "OBSERVE"
+      ],
+      "responsibilities": [
+        "reliability",
+        "rollout",
+        "rollback",
+        "production verification"
+      ],
+      "id": "sre",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "devops": {
+      "stages": [
+        "PLAN",
+        "VERIFY",
+        "RELEASE",
+        "DEPLOY"
+      ],
+      "responsibilities": [
+        "CI/CD",
+        "build",
+        "provenance",
+        "deployment automation"
+      ],
+      "id": "devops",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "ops": {
+      "stages": [
+        "DEPLOY",
+        "OBSERVE"
+      ],
+      "responsibilities": [
+        "operations",
+        "runbooks",
+        "production changes"
+      ],
+      "id": "ops",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "dba": {
+      "stages": [
+        "DESIGN",
+        "PLAN",
+        "VERIFY",
+        "DEPLOY"
+      ],
+      "responsibilities": [
+        "schema migration",
+        "data safety",
+        "rollback",
+        "performance"
+      ],
+      "id": "dba",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "data-engineer": {
+      "stages": [
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY"
+      ],
+      "responsibilities": [
+        "pipelines",
+        "data contracts",
+        "migration"
+      ],
+      "id": "data-engineer",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "release-manager": {
+      "stages": [
+        "RELEASE",
+        "DEPLOY"
+      ],
+      "responsibilities": [
+        "release readiness",
+        "change window",
+        "sign-off"
+      ],
+      "id": "release-manager",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "tech-writer": {
+      "stages": [
+        "REQUIREMENTS",
+        "REVIEW",
+        "CLOSE"
+      ],
+      "responsibilities": [
+        "documentation",
+        "handoff",
+        "release notes"
+      ],
+      "id": "tech-writer",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "compliance": {
+      "stages": [
+        "REQUIREMENTS",
+        "DESIGN",
+        "REVIEW",
+        "RELEASE"
+      ],
+      "responsibilities": [
+        "control mapping",
+        "evidence",
+        "retention/privacy checks"
+      ],
+      "id": "compliance",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    },
+    "support": {
+      "stages": [
+        "INTAKE",
+        "OBSERVE",
+        "CLOSE"
+      ],
+      "responsibilities": [
+        "issue evidence",
+        "customer impact",
+        "post-release feedback"
+      ],
+      "id": "support",
+      "default_constraint": "no specific constraint",
+      "progressive_disclosure": true
+    }
+  }
+}

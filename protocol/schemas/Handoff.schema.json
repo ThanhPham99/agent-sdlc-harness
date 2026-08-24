@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/Handoff/v1",
+  "title": "Handoff",
+  "type": "object",
+  "required": [
+    "objective",
+    "decisions",
+    "files",
+    "contracts",
+    "tests",
+    "risks",
+    "next_action"
+  ],
+  "properties": {
+    "objective": {
+      "type": "string"
+    },
+    "decisions": {
+      "type": "array"
+    },
+    "files": {
+      "type": "array"
+    },
+    "contracts": {
+      "type": "array"
+    },
+    "tests": {
+      "type": "array"
+    },
+    "risks": {
+      "type": "array"
+    },
+    "next_action": {
+      "type": "string"
+    }
+  }
+}

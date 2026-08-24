@@ -1,0 +1,631 @@
+{
+  "schema": "agent-sdlc/live-semantic-cases/v1",
+  "cases": [
+    {
+      "id": "SEM001",
+      "prompt": "Add a wishlist capability to this repository.",
+      "expected": {
+        "activate": true,
+        "workflow": "new-feature",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM002",
+      "prompt": "Implement a new invoice reminder capability in this project.",
+      "expected": {
+        "activate": true,
+        "workflow": "new-feature",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM003",
+      "prompt": "Continue phase 2 of the existing checkout feature in this repository.",
+      "expected": {
+        "activate": true,
+        "workflow": "continue-feature",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM004",
+      "prompt": "Resume feature work for the existing notification center.",
+      "expected": {
+        "activate": true,
+        "workflow": "continue-feature",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM005",
+      "prompt": "Fix the bug that duplicates refund events in this repository.",
+      "expected": {
+        "activate": true,
+        "workflow": "bug-fix",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM006",
+      "prompt": "Resolve the defect in token refresh handling.",
+      "expected": {
+        "activate": true,
+        "workflow": "bug-fix",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM007",
+      "prompt": "Apply an urgent production hotfix for the checkout failure.",
+      "expected": {
+        "activate": true,
+        "workflow": "hotfix",
+        "profile": "STRICT",
+        "overlays": [
+          "hotfix"
+        ],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM008",
+      "prompt": "Prepare a rollback fix for the production payment regression.",
+      "expected": {
+        "activate": true,
+        "workflow": "hotfix",
+        "profile": "STRICT",
+        "overlays": [
+          "hotfix"
+        ],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM009",
+      "prompt": "Refactor the service boundaries without changing behavior.",
+      "expected": {
+        "activate": true,
+        "workflow": "refactor",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM010",
+      "prompt": "Cleanup and restructure the order domain module.",
+      "expected": {
+        "activate": true,
+        "workflow": "refactor",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM011",
+      "prompt": "Reduce API latency in the orders endpoint.",
+      "expected": {
+        "activate": true,
+        "workflow": "performance",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM012",
+      "prompt": "Investigate the memory leak and improve throughput.",
+      "expected": {
+        "activate": true,
+        "workflow": "performance",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM013",
+      "prompt": "Upgrade package dependency versions for the ORM.",
+      "expected": {
+        "activate": true,
+        "workflow": "dependency-upgrade",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM014",
+      "prompt": "Perform a library upgrade for the HTTP client.",
+      "expected": {
+        "activate": true,
+        "workflow": "dependency-upgrade",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM015",
+      "prompt": "Perform a database schema migration for customer preferences.",
+      "expected": {
+        "activate": true,
+        "workflow": "database-migration",
+        "profile": "STRICT",
+        "overlays": [
+          "db-migration"
+        ],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM016",
+      "prompt": "Plan a backfill and migration for order status history.",
+      "expected": {
+        "activate": true,
+        "workflow": "database-migration",
+        "profile": "STRICT",
+        "overlays": [
+          "db-migration"
+        ],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM017",
+      "prompt": "Make a breaking API change to the legacy customer endpoint.",
+      "expected": {
+        "activate": true,
+        "workflow": "api-breaking-change",
+        "profile": "STRICT",
+        "overlays": [
+          "api-breaking-change"
+        ],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM018",
+      "prompt": "Deprecate endpoint v1 with a breaking change migration plan.",
+      "expected": {
+        "activate": true,
+        "workflow": "api-breaking-change",
+        "profile": "STRICT",
+        "overlays": [
+          "api-breaking-change"
+        ],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM019",
+      "prompt": "Remediate the security vulnerability in session validation.",
+      "expected": {
+        "activate": true,
+        "workflow": "security-remediation",
+        "profile": "STRICT",
+        "overlays": [
+          "security"
+        ],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM020",
+      "prompt": "Fix the CVE affecting authentication in this repository.",
+      "expected": {
+        "activate": true,
+        "workflow": "security-remediation",
+        "profile": "STRICT",
+        "overlays": [
+          "security"
+        ],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM021",
+      "prompt": "Update the GitHub Actions CI pipeline for this repository.",
+      "expected": {
+        "activate": true,
+        "workflow": "ci-cd-change",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM022",
+      "prompt": "Change the build workflow to add integration tests.",
+      "expected": {
+        "activate": true,
+        "workflow": "ci-cd-change",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM023",
+      "prompt": "Update Terraform infrastructure for the service.",
+      "expected": {
+        "activate": true,
+        "workflow": "infrastructure-change",
+        "profile": "STRICT",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM024",
+      "prompt": "Change Kubernetes deployment infrastructure for this repository.",
+      "expected": {
+        "activate": true,
+        "workflow": "infrastructure-change",
+        "profile": "STRICT",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM025",
+      "prompt": "Add observability metrics for payment retries.",
+      "expected": {
+        "activate": true,
+        "workflow": "observability-change",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM026",
+      "prompt": "Improve logging and tracing for the order service.",
+      "expected": {
+        "activate": true,
+        "workflow": "observability-change",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM027",
+      "prompt": "Investigate a SEV1 production outage for this service.",
+      "expected": {
+        "activate": true,
+        "workflow": "incident-response",
+        "profile": "STRICT",
+        "overlays": [
+          "incident"
+        ],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM028",
+      "prompt": "Handle the current incident where production is down.",
+      "expected": {
+        "activate": true,
+        "workflow": "incident-response",
+        "profile": "STRICT",
+        "overlays": [
+          "incident"
+        ],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM029",
+      "prompt": "Perform maintenance chore work on stale configuration.",
+      "expected": {
+        "activate": true,
+        "workflow": "maintenance",
+        "profile": "FAST",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM030",
+      "prompt": "Address tech debt in repository housekeeping.",
+      "expected": {
+        "activate": true,
+        "workflow": "maintenance",
+        "profile": "FAST",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM031",
+      "prompt": "Modernize the legacy billing module using a strangler approach.",
+      "expected": {
+        "activate": true,
+        "workflow": "modernization",
+        "profile": "STRICT",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM032",
+      "prompt": "Plan a legacy migration and rewrite of the old notification subsystem.",
+      "expected": {
+        "activate": true,
+        "workflow": "modernization",
+        "profile": "STRICT",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM033",
+      "prompt": "Implement the compliance control required for audit evidence.",
+      "expected": {
+        "activate": true,
+        "workflow": "compliance-change",
+        "profile": "STRICT",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM034",
+      "prompt": "Apply a privacy control change for compliance in this repository.",
+      "expected": {
+        "activate": true,
+        "workflow": "compliance-change",
+        "profile": "STRICT",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM035",
+      "prompt": "Update the README documentation for local development.",
+      "expected": {
+        "activate": true,
+        "workflow": "documentation",
+        "profile": "FAST",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM036",
+      "prompt": "Write a repository guide for API integration.",
+      "expected": {
+        "activate": true,
+        "workflow": "documentation",
+        "profile": "FAST",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM037",
+      "prompt": "Run a technical spike for a new queue technology.",
+      "expected": {
+        "activate": true,
+        "workflow": "technical-spike",
+        "profile": "FAST",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM038",
+      "prompt": "Build a research prototype to validate the caching approach.",
+      "expected": {
+        "activate": true,
+        "workflow": "technical-spike",
+        "profile": "FAST",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM039",
+      "prompt": "Add tests only for the retry policy.",
+      "expected": {
+        "activate": true,
+        "workflow": "test-only",
+        "profile": "FAST",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM040",
+      "prompt": "Improve test coverage for the parser without production code changes.",
+      "expected": {
+        "activate": true,
+        "workflow": "test-only",
+        "profile": "FAST",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM041",
+      "prompt": "Remove deprecated authentication adapters.",
+      "expected": {
+        "activate": true,
+        "workflow": "deprecation-removal",
+        "profile": "STRICT",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM042",
+      "prompt": "Perform deprecation removal for the old metrics endpoint.",
+      "expected": {
+        "activate": true,
+        "workflow": "deprecation-removal",
+        "profile": "STRICT",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM043",
+      "prompt": "Process a requirement update for the checkout feature; do not implement yet.",
+      "expected": {
+        "activate": true,
+        "workflow": "requirement-update",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM044",
+      "prompt": "The requirements changed for refunds; reconcile the requirement delta before coding.",
+      "expected": {
+        "activate": true,
+        "workflow": "requirement-update",
+        "profile": "STANDARD",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM045",
+      "prompt": "Remediate a security vulnerability that also requires a database change.",
+      "expected": {
+        "activate": true,
+        "workflow": "security-remediation",
+        "profile": "STRICT",
+        "overlays": [
+          "security"
+        ],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM046",
+      "prompt": "Handle a production outage and prepare an urgent hotfix only after incident triage.",
+      "expected": {
+        "activate": true,
+        "workflow": "incident-response",
+        "profile": "STRICT",
+        "overlays": [
+          "incident"
+        ],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM047",
+      "prompt": "Perform a database migration that includes an API-compatible backfill.",
+      "expected": {
+        "activate": true,
+        "workflow": "database-migration",
+        "profile": "STRICT",
+        "overlays": [
+          "db-migration"
+        ],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM048",
+      "prompt": "Update documentation and README only; no code change.",
+      "expected": {
+        "activate": true,
+        "workflow": "documentation",
+        "profile": "FAST",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM049",
+      "prompt": "Address maintenance tech debt without user-visible behavior changes.",
+      "expected": {
+        "activate": true,
+        "workflow": "maintenance",
+        "profile": "FAST",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    },
+    {
+      "id": "SEM050",
+      "prompt": "Modernize a legacy subsystem with a strangler migration.",
+      "expected": {
+        "activate": true,
+        "workflow": "modernization",
+        "profile": "STRICT",
+        "overlays": [],
+        "human_stop_required": false,
+        "next_action": "RUN_SDLC_ORCHESTRATOR"
+      }
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+schema: ai-agent-sdlc/state/v10
+workflow_version: 2.0.0-rc6
+feature_id: F-000
+feature_status: ACTIVE
+phase: phase-1
+phase_status: ACTIVE
+base_scenario: new-feature
+overlays: []
+execution_profile: STANDARD
+route_confidence: HIGH
+workflow_state: DETECTED
+previous_state: null
+current_gate: G0
+gate_mode: AUTO
+resume_from: null
+confirmed_requirements_revision: 0
+artifacts: {}
+invalidations: []
+unresolved_questions: []
+verification_exceptions: []
+deferred_items: []
+traceability:
+  confirmed_acceptance_criteria: 0
+  covered_acceptance_criteria: 0
+  unresolved_gaps: []
+context:
+  manifest: context-manifest.yaml
+  last_validated_revision: null
+  reuse_ratio: null
+  unrelated_context_ratio: null
+loop_guard:
+  last_reentry_reason: null
+  repeated_same_input_count: 0
+last_completed_skill: null
+next_skill: sdlc-router
+updated_at: null
+recovery:
+  checkpoint_state: null
+  checkpoint_gate: null
+  active_failure_class: null
+  failure_signature: null
+  same_failure_signature_count: 0
+  max_same_failure_signature_count: 2
+  blocked_reason: null
+  resume_condition: null
+  last_revalidation: null
+source_watch:
+  requirements_revision: null
+  project_knowledge_revision: null
+  active_scope_fingerprint: null
+coordination:
+  board: ../../project/coordination-board.yaml
+  board_revision: null
+  project_baseline_revision: null
+  claim_status: UNREGISTERED
+  depends_on: []
+  ordered_after: []
+  revalidation_required: false
+  last_revalidation_reason: null
+delivery:
+  board: ../../project/delivery-board.yaml
+  board_revision: null
+  completion_target: PR_READY
+  target_branch: main
+  branch: null
+  base_revision: null
+  pr:
+    id: null
+    draft: null
+    base: null
+    head_revision: null
+    review_status: null
+    depends_on: []
+  ci:
+    required_checks: []
+    status: NOT_STARTED
+    verified_revision: null
+  merge_queue:
+    status: NOT_QUEUED
+  delivery_status: NOT_STARTED
+  revalidation_required: false
+  last_revalidation_reason: null
+production:
+  board: ../../project/release-board.yaml
+  release_id: null
+  strategy: null
+  target_environment: null
+  release_revision: null
+  deployment_status: NOT_STARTED
+  rollout_status: NOT_STARTED
+  current_rollout_stage: null
+  post_deploy_verification: NOT_STARTED
+  production_verified_revision: null
+  feature_flags: []
+  migration_status: NOT_APPLICABLE
+  recovery_mode: null
+  incident_links: []
+  feedback_pending: false
+  last_revalidation_reason: null
+knowledge:
+  index: ../../project/knowledge-index.yaml
+  index_revision: null
+  affected_scopes: []
+  freshness_status: UNKNOWN
+  dependency_fingerprint: null
+  maintenance_required: false
+  cold_history_loaded: false
+  last_revalidation_reason: null
+compatibility:
+  state_schema: 10
+  created_with_workflow_version: 2.0.0-rc6
+  last_migrated_from_schema: null
+  last_migrated_from_workflow_version: null
+  last_migrated_at: null
+  migration_status: CURRENT
+  migration_notes: []

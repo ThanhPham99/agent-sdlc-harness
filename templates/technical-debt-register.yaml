@@ -1,0 +1,16 @@
+schema: ai-agent-sdlc/technical-debt-register/v1
+workflow_version: 2.0.0-rc6
+updated_at: null
+items: []
+# - id: TD-001
+#   scope: orders
+#   status: OPEN
+#   reason: null
+#   impact: null
+#   owner: null
+#   trigger: null
+#   introduced_by: null
+#   related_requirements: []
+#   related_decisions: []
+#   target_work_item: null
+#   resolved_by: null

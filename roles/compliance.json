@@ -1,0 +1,16 @@
+{
+  "stages": [
+    "REQUIREMENTS",
+    "DESIGN",
+    "REVIEW",
+    "RELEASE"
+  ],
+  "responsibilities": [
+    "control mapping",
+    "evidence",
+    "retention/privacy checks"
+  ],
+  "id": "compliance",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

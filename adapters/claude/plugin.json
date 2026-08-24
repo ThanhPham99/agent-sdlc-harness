@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "agent-sdlc-harness",
+  "displayName": "Agent SDLC Harness",
+  "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for Claude Code.",
+  "version": "3.0.0-alpha3",
+  "author": {"name": "Agent SDLC Harness Contributors"},
+  "keywords": ["sdlc", "coding-agents", "testing", "security", "devops", "token-efficiency"]
+}

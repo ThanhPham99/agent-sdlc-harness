@@ -1,0 +1,14 @@
+{
+  "stages": [
+    "RELEASE",
+    "DEPLOY"
+  ],
+  "responsibilities": [
+    "release readiness",
+    "change window",
+    "sign-off"
+  ],
+  "id": "release-manager",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

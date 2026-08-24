@@ -1,0 +1,17 @@
+{
+  "stages": [
+    "DESIGN",
+    "VERIFY",
+    "REVIEW",
+    "RELEASE"
+  ],
+  "responsibilities": [
+    "threat model",
+    "SAST/SCA",
+    "security review",
+    "exceptions"
+  ],
+  "id": "security",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

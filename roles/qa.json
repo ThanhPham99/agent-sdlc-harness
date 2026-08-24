@@ -1,0 +1,17 @@
+{
+  "stages": [
+    "REQUIREMENTS",
+    "PLAN",
+    "VERIFY",
+    "REVIEW"
+  ],
+  "responsibilities": [
+    "test strategy",
+    "coverage",
+    "e2e",
+    "quality evidence"
+  ],
+  "id": "qa",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

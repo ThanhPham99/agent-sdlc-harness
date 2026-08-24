@@ -1,0 +1,17 @@
+{
+  "stages": [
+    "REQUIREMENTS",
+    "DESIGN",
+    "PLAN",
+    "REVIEW"
+  ],
+  "responsibilities": [
+    "architecture",
+    "contracts",
+    "tradeoffs",
+    "ADRs"
+  ],
+  "id": "architect",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

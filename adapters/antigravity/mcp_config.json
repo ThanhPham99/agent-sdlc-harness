@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "agent-sdlc": {
+      "command": "node",
+      "args": ["./runtime/mcp-server.mjs"],
+      "cwd": "."
+    }
+  }
+}

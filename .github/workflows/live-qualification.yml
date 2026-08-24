@@ -1,0 +1,132 @@
+name: Agent SDLC live qualification
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - run: npm test
+      - run: npm run build
+      - run: npm run verify:dist
+      - run: npm run test:qualification-harness
+      - run: npm run test:qualification-transport
+      - uses: actions/upload-artifact@v4
+        with:
+          name: exact-host-packages
+          path: |
+            dist/agent-sdlc-claude-*.zip
+            dist/agent-sdlc-codex-*.zip
+            dist/agent-sdlc-antigravity-*.zip
+            dist/DISTRIBUTION-VALIDATION.json
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
+
+  qualify:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        host: [claude, codex, antigravity]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-host-packages
+          path: dist
+      - name: Install Claude Code
+        if: matrix.host == 'claude'
+        run: |
+          curl -fsSL https://claude.ai/install.sh | bash
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Install Codex CLI
+        if: matrix.host == 'codex'
+        run: npm install -g @openai/codex
+      - name: Install Antigravity CLI
+        if: matrix.host == 'antigravity'
+        run: |
+          curl -fsSL https://antigravity.google/cli/install.sh | bash
+          mkdir -p ~/.gemini/antigravity-cli
+          printf '{"modelProvider":"gemini"}\n' > ~/.gemini/antigravity-cli/settings.json
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Qualify Claude Code
+        if: matrix.host == 'claude'
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          mkdir -p evidence
+          version=$(cat VERSION)
+          node scripts/qualify-host.mjs --host claude --tier FULL --output "evidence/claude-full-v${version}.json"
+      - name: Qualify Codex
+        if: matrix.host == 'codex'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          mkdir -p evidence
+          version=$(cat VERSION)
+          node scripts/qualify-host.mjs --host codex --tier FULL --output "evidence/codex-full-v${version}.json"
+      - name: Qualify Antigravity
+        if: matrix.host == 'antigravity'
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          mkdir -p evidence
+          version=$(cat VERSION)
+          node scripts/qualify-host.mjs --host antigravity --tier FULL --output "evidence/antigravity-full-v${version}.json"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evidence-${{ matrix.host }}
+          path: evidence/*.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  aggregate:
+    if: always()
+    needs: [prepare, qualify]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@v4
+        with:
+          name: exact-host-packages
+          path: dist
+      - uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          pattern: evidence-*
+          path: evidence
+          merge-multiple: true
+      - name: Aggregate exact evidence and gate RC promotion
+        run: |
+          version=$(cat VERSION)
+          node scripts/qualify-release.mjs \
+            --evidence claude="evidence/claude-full-v${version}.json" \
+            --evidence codex="evidence/codex-full-v${version}.json" \
+            --evidence antigravity="evidence/antigravity-full-v${version}.json" \
+            --output dist/LIVE-QUALIFICATION-RESULT.json \
+            --approval dist/V3-PROMOTION-APPROVAL.json
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-qualification-result
+          path: |
+            dist/LIVE-QUALIFICATION-RESULT.json
+            dist/V3-PROMOTION-APPROVAL.json
+          if-no-files-found: warn
+          retention-days: 30

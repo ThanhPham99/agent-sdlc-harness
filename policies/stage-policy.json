@@ -1,0 +1,312 @@
+{
+  "schema": "agent-sdlc/stage-policy/v1",
+  "version": "3.0.0-alpha3",
+  "stages": {
+    "INTAKE": {
+      "roles": [
+        "pm",
+        "support"
+      ],
+      "allowed_tools": [
+        "input.normalize",
+        "repo.read"
+      ],
+      "denied_tools": [
+        "deploy.production"
+      ],
+      "budget": {
+        "max_wall_seconds": 900,
+        "max_model_calls": 8,
+        "max_tool_calls": 40,
+        "max_parallel_agents": 1,
+        "max_context_tokens_estimate": 40000,
+        "max_output_tokens": 6000
+      },
+      "gate_requirements": []
+    },
+    "REQUIREMENTS": {
+      "roles": [
+        "pm",
+        "architect",
+        "qa"
+      ],
+      "allowed_tools": [
+        "input.normalize",
+        "repo.read",
+        "repo.search",
+        "repo.symbol"
+      ],
+      "denied_tools": [
+        "deploy.production"
+      ],
+      "budget": {
+        "max_wall_seconds": 900,
+        "max_model_calls": 8,
+        "max_tool_calls": 40,
+        "max_parallel_agents": 1,
+        "max_context_tokens_estimate": 40000,
+        "max_output_tokens": 6000
+      },
+      "gate_requirements": [
+        "requirements_confirmed"
+      ]
+    },
+    "DESIGN": {
+      "roles": [
+        "architect",
+        "security",
+        "sre",
+        "dba"
+      ],
+      "allowed_tools": [
+        "repo.read",
+        "repo.search",
+        "repo.symbol",
+        "repo.diff",
+        "security.sast",
+        "security.sca"
+      ],
+      "denied_tools": [
+        "deploy.production"
+      ],
+      "budget": {
+        "max_wall_seconds": 900,
+        "max_model_calls": 10,
+        "max_tool_calls": 40,
+        "max_parallel_agents": 1,
+        "max_context_tokens_estimate": 60000,
+        "max_output_tokens": 6000
+      },
+      "gate_requirements": [
+        "design_or_skip_decision"
+      ]
+    },
+    "PLAN": {
+      "roles": [
+        "architect",
+        "developer",
+        "qa",
+        "devops"
+      ],
+      "allowed_tools": [
+        "repo.read",
+        "repo.search",
+        "repo.symbol",
+        "repo.diff"
+      ],
+      "denied_tools": [
+        "deploy.production"
+      ],
+      "budget": {
+        "max_wall_seconds": 900,
+        "max_model_calls": 10,
+        "max_tool_calls": 40,
+        "max_parallel_agents": 1,
+        "max_context_tokens_estimate": 60000,
+        "max_output_tokens": 6000
+      },
+      "gate_requirements": [
+        "plan_ready"
+      ]
+    },
+    "IMPLEMENT": {
+      "roles": [
+        "developer"
+      ],
+      "allowed_tools": [
+        "repo.read",
+        "repo.search",
+        "repo.symbol",
+        "repo.diff",
+        "repo.patch",
+        "git.status",
+        "test.run_targeted",
+        "build.run",
+        "security.secret_scan"
+      ],
+      "denied_tools": [
+        "deploy.production"
+      ],
+      "budget": {
+        "max_wall_seconds": 1800,
+        "max_model_calls": 12,
+        "max_tool_calls": 80,
+        "max_parallel_agents": 2,
+        "max_context_tokens_estimate": 80000,
+        "max_output_tokens": 6000
+      },
+      "gate_requirements": [
+        "implementation_artifact"
+      ]
+    },
+    "VERIFY": {
+      "roles": [
+        "developer",
+        "qa",
+        "security"
+      ],
+      "allowed_tools": [
+        "repo.read",
+        "repo.diff",
+        "git.status",
+        "test.run_targeted",
+        "test.run_full",
+        "build.run",
+        "security.sast",
+        "security.sca",
+        "security.secret_scan"
+      ],
+      "denied_tools": [
+        "deploy.production"
+      ],
+      "budget": {
+        "max_wall_seconds": 1800,
+        "max_model_calls": 12,
+        "max_tool_calls": 80,
+        "max_parallel_agents": 2,
+        "max_context_tokens_estimate": 80000,
+        "max_output_tokens": 6000
+      },
+      "gate_requirements": [
+        "targeted_verification_pass",
+        "no_new_high_security_findings"
+      ]
+    },
+    "REVIEW": {
+      "roles": [
+        "architect",
+        "qa",
+        "security"
+      ],
+      "allowed_tools": [
+        "repo.read",
+        "repo.search",
+        "repo.symbol",
+        "repo.diff",
+        "test.run_targeted",
+        "security.sast",
+        "security.sca",
+        "security.secret_scan"
+      ],
+      "denied_tools": [
+        "deploy.production"
+      ],
+      "budget": {
+        "max_wall_seconds": 900,
+        "max_model_calls": 10,
+        "max_tool_calls": 40,
+        "max_parallel_agents": 1,
+        "max_context_tokens_estimate": 60000,
+        "max_output_tokens": 6000
+      },
+      "gate_requirements": [
+        "required_reviews_resolved"
+      ]
+    },
+    "RELEASE": {
+      "roles": [
+        "devops",
+        "release-manager",
+        "security"
+      ],
+      "allowed_tools": [
+        "repo.read",
+        "repo.diff",
+        "test.run_full",
+        "build.run",
+        "security.sast",
+        "security.sca",
+        "deploy.plan"
+      ],
+      "denied_tools": [
+        "deploy.production"
+      ],
+      "budget": {
+        "max_wall_seconds": 900,
+        "max_model_calls": 8,
+        "max_tool_calls": 40,
+        "max_parallel_agents": 1,
+        "max_context_tokens_estimate": 40000,
+        "max_output_tokens": 6000
+      },
+      "gate_requirements": [
+        "release_evidence_current"
+      ]
+    },
+    "DEPLOY": {
+      "roles": [
+        "sre",
+        "devops",
+        "ops"
+      ],
+      "allowed_tools": [
+        "deploy.plan",
+        "deploy.production",
+        "observability.query"
+      ],
+      "denied_tools": [],
+      "budget": {
+        "max_wall_seconds": 900,
+        "max_model_calls": 6,
+        "max_tool_calls": 30,
+        "max_parallel_agents": 1,
+        "max_context_tokens_estimate": 40000,
+        "max_output_tokens": 6000
+      },
+      "gate_requirements": [
+        "deployment_receipt"
+      ]
+    },
+    "OBSERVE": {
+      "roles": [
+        "sre",
+        "ops",
+        "support"
+      ],
+      "allowed_tools": [
+        "observability.query"
+      ],
+      "denied_tools": [
+        "deploy.production"
+      ],
+      "budget": {
+        "max_wall_seconds": 900,
+        "max_model_calls": 6,
+        "max_tool_calls": 30,
+        "max_parallel_agents": 1,
+        "max_context_tokens_estimate": 40000,
+        "max_output_tokens": 6000
+      },
+      "gate_requirements": [
+        "production_health_verified"
+      ]
+    },
+    "CLOSE": {
+      "roles": [
+        "pm",
+        "tech-writer",
+        "architect"
+      ],
+      "allowed_tools": [
+        "repo.read",
+        "repo.diff",
+        "repo.patch"
+      ],
+      "denied_tools": [
+        "deploy.production"
+      ],
+      "budget": {
+        "max_wall_seconds": 900,
+        "max_model_calls": 8,
+        "max_tool_calls": 40,
+        "max_parallel_agents": 1,
+        "max_context_tokens_estimate": 40000,
+        "max_output_tokens": 6000
+      },
+      "gate_requirements": [
+        "handoff_written",
+        "docs_reconciled"
+      ]
+    }
+  }
+}

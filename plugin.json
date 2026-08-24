@@ -1,0 +1,5 @@
+{
+  "$schema": "https://antigravity.google/schemas/v1/plugin.json",
+  "name": "agent-sdlc-harness",
+  "description": "Evidence-driven SDLC harness for Antigravity"
+}

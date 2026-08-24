@@ -1,0 +1,27 @@
+{
+  "name": "agent-sdlc-harness",
+  "version": "3.0.0-alpha3",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node evals/run-deterministic.mjs",
+    "build": "node scripts/build-dist.mjs",
+    "doctor": "node runtime/cli.mjs doctor",
+    "verify:dist": "node scripts/verify-dist.mjs",
+    "preflight:hosts": "node scripts/host-preflight.mjs",
+    "qualify:claude": "node scripts/qualify-host.mjs --host claude --tier FULL",
+    "qualify:codex": "node scripts/qualify-host.mjs --host codex --tier FULL",
+    "qualify:antigravity": "node scripts/qualify-host.mjs --host antigravity --tier FULL",
+    "qualify:release": "node scripts/qualify-release.mjs",
+    "qualify:all": "node scripts/qualify-all-live.mjs --tier FULL",
+    "test:qualification-harness": "node scripts/test-qualification-harness.mjs",
+    "test:qualification-transport": "node scripts/test-qualification-transport.mjs",
+    "validate:github": "node scripts/validate-github-install.mjs",
+    "test:github-installers": "node scripts/test-github-installers.mjs",
+    "check": "npm test && npm run validate:github && npm run test:github-installers && npm run test:qualification-harness && npm run test:qualification-transport && npm run build && npm run verify:dist",
+    "package:release": "node scripts/package-release.mjs"
+  }
+}

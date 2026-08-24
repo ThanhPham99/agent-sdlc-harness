@@ -1,0 +1,25 @@
+{
+  "schema": "agent-sdlc/parallelism-policy/v1",
+  "version": "3.0.0-alpha3",
+  "default_max_parallel_agents": 1,
+  "hard_default_max": 2,
+  "parallelize_when": [
+    "write_sets_disjoint",
+    "interfaces_stable_or_read_only",
+    "expected_wall_time_saved_exceeds_coordination_cost"
+  ],
+  "serialize_when": [
+    "same_path",
+    "same_interface",
+    "same_schema_or_data_object",
+    "same_security_boundary",
+    "same_dependency_version",
+    "same_migration_slot"
+  ],
+  "allowed_examples": [
+    "backend_and_frontend_disjoint",
+    "test_and_security_review_read_only",
+    "independent_incident_hypotheses",
+    "disjoint_module_migration"
+  ]
+}

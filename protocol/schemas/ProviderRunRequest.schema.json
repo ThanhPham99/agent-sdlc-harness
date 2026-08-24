@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/ProviderRunRequest/v1",
+  "title": "ProviderRunRequest",
+  "type": "object",
+  "required": [
+    "runId",
+    "stage",
+    "objective",
+    "context",
+    "policy",
+    "budget",
+    "outputSchema"
+  ],
+  "properties": {
+    "runId": {
+      "type": "string"
+    },
+    "stage": {
+      "type": "string"
+    },
+    "objective": {
+      "type": "string"
+    },
+    "context": {
+      "type": "object"
+    },
+    "policy": {
+      "type": "object"
+    },
+    "budget": {
+      "type": "object"
+    },
+    "outputSchema": {
+      "type": "object"
+    }
+  }
+}

@@ -1,0 +1,38 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  offline-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Deterministic regression
+        run: npm test
+      - name: Validate GitHub-native install surfaces
+        run: npm run validate:github
+      - name: Test bootstrap installers with fake host CLIs
+        run: npm run test:github-installers
+      - name: Build provider distributions
+        run: npm run build
+      - name: Verify extracted distributions
+        run: npm run verify:dist
+      - name: Package release candidates
+        run: npm run package:release
+      - name: Upload offline validation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-sdlc-${{ github.sha }}
+          path: |
+            release/*
+            evals/DETERMINISTIC-VALIDATION.json
+          if-no-files-found: error
+          retention-days: 14

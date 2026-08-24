@@ -1,0 +1,48 @@
+schema: ai-agent-sdlc/release-board/v1
+workflow_version: 2.0.0-rc6
+revision: 0
+release_id: null
+release_mode: CONTINUOUS
+source_revision: null
+completion_target: PRODUCTION_VERIFIED
+status: PLANNING
+updated_at: null
+candidates: []
+environments:
+- name: staging
+  status: NOT_STARTED
+  revision: null
+  verification: NOT_STARTED
+- name: production
+  status: NOT_STARTED
+  revision: null
+  verification: NOT_STARTED
+release_train:
+  dependencies: []
+  ordering: []
+  unresolved_conflicts: []
+strategy:
+  type: null
+  reason: null
+  blast_radius: null
+feature_flags: []
+migrations: []
+rollout:
+  stages: []
+  current_stage: null
+  status: NOT_STARTED
+  success_criteria: []
+  abort_conditions: []
+recovery:
+  rollback_available: null
+  roll_forward_available: null
+  selected_mode: null
+  last_known_good_revision: null
+post_deploy:
+  required_checks: []
+  status: NOT_STARTED
+  verified_revision: null
+  business_invariants: []
+incidents: []
+feedback: []
+notes: []

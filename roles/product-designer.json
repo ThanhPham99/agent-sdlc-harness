@@ -1,0 +1,14 @@
+{
+  "stages": [
+    "REQUIREMENTS",
+    "DESIGN"
+  ],
+  "responsibilities": [
+    "user flow",
+    "interaction constraints",
+    "design acceptance"
+  ],
+  "id": "product-designer",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

@@ -1,0 +1,31 @@
+schema: ai-agent-sdlc/knowledge-index/v1
+workflow_version: 2.0.0-rc6
+project_revision: null
+index_revision: 0
+updated_at: null
+entries: []
+# Example entry shape:
+# - id: architecture://orders
+#   kind: architecture
+#   path: .ai-workflow/project/architecture.md#orders
+#   scope: orders
+#   status: CURRENT
+#   authority: CONFIRMED
+#   source_revision: null
+#   dependency_fingerprint: null
+#   affected_facets: [architecture, interface]
+#   review_after: null
+#   superseded_by: null
+#   shard: null
+shards: []
+# - path: .ai-workflow/project/knowledge/archive/orders-2026.yaml
+#   digest: null
+#   scope: orders
+#   kinds: [feature_history, decisions]
+#   current_pointer: null
+compaction:
+  last_run_at: null
+  last_run_revision: null
+  root_proxy_tokens: null
+  closed_feature_rows: 0
+  next_action: NONE

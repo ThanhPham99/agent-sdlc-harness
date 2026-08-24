@@ -1,0 +1,387 @@
+{
+  "schema": "agent-sdlc/state-machine/v1",
+  "version": "3.0.0-alpha3",
+  "initial": "INTAKE",
+  "lifecycle_order": [
+    "INTAKE",
+    "REQUIREMENTS",
+    "DESIGN",
+    "PLAN",
+    "IMPLEMENT",
+    "VERIFY",
+    "REVIEW",
+    "RELEASE",
+    "DEPLOY",
+    "OBSERVE",
+    "CLOSE"
+  ],
+  "terminal": [
+    "CLOSE",
+    "FAILED",
+    "DEFERRED",
+    "SUPERSEDED"
+  ],
+  "side_states": [
+    "NEEDS_CONFIRMATION",
+    "BLOCKED",
+    "FAILED",
+    "DEFERRED",
+    "SUPERSEDED"
+  ],
+  "edges": [
+    {
+      "from": "INTAKE",
+      "to": "REQUIREMENTS",
+      "kind": "forward"
+    },
+    {
+      "from": "REQUIREMENTS",
+      "to": "DESIGN",
+      "kind": "forward"
+    },
+    {
+      "from": "DESIGN",
+      "to": "PLAN",
+      "kind": "forward"
+    },
+    {
+      "from": "PLAN",
+      "to": "IMPLEMENT",
+      "kind": "forward"
+    },
+    {
+      "from": "IMPLEMENT",
+      "to": "VERIFY",
+      "kind": "forward"
+    },
+    {
+      "from": "VERIFY",
+      "to": "REVIEW",
+      "kind": "forward"
+    },
+    {
+      "from": "REVIEW",
+      "to": "RELEASE",
+      "kind": "forward"
+    },
+    {
+      "from": "RELEASE",
+      "to": "DEPLOY",
+      "kind": "forward"
+    },
+    {
+      "from": "DEPLOY",
+      "to": "OBSERVE",
+      "kind": "forward"
+    },
+    {
+      "from": "OBSERVE",
+      "to": "CLOSE",
+      "kind": "forward"
+    },
+    {
+      "from": "VERIFY",
+      "to": "IMPLEMENT",
+      "kind": "reentry",
+      "reason": "new evidence requires code change"
+    },
+    {
+      "from": "REVIEW",
+      "to": "IMPLEMENT",
+      "kind": "reentry",
+      "reason": "new evidence requires code change"
+    },
+    {
+      "from": "RELEASE",
+      "to": "IMPLEMENT",
+      "kind": "reentry",
+      "reason": "new evidence requires code change"
+    },
+    {
+      "from": "DESIGN",
+      "to": "REQUIREMENTS",
+      "kind": "reentry",
+      "reason": "authoritative requirement changed"
+    },
+    {
+      "from": "PLAN",
+      "to": "REQUIREMENTS",
+      "kind": "reentry",
+      "reason": "authoritative requirement changed"
+    },
+    {
+      "from": "IMPLEMENT",
+      "to": "REQUIREMENTS",
+      "kind": "reentry",
+      "reason": "authoritative requirement changed"
+    },
+    {
+      "from": "VERIFY",
+      "to": "REQUIREMENTS",
+      "kind": "reentry",
+      "reason": "authoritative requirement changed"
+    },
+    {
+      "from": "REVIEW",
+      "to": "REQUIREMENTS",
+      "kind": "reentry",
+      "reason": "authoritative requirement changed"
+    },
+    {
+      "from": "RELEASE",
+      "to": "REQUIREMENTS",
+      "kind": "reentry",
+      "reason": "authoritative requirement changed"
+    },
+    {
+      "from": "INTAKE",
+      "to": "NEEDS_CONFIRMATION",
+      "kind": "suspend"
+    },
+    {
+      "from": "INTAKE",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "INTAKE",
+      "to": "FAILED",
+      "kind": "terminal"
+    },
+    {
+      "from": "REQUIREMENTS",
+      "to": "NEEDS_CONFIRMATION",
+      "kind": "suspend"
+    },
+    {
+      "from": "REQUIREMENTS",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "REQUIREMENTS",
+      "to": "FAILED",
+      "kind": "terminal"
+    },
+    {
+      "from": "DESIGN",
+      "to": "NEEDS_CONFIRMATION",
+      "kind": "suspend"
+    },
+    {
+      "from": "DESIGN",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "DESIGN",
+      "to": "FAILED",
+      "kind": "terminal"
+    },
+    {
+      "from": "PLAN",
+      "to": "NEEDS_CONFIRMATION",
+      "kind": "suspend"
+    },
+    {
+      "from": "PLAN",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "PLAN",
+      "to": "FAILED",
+      "kind": "terminal"
+    },
+    {
+      "from": "IMPLEMENT",
+      "to": "NEEDS_CONFIRMATION",
+      "kind": "suspend"
+    },
+    {
+      "from": "IMPLEMENT",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "IMPLEMENT",
+      "to": "FAILED",
+      "kind": "terminal"
+    },
+    {
+      "from": "VERIFY",
+      "to": "NEEDS_CONFIRMATION",
+      "kind": "suspend"
+    },
+    {
+      "from": "VERIFY",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "VERIFY",
+      "to": "FAILED",
+      "kind": "terminal"
+    },
+    {
+      "from": "REVIEW",
+      "to": "NEEDS_CONFIRMATION",
+      "kind": "suspend"
+    },
+    {
+      "from": "REVIEW",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "REVIEW",
+      "to": "FAILED",
+      "kind": "terminal"
+    },
+    {
+      "from": "RELEASE",
+      "to": "NEEDS_CONFIRMATION",
+      "kind": "suspend"
+    },
+    {
+      "from": "RELEASE",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "RELEASE",
+      "to": "FAILED",
+      "kind": "terminal"
+    },
+    {
+      "from": "DEPLOY",
+      "to": "NEEDS_CONFIRMATION",
+      "kind": "suspend"
+    },
+    {
+      "from": "DEPLOY",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "DEPLOY",
+      "to": "FAILED",
+      "kind": "terminal"
+    },
+    {
+      "from": "OBSERVE",
+      "to": "NEEDS_CONFIRMATION",
+      "kind": "suspend"
+    },
+    {
+      "from": "OBSERVE",
+      "to": "BLOCKED",
+      "kind": "suspend"
+    },
+    {
+      "from": "OBSERVE",
+      "to": "FAILED",
+      "kind": "terminal"
+    },
+    {
+      "from": "NEEDS_CONFIRMATION",
+      "to": "INTAKE",
+      "kind": "resume"
+    },
+    {
+      "from": "BLOCKED",
+      "to": "INTAKE",
+      "kind": "resume"
+    },
+    {
+      "from": "NEEDS_CONFIRMATION",
+      "to": "REQUIREMENTS",
+      "kind": "resume"
+    },
+    {
+      "from": "BLOCKED",
+      "to": "REQUIREMENTS",
+      "kind": "resume"
+    },
+    {
+      "from": "NEEDS_CONFIRMATION",
+      "to": "DESIGN",
+      "kind": "resume"
+    },
+    {
+      "from": "BLOCKED",
+      "to": "DESIGN",
+      "kind": "resume"
+    },
+    {
+      "from": "NEEDS_CONFIRMATION",
+      "to": "PLAN",
+      "kind": "resume"
+    },
+    {
+      "from": "BLOCKED",
+      "to": "PLAN",
+      "kind": "resume"
+    },
+    {
+      "from": "NEEDS_CONFIRMATION",
+      "to": "IMPLEMENT",
+      "kind": "resume"
+    },
+    {
+      "from": "BLOCKED",
+      "to": "IMPLEMENT",
+      "kind": "resume"
+    },
+    {
+      "from": "NEEDS_CONFIRMATION",
+      "to": "VERIFY",
+      "kind": "resume"
+    },
+    {
+      "from": "BLOCKED",
+      "to": "VERIFY",
+      "kind": "resume"
+    },
+    {
+      "from": "NEEDS_CONFIRMATION",
+      "to": "REVIEW",
+      "kind": "resume"
+    },
+    {
+      "from": "BLOCKED",
+      "to": "REVIEW",
+      "kind": "resume"
+    },
+    {
+      "from": "NEEDS_CONFIRMATION",
+      "to": "RELEASE",
+      "kind": "resume"
+    },
+    {
+      "from": "BLOCKED",
+      "to": "RELEASE",
+      "kind": "resume"
+    },
+    {
+      "from": "NEEDS_CONFIRMATION",
+      "to": "DEPLOY",
+      "kind": "resume"
+    },
+    {
+      "from": "BLOCKED",
+      "to": "DEPLOY",
+      "kind": "resume"
+    },
+    {
+      "from": "NEEDS_CONFIRMATION",
+      "to": "OBSERVE",
+      "kind": "resume"
+    },
+    {
+      "from": "BLOCKED",
+      "to": "OBSERVE",
+      "kind": "resume"
+    }
+  ]
+}

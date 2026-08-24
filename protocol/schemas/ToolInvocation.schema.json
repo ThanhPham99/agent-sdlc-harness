@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/ToolInvocation/v1",
+  "title": "ToolInvocation",
+  "type": "object",
+  "required": [
+    "tool",
+    "version",
+    "arguments",
+    "execution"
+  ],
+  "properties": {
+    "tool": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "idempotency_key": {
+      "type": "string"
+    },
+    "arguments": {
+      "type": "object"
+    },
+    "execution": {
+      "type": "object"
+    }
+  }
+}

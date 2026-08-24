@@ -1,0 +1,17 @@
+{
+  "stages": [
+    "PLAN",
+    "VERIFY",
+    "RELEASE",
+    "DEPLOY"
+  ],
+  "responsibilities": [
+    "CI/CD",
+    "build",
+    "provenance",
+    "deployment automation"
+  ],
+  "id": "devops",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

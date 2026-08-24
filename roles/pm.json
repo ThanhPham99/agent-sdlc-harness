@@ -1,0 +1,17 @@
+{
+  "stages": [
+    "INTAKE",
+    "REQUIREMENTS",
+    "RELEASE",
+    "CLOSE"
+  ],
+  "responsibilities": [
+    "scope",
+    "acceptance criteria",
+    "priority",
+    "stakeholder decisions"
+  ],
+  "id": "pm",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

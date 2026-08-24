@@ -1,0 +1,49 @@
+{
+  "schema": "agent-sdlc/qualification-harness-regression/v1",
+  "version": "3.0.0-alpha3",
+  "checks": 10,
+  "passes": 10,
+  "failures": 0,
+  "results": [
+    {
+      "name": "preflight-compatible-claude",
+      "status": "PASS"
+    },
+    {
+      "name": "preflight-compatible-codex",
+      "status": "PASS"
+    },
+    {
+      "name": "preflight-compatible-antigravity",
+      "status": "PASS"
+    },
+    {
+      "name": "preflight-incompatible-blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "structured-output-extraction",
+      "status": "PASS"
+    },
+    {
+      "name": "token-usage-proxy-marked",
+      "status": "PASS"
+    },
+    {
+      "name": "promotion-accepts-exact-fresh-qualified-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "promotion-rejects-package-digest-tamper",
+      "status": "PASS"
+    },
+    {
+      "name": "promotion-rejects-stale-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "promotion-preserves-pending-as-exit-2",
+      "status": "PASS"
+    }
+  ]
+}

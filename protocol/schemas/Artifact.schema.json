@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/Artifact/v1",
+  "title": "Artifact",
+  "type": "object",
+  "required": [
+    "artifact_id",
+    "kind",
+    "sha256",
+    "path",
+    "created_at"
+  ],
+  "properties": {
+    "artifact_id": {
+      "type": "string"
+    },
+    "kind": {
+      "type": "string"
+    },
+    "sha256": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "created_at": {
+      "type": "string"
+    },
+    "run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "stage": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "source_revision": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  }
+}

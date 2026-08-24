@@ -1,0 +1,13 @@
+schema: ai-agent-sdlc/coordination-board/v1
+workflow_version: 2.0.0-rc6
+revision: 0
+project_baseline_revision: null
+updated_at: null
+active_work_items: []
+conflicts: []
+merge_queue: []
+project_doc_reconciliation:
+  required: false
+  work_items: []
+  status: NOT_REQUIRED
+notes: []

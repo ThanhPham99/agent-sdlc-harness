@@ -1,0 +1,38 @@
+{
+  "schema": "agent-sdlc/provider-preflight/v1",
+  "version": "3.0.0-alpha3",
+  "results": [
+    {
+      "host": "claude",
+      "available": false,
+      "version": null,
+      "structured_output": false,
+      "resumable": false,
+      "sandbox": false,
+      "mcp": false,
+      "status": "PENDING"
+    },
+    {
+      "host": "codex",
+      "available": false,
+      "version": null,
+      "structured_output": false,
+      "resumable": false,
+      "sandbox": false,
+      "mcp": false,
+      "status": "PENDING"
+    },
+    {
+      "host": "antigravity",
+      "available": false,
+      "version": null,
+      "structured_output": false,
+      "resumable": false,
+      "sandbox": false,
+      "mcp": false,
+      "status": "PENDING"
+    }
+  ],
+  "qualified": false,
+  "note": "READY means CLI capability preflight only; it is not semantic qualification."
+}

@@ -1,0 +1,14 @@
+{
+  "stages": [
+    "DEPLOY",
+    "OBSERVE"
+  ],
+  "responsibilities": [
+    "operations",
+    "runbooks",
+    "production changes"
+  ],
+  "id": "ops",
+  "default_constraint": "no specific constraint",
+  "progressive_disclosure": true
+}

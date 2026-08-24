@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "activate",
+    "workflow",
+    "profile",
+    "overlays",
+    "human_stop_required",
+    "next_action"
+  ],
+  "properties": {
+    "activate": {
+      "type": "boolean"
+    },
+    "workflow": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "profile": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "FAST",
+        "STANDARD",
+        "STRICT",
+        null
+      ]
+    },
+    "overlays": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "human_stop_required": {
+      "type": "boolean"
+    },
+    "next_action": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "reason_codes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "untrusted_instruction_detected": {
+      "type": "boolean"
+    },
+    "trust_action": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "NONE",
+        "QUARANTINE",
+        "HUMAN",
+        "DENY",
+        null
+      ]
+    },
+    "approval_required": {
+      "type": "boolean"
+    }
+  },
+  "additionalProperties": true
+}

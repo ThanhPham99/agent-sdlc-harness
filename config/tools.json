@@ -1,0 +1,196 @@
+{
+  "schema": "agent-sdlc/tool-registry/v1",
+  "version": "3.0.0-alpha3",
+  "tools": {
+    "input.normalize": {
+      "name": "input.normalize",
+      "version": "1.0.0",
+      "risk": "read",
+      "idempotent": true,
+      "deterministic": true,
+      "implementation": "builtin",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "repo.read": {
+      "name": "repo.read",
+      "version": "1.0.0",
+      "risk": "read",
+      "idempotent": true,
+      "deterministic": true,
+      "implementation": "builtin",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "repo.search": {
+      "name": "repo.search",
+      "version": "1.0.0",
+      "risk": "read",
+      "idempotent": true,
+      "deterministic": true,
+      "implementation": "builtin",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "repo.symbol": {
+      "name": "repo.symbol",
+      "version": "1.0.0",
+      "risk": "read",
+      "idempotent": true,
+      "deterministic": true,
+      "implementation": "external",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "repo.diff": {
+      "name": "repo.diff",
+      "version": "1.0.0",
+      "risk": "read",
+      "idempotent": true,
+      "deterministic": true,
+      "implementation": "builtin",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "repo.patch": {
+      "name": "repo.patch",
+      "version": "1.0.0",
+      "risk": "write",
+      "idempotent": false,
+      "deterministic": true,
+      "implementation": "host",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "git.status": {
+      "name": "git.status",
+      "version": "1.0.0",
+      "risk": "read",
+      "idempotent": true,
+      "deterministic": true,
+      "implementation": "builtin",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "git.worktree": {
+      "name": "git.worktree",
+      "version": "1.0.0",
+      "risk": "write",
+      "idempotent": false,
+      "deterministic": true,
+      "implementation": "host",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "test.run_targeted": {
+      "name": "test.run_targeted",
+      "version": "1.0.0",
+      "risk": "write",
+      "idempotent": true,
+      "deterministic": true,
+      "implementation": "project-command",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "test.run_full": {
+      "name": "test.run_full",
+      "version": "1.0.0",
+      "risk": "write",
+      "idempotent": true,
+      "deterministic": true,
+      "implementation": "project-command",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "build.run": {
+      "name": "build.run",
+      "version": "1.0.0",
+      "risk": "write",
+      "idempotent": true,
+      "deterministic": true,
+      "implementation": "project-command",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "security.sast": {
+      "name": "security.sast",
+      "version": "1.0.0",
+      "risk": "read",
+      "idempotent": true,
+      "deterministic": true,
+      "implementation": "external",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "security.sca": {
+      "name": "security.sca",
+      "version": "1.0.0",
+      "risk": "read",
+      "idempotent": true,
+      "deterministic": true,
+      "implementation": "external",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "security.secret_scan": {
+      "name": "security.secret_scan",
+      "version": "1.0.0",
+      "risk": "read",
+      "idempotent": true,
+      "deterministic": true,
+      "implementation": "builtin",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "db.migration_plan": {
+      "name": "db.migration_plan",
+      "version": "1.0.0",
+      "risk": "privileged",
+      "idempotent": false,
+      "deterministic": false,
+      "implementation": "external",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "deploy.plan": {
+      "name": "deploy.plan",
+      "version": "1.0.0",
+      "risk": "read",
+      "idempotent": true,
+      "deterministic": false,
+      "implementation": "external",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "deploy.production": {
+      "name": "deploy.production",
+      "version": "1.0.0",
+      "risk": "privileged",
+      "idempotent": false,
+      "deterministic": false,
+      "implementation": "external",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "observability.query": {
+      "name": "observability.query",
+      "version": "1.0.0",
+      "risk": "read",
+      "idempotent": true,
+      "deterministic": false,
+      "implementation": "external",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    },
+    "docs.patch": {
+      "name": "docs.patch",
+      "version": "1.0.0",
+      "risk": "write",
+      "idempotent": false,
+      "deterministic": true,
+      "implementation": "host",
+      "default_timeout_ms": 120000,
+      "max_return_bytes": 24000
+    }
+  }
+}

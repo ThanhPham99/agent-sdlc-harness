@@ -1,0 +1,41 @@
+{
+  "schema": "agent-sdlc/model-routing/v1",
+  "version": "3.0.0-alpha3",
+  "strategy": "cheapest-qualified-first-with-risk-floor",
+  "principles": [
+    "no model for mechanical deterministic work",
+    "cheap model for classification/triage/summarization",
+    "standard coding model for normal implementation",
+    "high reasoning for architecture/root-cause/security",
+    "independent review should be a separate invocation/context"
+  ],
+  "provider_order": [
+    "claude",
+    "codex",
+    "antigravity"
+  ],
+  "risk_floor": {
+    "FAST": "economy",
+    "STANDARD": "standard",
+    "STRICT": "standard",
+    "production-critical": "high"
+  },
+  "provider_specific": {
+    "claude": {
+      "economy": "haiku",
+      "standard": "sonnet",
+      "high": "opus-or-high-effort-sonnet"
+    },
+    "codex": {
+      "economy": "configured-low-cost",
+      "standard": "codex-default",
+      "high": "codex-high-reasoning"
+    },
+    "antigravity": {
+      "economy": "configured-flash",
+      "standard": "configured-agent-default",
+      "high": "configured-high-reasoning"
+    }
+  },
+  "pricing": "external registry; never hard-code billing claims in prompts"
+}

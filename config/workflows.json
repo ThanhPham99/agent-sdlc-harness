@@ -1,0 +1,366 @@
+{
+  "schema": "agent-sdlc/workflow-registry/v1",
+  "version": "3.0.0-alpha3",
+  "workflows": {
+    "new-feature": {
+      "id": "new-feature",
+      "default_profile": "STANDARD",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "DEPLOY",
+        "OBSERVE",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "continue-feature": {
+      "id": "continue-feature",
+      "default_profile": "STANDARD",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "bug-fix": {
+      "id": "bug-fix",
+      "default_profile": "STANDARD",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "hotfix": {
+      "id": "hotfix",
+      "default_profile": "STRICT",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "DEPLOY",
+        "OBSERVE",
+        "CLOSE"
+      ],
+      "required_overlays": [
+        "hotfix"
+      ]
+    },
+    "refactor": {
+      "id": "refactor",
+      "default_profile": "STANDARD",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "performance": {
+      "id": "performance",
+      "default_profile": "STANDARD",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "OBSERVE",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "dependency-upgrade": {
+      "id": "dependency-upgrade",
+      "default_profile": "STANDARD",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "database-migration": {
+      "id": "database-migration",
+      "default_profile": "STRICT",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "DEPLOY",
+        "OBSERVE",
+        "CLOSE"
+      ],
+      "required_overlays": [
+        "db-migration"
+      ]
+    },
+    "api-breaking-change": {
+      "id": "api-breaking-change",
+      "default_profile": "STRICT",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "DEPLOY",
+        "OBSERVE",
+        "CLOSE"
+      ],
+      "required_overlays": [
+        "api-breaking-change"
+      ]
+    },
+    "security-remediation": {
+      "id": "security-remediation",
+      "default_profile": "STRICT",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "DEPLOY",
+        "OBSERVE",
+        "CLOSE"
+      ],
+      "required_overlays": [
+        "security"
+      ]
+    },
+    "ci-cd-change": {
+      "id": "ci-cd-change",
+      "default_profile": "STANDARD",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "infrastructure-change": {
+      "id": "infrastructure-change",
+      "default_profile": "STRICT",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "DEPLOY",
+        "OBSERVE",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "observability-change": {
+      "id": "observability-change",
+      "default_profile": "STANDARD",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "DEPLOY",
+        "OBSERVE",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "incident-response": {
+      "id": "incident-response",
+      "default_profile": "STRICT",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "DEPLOY",
+        "OBSERVE",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "maintenance": {
+      "id": "maintenance",
+      "default_profile": "STANDARD",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "modernization": {
+      "id": "modernization",
+      "default_profile": "STANDARD",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "DEPLOY",
+        "OBSERVE",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "compliance-change": {
+      "id": "compliance-change",
+      "default_profile": "STRICT",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "documentation": {
+      "id": "documentation",
+      "default_profile": "FAST",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "technical-spike": {
+      "id": "technical-spike",
+      "default_profile": "FAST",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "VERIFY",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "test-only": {
+      "id": "test-only",
+      "default_profile": "FAST",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "deprecation-removal": {
+      "id": "deprecation-removal",
+      "default_profile": "STRICT",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "IMPLEMENT",
+        "VERIFY",
+        "REVIEW",
+        "RELEASE",
+        "DEPLOY",
+        "OBSERVE",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    },
+    "requirement-update": {
+      "id": "requirement-update",
+      "default_profile": "STANDARD",
+      "stages": [
+        "INTAKE",
+        "REQUIREMENTS",
+        "DESIGN",
+        "PLAN",
+        "CLOSE"
+      ],
+      "required_overlays": []
+    }
+  }
+}

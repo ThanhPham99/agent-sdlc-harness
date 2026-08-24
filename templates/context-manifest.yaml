@@ -1,0 +1,13 @@
+schema: ai-agent-sdlc/context-manifest/v1
+workflow_version: 2.0.0-rc6
+feature_id: F-000
+phase: phase-1
+execution_unit: analysis
+items: []
+metrics:
+  estimated_loaded_tokens: 0
+  would_load_without_reuse_tokens: 0
+  reused_context_tokens: 0
+  context_reuse_ratio: 0.0
+  unrelated_context_tokens: 0
+  unrelated_context_ratio: 0.0
