@@ -1,0 +1,99 @@
+{
+  "schema": "agent-sdlc/bootstrap-budget/v1",
+  "bootstrap_version": "v1",
+  "bootstrap_hash": "sha256:ab2c70fe3ab9bf949e59c488dcd91583cd2e98f36c7bf07203c6b9deecc6e4b9",
+  "chars": 303,
+  "rough_tokens": 76,
+  "budget": 120,
+  "host_budgets": {
+    "claude": 90,
+    "antigravity": 80,
+    "codex": 120
+  },
+  "checks": 20,
+  "passes": 20,
+  "failures": 0,
+  "status": "PASS",
+  "results": [
+    {
+      "name": "canonical-text-exists",
+      "status": "PASS"
+    },
+    {
+      "name": "canonical-within-token-budget",
+      "status": "PASS"
+    },
+    {
+      "name": "per-host-budgets",
+      "status": "PASS"
+    },
+    {
+      "name": "names-router-before-orchestrator",
+      "status": "PASS"
+    },
+    {
+      "name": "excludes-generic-qa",
+      "status": "PASS"
+    },
+    {
+      "name": "untrusted-content-invariant",
+      "status": "PASS"
+    },
+    {
+      "name": "activation-is-not-approval",
+      "status": "PASS"
+    },
+    {
+      "name": "no-internal-skill-body-embedded",
+      "status": "PASS"
+    },
+    {
+      "name": "disabled-mode-emits-no-bootstrap",
+      "status": "PASS"
+    },
+    {
+      "name": "precedence-enforced-over-environment",
+      "status": "PASS"
+    },
+    {
+      "name": "project-config-below-environment",
+      "status": "PASS"
+    },
+    {
+      "name": "strong-activation-never-claimed-offline",
+      "status": "PASS"
+    },
+    {
+      "name": "codex-soft-without-managed-bootstrap",
+      "status": "PASS"
+    },
+    {
+      "name": "generated-hook-assets-carry-canonical-text",
+      "status": "PASS"
+    },
+    {
+      "name": "activation-events-registered",
+      "status": "PASS"
+    },
+    {
+      "name": "deterministic-corpus-agrees",
+      "status": "PASS"
+    },
+    {
+      "name": "borderline-cases-use-repository-context",
+      "status": "PASS"
+    },
+    {
+      "name": "multi-turn-corpus-agrees",
+      "status": "PASS"
+    },
+    {
+      "name": "adversarial-cases-still-activate",
+      "status": "PASS"
+    },
+    {
+      "name": "provider-expectations-truthful",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,9 +1,13 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import {execFileSync} from 'node:child_process';
+import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
+import {zipDir} from './archive.mjs';
+import {BOOTSTRAP_TEXT,bootstrapHash,estimateBootstrapCost,getActivationPolicy} from '../runtime/activation.mjs';
+
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const version=fs.readFileSync(path.join(ROOT,'VERSION'),'utf8').trim();
 const release=path.join(ROOT,'release');
@@ -14,11 +18,91 @@ for(const host of ['claude','codex','antigravity']){
   if(!fs.existsSync(src))throw new Error(`missing built artifact ${src}; run npm run build first`);
   fs.copyFileSync(src,path.join(release,path.basename(src)));
 }
-const sourceZip=path.join(release,`agent-sdlc-harness-source-${version}.zip`);
-const base=path.basename(ROOT);const parent=path.dirname(ROOT);
-execFileSync('zip',['-qr',sourceZip,base,'-x',`${base}/.git/*`,`${base}/dist/*`,`${base}/release/*`,`${base}/node_modules/*`,`${base}/evals/qualification/*`],{cwd:parent});
+
+// Source and github-ready archives are staged through a filtered copy so the same
+// exclusions apply with either archiver (Info-ZIP or PowerShell Compress-Archive).
+const EXCLUDE=new Set(['.git','dist','release','node_modules']);
+function stage(dstName){
+  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-stage-'));
+  const dst=path.join(tmp,dstName);
+  fs.cpSync(ROOT,dst,{recursive:true,filter:(src)=>{
+    const rel=path.relative(ROOT,src).split(path.sep);
+    if(!rel[0])return true;
+    if(EXCLUDE.has(rel[0]))return false;
+    return !(rel[0]==='evals'&&rel[1]==='qualification');
+  }});
+  return {tmp,dst};
+}
+function zipStaged(dstName,zipName){
+  const {tmp,dst}=stage(dstName);
+  try{zipDir(dst,path.join(release,zipName));}finally{fs.rmSync(tmp,{recursive:true,force:true});}
+}
+zipStaged(`agent-sdlc-harness-v${version}`,`agent-sdlc-harness-source-${version}.zip`);
+zipStaged(`agent-sdlc-harness-github-ready-${version}`,`agent-sdlc-harness-github-ready-${version}.zip`);
+
+// Offline evidence bundle.
+const cost=estimateBootstrapCost();
+const activationValidation=path.join(ROOT,'evals','AUTO-ACTIVATION-VALIDATION.json');
+if(fs.existsSync(activationValidation))fs.copyFileSync(activationValidation,path.join(release,'AUTO-ACTIVATION-VALIDATION.json'));
+for(const f of ['DISTRIBUTION-VALIDATION.json','DISTRIBUTION-VALIDATION.md'])
+  if(fs.existsSync(path.join(dist,f)))fs.copyFileSync(path.join(dist,f),path.join(release,f));
+const preflight=spawnSync(process.execPath,[path.join(ROOT,'scripts','host-preflight.mjs')],{encoding:'utf8',maxBuffer:8*1024*1024});
+if(preflight.stdout?.trim())fs.writeFileSync(path.join(release,'HOST-PREFLIGHT.json'),preflight.stdout.trim()+'\n');
+
+const activation=fs.existsSync(activationValidation)?JSON.parse(fs.readFileSync(activationValidation,'utf8')):null;
+const policy=getActivationPolicy();
+fs.writeFileSync(path.join(release,'AUTO-ACTIVATION-VALIDATION.md'),[
+  `# Auto-Activation Validation — ${version}`,'',
+  `- Bootstrap version: **${policy.bootstrap_version}**`,
+  `- Bootstrap hash: \`${bootstrapHash()}\``,
+  `- Bootstrap size: **${cost.chars} chars / ${cost.rough_tokens} rough tokens** (canonical budget ${policy.max_bootstrap_rough_tokens})`,
+  ...Object.entries(policy.hosts).map(([h,v])=>`- ${h}: delivery \`${v.delivery_mode}\`, budget ${v.max_bootstrap_rough_tokens} rough tokens`),
+  activation?`- Contract checks: **${activation.passes}/${activation.checks}** (${activation.status})`:'- Contract checks: **not run** (`node scripts/test-auto-bootstrap.mjs`)','',
+  '## Canonical bootstrap','','```text',BOOTSTRAP_TEXT,'```','',
+  '## Boundary','',
+  'Strong activation is **not** established by this offline validation. Every offline status reports',
+  '`strong_activation: false`. Only live Claude Code, Codex and Antigravity qualification evidence may',
+  'report an activation class, and a missing host CLI or credential is `PENDING`, never PASS.'
+].join('\n')+'\n');
+
+// Evidence bundle: everything a reviewer needs without unpacking a host package.
+{
+  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-assets-'));
+  const dir=path.join(tmp,`agent-sdlc-harness-release-assets-${version}`);
+  fs.mkdirSync(dir,{recursive:true});
+  for(const f of fs.readdirSync(release).filter(x=>!x.endsWith('.zip')))fs.copyFileSync(path.join(release,f),path.join(dir,f));
+  for(const f of ['docs/AUTO-ACTIVATION.md',`docs/releases/RELEASE-NOTES-v${version}.md`,'evals/DETERMINISTIC-VALIDATION.json'])
+    if(fs.existsSync(path.join(ROOT,f)))fs.copyFileSync(path.join(ROOT,f),path.join(dir,path.basename(f)));
+  try{zipDir(dir,path.join(release,`agent-sdlc-harness-release-assets-${version}.zip`));}finally{fs.rmSync(tmp,{recursive:true,force:true});}
+}
+
 const files=fs.readdirSync(release).filter(x=>x.endsWith('.zip')).sort();
 const lines=[];
 for(const f of files){const b=fs.readFileSync(path.join(release,f));lines.push(`${crypto.createHash('sha256').update(b).digest('hex')}  ${f}`);}
 fs.writeFileSync(path.join(release,'SHA256SUMS.txt'),lines.join('\n')+'\n');
-console.log(JSON.stringify({schema:'agent-sdlc/release-package/v1',version,release,files:[...files,'SHA256SUMS.txt']},null,2));
+
+fs.writeFileSync(path.join(release,'RELEASE-READINESS.md'),[
+  `# Release Readiness — ${version}`,'',
+  '| Gate | Status |',
+  '|---|---|',
+  '| Deterministic offline suite | run `npm test` |',
+  '| Auto-activation contract and hook simulations | run `npm run test:activation` |',
+  '| GitHub install validation | run `npm run validate:github` |',
+  '| Installer regression | run `npm run test:github-installers` |',
+  '| Distribution validation (extracted bytes) | see `DISTRIBUTION-VALIDATION.md` |',
+  '| Live host qualification | **LIVE_HOST_PENDING** until fresh FULL evidence exists per host |',
+  '| Strong auto-activation claim | **not established offline**; requires live evidence |','',
+  '## Artifacts','',
+  ...lines.map(x=>`- \`${x}\``),'',
+  'Promotion to `rc1` is blocked until `scripts/qualify-release.mjs` aggregates fresh, digest-bound',
+  'FULL evidence for Claude Code, Codex and Antigravity, including the auto-activation probe.'
+].join('\n')+'\n');
+
+console.log(JSON.stringify({
+  schema:'agent-sdlc/release-package/v1',
+  version,
+  release,
+  files:[...files,'SHA256SUMS.txt','RELEASE-READINESS.md','AUTO-ACTIVATION-VALIDATION.md'],
+  auto_activation:{bootstrap_hash:bootstrapHash(),...cost,strong_activation:false},
+  live_host_qualification:'LIVE_HOST_PENDING'
+},null,2));

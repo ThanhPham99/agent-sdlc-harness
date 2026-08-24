@@ -50,12 +50,37 @@ Reinstall with the same command to update.
 ./install.sh --repo ThanhPham99/agent-sdlc-harness --host antigravity
 ```
 
-The script invokes native host commands only; it does not write host-owned settings files directly.
+Auto-activation options:
+
+```bash
+./install.sh --host all --dry-run            # print planned actions, change nothing
+./install.sh --host codex --no-auto-activate # soft skill discovery only, write no file
+./install.sh --host codex --auto-activate    # explicit (this is also the default)
+./install.ps1 -HostName all -DryRun
+./install.ps1 -HostName codex -NoAutoActivate
+```
+
+The script invokes native host commands; the only host-owned file it writes is the delimited
+Agent SDLC auto-activation block in `$CODEX_HOME/AGENTS.md`, which exists because Codex has no
+plugin hook contract this package will claim. It is idempotent, backed up before first
+modification, reversible, and preserves surrounding content. Claude Code and Antigravity receive
+their bootstrap from the plugin's own hooks, so nothing outside the plugin is touched. If
+`$CODEX_HOME/AGENTS.override.md` exists it masks the block, and the installer says so instead of
+claiming strong activation. See `docs/AUTO-ACTIVATION.md`.
+
+Requires `node >= 18` in the shell running the installer for the managed Codex block; below that
+floor the installer reports soft activation and writes nothing.
 
 ## Uninstall
 
 ```bash
 ./uninstall.sh --host all
+./uninstall.sh --host codex --keep-bootstrap   # leave the managed block in place
+./uninstall.sh --host all --dry-run
 ```
+
+Uninstall removes the plugin through each native host command and removes only the Agent SDLC
+managed block from the global Codex `AGENTS.md`; other content in that file is preserved. The file
+itself is deleted only when Agent SDLC created it and nothing else remains.
 
 Project run state under `.agent-sdlc/` is intentionally not deleted by plugin uninstall.

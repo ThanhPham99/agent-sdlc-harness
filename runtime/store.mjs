@@ -1,8 +1,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {appendJsonl,ensureDir,now,readJson,sha256,uuid,writeJson} from './util.mjs';
+import {appendJsonl,ensureDir,now,readJson,sha256,uuid,writeJson,rootFrom} from './util.mjs';
+const HARNESS_VERSION=readJson(path.join(rootFrom(import.meta.url),'agent-sdlc.manifest.json')).version;
 export function stateDir(projectRoot){return path.join(projectRoot,'.agent-sdlc');}
-export function initProject(projectRoot,config){const d=stateDir(projectRoot); ensureDir(path.join(d,'runs'));ensureDir(path.join(d,'artifacts','objects'));ensureDir(path.join(d,'artifacts','meta'));ensureDir(path.join(d,'events'));ensureDir(path.join(d,'cost'));ensureDir(path.join(d,'handoffs')); writeJson(path.join(d,'project.json'),config);const statePath=path.join(d,'state.json');if(!fs.existsSync(statePath))writeJson(statePath,{schema:'agent-sdlc/state/v1',harness_version:'3.0.0-alpha3',created_at:now()}); return d;}
+export function initProject(projectRoot,config){const d=stateDir(projectRoot); ensureDir(path.join(d,'runs'));ensureDir(path.join(d,'artifacts','objects'));ensureDir(path.join(d,'artifacts','meta'));ensureDir(path.join(d,'events'));ensureDir(path.join(d,'cost'));ensureDir(path.join(d,'handoffs')); writeJson(path.join(d,'project.json'),config);const statePath=path.join(d,'state.json');if(!fs.existsSync(statePath))writeJson(statePath,{schema:'agent-sdlc/state/v1',harness_version:HARNESS_VERSION,created_at:now()}); return d;}
 export function projectConfig(projectRoot){return readJson(path.join(stateDir(projectRoot),'project.json'));}
 export function runPath(projectRoot,runId){return path.join(stateDir(projectRoot),'runs',`${runId}.json`);}
 export function saveRun(projectRoot,run){run.updated_at=now();writeJson(runPath(projectRoot,run.run_id),run);}

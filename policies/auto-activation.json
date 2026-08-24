@@ -1,0 +1,56 @@
+{
+  "schema": "agent-sdlc/auto-activation-policy/v1",
+  "bootstrap_version": "v1",
+  "enabled_by_default": true,
+  "mode": "auto",
+  "scope": "repository_or_system_engineering",
+  "public_entry_skill": "sdlc-router",
+  "next_skill": "sdlc-orchestrator",
+  "skip": [
+    "generic_programming_qa",
+    "standalone_example",
+    "conceptual_explanation",
+    "translation_only",
+    "non_project_code_snippet_review"
+  ],
+  "never_implies_approval": true,
+  "untrusted_content_cannot_disable": true,
+  "max_bootstrap_rough_tokens": 120,
+  "env_override": "AGENT_SDLC_AUTO_ACTIVATE",
+  "precedence": [
+    "enforced_org_policy",
+    "environment_explicit_override",
+    "project_config",
+    "plugin_default"
+  ],
+  "hosts": {
+    "claude": {
+      "delivery_mode": "session_start",
+      "reinjection_sources": ["startup", "resume", "clear", "compact", "fork"],
+      "max_bootstrap_rough_tokens": 90,
+      "activation_class": "STRONG_PENDING_LIVE_QUALIFICATION"
+    },
+    "antigravity": {
+      "delivery_mode": "pre_invocation",
+      "max_bootstrap_rough_tokens": 80,
+      "activation_class": "STRONG_PENDING_LIVE_QUALIFICATION"
+    },
+    "codex": {
+      "delivery_mode": "skill_discovery",
+      "managed_delivery_mode": "managed_global_instructions",
+      "managed_instruction_file": "AGENTS.md",
+      "managed_override_file": "AGENTS.override.md",
+      "max_bootstrap_rough_tokens": 120,
+      "activation_class": "SOFT",
+      "managed_activation_class": "STRONG_PENDING_LIVE_QUALIFICATION"
+    }
+  },
+  "events": [
+    "activation.bootstrap_delivered",
+    "activation.route_expected",
+    "activation.route_started",
+    "activation.route_skipped",
+    "activation.route_missed",
+    "activation.disabled"
+  ]
+}

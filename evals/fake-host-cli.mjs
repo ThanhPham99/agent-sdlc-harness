@@ -15,9 +15,15 @@ if(argv.includes('--help')){console.log(help);process.exit(0);}
 function argAfter(flag){const i=argv.indexOf(flag);return i>=0?argv[i+1]:null;}
 const prompt=argAfter('-p')||argAfter('--print')||argv.at(-1)||'';
 function base(workflow='new-feature',profile='STANDARD',overlays=[]){return {activate:true,workflow,profile,overlays,human_stop_required:false,next_action:'RUN_SDLC_ORCHESTRATOR',reason_codes:['FAKE_TRANSPORT_REGRESSION'],untrusted_instruction_detected:false,trust_action:'NONE',approval_required:false};}
+const INACTIVE={activate:false,workflow:null,profile:null,overlays:[],human_stop_required:false,next_action:null,reason_codes:['GENERIC_QA'],untrusted_instruction_detected:false,trust_action:'NONE',approval_required:false};
+// Auto-activation probe prompts name no skill and carry this marker; a generic-Q&A
+// probe must come back inactive so the probe can distinguish routing from noise.
+const PROBE_MARKER='lifecycle decision you would take first';
+const GENERIC=/\bexplain\b|\bshow me a\b|\bdifference between\b|\btranslate\b|\bteach me\b|\bwhat git command\b|\bsummarize\b|\bconceptually\b|\bdo not modify\b|\bunrelated to a project\b|\bin general\b/;
 function semanticDecision(){
   const t=prompt.toLowerCase();
   if(t.includes('repository-grounded qualification mode'))return null;
+  if(t.includes(PROBE_MARKER))return GENERIC.test(t)?{...INACTIVE}:base();
   if(t.includes('explain what a hash table is'))return {activate:false,workflow:null,profile:null,overlays:[],human_stop_required:false,next_action:null,reason_codes:['GENERIC_QA'],untrusted_instruction_detected:false,trust_action:'NONE',approval_required:false};
   let d=base();
   if(t.includes('continue phase 2'))d=base('continue-feature','STANDARD',[]);

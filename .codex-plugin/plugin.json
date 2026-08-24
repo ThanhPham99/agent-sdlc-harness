@@ -1,6 +1,6 @@
 {
   "name": "agent-sdlc-harness",
-  "version": "3.0.0-alpha3",
+  "version": "3.0.0-alpha4",
   "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for coding agents.",
   "author": {"name": "Agent SDLC Harness Contributors"},
   "license": "UNLICENSED",

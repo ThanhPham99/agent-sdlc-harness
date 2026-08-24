@@ -2,12 +2,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {execFileSync} from 'node:child_process';
+import {zipDir} from './archive.mjs';
+import {getActivationPolicy,bootstrapHash,estimateBootstrapCost} from '../runtime/activation.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const manifest=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8'));
 const skillRegistry=JSON.parse(fs.readFileSync(path.join(ROOT,'config','skills.json'),'utf8'));
 const dist=path.join(ROOT,'dist');
+const activationPolicy=getActivationPolicy();
 
 fs.rmSync(dist,{recursive:true,force:true});
 fs.mkdirSync(dist,{recursive:true});
@@ -51,6 +53,9 @@ fs.copyFileSync(path.join(ROOT,'adapters/claude/.mcp.json'),path.join(c,'.mcp.js
 fs.mkdirSync(path.join(c,'hooks'),{recursive:true});
 fs.copyFileSync(path.join(ROOT,'adapters/claude/hooks.json'),path.join(c,'hooks','hooks.json'));
 fs.copyFileSync(path.join(ROOT,'adapters/hooks/pretool-guard.mjs'),path.join(c,'hooks','pretool-guard.mjs'));
+// Auto-activation bootstrap: SessionStart re-delivers the compact invariant on
+// startup/resume/clear/compact/fork without preloading any skill body.
+fs.copyFileSync(path.join(ROOT,'adapters/hooks/claude-session-start.mjs'),path.join(c,'hooks','claude-session-start.mjs'));
 fs.mkdirSync(path.join(c,'agents'),{recursive:true});
 fs.copyFileSync(path.join(ROOT,'adapters/common-scoped-investigator.md'),path.join(c,'agents','scoped-investigator.md'));
 fs.copyFileSync(path.join(ROOT,'adapters/common-independent-reviewer.md'),path.join(c,'agents','independent-reviewer.md'));
@@ -76,9 +81,10 @@ fs.copyFileSync(path.join(ROOT,'adapters/common-independent-reviewer.md'),path.j
 fs.mkdirSync(path.join(a,'rules'),{recursive:true});
 fs.copyFileSync(path.join(ROOT,'adapters/antigravity/rules.md'),path.join(a,'rules','agent-sdlc.md'));
 
+let archiver=null;
 for(const name of ['claude','codex','antigravity']){
   const dir=path.join(dist,`agent-sdlc-${name}-${manifest.version}`);
   const zip=path.join(dist,`agent-sdlc-${name}-${manifest.version}.zip`);
-  execFileSync('zip',['-qr',zip,path.basename(dir)],{cwd:dist});
+  archiver=zipDir(dir,zip).tool;
 }
-console.log(JSON.stringify({status:'BUILT',version:manifest.version,dist,public_discovery_skills:2,internal_skills:Object.keys(skillRegistry.internal||{}).length},null,2));
+console.log(JSON.stringify({status:'BUILT',version:manifest.version,dist,public_discovery_skills:2,internal_skills:Object.keys(skillRegistry.internal||{}).length,archiver,bootstrap:{version:activationPolicy.bootstrap_version,hash:bootstrapHash(),rough_tokens:estimateBootstrapCost().rough_tokens}},null,2));

@@ -1,6 +1,6 @@
 {
   "name": "agent-sdlc-harness",
-  "version": "3.0.0-alpha3",
+  "version": "3.0.0-alpha4",
   "private": true,
   "type": "module",
   "engines": {
@@ -21,7 +21,14 @@
     "test:qualification-transport": "node scripts/test-qualification-transport.mjs",
     "validate:github": "node scripts/validate-github-install.mjs",
     "test:github-installers": "node scripts/test-github-installers.mjs",
-    "check": "npm test && npm run validate:github && npm run test:github-installers && npm run test:qualification-harness && npm run test:qualification-transport && npm run build && npm run verify:dist",
+    "gen:activation": "node scripts/gen-activation-assets.mjs",
+    "activation:status": "node runtime/cli.mjs activation doctor",
+    "test:auto-bootstrap": "node scripts/test-auto-bootstrap.mjs",
+    "test:claude-bootstrap": "node scripts/test-claude-bootstrap-hook.mjs",
+    "test:antigravity-bootstrap": "node scripts/test-antigravity-bootstrap-hook.mjs",
+    "test:codex-bootstrap": "node scripts/test-codex-bootstrap.mjs",
+    "test:activation": "npm run test:auto-bootstrap && npm run test:claude-bootstrap && npm run test:antigravity-bootstrap && npm run test:codex-bootstrap",
+    "check": "npm test && npm run test:activation && npm run validate:github && npm run test:github-installers && npm run test:qualification-harness && npm run test:qualification-transport && npm run build && npm run verify:dist",
     "package:release": "node scripts/package-release.mjs"
   }
 }

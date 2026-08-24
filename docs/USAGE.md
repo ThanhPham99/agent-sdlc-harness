@@ -1,5 +1,27 @@
 # Usage
 
+## 0. Just ask
+
+With the plugin installed, repository/system work routes itself — no skill needs to be named:
+
+```text
+Add password reset to this backend.
+Fix the login bug in this repository.
+Investigate this production outage.
+```
+
+`sdlc-router` runs before planning, editing or tool use, then hands control to
+`sdlc-orchestrator`. Generic programming Q&A does not start a run. Automatic entry never
+substitutes for approval on production, destructive, credential or security-exception actions.
+
+```bash
+./bin/agent-sdlc activation doctor      # how this host delivers the bootstrap
+./bin/agent-sdlc activation status --host claude
+```
+
+Codex installed natively is soft activation only; see `docs/AUTO-ACTIVATION.md`. The commands
+below remain the deterministic surface the orchestrator drives, and are equally usable by hand.
+
 ## 1. Initialize and inspect configuration
 
 ```bash

@@ -21,6 +21,7 @@ jobs:
           expected="v$(cat VERSION)"
           test "${GITHUB_REF_NAME}" = "$expected" || { echo "tag ${GITHUB_REF_NAME} != $expected"; exit 1; }
       - run: npm test
+      - run: npm run test:activation
       - run: npm run validate:github
       - run: npm run test:github-installers
       - run: npm run build

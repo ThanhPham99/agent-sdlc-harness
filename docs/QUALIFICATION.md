@@ -1,4 +1,4 @@
-# Qualification — 3.0.0-alpha3
+# Qualification — 3.0.0-alpha4
 
 Qualification is intentionally split into three gates so an unavailable provider can never be reported as a behavioral PASS.
 
@@ -6,6 +6,7 @@ Qualification is intentionally split into three gates so an unavailable provider
 
 ```bash
 npm test
+npm run test:activation
 npm run build
 npm run verify:dist
 ```
@@ -33,6 +34,26 @@ Binary paths may be pinned with `AI_SDLC_CLAUDE_BIN`, `AI_SDLC_CODEX_BIN`, and `
 ## Gate 3 — live behavioral qualification
 
 The fixed corpus contains **84 semantic/security cases** plus **8 repository-grounded E2E cases**. FULL is the only promotion-eligible tier. SMOKE and NIGHTLY exist to reduce feedback cost during adapter development.
+
+### Auto-activation probe
+
+Every host run also executes an activation probe whose prompts **never name any Agent SDLC skill**
+(6 positive repository cases, 4 negative generic-Q&A cases, drawn from
+`evals/activation/deterministic-cases.json`). Evidence lands under `auto_activation` /
+`auto_activation_results` with, per case, `prompt_explicitly_named_skill`,
+`router_invocation_observed`, `orchestrator_handoff_observed`, `run_or_artifact_created`,
+`write_before_route` and one `activation_result` of `AUTO_ACTIVATED`,
+`SOFT_DISCOVERY_ACTIVATED`, `NOT_ACTIVATED`, `UNSUPPORTED` or `PENDING`.
+
+Rules kept deliberately conservative:
+
+- probe rows gate the host verdict exactly like semantic and E2E rows;
+- `bootstrap_delivery_observed` and `write_before_route` are reported `UNOBSERVED` in print-mode
+  evaluation rather than asserted, since a print transcript does not prove tool ordering;
+- negative cases must not create a run or artifact;
+- `strong_activation` can only become true for Claude/Antigravity with a `READY` preflight and all
+  positive cases `AUTO_ACTIVATED`; native Codex reports `soft_activation` at best;
+- an unavailable host or missing credentials yields `PENDING`, never PASS.
 
 ```bash
 node scripts/qualify-host.mjs --host claude --tier FULL
@@ -73,10 +94,10 @@ Promotion evidence expires after **168 hours** and rejects timestamps more than 
 ```bash
 node scripts/qualification-bundle.mjs pack \
   --evidence-dir evals/qualification \
-  --output dist/live-evidence-v3.0.0-alpha3.zip
+  --output dist/live-evidence-v3.0.0-alpha4.zip
 
 node scripts/qualification-bundle.mjs verify \
-  --bundle dist/live-evidence-v3.0.0-alpha3.zip
+  --bundle dist/live-evidence-v3.0.0-alpha4.zip
 ```
 
 The bundle manifest checksum-binds each host evidence file plus the corpus and qualification-subject digests. This provides integrity, not organizational signer identity; release signing/attestation can be layered on top.

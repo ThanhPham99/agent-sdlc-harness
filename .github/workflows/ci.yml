@@ -17,6 +17,8 @@ jobs:
           node-version: '22'
       - name: Deterministic regression
         run: npm test
+      - name: Auto-activation contract and per-host bootstrap hooks
+        run: npm run test:activation
       - name: Validate GitHub-native install surfaces
         run: npm run validate:github
       - name: Test bootstrap installers with fake host CLIs
@@ -34,5 +36,6 @@ jobs:
           path: |
             release/*
             evals/DETERMINISTIC-VALIDATION.json
+            evals/AUTO-ACTIVATION-VALIDATION.json
           if-no-files-found: error
           retention-days: 14

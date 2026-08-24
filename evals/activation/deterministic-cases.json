@@ -1,0 +1,42 @@
+{
+  "schema": "agent-sdlc/activation-deterministic-cases/v1",
+  "note": "Offline corpus for the deterministic activation helper in runtime/activation.mjs. The authoritative semantic decision at runtime belongs to sdlc-router; these cases guard the bootstrap contract and the diagnostic classifier against regressions.",
+  "cases": [
+    {"id": "AUTO-P001", "group": "positive", "prompt": "Add password reset to this backend.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P002", "group": "positive", "prompt": "Fix the login bug in this repository.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P003", "group": "positive", "prompt": "Refactor the payment service in this codebase without changing behavior.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P004", "group": "positive", "prompt": "Upgrade PostgreSQL 16 to 17.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P005", "group": "positive", "prompt": "Add tests for the retry module in this repo.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P006", "group": "positive", "prompt": "Review this PR for correctness and security.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P007", "group": "positive", "prompt": "Investigate this production outage.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P008", "group": "positive", "prompt": "Update CI to run integration tests in this project.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P009", "group": "positive", "prompt": "Migrate the customer schema.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P010", "group": "positive", "prompt": "Add tracing to this service.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P011", "group": "positive", "prompt": "Prepare and execute a canary release.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P012", "group": "positive", "prompt": "Update the repository architecture docs after this feature.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P013", "group": "positive", "prompt": "Continue phase 2 of the existing checkout feature in this project.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P014", "group": "positive", "prompt": "Here is the updated requirement document for the existing feature in this repository.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P015", "group": "positive", "prompt": "Resolve this CVE in our dependency tree.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P016", "group": "positive", "prompt": "Improve endpoint p95 performance in this repository.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P017", "group": "positive", "prompt": "Roll back the last deploy of this service and record the evidence.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+    {"id": "AUTO-P018", "group": "positive", "prompt": "Harden the authentication middleware in this codebase.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+
+    {"id": "AUTO-N001", "group": "negative", "prompt": "Explain dependency injection.", "repository_context": {"repository_target": false}, "expected": {"activate": false}},
+    {"id": "AUTO-N002", "group": "negative", "prompt": "Show me a debounce example.", "repository_context": {"repository_target": false}, "expected": {"activate": false}},
+    {"id": "AUTO-N003", "group": "negative", "prompt": "What is the difference between REST and GraphQL?", "repository_context": {"repository_target": false}, "expected": {"activate": false}},
+    {"id": "AUTO-N004", "group": "negative", "prompt": "Translate this error message into Vietnamese.", "repository_context": {"repository_target": false}, "expected": {"activate": false}},
+    {"id": "AUTO-N005", "group": "negative", "prompt": "Teach me database normalization.", "repository_context": {"repository_target": false}, "expected": {"activate": false}},
+    {"id": "AUTO-N006", "group": "negative", "prompt": "What git command lists branches?", "repository_context": {"repository_target": false}, "expected": {"activate": false}},
+    {"id": "AUTO-N007", "group": "negative", "prompt": "Summarize the CAP theorem.", "repository_context": {"repository_target": false}, "expected": {"activate": false}},
+    {"id": "AUTO-N008", "group": "negative", "prompt": "Review this standalone pseudocode conceptually; do not modify a repo.", "repository_context": {"repository_target": false}, "expected": {"activate": false}},
+    {"id": "AUTO-N009", "group": "negative", "prompt": "Write a regex example unrelated to a project.", "repository_context": {"repository_target": false}, "expected": {"activate": false}},
+    {"id": "AUTO-N010", "group": "negative", "prompt": "In general, how do consistent hashing rings work?", "repository_context": {"repository_target": false}, "expected": {"activate": false}},
+
+    {"id": "AUTO-B001", "group": "borderline", "prompt": "Can you review this code?", "repository_context": {"repository_target": true}, "expected": {"activate": true}, "rationale": "An open repository is the review target, so routing is required."},
+    {"id": "AUTO-B002", "group": "borderline", "prompt": "Can you review this code?", "repository_context": {"repository_target": false}, "expected": {"activate": false}, "rationale": "A pasted snippet with no project target stays conceptual."},
+    {"id": "AUTO-B003", "group": "borderline", "prompt": "How would you design password reset?", "repository_context": {"repository_target": false}, "expected": {"activate": false}, "rationale": "Design question with no repository operation requested."},
+    {"id": "AUTO-B004", "group": "borderline", "prompt": "What should I change in my service?", "repository_context": {"repository_target": true}, "expected": {"activate": true}, "rationale": "Requires inspecting the real service; fail safe toward routing."},
+    {"id": "AUTO-B005", "group": "borderline", "prompt": "Create a migration example.", "repository_context": {"repository_target": false}, "expected": {"activate": false}, "rationale": "Illustrative artifact, not a project migration."},
+    {"id": "AUTO-B006", "group": "borderline", "prompt": "The customer table in this repository needs a new nullable column.", "repository_context": {"repository_target": true}, "expected": {"activate": true}, "rationale": "Declarative phrasing, but a real schema change is implied."}
+  ]
+}

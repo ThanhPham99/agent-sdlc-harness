@@ -12,6 +12,7 @@ import {invokeTool} from './tools.mjs';
 import {routeModel} from './model-router.mjs';
 
 const ROOT=rootFrom(import.meta.url);
+const MANIFEST_VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
 const toolDefs=[
   {name:'agent_sdlc_route',description:'Route a software task into the canonical SDLC workflow without model inference.',inputSchema:{type:'object',required:['objective'],properties:{objective:{type:'string'},workflow:{type:'string'},profile:{type:'string'}}}},
   {name:'agent_sdlc_start',description:'Initialize project state if needed and start an evidence-driven SDLC run.',inputSchema:{type:'object',required:['objective'],properties:{project_root:{type:'string'},objective:{type:'string'},workflow:{type:'string'},profile:{type:'string'}}}},
@@ -49,7 +50,7 @@ process.stdin.setEncoding('utf8');
 process.stdin.on('data',chunk=>{buffer+=chunk;let i;while((i=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,i).trim();buffer=buffer.slice(i+1);if(line)handle(line);}});
 function handle(line){let req;try{req=JSON.parse(line);}catch{return;}const id=req.id;
   try{
-    if(req.method==='initialize')return send({jsonrpc:'2.0',id,result:{protocolVersion:req.params?.protocolVersion||'2025-06-18',capabilities:{tools:{listChanged:false}},serverInfo:{name:'agent-sdlc-harness',version:'3.0.0-alpha3'}}});
+    if(req.method==='initialize')return send({jsonrpc:'2.0',id,result:{protocolVersion:req.params?.protocolVersion||'2025-06-18',capabilities:{tools:{listChanged:false}},serverInfo:{name:'agent-sdlc-harness',version:MANIFEST_VERSION}}});
     if(req.method==='notifications/initialized')return;
     if(req.method==='ping')return send({jsonrpc:'2.0',id,result:{}});
     if(req.method==='tools/list')return send({jsonrpc:'2.0',id,result:{tools:toolDefs}});

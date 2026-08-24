@@ -1,4 +1,5 @@
-dist/*/
+dist/
+release/
 .agent-sdlc/
 node_modules/
 *.log

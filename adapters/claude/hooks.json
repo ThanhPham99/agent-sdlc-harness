@@ -1,6 +1,18 @@
 {
-  "description": "Agent SDLC defense-in-depth guard for destructive shell operations.",
+  "description": "Agent SDLC auto-activation bootstrap plus defense-in-depth guard for destructive shell operations.",
   "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact|fork",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/claude-session-start.mjs\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",

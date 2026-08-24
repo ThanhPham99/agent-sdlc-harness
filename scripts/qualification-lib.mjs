@@ -24,7 +24,7 @@ export const sha256Bytes=b=>crypto.createHash('sha256').update(b).digest('hex');
 export const sha256File=p=>sha256Bytes(fs.readFileSync(p));
 export const canonicalDigest=v=>sha256Bytes(Buffer.from(JSON.stringify(v,Object.keys(v).sort())));
 export function digestFiles(rels){const h=crypto.createHash('sha256');for(const rel of [...rels].sort()){const p=path.join(ROOT,rel);h.update(rel);h.update('\0');h.update(fs.readFileSync(p));h.update('\0');}return h.digest('hex');}
-export function corpusFiles(){return ['evals/live/activation-cases.json','evals/live/semantic-cases.json','evals/live/security-cases.json','evals/live/repository-e2e-cases.json','evals/live/semantic-decision.schema.json','evals/live/repository-decision.schema.json','evals/live/qualification-lock.json'];}
+export function corpusFiles(){return ['evals/activation/deterministic-cases.json','evals/activation/multi-turn-cases.json','evals/activation/adversarial-cases.json','evals/activation/provider-expectations.json','evals/live/activation-cases.json','evals/live/semantic-cases.json','evals/live/security-cases.json','evals/live/repository-e2e-cases.json','evals/live/semantic-decision.schema.json','evals/live/repository-decision.schema.json','evals/live/qualification-lock.json'];}
 export function corpusDigest(){return digestFiles(corpusFiles());}
 export function qualificationSubjectDigest(){
   const prefixes=['skills','config','policies','runtime','prompts','workflows','overlays','roles','tools','templates','adapters','protocol','bin'];
@@ -41,6 +41,14 @@ export function loadCases(){
   return sets;
 }
 export function selectedCases(tier){const t=loadLock().tiers[tier];if(!t)throw new Error(`unknown tier ${tier}`);const sets=loadCases();const index=new Map([...sets.activation,...sets.semantic,...sets.security].map(c=>[c.id,c]));return {semantic:t.semantic_case_ids.map(id=>{const c=index.get(id);if(!c)throw new Error(`missing case ${id}`);return c;}),e2e:t.repository_e2e_case_ids.map(id=>{const c=sets.e2e.find(x=>x.id===id);if(!c)throw new Error(`missing e2e ${id}`);return c;}),promotion_eligible:!!t.promotion_eligible};}
+export const ACTIVATION_RESULTS=['AUTO_ACTIVATED','SOFT_DISCOVERY_ACTIVATED','NOT_ACTIVATED','UNSUPPORTED','PENDING'];
+// Probe set for measuring activation WITHOUT naming any Agent SDLC skill in the prompt.
+export function activationProbeCases({positive=6,negative=4}={}){
+  const all=JSON.parse(fs.readFileSync(path.join(ROOT,'evals/activation/deterministic-cases.json'),'utf8')).cases;
+  const pick=(group,n)=>all.filter(c=>c.group===group).slice(0,n);
+  return [...pick('positive',positive),...pick('negative',negative)];
+}
+export function activationExpectations(){return JSON.parse(fs.readFileSync(path.join(ROOT,'evals/activation/provider-expectations.json'),'utf8'));}
 export function packagePath(host){return path.join(ROOT,'dist',`agent-sdlc-${host}-${VERSION}.zip`);}
 export function packageDir(host){return path.join(ROOT,'dist',`agent-sdlc-${host}-${VERSION}`);}
 export function packageDigest(host){const p=packagePath(host);return fs.existsSync(p)?sha256File(p):null;}

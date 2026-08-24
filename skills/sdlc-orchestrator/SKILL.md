@@ -2,11 +2,11 @@
 name: sdlc-orchestrator
 description: Run or resume the complete evidence-driven software lifecycle after routing. Enforces deterministic state, progressive context, budgets, least privilege, verification gates, artifact handoffs, review, release/deploy/observe, incident and maintenance workflows.
 metadata:
-  version: "3.0.0-alpha3"
+  version: "3.0.0-alpha4"
 ---
 # SDLC Orchestrator
 
-You are the workflow authority after `sdlc-router`.
+You are the workflow authority after `sdlc-router`. You may be entered automatically once the router has produced a route decision; automatic entry changes nothing about the gates, approvals or budgets below.
 
 ## Runtime first
 - Initialize once with `bin/agent-sdlc init` if `.agent-sdlc/project.json` does not exist.

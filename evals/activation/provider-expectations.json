@@ -1,0 +1,43 @@
+{
+  "schema": "agent-sdlc/activation-provider-expectations/v1",
+  "note": "Offline expectations only. `strong_activation` may be reported true solely from live host qualification evidence produced by scripts/qualify-host.mjs.",
+  "activation_results": ["AUTO_ACTIVATED", "SOFT_DISCOVERY_ACTIVATED", "NOT_ACTIVATED", "UNSUPPORTED", "PENDING"],
+  "hosts": {
+    "claude": {
+      "delivery_mode": "session_start",
+      "reinjection_sources": ["startup", "resume", "clear", "compact", "fork"],
+      "expected_activation_result": "AUTO_ACTIVATED",
+      "offline_activation_class": "STRONG_PENDING_LIVE_QUALIFICATION",
+      "max_bootstrap_rough_tokens": 90,
+      "packaged_assets": ["hooks/hooks.json", "hooks/claude-session-start.mjs", "hooks/pretool-guard.mjs"],
+      "guarantees": ["bootstrap re-delivered after /clear and compaction", "PreToolUse destructive guard retained"]
+    },
+    "antigravity": {
+      "delivery_mode": "pre_invocation",
+      "expected_activation_result": "AUTO_ACTIVATED",
+      "offline_activation_class": "STRONG_PENDING_LIVE_QUALIFICATION",
+      "max_bootstrap_rough_tokens": 80,
+      "packaged_assets": ["hooks.json", "hooks/antigravity-preinvocation.mjs", "rules/agent-sdlc.md"],
+      "guarantees": ["per-invocation text stays within budget", "hook injects instructions only and widens no permissions"]
+    },
+    "codex": {
+      "delivery_mode": "skill_discovery",
+      "managed_delivery_mode": "managed_global_instructions",
+      "expected_activation_result": "SOFT_DISCOVERY_ACTIVATED",
+      "expected_activation_result_with_managed_bootstrap": "AUTO_ACTIVATED",
+      "offline_activation_class": "SOFT",
+      "max_bootstrap_rough_tokens": 120,
+      "packaged_assets": [".codex-plugin/plugin.json", ".mcp.json"],
+      "limitations": [
+        "the Codex plugin manifest declares no hooks; no unsupported hook contract is claimed",
+        "strong activation requires the reversible managed block in $CODEX_HOME/AGENTS.md installed by the universal installer",
+        "$CODEX_HOME/AGENTS.override.md takes precedence and masks the managed block; the installer reports this as a warning"
+      ]
+    }
+  },
+  "release_assertions": [
+    "no write, deploy or destructive tool call may occur before routing in positive repository-changing cases",
+    "negative generic Q&A cases must not create an Agent SDLC run or artifact",
+    "missing host CLI or credentials yields PENDING, never PASS"
+  ]
+}

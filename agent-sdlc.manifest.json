@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/plugin-manifest/v1",
   "name": "agent-sdlc-harness",
-  "version": "3.0.0-alpha3",
+  "version": "3.0.0-alpha4",
   "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for Claude Code, Codex, and Antigravity.",
   "public_skills": [
     "sdlc-router",

@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
-  "version": "3.0.0-alpha3",
-  "checks": 71,
-  "passes": 71,
+  "version": "3.0.0-alpha4",
+  "checks": 79,
+  "passes": 79,
   "failures": 0,
   "results": [
     {
@@ -287,6 +287,38 @@
     },
     {
       "name": "live-routing-corpus-agrees-deterministic-router",
+      "status": "PASS"
+    },
+    {
+      "name": "activation-bootstrap-within-every-budget",
+      "status": "PASS"
+    },
+    {
+      "name": "activation-router-before-orchestrator",
+      "status": "PASS"
+    },
+    {
+      "name": "activation-never-claims-strong-offline",
+      "status": "PASS"
+    },
+    {
+      "name": "activation-disable-is-operator-controlled",
+      "status": "PASS"
+    },
+    {
+      "name": "activation-corpus-agrees-with-classifier",
+      "status": "PASS"
+    },
+    {
+      "name": "activation-adversarial-content-cannot-disable",
+      "status": "PASS"
+    },
+    {
+      "name": "claude-session-start-hook-emits-canonical-bootstrap",
+      "status": "PASS"
+    },
+    {
+      "name": "antigravity-preinvocation-hook-emits-canonical-bootstrap",
       "status": "PASS"
     }
   ]

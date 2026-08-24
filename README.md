@@ -1,4 +1,4 @@
-# Agent SDLC Harness 3.0.0-alpha3
+# Agent SDLC Harness 3.0.0-alpha4
 
 A provider-neutral, token-aware, evidence-driven software-development harness for **Claude Code, OpenAI Codex, and Google Antigravity**.
 
@@ -57,7 +57,43 @@ PowerShell:
 ./install.ps1 -Repo ThanhPham99/agent-sdlc-harness -HostName all
 ```
 
-The bootstrap installer delegates to each host's **native plugin/marketplace command**. It does not hand-edit Claude/Codex/Antigravity user configuration files.
+The bootstrap installer delegates to each host's **native plugin/marketplace command**. It hand-edits exactly one user file, and only for Codex: a delimited, idempotent, reversible auto-activation block in `$CODEX_HOME/AGENTS.md` (skip it with `--no-auto-activate`, preview with `--dry-run`). Claude and Antigravity configuration is never edited.
+
+## Auto-activation
+
+After installation, just ask naturally:
+
+```text
+Add idempotent refund processing to this repository.
+```
+
+You do not need to invoke `sdlc-router` manually. Agent SDLC auto-routes repository/software
+lifecycle work; generic programming Q&A, tutorials and standalone examples remain unaffected.
+
+Delivery is one compact instruction (**76 rough tokens**, budget 120), not a large always-on prompt:
+
+| Host | Delivery | Class |
+|---|---|---|
+| Claude Code | plugin `SessionStart` hook (`additionalContext`), re-delivered on resume/`/clear`/compact/fork | strong, pending live qualification |
+| Antigravity | plugin `PreInvocation` hook + plugin rule | strong, pending live qualification |
+| Codex | installed-skill discovery (**soft**); strong only with the reversible managed block in `$CODEX_HOME/AGENTS.md` installed by `./install.sh` | soft natively |
+
+Caveats: the Codex plugin manifest declares **no hooks**, because that contract is not treated as
+stable here — a native marketplace install of Codex is soft activation only. No host is labelled
+strong on the basis of packaging alone; `strong_activation` stays `false` until live host
+qualification observes it.
+
+Activation is not authorization: production, destructive, credential and security-exception
+actions still require approval, and the `PreToolUse` destructive-command guard is unchanged.
+
+```bash
+agent-sdlc activation doctor            # per-host delivery, class, token cost, warnings
+agent-sdlc activation print-bootstrap   # the exact instruction being injected
+AGENT_SDLC_AUTO_ACTIVATE=0              # disable delivery
+agent-sdlc activation disable           # persist the same decision for this project
+```
+
+Full detail: `docs/AUTO-ACTIVATION.md`.
 
 ## Why only two public skills?
 
@@ -82,6 +118,7 @@ The 18 canonical internal capability groups live under `harness/internal-skills/
 
 ```bash
 npm test
+npm run test:activation
 npm run validate:github
 npm run test:github-installers
 npm run build
@@ -114,6 +151,9 @@ Runtime quick start:
 plugin.json                          Antigravity plugin manifest
 mcp_config.json                      Antigravity MCP definition
 hooks.json                           Antigravity hooks
+rules/agent-sdlc.md                  Antigravity plugin rule (generated)
+hooks/                               generated bootstrap + guard hooks
+policies/auto-activation.json        canonical auto-activation policy
 skills/                              exactly two public skills
 harness/internal-skills/             on-demand internal capability modules
 ```
@@ -122,6 +162,6 @@ Provider-specific generated ZIPs remain available through `npm run build`; they 
 
 ## Release qualification
 
-`alpha3` must remain **LIVE_HOST_PENDING** until the exact built Claude, Codex and Antigravity artifacts produce fresh FULL qualification evidence. Missing host CLIs or credentials are `PENDING`, never PASS. Only the release aggregator may produce a promotion approval.
+`alpha4` must remain **LIVE_HOST_PENDING** until the exact built Claude, Codex and Antigravity artifacts produce fresh FULL qualification evidence. Missing host CLIs or credentials are `PENDING`, never PASS. Only the release aggregator may produce a promotion approval.
 
-See `docs/INSTALLATION.md`, `docs/GITHUB-DISTRIBUTION.md`, `docs/QUALIFICATION.md`, `docs/USAGE.md`, and `docs/architecture/`.
+See `docs/AUTO-ACTIVATION.md`, `docs/INSTALLATION.md`, `docs/GITHUB-DISTRIBUTION.md`, `docs/QUALIFICATION.md`, `docs/USAGE.md`, and `docs/architecture/`.

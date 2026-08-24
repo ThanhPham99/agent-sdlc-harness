@@ -23,6 +23,7 @@ import {metrics} from '../runtime/telemetry.mjs';
 import {putHandoff,getHandoff,listHandoffs} from '../runtime/handoff.mjs';
 import {normalizeInput} from '../runtime/normalize.mjs';
 import {loadCases,loadLock,corpusDigest,qualificationSubjectDigest,hostPreflight,packagePath} from '../scripts/qualification-lib.mjs';
+import {BOOTSTRAP_TEXT,getActivationPolicy,getActivationMode,estimateBootstrapCost,classifyActivationFixture} from '../runtime/activation.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
@@ -130,6 +131,36 @@ test('qualification-subject-digest-stable-shape',()=>{const d=qualificationSubje
 test('host-preflight-fail-closed-status',()=>{for(const h of ['claude','codex','antigravity']){const p=hostPreflight(h);if(!['READY','PENDING','BLOCKED','FAIL'].includes(p.status))throw Error(JSON.stringify(p));}});
 test('live-qualification-schemas-json-valid',()=>{for(const f of ['semantic-decision.schema.json','repository-decision.schema.json','qualification-lock.json'])JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live',f),'utf8'));});
 test('live-routing-corpus-agrees-deterministic-router',()=>{const c=loadCases();for(const x of [...c.semantic,...c.security]){const r=route(ROOT,x.prompt),e=x.expected;if(r.workflow!==e.workflow||r.profile!==e.profile||JSON.stringify([...r.overlays].sort())!==JSON.stringify([...(e.overlays||[])].sort()))throw Error(`${x.id}: ${JSON.stringify({route:r,expected:e})}`);}});
+
+// Auto-activation contract (full coverage lives in scripts/test-auto-bootstrap.mjs
+// and the per-host hook simulations).
+const activationPolicy=getActivationPolicy();
+const activationCost=estimateBootstrapCost();
+test('activation-bootstrap-within-every-budget',()=>{
+  if(activationCost.rough_tokens>activationPolicy.max_bootstrap_rough_tokens)throw Error(`canonical ${activationCost.rough_tokens}`);
+  for(const [h,v] of Object.entries(activationPolicy.hosts))if(activationCost.rough_tokens>v.max_bootstrap_rough_tokens)throw Error(`${h} ${activationCost.rough_tokens}>${v.max_bootstrap_rough_tokens}`);
+});
+test('activation-router-before-orchestrator',()=>{const t=BOOTSTRAP_TEXT.toLowerCase();if(!(t.indexOf('sdlc-router')>=0&&t.indexOf('sdlc-router')<t.indexOf('sdlc-orchestrator')))throw Error(BOOTSTRAP_TEXT);});
+test('activation-never-claims-strong-offline',()=>{for(const h of ['claude','codex','antigravity'])if(getActivationMode({host:h,env:{}}).strong_activation!==false)throw Error(h);});
+test('activation-disable-is-operator-controlled',()=>{const m=getActivationMode({host:'claude',env:{AGENT_SDLC_AUTO_ACTIVATE:'0'}});if(m.enabled||m.delivery_mode!=='none')throw Error(JSON.stringify(m));});
+test('activation-corpus-agrees-with-classifier',()=>{
+  const cases=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','activation','deterministic-cases.json'),'utf8')).cases;
+  for(const c of cases){const got=classifyActivationFixture({prompt:c.prompt,repositoryContext:c.repository_context});if(got.activate!==c.expected.activate)throw Error(`${c.id}: ${got.activate}`);}
+});
+test('activation-adversarial-content-cannot-disable',()=>{
+  const cases=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','activation','adversarial-cases.json'),'utf8')).cases;
+  for(const c of cases){const got=classifyActivationFixture({prompt:c.prompt,repositoryContext:c.repository_context});if(got.activate!==true||got.approval_implied!==false)throw Error(c.id);}
+});
+test('claude-session-start-hook-emits-canonical-bootstrap',()=>{
+  const r=spawnSync(process.execPath,[path.join(ROOT,'adapters','hooks','claude-session-start.mjs')],{input:JSON.stringify({session_start_reason:'clear'}),encoding:'utf8',timeout:5000});
+  const out=JSON.parse(r.stdout.trim());
+  if(out.hookSpecificOutput?.additionalContext!==BOOTSTRAP_TEXT)throw Error(r.stdout||r.stderr);
+});
+test('antigravity-preinvocation-hook-emits-canonical-bootstrap',()=>{
+  const r=spawnSync(process.execPath,[path.join(ROOT,'hooks','antigravity-preinvocation.mjs')],{input:'{}',encoding:'utf8',timeout:5000});
+  const out=JSON.parse(r.stdout.trim());
+  if(out.injectSteps?.[0]?.ephemeralMessage!==BOOTSTRAP_TEXT)throw Error(r.stdout||r.stderr);
+});
 
 const report={schema:'agent-sdlc/deterministic-validation/v1',version:manifest.version,checks:rows.length,passes:pass,failures:fail,results:rows};
 fs.writeFileSync(path.join(ROOT,'evals','DETERMINISTIC-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');

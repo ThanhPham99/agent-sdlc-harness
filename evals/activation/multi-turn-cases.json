@@ -1,0 +1,47 @@
+{
+  "schema": "agent-sdlc/activation-multi-turn-cases/v1",
+  "note": "Each turn is classified independently with its own repository context. Session events (clear/compact/resume) assert that bootstrap delivery is expected again on hosts that support re-injection.",
+  "cases": [
+    {
+      "id": "AUTO-M001",
+      "title": "Generic Q&A first, repository change later",
+      "turns": [
+        {"prompt": "Explain dependency injection.", "repository_context": {"repository_target": false}, "expected": {"activate": false}},
+        {"prompt": "Now add dependency injection to this service.", "repository_context": {"repository_target": true}, "expected": {"activate": true}}
+      ]
+    },
+    {
+      "id": "AUTO-M002",
+      "title": "Repository task first, unrelated conceptual question later",
+      "turns": [
+        {"prompt": "Fix the retry bug in this repository.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+        {"prompt": "Separately, summarize the CAP theorem.", "repository_context": {"repository_target": false}, "expected": {"activate": false, "no_new_run": true}}
+      ]
+    },
+    {
+      "id": "AUTO-M003",
+      "title": "Active feature then requirement update",
+      "turns": [
+        {"prompt": "Continue phase 2 of the checkout feature in this project.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+        {"prompt": "Here is the updated requirement document for the checkout feature in this repository.", "repository_context": {"repository_target": true}, "expected": {"activate": true, "expected_workflow_family": "requirement-update"}}
+      ]
+    },
+    {
+      "id": "AUTO-M004",
+      "title": "Bootstrap survives clear, compact and resume",
+      "session_events": ["startup", "clear", "compact", "resume"],
+      "expected_bootstrap_delivery": {"claude": true, "antigravity": true, "codex": false},
+      "turns": [
+        {"prompt": "Add an audit log to this service.", "repository_context": {"repository_target": true}, "expected": {"activate": true}}
+      ]
+    },
+    {
+      "id": "AUTO-M005",
+      "title": "New unrelated repository task starts a fresh bounded workflow",
+      "turns": [
+        {"prompt": "Migrate the customer schema in this repository.", "repository_context": {"repository_target": true}, "expected": {"activate": true}},
+        {"prompt": "Unrelated: upgrade the HTTP client dependency in this repository.", "repository_context": {"repository_target": true}, "expected": {"activate": true, "new_bounded_run": true}}
+      ]
+    }
+  ]
+}
