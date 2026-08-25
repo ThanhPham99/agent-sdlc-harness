@@ -1,0 +1,32 @@
+{
+  "schema": "agent-sdlc/dev-link-validation/v1",
+  "checks": 6,
+  "passes": 6,
+  "failures": 0,
+  "results": [
+    {
+      "name": "status-reports-drift-without-touching-the-cache",
+      "status": "PASS"
+    },
+    {
+      "name": "apply-links-the-host-to-this-working-tree",
+      "status": "PASS"
+    },
+    {
+      "name": "apply-is-idempotent",
+      "status": "PASS"
+    },
+    {
+      "name": "revert-restores-the-cache-and-leaves-the-repo-intact",
+      "status": "PASS"
+    },
+    {
+      "name": "refuses-a-path-outside-a-plugins-cache",
+      "status": "PASS"
+    },
+    {
+      "name": "missing-host-record-is-reported-not-crashed",
+      "status": "PASS"
+    }
+  ]
+}

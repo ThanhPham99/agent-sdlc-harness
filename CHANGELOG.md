@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI now gates `test:gates`, `test:tasks`, `test:alpha6` and both qualification suites, which were green locally but ungated.
 - CI matrix: node 18 (the floor declared by `engines`) and node 22, plus a `windows-latest` job covering the platform-sensitive runtime surfaces.
 - Router keyword coverage for Vietnamese objectives and for read-only assessment verbs (`investigate`, `assess`, `evaluate`, `feasibility`).
+- `scripts/dev-link.mjs` plus `dev:status` / `dev:link` / `dev:unlink`: report how far the host's plugin cache has drifted from the working tree, and reversibly point it at the checkout so edits reach a live session.
+- `scripts/coverage-report.mjs` plus `test:coverage` / `coverage:update`: dependency-free V8 block coverage for `runtime/`, ratcheted in `evals/COVERAGE-FLOOR.json`. First measurement: 73% overall, with `runtime/cli.mjs`, `runtime/codex-bootstrap.mjs` and `runtime/index.mjs` never executed by the deterministic suite.
 
 ### Fixed
 - `context_hash` no longer depends on the checked-out line endings: text that feeds a hash goes through `readTextFile`/`normalizeText` in both context compilers and in the repository index, so the same commit produces the same hash on Windows and Linux.

@@ -26,9 +26,32 @@ npm run check
 npm test                      # Deterministic regression suite
 npm run test:integrity        # Version consistency, registry, root-sync, guard validation
 npm run test:activation       # Auto-activation tests for Claude, Codex, Antigravity
+npm run test:coverage         # Runtime coverage floor (V8 block coverage, no dependencies)
 npm run build                 # Build provider distributions
 npm run verify:dist           # Verify packaged distributions
 ```
+
+CI runs everything reachable from `npm run check`; `scripts/validate-ci-coverage.mjs`
+fails if a suite in that chain is missing from `.github/workflows/ci.yml`, so add
+new suites to both.
+
+Coverage is measured with `NODE_V8_COVERAGE` over the deterministic suite and
+ratcheted in `evals/COVERAGE-FLOOR.json`. A drop fails CI; when coverage
+improves, raise the floor with `npm run coverage:update` in the same commit.
+
+### Editing against a live host
+The host loads the plugin from its own cache directory, not from your checkout,
+so edits here do not reach a running session until the cache is pointed at this
+tree:
+
+```bash
+npm run dev:status   # what the host currently loads, and how far it has drifted
+npm run dev:link     # link the host's cache entry to this working tree
+npm run dev:unlink   # restore the cached copy
+```
+
+`dev:link` renames the cached directory aside rather than deleting it, and
+`dev:unlink` puts it back. Restart the host (or reload plugins) after either.
 
 ### Coding Standards & Invariants
 - **Deterministic state:** State transitions and routing decisions must be deterministic and explainable via reason codes.

@@ -1,0 +1,280 @@
+{
+  "schema": "agent-sdlc/coverage-report/v1",
+  "subject": "evals/run-deterministic.mjs",
+  "measured": "v8-block-bytes",
+  "overall_percent": 73.1,
+  "covered_bytes": 233404,
+  "total_bytes": 319145,
+  "modules": [
+    {
+      "file": "runtime/cli.mjs",
+      "percent": 0,
+      "covered_bytes": 0,
+      "total_bytes": 39398,
+      "never_loaded": true
+    },
+    {
+      "file": "runtime/codex-bootstrap.mjs",
+      "percent": 0,
+      "covered_bytes": 0,
+      "total_bytes": 6035,
+      "never_loaded": true
+    },
+    {
+      "file": "runtime/index.mjs",
+      "percent": 0,
+      "covered_bytes": 0,
+      "total_bytes": 225,
+      "never_loaded": true
+    },
+    {
+      "file": "runtime/init.mjs",
+      "percent": 7.7,
+      "covered_bytes": 103,
+      "total_bytes": 1339
+    },
+    {
+      "file": "runtime/normalize.mjs",
+      "percent": 22.2,
+      "covered_bytes": 1663,
+      "total_bytes": 7501
+    },
+    {
+      "file": "runtime/compat.mjs",
+      "percent": 35,
+      "covered_bytes": 717,
+      "total_bytes": 2048
+    },
+    {
+      "file": "runtime/provider.mjs",
+      "percent": 38.6,
+      "covered_bytes": 1024,
+      "total_bytes": 2655
+    },
+    {
+      "file": "runtime/replay.mjs",
+      "percent": 44.8,
+      "covered_bytes": 418,
+      "total_bytes": 934
+    },
+    {
+      "file": "runtime/mcp-server.mjs",
+      "percent": 62.8,
+      "covered_bytes": 7442,
+      "total_bytes": 11857
+    },
+    {
+      "file": "runtime/config.mjs",
+      "percent": 73.1,
+      "covered_bytes": 1057,
+      "total_bytes": 1445
+    },
+    {
+      "file": "runtime/util.mjs",
+      "percent": 78.2,
+      "covered_bytes": 2693,
+      "total_bytes": 3443
+    },
+    {
+      "file": "runtime/activation.mjs",
+      "percent": 81.1,
+      "covered_bytes": 7400,
+      "total_bytes": 9123
+    },
+    {
+      "file": "runtime/ci-evidence.mjs",
+      "percent": 81.1,
+      "covered_bytes": 2738,
+      "total_bytes": 3374
+    },
+    {
+      "file": "runtime/tools.mjs",
+      "percent": 82,
+      "covered_bytes": 6510,
+      "total_bytes": 7941
+    },
+    {
+      "file": "runtime/task-verification.mjs",
+      "percent": 82.5,
+      "covered_bytes": 6188,
+      "total_bytes": 7505
+    },
+    {
+      "file": "runtime/model-router.mjs",
+      "percent": 82.6,
+      "covered_bytes": 1673,
+      "total_bytes": 2025
+    },
+    {
+      "file": "runtime/repo-intelligence.mjs",
+      "percent": 85.4,
+      "covered_bytes": 8226,
+      "total_bytes": 9633
+    },
+    {
+      "file": "runtime/workspace.mjs",
+      "percent": 86.6,
+      "covered_bytes": 7878,
+      "total_bytes": 9098
+    },
+    {
+      "file": "runtime/design-discovery.mjs",
+      "percent": 87.9,
+      "covered_bytes": 8187,
+      "total_bytes": 9317
+    },
+    {
+      "file": "runtime/orchestrator.mjs",
+      "percent": 87.9,
+      "covered_bytes": 9381,
+      "total_bytes": 10669
+    },
+    {
+      "file": "runtime/task-review.mjs",
+      "percent": 88,
+      "covered_bytes": 5738,
+      "total_bytes": 6518
+    },
+    {
+      "file": "runtime/task-scheduler.mjs",
+      "percent": 88.1,
+      "covered_bytes": 8452,
+      "total_bytes": 9599
+    },
+    {
+      "file": "runtime/task-migration.mjs",
+      "percent": 88.2,
+      "covered_bytes": 4587,
+      "total_bytes": 5200
+    },
+    {
+      "file": "runtime/context.mjs",
+      "percent": 88.5,
+      "covered_bytes": 4670,
+      "total_bytes": 5278
+    },
+    {
+      "file": "runtime/git-delivery.mjs",
+      "percent": 89.8,
+      "covered_bytes": 5985,
+      "total_bytes": 6666
+    },
+    {
+      "file": "runtime/task-recovery.mjs",
+      "percent": 90.5,
+      "covered_bytes": 7809,
+      "total_bytes": 8627
+    },
+    {
+      "file": "runtime/symbol-graph.mjs",
+      "percent": 90.8,
+      "covered_bytes": 6566,
+      "total_bytes": 7228
+    },
+    {
+      "file": "runtime/task-engine.mjs",
+      "percent": 90.9,
+      "covered_bytes": 13758,
+      "total_bytes": 15138
+    },
+    {
+      "file": "runtime/cost.mjs",
+      "percent": 91.3,
+      "covered_bytes": 4500,
+      "total_bytes": 4931
+    },
+    {
+      "file": "runtime/traceability.mjs",
+      "percent": 91.5,
+      "covered_bytes": 15270,
+      "total_bytes": 16687
+    },
+    {
+      "file": "runtime/policy.mjs",
+      "percent": 91.6,
+      "covered_bytes": 840,
+      "total_bytes": 917
+    },
+    {
+      "file": "runtime/task-context.mjs",
+      "percent": 91.8,
+      "covered_bytes": 11592,
+      "total_bytes": 12634
+    },
+    {
+      "file": "runtime/governor.mjs",
+      "percent": 92,
+      "covered_bytes": 7824,
+      "total_bytes": 8503
+    },
+    {
+      "file": "runtime/telemetry.mjs",
+      "percent": 93.3,
+      "covered_bytes": 3974,
+      "total_bytes": 4260
+    },
+    {
+      "file": "runtime/task-runner.mjs",
+      "percent": 93.8,
+      "covered_bytes": 12079,
+      "total_bytes": 12871
+    },
+    {
+      "file": "runtime/handoff.mjs",
+      "percent": 94.1,
+      "covered_bytes": 1004,
+      "total_bytes": 1067
+    },
+    {
+      "file": "runtime/plan-validator.mjs",
+      "percent": 94.9,
+      "covered_bytes": 12876,
+      "total_bytes": 13575
+    },
+    {
+      "file": "runtime/store.mjs",
+      "percent": 95.8,
+      "covered_bytes": 7051,
+      "total_bytes": 7357
+    },
+    {
+      "file": "runtime/learning.mjs",
+      "percent": 96,
+      "covered_bytes": 6384,
+      "total_bytes": 6650
+    },
+    {
+      "file": "runtime/parallel.mjs",
+      "percent": 96.2,
+      "covered_bytes": 1566,
+      "total_bytes": 1628
+    },
+    {
+      "file": "runtime/repo-index.mjs",
+      "percent": 96.3,
+      "covered_bytes": 15357,
+      "total_bytes": 15947
+    },
+    {
+      "file": "runtime/router.mjs",
+      "percent": 96.7,
+      "covered_bytes": 2224,
+      "total_bytes": 2299
+    }
+  ],
+  "never_loaded": [
+    "runtime/cli.mjs",
+    "runtime/codex-bootstrap.mjs",
+    "runtime/index.mjs"
+  ],
+  "floor": {
+    "overall_percent": 73,
+    "never_loaded": [
+      "runtime/cli.mjs",
+      "runtime/codex-bootstrap.mjs",
+      "runtime/index.mjs"
+    ]
+  },
+  "problems": [],
+  "status": "PASS"
+}

@@ -45,6 +45,10 @@ jobs:
         run: npm run test:github-installers
       - name: Build provider distributions
         run: npm run build
+      - name: Development link tooling
+        run: npm run test:dev-link
+      - name: Runtime coverage floor
+        run: npm run test:coverage
       - name: Verify extracted distributions
         run: npm run verify:dist
       - name: Package release candidates
@@ -63,6 +67,8 @@ jobs:
             evals/ROOT-SYNC-VALIDATION.json
             evals/GUARD-VALIDATION.json
             evals/CI-COVERAGE-VALIDATION.json
+            evals/DEV-LINK-VALIDATION.json
+            evals/COVERAGE.json
           if-no-files-found: error
           retention-days: 14
 
@@ -90,5 +96,9 @@ jobs:
         run: npm run test:alpha6
       - name: Build provider distributions
         run: npm run build
+      - name: Development link tooling (junction semantics)
+        run: npm run test:dev-link
+      - name: Runtime coverage floor
+        run: npm run test:coverage
       - name: Verify extracted distributions
         run: npm run verify:dist

@@ -3,8 +3,8 @@
   "version": "3.0.0-alpha6",
   "workflow": ".github/workflows/ci.yml",
   "check_script": "check",
-  "checks": 19,
-  "passes": 19,
+  "checks": 21,
+  "passes": 21,
   "failures": 0,
   "suites": [
     {
@@ -113,6 +113,18 @@
       "script": "test:qualification-transport",
       "status": "PASS",
       "gated_via": "test:qualification-transport",
+      "problems": []
+    },
+    {
+      "script": "test:dev-link",
+      "status": "PASS",
+      "gated_via": "test:dev-link",
+      "problems": []
+    },
+    {
+      "script": "test:coverage",
+      "status": "PASS",
+      "gated_via": "test:coverage",
       "problems": []
     },
     {
