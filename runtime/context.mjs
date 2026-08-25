@@ -1,6 +1,5 @@
 import path from 'node:path';
-import fs from 'node:fs';
-import {estimateTokens,gitSha,readJson,sha256,truncateUtf8} from './util.mjs';
+import {estimateTokens,gitSha,readJson,readTextFile,sha256,truncateUtf8} from './util.mjs';
 import {getArtifact} from './store.mjs';
 
 const CORE_SKILL_BY_STAGE={
@@ -26,7 +25,9 @@ function resolveSkills(root,run){
   // Release/deploy work always needs deployment semantics; strict stages also carry security review guidance.
   if(['RELEASE','DEPLOY'].includes(run.state))add('deployment');
   if(run.profile==='STRICT'&&['DESIGN','VERIFY','REVIEW','RELEASE'].includes(run.state))add('security');
-  return ids.map(id=>{const spec=registry[id];let instructions='';try{instructions=fs.readFileSync(path.join(root,spec.instructions),'utf8').trim();}catch{}return {id,description:spec.description,instructions,max_response_words:spec.max_response_words};});
+  // readTextFile, not readFileSync: skill text is hashed into context_hash, so a
+  // CRLF checkout must not change the hash for the same commit.
+  return ids.map(id=>{const spec=registry[id];let instructions='';try{instructions=readTextFile(path.join(root,spec.instructions)).trim();}catch{}return {id,description:spec.description,instructions,max_response_words:spec.max_response_words};});
 }
 
 export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],constraints=[]}={}){
@@ -66,7 +67,7 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
 }
 
 export function renderPrompt(root,manifest){
-  const system=fs.readFileSync(path.join(root,'prompts','system.md'),'utf8').trim();
+  const system=readTextFile(path.join(root,'prompts','system.md')).trim();
   const skillText=(manifest.skill_instructions||[]).map(s=>`### ${s.id}\n${s.instructions}`).join('\n\n');
   return `${system}\n\nSTAGE SKILLS\n${skillText||'(none)'}\n\nOBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}\n\nReturn a compact StageResult JSON.`;
 }

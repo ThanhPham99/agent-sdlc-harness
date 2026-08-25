@@ -1,0 +1,126 @@
+{
+  "schema": "agent-sdlc/ci-coverage-validation/v1",
+  "version": "3.0.0-alpha6",
+  "workflow": ".github/workflows/ci.yml",
+  "check_script": "check",
+  "checks": 19,
+  "passes": 19,
+  "failures": 0,
+  "suites": [
+    {
+      "script": "test",
+      "status": "PASS",
+      "gated_via": "test",
+      "problems": []
+    },
+    {
+      "script": "test:versions",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:registry",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:root-sync",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:guard",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:ci-coverage",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:auto-bootstrap",
+      "status": "PASS",
+      "gated_via": "test:activation",
+      "problems": []
+    },
+    {
+      "script": "test:claude-bootstrap",
+      "status": "PASS",
+      "gated_via": "test:activation",
+      "problems": []
+    },
+    {
+      "script": "test:antigravity-bootstrap",
+      "status": "PASS",
+      "gated_via": "test:activation",
+      "problems": []
+    },
+    {
+      "script": "test:codex-bootstrap",
+      "status": "PASS",
+      "gated_via": "test:activation",
+      "problems": []
+    },
+    {
+      "script": "test:gates",
+      "status": "PASS",
+      "gated_via": "test:gates",
+      "problems": []
+    },
+    {
+      "script": "test:tasks",
+      "status": "PASS",
+      "gated_via": "test:tasks",
+      "problems": []
+    },
+    {
+      "script": "test:alpha6",
+      "status": "PASS",
+      "gated_via": "test:alpha6",
+      "problems": []
+    },
+    {
+      "script": "build",
+      "status": "PASS",
+      "gated_via": "build",
+      "problems": []
+    },
+    {
+      "script": "validate:github",
+      "status": "PASS",
+      "gated_via": "validate:github",
+      "problems": []
+    },
+    {
+      "script": "test:github-installers",
+      "status": "PASS",
+      "gated_via": "test:github-installers",
+      "problems": []
+    },
+    {
+      "script": "test:qualification-harness",
+      "status": "PASS",
+      "gated_via": "test:qualification-harness",
+      "problems": []
+    },
+    {
+      "script": "test:qualification-transport",
+      "status": "PASS",
+      "gated_via": "test:qualification-transport",
+      "problems": []
+    },
+    {
+      "script": "verify:dist",
+      "status": "PASS",
+      "gated_via": "verify:dist",
+      "problems": []
+    }
+  ],
+  "status": "PASS"
+}

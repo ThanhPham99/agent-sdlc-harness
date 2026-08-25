@@ -9,18 +9,30 @@ permissions:
 jobs:
   offline-validation:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      # Step order mirrors the `check` script. scripts/validate-ci-coverage.mjs
+      # (run by test:integrity) fails if a suite in that chain is missing here.
       - name: Deterministic regression
         run: npm test
-      - name: Integrity gates (versions, skill registry, root sync, host guard)
+      - name: Integrity gates (versions, skill registry, root sync, host guard, CI coverage)
         run: npm run test:integrity
       - name: Auto-activation contract and per-host bootstrap hooks
         run: npm run test:activation
+      - name: Design and plan-quality gates
+        run: npm run test:gates
+      - name: Task execution engine
+        run: npm run test:tasks
+      - name: Repository intelligence, traceability, delivery, governance, learning
+        run: npm run test:alpha6
+      - name: Qualification harness contract
+        run: npm run test:qualification-harness
+      - name: Qualification transport contract
+        run: npm run test:qualification-transport
       - name: Validate GitHub-native install surfaces
         run: npm run validate:github
       - name: Test bootstrap installers with fake host CLIs
@@ -43,5 +55,6 @@ jobs:
             evals/REGISTRY-VALIDATION.json
             evals/ROOT-SYNC-VALIDATION.json
             evals/GUARD-VALIDATION.json
+            evals/CI-COVERAGE-VALIDATION.json
           if-no-files-found: error
           retention-days: 14

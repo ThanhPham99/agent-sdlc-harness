@@ -10,9 +10,8 @@
 // are as auditable as the inclusions: whole chat history, all requirements, all
 // design docs, all tasks, the full repository tree, unrelated logs, every tool
 // schema, and any previous worker's reasoning.
-import fs from 'node:fs';
 import path from 'node:path';
-import {estimateTokens,gitSha,readJson,sha256,truncateUtf8,now} from './util.mjs';
+import {estimateTokens,gitSha,readJson,readTextFile,sha256,truncateUtf8,now} from './util.mjs';
 import {getArtifact,listTasks,putTaskContextManifest} from './store.mjs';
 import {openIntelligence,findTestsForFiles,findPublicInterfaces,findDataEntities,findDependents} from './repo-intelligence.mjs';
 
@@ -40,7 +39,8 @@ function taskSkillInstructions(root,task){
   const spec=registry[id];
   if(!spec)return null;
   let instructions='';
-  try{instructions=fs.readFileSync(path.join(root,spec.instructions),'utf8').trim();}catch{}
+  // Hashed into the task context_hash; line endings must not change it.
+  try{instructions=readTextFile(path.join(root,spec.instructions)).trim();}catch{}
   return {id,description:spec.description,instructions,max_response_words:spec.max_response_words};
 }
 
@@ -212,7 +212,7 @@ export function buildTaskContext(root,projectRoot,run,task,{extraArtifactRefs=[]
 
 /** Render the bounded task prompt. Nothing outside the manifest reaches it. */
 export function renderTaskPrompt(root,manifest){
-  const system=fs.readFileSync(path.join(root,'prompts','system.md'),'utf8').trim();
+  const system=readTextFile(path.join(root,'prompts','system.md')).trim();
   const list=(xs,empty='(none)')=>arr(xs).length?arr(xs).join('\n'):empty;
   return [
     system,

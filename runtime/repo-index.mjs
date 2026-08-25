@@ -14,7 +14,7 @@
 // This module reports the tier it actually used. It never claims a higher one.
 import fs from 'node:fs';
 import path from 'node:path';
-import {ensureDir,git,gitSha,now,readJson,sha256,writeJson} from './util.mjs';
+import {ensureDir,git,gitSha,normalizeText,now,readJson,sha256,writeJson} from './util.mjs';
 import {stateDir} from './store.mjs';
 
 export const CAPABILITY_TIERS=['LSP_OR_COMPILER','LANGUAGE_PARSER','DETERMINISTIC_SYNTAX','LLM_INFERENCE'];
@@ -324,7 +324,9 @@ export function buildIndex(projectRoot,{force=false,maxFiles=20000}={}){
       files.push(prev);reused++;continue;
     }
 
-    let text;try{text=fs.readFileSync(abs,'utf8');}catch{skipped++;continue;}
+    // Normalized before hashing so a file digest identifies content, not the
+    // line endings a given platform checked out.
+    let text;try{text=normalizeText(fs.readFileSync(abs,'utf8'));}catch{skipped++;continue;}
     const hash=sha256(text);
     if(prev&&prev.sha256===hash&&!prev.truncated){
       if(!prev.blob_sha&&blobSha)prev.blob_sha=blobSha;

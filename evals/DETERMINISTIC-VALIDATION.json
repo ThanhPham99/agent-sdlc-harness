@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 234,
-  "passes": 234,
+  "checks": 240,
+  "passes": 240,
   "failures": 0,
   "results": [
     {
@@ -135,6 +135,30 @@
     },
     {
       "name": "prompt-does-not-load-chat-history",
+      "status": "PASS"
+    },
+    {
+      "name": "normalize-text-collapses-crlf-and-cr-and-bom",
+      "status": "PASS"
+    },
+    {
+      "name": "context-hash-is-line-ending-invariant",
+      "status": "PASS"
+    },
+    {
+      "name": "context-manifest-carries-no-carriage-returns",
+      "status": "PASS"
+    },
+    {
+      "name": "stale-run-write-is-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "run-write-leaves-no-temp-files",
+      "status": "PASS"
+    },
+    {
+      "name": "event-seq-is-dense-and-monotonic",
       "status": "PASS"
     },
     {

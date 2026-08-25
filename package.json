@@ -38,6 +38,7 @@
     "test:versions": "node scripts/validate-versions.mjs",
     "test:registry": "node scripts/validate-registry.mjs",
     "test:root-sync": "node scripts/validate-root-sync.mjs",
-    "test:integrity": "npm run test:versions && npm run test:registry && npm run test:root-sync && npm run test:guard"
+    "test:ci-coverage": "node scripts/validate-ci-coverage.mjs",
+    "test:integrity": "npm run test:versions && npm run test:registry && npm run test:root-sync && npm run test:guard && npm run test:ci-coverage"
   }
 }

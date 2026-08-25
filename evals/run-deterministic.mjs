@@ -13,9 +13,9 @@ import {runTaskRuntimeSuite} from './task-runtime.mjs';
 import {runAlpha6Suite} from './alpha6-runtime.mjs';
 import {checkTool} from '../runtime/policy.mjs';
 import {buildContext,renderPrompt} from '../runtime/context.mjs';
-import {putArtifact,getArtifact} from '../runtime/store.mjs';
+import {putArtifact,getArtifact,loadRun,saveRun,emit} from '../runtime/store.mjs';
 import {validateReplay} from '../runtime/replay.mjs';
-import {sha256} from '../runtime/util.mjs';
+import {normalizeText,sha256} from '../runtime/util.mjs';
 import {probe,capabilities} from '../runtime/provider.mjs';
 import {invokeTool} from '../runtime/tools.mjs';
 import {zipDir,unzipTo} from '../scripts/archive.mjs';
@@ -84,6 +84,72 @@ test('context-loads-core-skill',()=>{const m=buildContext(ROOT,tmp,contextRun,{}
 test('context-loads-workflow-specialty',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(!m.skills.some(x=>x.id==='database'))throw Error(JSON.stringify(m.skills));});
 test('strict-context-loads-security',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(!m.skills.some(x=>x.id==='security'))throw Error(JSON.stringify(m.skills));});
 test('prompt-does-not-load-chat-history',()=>{const m=buildContext(ROOT,tmp,contextRun,{});const p=renderPrompt(ROOT,m);if(/entire chat history/i.test(p)||p.length>30000)throw Error('prompt too large/unsafe');});
+
+// ---------------------------------------------------------------------------
+// Cross-platform reproducibility.
+//
+// context_hash is sha256 over a manifest that embeds skill instruction text.
+// A CRLF worktree (Windows, or .gitattributes added after the first checkout)
+// therefore produced a different hash from Linux for the same commit, which
+// silently breaks replay and evidence comparison across machines.
+// ---------------------------------------------------------------------------
+const CR=String.fromCharCode(13),LF=String.fromCharCode(10);
+function harnessRootWithEol(eol){
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-eol-'));
+  for(const sub of ['config','policies','prompts','harness'])fs.cpSync(path.join(ROOT,sub),path.join(d,sub),{recursive:true});
+  const skillDir=path.join(d,'harness','internal-skills');
+  for(const f of fs.readdirSync(skillDir).filter(x=>x.endsWith('.md'))){
+    const p=path.join(skillDir,f);
+    fs.writeFileSync(p,fs.readFileSync(p,'utf8').split(/\r\n|\r|\n/).join(eol));
+  }
+  const sys=path.join(d,'prompts','system.md');
+  fs.writeFileSync(sys,fs.readFileSync(sys,'utf8').split(/\r\n|\r|\n/).join(eol));
+  return d;
+}
+test('normalize-text-collapses-crlf-and-cr-and-bom',()=>{
+  const out=normalizeText(String.fromCharCode(0xFEFF)+'a'+CR+LF+'b'+CR+'c'+LF+'d');
+  if(out!=='a'+LF+'b'+LF+'c'+LF+'d')throw Error(JSON.stringify(out));
+});
+test('context-hash-is-line-ending-invariant',()=>{
+  const lf=buildContext(harnessRootWithEol(LF),tmp,contextRun,{});
+  const crlf=buildContext(harnessRootWithEol(CR+LF),tmp,contextRun,{});
+  if(lf.context_hash!==crlf.context_hash)throw Error(`${lf.context_hash} != ${crlf.context_hash}`);
+  if(lf.estimated_tokens!==crlf.estimated_tokens)throw Error('token estimate depends on line endings');
+});
+test('context-manifest-carries-no-carriage-returns',()=>{
+  const m=buildContext(ROOT,tmp,contextRun,{});
+  if(JSON.stringify(m).includes(CR))throw Error('manifest embeds carriage returns');
+  if(renderPrompt(ROOT,m).includes(CR))throw Error('prompt embeds carriage returns');
+});
+
+// ---------------------------------------------------------------------------
+// Run-state durability. The run document is read-modify-write on every
+// transition; a second writer holding an older copy must not silently discard
+// the first writer's evidence.
+// ---------------------------------------------------------------------------
+test('stale-run-write-is-rejected',()=>{
+  const r=newRun(ROOT,tmp,{objective:'concurrent writers',route:route(ROOT,'Add refund capability')});
+  const a=loadRun(tmp,r.run_id),b=loadRun(tmp,r.run_id);
+  a.evidence.INTAKE=['first_writer'];saveRun(tmp,a);
+  b.evidence.INTAKE=['second_writer'];
+  let ok=false;try{saveRun(tmp,b);}catch(e){ok=/STALE_RUN_STATE/.test(e.message);}
+  if(!ok)throw Error('stale write accepted; first writer lost');
+  if(!loadRun(tmp,r.run_id).evidence.INTAKE.includes('first_writer'))throw Error('first write lost');
+});
+test('run-write-leaves-no-temp-files',()=>{
+  const r=newRun(ROOT,tmp,{objective:'atomic write',route:route(ROOT,'Add refund capability')});
+  saveRun(tmp,r);
+  const leftovers=fs.readdirSync(path.join(tmp,'.agent-sdlc','runs')).filter(x=>x.endsWith('.tmp'));
+  if(leftovers.length)throw Error(`temp files left behind: ${leftovers.join(', ')}`);
+});
+test('event-seq-is-dense-and-monotonic',()=>{
+  const r=newRun(ROOT,tmp,{objective:'event sequence',route:route(ROOT,'Add refund capability')});
+  const seqs=[];
+  for(let i=0;i<50;i++)seqs.push(emit(tmp,r,{type:'test.event',payload:{i}}).seq);
+  // run.created is seq 1, so the 50 appends must be 2..51 with no gap or repeat.
+  const expected=Array.from({length:50},(_,i)=>i+2);
+  if(JSON.stringify(seqs)!==JSON.stringify(expected))throw Error(`unexpected sequence: ${seqs[0]}..${seqs.at(-1)}`);
+});
 
 // Artifact memory / replay integrity
 test('artifact-roundtrip',()=>{const a=putArtifact(tmp,{kind:'spec',content:'hello',runId:run.run_id,stage:run.state});const b=getArtifact(tmp,a.artifact_id);if(b.content!=='hello')throw Error('mismatch');});

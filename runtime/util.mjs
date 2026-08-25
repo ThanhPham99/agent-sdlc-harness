@@ -7,7 +7,27 @@ export const now=()=>new Date().toISOString();
 export const sha256=(x)=>crypto.createHash('sha256').update(x).digest('hex');
 export const ensureDir=(p)=>fs.mkdirSync(p,{recursive:true});
 export const readJson=(p,fallback=null)=>{try{return JSON.parse(fs.readFileSync(p,'utf8'));}catch(e){if(fallback!==null)return fallback;throw e;}};
-export const writeJson=(p,v)=>{ensureDir(path.dirname(p));fs.writeFileSync(p,JSON.stringify(v,null,2)+'\n');};
+// Text that feeds a hash must not depend on how git checked the file out. With
+// a CRLF worktree (Windows, or .gitattributes added after the initial checkout)
+// raw reads make context_hash differ from Linux for the very same commit, which
+// breaks the reproducibility the evidence model depends on.
+export const normalizeText=(s)=>{let t=String(s??'');if(t.charCodeAt(0)===0xFEFF)t=t.slice(1);return t.replace(/\r\n?/g,'\n');};
+export const readTextFile=(p)=>normalizeText(fs.readFileSync(p,'utf8'));
+// Durable JSON write: a temp file plus rename, so an interrupted process leaves
+// either the previous document or the new one, never a truncated one. Run state
+// is rewritten on every transition, and a truncated run file is unrecoverable.
+let writeSeq=0;
+export const writeJson=(p,v)=>{
+  ensureDir(path.dirname(p));
+  const tmp=`${p}.${process.pid}.${writeSeq++}.tmp`;
+  try{
+    fs.writeFileSync(tmp,JSON.stringify(v,null,2)+'\n');
+    fs.renameSync(tmp,p);
+  }catch(e){
+    try{fs.rmSync(tmp,{force:true});}catch{}
+    throw e;
+  }
+};
 export const appendJsonl=(p,v)=>{ensureDir(path.dirname(p));fs.appendFileSync(p,JSON.stringify(v)+'\n');};
 // fileURLToPath is required for Windows: URL.pathname yields "/D:/..." which
 // path.resolve then re-anchors to the current drive ("D:\D:\...").
