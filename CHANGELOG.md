@@ -13,12 +13,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI matrix: node 18 (the floor declared by `engines`) and node 22, plus a `windows-latest` job covering the platform-sensitive runtime surfaces.
 - Router keyword coverage for Vietnamese objectives and for read-only assessment verbs (`investigate`, `assess`, `evaluate`, `feasibility`).
 - `scripts/dev-link.mjs` plus `dev:status` / `dev:link` / `dev:unlink`: report how far the host's plugin cache has drifted from the working tree, and reversibly point it at the checkout so edits reach a live session.
-- `scripts/coverage-report.mjs` plus `test:coverage` / `coverage:update`: dependency-free V8 block coverage for `runtime/`, ratcheted in `evals/COVERAGE-FLOOR.json`. First measurement: 73% overall, with `runtime/cli.mjs`, `runtime/codex-bootstrap.mjs` and `runtime/index.mjs` never executed by the deterministic suite.
+- `scripts/coverage-report.mjs` plus `test:coverage` / `coverage:update`: dependency-free V8 block coverage for `runtime/`, ratcheted in `evals/COVERAGE-FLOOR.json`. Coverage is the union of every process that loaded a module, so a spawned CLI counts.
+- `scripts/test-cli-contract.mjs` (`test:cli-contract`): 40 checks driving the real CLI as an agent does -- spawned, one argv at a time -- over the stage loop, artifact and handoff round-trips, usage accounting, replay, repository intelligence, the read-only reference surfaces, and the error contract (structured error, non-zero exit, no stack trace). Raised measured runtime coverage from 73% to 80% and `runtime/cli.mjs` from 0% to 47%.
+- `scripts/validate-cli-surface.mjs` (`test:cli-surface`, part of `test:integrity`): the CLI help text must match the commands actually dispatched, in both directions.
 
 ### Fixed
 - `context_hash` no longer depends on the checked-out line endings: text that feeds a hash goes through `readTextFile`/`normalizeText` in both context compilers and in the repository index, so the same commit produces the same hash on Windows and Linux.
 - Run documents are written atomically (temp file + rename) like task records already were, and `saveRun` refuses a stale write (`STALE_RUN_STATE`) instead of silently discarding a concurrent writer's evidence.
 - Router normalization folds diacritics, so an objective typed without accents (`sua loi`, `su co`) reaches its rule instead of falling through to `new-feature` with the wrong stage set and profile.
+- CLI help text now documents `task replay`, `task fallback` and `task resume`, which were implemented but undiscoverable — the help text is the only CLI discovery surface an agent has.
 
 ### Changed
 - Event sequence numbers come from a per-stream counter instead of re-reading and splitting the whole event log on every append (was quadratic per run).

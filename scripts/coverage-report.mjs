@@ -20,25 +20,33 @@ import {spawnSync} from 'node:child_process';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const FLOOR_FILE=path.join(ROOT,'evals','COVERAGE-FLOOR.json');
-const ENTRY='evals/run-deterministic.mjs';
+// Spawned children inherit NODE_V8_COVERAGE and write into the same directory,
+// so the CLI contract suite contributes the coverage of every CLI process it
+// starts. Without it runtime/cli.mjs -- the largest module, and the surface the
+// skills tell the model to call -- measured zero.
+const ENTRIES=['evals/run-deterministic.mjs','scripts/test-cli-contract.mjs'];
 const SUBJECT_DIR=path.join(ROOT,'runtime');
 const update=process.argv.includes('--update');
 
 const outDir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-cov-'));
-const run=spawnSync(process.execPath,[ENTRY],{cwd:ROOT,encoding:'utf8',
-  env:{...process.env,NODE_V8_COVERAGE:outDir},maxBuffer:64*1024*1024});
-if(run.status!==0){
-  console.error(`coverage subject failed (${ENTRY} exited ${run.status}); fix the suite before measuring`);
-  process.exit(run.status||1);
+for(const entry of ENTRIES){
+  const run=spawnSync(process.execPath,[entry],{cwd:ROOT,encoding:'utf8',
+    env:{...process.env,NODE_V8_COVERAGE:outDir},maxBuffer:64*1024*1024});
+  if(run.status!==0){
+    console.error(`coverage subject failed (${entry} exited ${run.status}); fix the suite before measuring`);
+    process.exit(run.status||1);
+  }
 }
 
 const files=fs.readdirSync(outDir).filter(f=>f.startsWith('coverage-')&&f.endsWith('.json'));
 if(!files.length){console.error(`no coverage output in ${outDir}`);process.exit(1);}
 
 const subjectPrefix=pathToFileURL(SUBJECT_DIR+path.sep).href;
-// url -> covered/total bytes. A module loaded by several processes is merged by
-// taking the best result, not by summing bytes.
-const byFile=new Map();
+// One entry per module: every process that loaded it contributes its own range
+// set. The CLI is a long if/else chain, so each spawned process executes exactly
+// one branch -- taking the best single process instead of the union of them all
+// reported 10% for a module the suite actually walks through end to end.
+const instances=new Map();
 
 for(const f of files){
   const doc=JSON.parse(fs.readFileSync(path.join(outDir,f),'utf8'));
@@ -48,17 +56,26 @@ for(const f of files){
     const ranges=[];
     for(const fn of script.functions||[])for(const r of fn.ranges||[])ranges.push(r);
     if(!ranges.length)continue;
-    const total=Math.max(...ranges.map(r=>r.endOffset));
-    if(!total)continue;
-    // Outermost first, so a nested range overwrites its parent's verdict.
+    if(!instances.has(rel))instances.set(rel,[]);
+    instances.get(rel).push(ranges);
+  }
+}
+
+const byFile=new Map();
+for(const [rel,runs] of instances){
+  const total=Math.max(...runs.flat().map(r=>r.endOffset));
+  if(!total)continue;
+  const union=new Uint8Array(total);
+  for(const ranges of runs){
+    // Outermost first, so a nested range overwrites its parent's verdict within
+    // this process; the result is then OR-ed into the union.
     ranges.sort((a,b)=>a.startOffset-b.startOffset||b.endOffset-a.endOffset);
     const covered=new Uint8Array(total);
     for(const r of ranges)covered.fill(r.count>0?1:0,r.startOffset,Math.min(r.endOffset,total));
-    let hit=0;for(let i=0;i<total;i++)if(covered[i])hit++;
-    const prev=byFile.get(rel);
-    const pct=hit/total;
-    if(!prev||pct>prev.covered/prev.total)byFile.set(rel,{covered:hit,total});
+    for(let i=0;i<total;i++)if(covered[i])union[i]=1;
   }
+  let hit=0;for(let i=0;i<total;i++)if(union[i])hit++;
+  byFile.set(rel,{covered:hit,total});
 }
 
 // Modules the suite never loaded at all do not appear in the coverage output.
@@ -81,12 +98,12 @@ if(floor&&!update){
   // A module that used to be executed and now is not is a coverage regression
   // even when the overall percentage still clears the floor.
   const regressed=modules.filter(m=>m.never_loaded&&!(floor.never_loaded||[]).includes(m.file));
-  for(const m of regressed)problems.push(`${m.file} is no longer executed by ${ENTRY}`);
+  for(const m of regressed)problems.push(`${m.file} is no longer executed by any coverage subject`);
 }
 
 const report={
   schema:'agent-sdlc/coverage-report/v1',
-  subject:ENTRY,
+  subjects:ENTRIES,
   measured:'v8-block-bytes',
   overall_percent:overall,
   covered_bytes:totals.covered,

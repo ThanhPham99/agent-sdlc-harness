@@ -1,0 +1,175 @@
+{
+  "schema": "agent-sdlc/cli-contract-validation/v1",
+  "checks": 40,
+  "passes": 33,
+  "failures": 7,
+  "results": [
+    {
+      "name": "init-creates-project-state",
+      "status": "PASS"
+    },
+    {
+      "name": "doctor-reports-version-and-project-state",
+      "status": "PASS"
+    },
+    {
+      "name": "route-is-deterministic-across-processes",
+      "status": "PASS"
+    },
+    {
+      "name": "config-show-and-compat-check-answer-without-a-run",
+      "status": "PASS"
+    },
+    {
+      "name": "start-returns-a-run-in-the-first-stage",
+      "status": "PASS"
+    },
+    {
+      "name": "status-round-trips-the-persisted-run",
+      "status": "PASS"
+    },
+    {
+      "name": "next-names-the-following-stage",
+      "status": "PASS"
+    },
+    {
+      "name": "context-is-bounded-and-carries-the-stage-policy",
+      "status": "PASS"
+    },
+    {
+      "name": "context-prompt-mode-returns-text-not-json",
+      "status": "PASS"
+    },
+    {
+      "name": "artifact-put-get-list-round-trip",
+      "status": "PASS"
+    },
+    {
+      "name": "a-stage-outside-the-workflow-is-refused",
+      "status": "FAIL",
+      "error": "transition --run-id run_a1a0f73c-81d9-408e-a5b0-c3375e17dedd --to DESIGN unexpectedly succeeded"
+    },
+    {
+      "name": "gate-refuses-a-transition-without-evidence",
+      "status": "FAIL",
+      "error": "transition --run-id run_a1a0f73c-81d9-408e-a5b0-c3375e17dedd --to PLAN unexpectedly succeeded"
+    },
+    {
+      "name": "transition-advances-with-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "tool-check-denies-a-tool-the-stage-forbids",
+      "status": "PASS"
+    },
+    {
+      "name": "handoff-put-get-list-round-trip",
+      "status": "PASS"
+    },
+    {
+      "name": "usage-add-and-report-accumulate-numbers-not-strings",
+      "status": "PASS"
+    },
+    {
+      "name": "model-route-answers-for-the-current-stage",
+      "status": "PASS"
+    },
+    {
+      "name": "metrics-and-replay-export-cover-the-run",
+      "status": "PASS"
+    },
+    {
+      "name": "repo-index-then-status-reports-the-same-revision",
+      "status": "PASS"
+    },
+    {
+      "name": "repo-symbol-finds-an-indexed-symbol",
+      "status": "PASS"
+    },
+    {
+      "name": "reference-surface-activation-policy",
+      "status": "PASS"
+    },
+    {
+      "name": "reference-surface-activation-events",
+      "status": "PASS"
+    },
+    {
+      "name": "reference-surface-activation-cost",
+      "status": "PASS"
+    },
+    {
+      "name": "reference-surface-design-policy",
+      "status": "PASS"
+    },
+    {
+      "name": "reference-surface-task-failure-policy",
+      "status": "PASS"
+    },
+    {
+      "name": "reference-surface-task-state-machine",
+      "status": "PASS"
+    },
+    {
+      "name": "reference-surface-trace-kinds",
+      "status": "PASS"
+    },
+    {
+      "name": "reference-surface-delivery-targets",
+      "status": "PASS"
+    },
+    {
+      "name": "reference-surface-govern-policy",
+      "status": "PASS"
+    },
+    {
+      "name": "reference-surface-learn-sources",
+      "status": "PASS"
+    },
+    {
+      "name": "reference-surface-provider-probe",
+      "status": "PASS"
+    },
+    {
+      "name": "reference-surface-parallel-plan---tasks-[]",
+      "status": "PASS"
+    },
+    {
+      "name": "unknown-command-prints-help-and-exits-2",
+      "status": "PASS"
+    },
+    {
+      "name": "no-command-prints-help-and-exits-0",
+      "status": "PASS"
+    },
+    {
+      "name": "missing-run-id-is-a-structured-error",
+      "status": "FAIL",
+      "error": "status unexpectedly succeeded"
+    },
+    {
+      "name": "unknown-run-id-is-a-structured-error",
+      "status": "FAIL",
+      "error": "status --run-id run_does-not-exist unexpectedly succeeded"
+    },
+    {
+      "name": "unknown-workflow-is-a-structured-error",
+      "status": "FAIL",
+      "error": "route --objective x --workflow not-a-workflow unexpectedly succeeded"
+    },
+    {
+      "name": "unknown-subcommands-are-structured-errors",
+      "status": "FAIL",
+      "error": "task nope --run-id run_a1a0f73c-81d9-408e-a5b0-c3375e17dedd unexpectedly succeeded"
+    },
+    {
+      "name": "required-file-flags-are-reported-not-crashed",
+      "status": "FAIL",
+      "error": "plan validate --run-id run_a1a0f73c-81d9-408e-a5b0-c3375e17dedd unexpectedly succeeded"
+    },
+    {
+      "name": "a-refused-plan-gate-exits-non-zero",
+      "status": "PASS"
+    }
+  ]
+}

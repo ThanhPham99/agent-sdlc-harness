@@ -3,8 +3,8 @@
   "version": "3.0.0-alpha6",
   "workflow": ".github/workflows/ci.yml",
   "check_script": "check",
-  "checks": 21,
-  "passes": 21,
+  "checks": 23,
+  "passes": 23,
   "failures": 0,
   "suites": [
     {
@@ -39,6 +39,12 @@
     },
     {
       "script": "test:ci-coverage",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:cli-surface",
       "status": "PASS",
       "gated_via": "test:integrity",
       "problems": []
@@ -113,6 +119,12 @@
       "script": "test:qualification-transport",
       "status": "PASS",
       "gated_via": "test:qualification-transport",
+      "problems": []
+    },
+    {
+      "script": "test:cli-contract",
+      "status": "PASS",
+      "gated_via": "test:cli-contract",
       "problems": []
     },
     {

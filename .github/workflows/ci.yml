@@ -45,6 +45,8 @@ jobs:
         run: npm run test:github-installers
       - name: Build provider distributions
         run: npm run build
+      - name: CLI contract (spawned binary, agent-facing surface)
+        run: npm run test:cli-contract
       - name: Development link tooling
         run: npm run test:dev-link
       - name: Runtime coverage floor
@@ -69,6 +71,8 @@ jobs:
             evals/CI-COVERAGE-VALIDATION.json
             evals/DEV-LINK-VALIDATION.json
             evals/COVERAGE.json
+            evals/CLI-CONTRACT-VALIDATION.json
+            evals/CLI-SURFACE-VALIDATION.json
           if-no-files-found: error
           retention-days: 14
 
@@ -96,6 +100,8 @@ jobs:
         run: npm run test:alpha6
       - name: Build provider distributions
         run: npm run build
+      - name: CLI contract (spawned binary, agent-facing surface)
+        run: npm run test:cli-contract
       - name: Development link tooling (junction semantics)
         run: npm run test:dev-link
       - name: Runtime coverage floor

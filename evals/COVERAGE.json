@@ -1,37 +1,20 @@
 {
   "schema": "agent-sdlc/coverage-report/v1",
-  "subject": "evals/run-deterministic.mjs",
+  "subjects": [
+    "evals/run-deterministic.mjs",
+    "scripts/test-cli-contract.mjs"
+  ],
   "measured": "v8-block-bytes",
-  "overall_percent": 73.1,
-  "covered_bytes": 233404,
-  "total_bytes": 319145,
+  "overall_percent": 80.4,
+  "covered_bytes": 256763,
+  "total_bytes": 319171,
   "modules": [
-    {
-      "file": "runtime/cli.mjs",
-      "percent": 0,
-      "covered_bytes": 0,
-      "total_bytes": 39398,
-      "never_loaded": true
-    },
-    {
-      "file": "runtime/codex-bootstrap.mjs",
-      "percent": 0,
-      "covered_bytes": 0,
-      "total_bytes": 6035,
-      "never_loaded": true
-    },
     {
       "file": "runtime/index.mjs",
       "percent": 0,
       "covered_bytes": 0,
       "total_bytes": 225,
       "never_loaded": true
-    },
-    {
-      "file": "runtime/init.mjs",
-      "percent": 7.7,
-      "covered_bytes": 103,
-      "total_bytes": 1339
     },
     {
       "file": "runtime/normalize.mjs",
@@ -52,15 +35,27 @@
       "total_bytes": 2655
     },
     {
-      "file": "runtime/replay.mjs",
-      "percent": 44.8,
-      "covered_bytes": 418,
-      "total_bytes": 934
+      "file": "runtime/codex-bootstrap.mjs",
+      "percent": 41,
+      "covered_bytes": 2477,
+      "total_bytes": 6035
+    },
+    {
+      "file": "runtime/cli.mjs",
+      "percent": 46.9,
+      "covered_bytes": 18477,
+      "total_bytes": 39424
+    },
+    {
+      "file": "runtime/init.mjs",
+      "percent": 49.8,
+      "covered_bytes": 667,
+      "total_bytes": 1339
     },
     {
       "file": "runtime/mcp-server.mjs",
-      "percent": 62.8,
-      "covered_bytes": 7442,
+      "percent": 64.5,
+      "covered_bytes": 7652,
       "total_bytes": 11857
     },
     {
@@ -68,18 +63,6 @@
       "percent": 73.1,
       "covered_bytes": 1057,
       "total_bytes": 1445
-    },
-    {
-      "file": "runtime/util.mjs",
-      "percent": 78.2,
-      "covered_bytes": 2693,
-      "total_bytes": 3443
-    },
-    {
-      "file": "runtime/activation.mjs",
-      "percent": 81.1,
-      "covered_bytes": 7400,
-      "total_bytes": 9123
     },
     {
       "file": "runtime/ci-evidence.mjs",
@@ -106,6 +89,12 @@
       "total_bytes": 2025
     },
     {
+      "file": "runtime/activation.mjs",
+      "percent": 84.4,
+      "covered_bytes": 7698,
+      "total_bytes": 9123
+    },
+    {
       "file": "runtime/repo-intelligence.mjs",
       "percent": 85.4,
       "covered_bytes": 8226,
@@ -122,12 +111,6 @@
       "percent": 87.9,
       "covered_bytes": 8187,
       "total_bytes": 9317
-    },
-    {
-      "file": "runtime/orchestrator.mjs",
-      "percent": 87.9,
-      "covered_bytes": 9381,
-      "total_bytes": 10669
     },
     {
       "file": "runtime/task-review.mjs",
@@ -149,15 +132,27 @@
     },
     {
       "file": "runtime/context.mjs",
-      "percent": 88.5,
-      "covered_bytes": 4670,
+      "percent": 88.9,
+      "covered_bytes": 4694,
       "total_bytes": 5278
+    },
+    {
+      "file": "runtime/orchestrator.mjs",
+      "percent": 89.4,
+      "covered_bytes": 9535,
+      "total_bytes": 10669
     },
     {
       "file": "runtime/git-delivery.mjs",
       "percent": 89.8,
       "covered_bytes": 5985,
       "total_bytes": 6666
+    },
+    {
+      "file": "runtime/util.mjs",
+      "percent": 89.9,
+      "covered_bytes": 3094,
+      "total_bytes": 3443
     },
     {
       "file": "runtime/task-recovery.mjs",
@@ -180,7 +175,7 @@
     {
       "file": "runtime/cost.mjs",
       "percent": 91.3,
-      "covered_bytes": 4500,
+      "covered_bytes": 4503,
       "total_bytes": 4931
     },
     {
@@ -227,15 +222,9 @@
     },
     {
       "file": "runtime/plan-validator.mjs",
-      "percent": 94.9,
-      "covered_bytes": 12876,
+      "percent": 95.5,
+      "covered_bytes": 12959,
       "total_bytes": 13575
-    },
-    {
-      "file": "runtime/store.mjs",
-      "percent": 95.8,
-      "covered_bytes": 7051,
-      "total_bytes": 7357
     },
     {
       "file": "runtime/learning.mjs",
@@ -244,34 +233,42 @@
       "total_bytes": 6650
     },
     {
-      "file": "runtime/parallel.mjs",
-      "percent": 96.2,
-      "covered_bytes": 1566,
-      "total_bytes": 1628
-    },
-    {
       "file": "runtime/repo-index.mjs",
       "percent": 96.3,
       "covered_bytes": 15357,
       "total_bytes": 15947
     },
     {
+      "file": "runtime/store.mjs",
+      "percent": 96.8,
+      "covered_bytes": 7123,
+      "total_bytes": 7357
+    },
+    {
+      "file": "runtime/parallel.mjs",
+      "percent": 98.3,
+      "covered_bytes": 1600,
+      "total_bytes": 1628
+    },
+    {
+      "file": "runtime/replay.mjs",
+      "percent": 98.8,
+      "covered_bytes": 923,
+      "total_bytes": 934
+    },
+    {
       "file": "runtime/router.mjs",
-      "percent": 96.7,
-      "covered_bytes": 2224,
+      "percent": 99.2,
+      "covered_bytes": 2281,
       "total_bytes": 2299
     }
   ],
   "never_loaded": [
-    "runtime/cli.mjs",
-    "runtime/codex-bootstrap.mjs",
     "runtime/index.mjs"
   ],
   "floor": {
-    "overall_percent": 73,
+    "overall_percent": 80,
     "never_loaded": [
-      "runtime/cli.mjs",
-      "runtime/codex-bootstrap.mjs",
       "runtime/index.mjs"
     ]
   },

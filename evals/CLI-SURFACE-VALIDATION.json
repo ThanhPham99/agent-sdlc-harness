@@ -1,0 +1,122 @@
+{
+  "schema": "agent-sdlc/cli-surface-validation/v1",
+  "version": "3.0.0-alpha6",
+  "commands": [
+    "activation",
+    "artifact-get",
+    "artifact-list",
+    "artifact-put",
+    "ci",
+    "compat-check",
+    "config-show",
+    "context",
+    "delivery",
+    "design",
+    "doctor",
+    "fallback",
+    "govern",
+    "handoff-get",
+    "handoff-list",
+    "handoff-put",
+    "init",
+    "learn",
+    "metrics",
+    "migrate",
+    "model-route",
+    "next",
+    "normalize",
+    "parallel-plan",
+    "plan",
+    "provider-command",
+    "provider-probe",
+    "provider-run",
+    "replay-export",
+    "replay-validate",
+    "repo",
+    "route",
+    "start",
+    "status",
+    "task",
+    "tool-check",
+    "tool-run",
+    "trace",
+    "transition",
+    "usage-add",
+    "usage-report"
+  ],
+  "command_count": 41,
+  "subcommand_groups": [
+    {
+      "command": "activation",
+      "implemented": 13,
+      "documented": 12,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "ci",
+      "implemented": 4,
+      "documented": 3,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "delivery",
+      "implemented": 7,
+      "documented": 6,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "design",
+      "implemented": 4,
+      "documented": 3,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "govern",
+      "implemented": 4,
+      "documented": 3,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "learn",
+      "implemented": 2,
+      "documented": 1,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "plan",
+      "implemented": 3,
+      "documented": 2,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "repo",
+      "implemented": 13,
+      "documented": 12,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "task",
+      "implemented": 31,
+      "documented": 30,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "trace",
+      "implemented": 8,
+      "documented": 7,
+      "missing": [],
+      "phantom": []
+    }
+  ],
+  "problems": [],
+  "status": "PASS"
+}
