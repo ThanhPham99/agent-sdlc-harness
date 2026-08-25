@@ -1,0 +1,96 @@
+{
+  "schema": "agent-sdlc/project-detection-validation/v1",
+  "checks": 22,
+  "passes": 22,
+  "failures": 0,
+  "results": [
+    {
+      "name": "detects-node-from-package.json",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-python-from-pyproject.toml",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-python-from-requirements.txt",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-python-from-setup.py",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-go-from-go.mod",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-rust-from-Cargo.toml",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-maven-from-pom.xml",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-gradle-from-build.gradle",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-dotnet-from-App.csproj",
+      "status": "PASS"
+    },
+    {
+      "name": "a-gradle-wrapper-is-preferred-over-a-system-gradle",
+      "status": "PASS"
+    },
+    {
+      "name": "an-unknown-project-says-so-instead-of-inventing-commands",
+      "status": "PASS"
+    },
+    {
+      "name": "an-unparseable-package-json-does-not-stop-initialization",
+      "status": "PASS"
+    },
+    {
+      "name": "a-broken-package-json-still-yields-commands-from-a-sibling-stack",
+      "status": "PASS"
+    },
+    {
+      "name": "a-stack-with-no-test-script-falls-through-to-one-that-has-tests",
+      "status": "PASS"
+    },
+    {
+      "name": "a-build-only-primary-stack-keeps-its-build-and-borrows-the-tests",
+      "status": "PASS"
+    },
+    {
+      "name": "a-stack-that-declares-tests-keeps-its-own-commands",
+      "status": "PASS"
+    },
+    {
+      "name": "a-recognized-stack-with-nothing-runnable-warns-about-verification",
+      "status": "PASS"
+    },
+    {
+      "name": "config-layers-are-reported-in-precedence-order",
+      "status": "PASS"
+    },
+    {
+      "name": "cli-overrides-win-over-the-project-layer",
+      "status": "PASS"
+    },
+    {
+      "name": "an-unreadable-config-layer-is-skipped-and-named",
+      "status": "PASS"
+    },
+    {
+      "name": "environment-variables-form-their-own-layer",
+      "status": "PASS"
+    },
+    {
+      "name": "the-detected-commands-reach-the-persisted-project-config",
+      "status": "PASS"
+    }
+  ]
+}

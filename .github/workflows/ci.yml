@@ -55,6 +55,8 @@ jobs:
         run: npm run test:compat
       - name: MCP server transport and profile enforcement
         run: npm run test:mcp
+      - name: Project detection and config layering
+        run: npm run test:detection
       - name: Development link tooling
         run: npm run test:dev-link
       - name: Runtime coverage floor
@@ -85,6 +87,7 @@ jobs:
             evals/PROVIDER-VALIDATION.json
             evals/COMPAT-VALIDATION.json
             evals/MCP-VALIDATION.json
+            evals/PROJECT-DETECTION-VALIDATION.json
           if-no-files-found: error
           retention-days: 14
 
@@ -122,6 +125,8 @@ jobs:
         run: npm run test:compat
       - name: MCP server transport and profile enforcement
         run: npm run test:mcp
+      - name: Project detection and config layering
+        run: npm run test:detection
       - name: Development link tooling (junction semantics)
         run: npm run test:dev-link
       - name: Runtime coverage floor
