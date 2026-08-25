@@ -1,0 +1,57 @@
+{
+  "schema": "agent-sdlc/compat-validation/v1",
+  "harness_version": "3.0.0-alpha6",
+  "checks": 12,
+  "passes": 12,
+  "failures": 0,
+  "results": [
+    {
+      "name": "an-uninitialized-project-is-compatible-and-says-what-to-run",
+      "status": "PASS"
+    },
+    {
+      "name": "a-v2-project-is-refused-not-converted",
+      "status": "PASS"
+    },
+    {
+      "name": "a-freshly-initialized-project-is-compatible",
+      "status": "PASS"
+    },
+    {
+      "name": "state-metadata-can-be-added-to-a-project-that-predates-it",
+      "status": "PASS"
+    },
+    {
+      "name": "an-unknown-schema-is-incompatible-and-not-migrated",
+      "status": "PASS"
+    },
+    {
+      "name": "unreadable-state-is-diagnosed-not-thrown",
+      "status": "PASS"
+    },
+    {
+      "name": "migration-refuses-to-touch-unreadable-state",
+      "status": "PASS"
+    },
+    {
+      "name": "a-harness-version-change-is-reported",
+      "status": "PASS"
+    },
+    {
+      "name": "migration-records-the-version-change-and-backs-up-the-file-it-rewrites",
+      "status": "PASS"
+    },
+    {
+      "name": "migration-history-accumulates-and-is-idempotent",
+      "status": "PASS"
+    },
+    {
+      "name": "state-that-does-not-record-its-harness-is-stamped-not-refused",
+      "status": "PASS"
+    },
+    {
+      "name": "the-cli-reports-corrupt-state-without-a-stack-trace",
+      "status": "PASS"
+    }
+  ]
+}

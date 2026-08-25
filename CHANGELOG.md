@@ -27,6 +27,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `scripts/test-provider.mjs` (`test:provider`): 23 checks over host probing, capability detection, invocation building and run outcomes, with `spawn` injected so the bounds hold on every platform. Raised `runtime/provider.mjs` from 39% to 94% coverage and the runtime to 83% overall.
 
+- `scripts/test-compat.mjs` (`test:compat`): 12 checks over state discovery, refusal paths and migration, including the CLI surface. Raised `runtime/compat.mjs` from 35% to 99% coverage and the runtime to 83% overall.
+- `compat-check` reports `HARNESS_VERSION_CHANGED` when state was written by a different harness version, and `migrate` records the change in `state.json` with a `migrations` history instead of answering `NOOP`. State that does not record any harness version is stamped rather than reported as clean.
+
 ### Security
 - **Unbounded host probing.** `probe()` ran `--version` and `--help` with no timeout and the default 1 MB buffer, so a host CLI that hung — or one waiting on input — blocked `doctor`, `model-route` and every stage invocation indefinitely. Probes are now bounded (5 s, 4 MB) and a host that does not answer is reported as unavailable. Results are memoized per process; `resetProbeCache()` clears them.
 - **Unspawnable prompts failed opaquely.** The stage prompt travels as an argv element, and Windows caps a command line at 32767 characters while POSIX caps one argument at 128 KiB. `buildInvocation` now returns `PENDING` / `PROMPT_EXCEEDS_ARGV_LIMIT` with the measured size instead of letting `spawn` fail with `E2BIG`.
@@ -34,6 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Crash on a malformed character reference.** `&#1114112;` in a DOCX or XLSX reached `String.fromCodePoint` and threw out of the parser; such references are now left as literal text.
 - **Option and traversal injection via archive entry names.** XLSX sheet targets are read from `xl/_rels/workbook.xml.rels` inside the file, and were passed to `unzip` unchecked, so a name beginning with `-` arrived as an option and `..` was followed. Entry names are now validated before they reach the argv.
 - A parser failure on untrusted input returns `PENDING` with `NORMALIZATION_FAILED` and a detail, instead of throwing out of `normalizeInput` and surfacing as a harness error.
+- `compat-check` no longer throws a raw `SyntaxError` on unreadable `state.json` — the command you run to diagnose broken state failed on exactly the file a non-atomic write could truncate. It now reports `CORRUPT_STATE` with the parse detail and a recovery action, and `migrate` refuses to touch it.
+- `migrate` backs up `state.json`, the file it actually rewrites, instead of copying `project.json`, which migration never touches.
 - `runHost` reports `timed_out` and the spawn `error` code, and leaves `exit_code` null when the host never ran. It previously forced `exit_code: 1` and discarded the error, making a wall-clock timeout indistinguishable from a host that ran and returned 1 — the distinction the fallback policy is built on.
 
 ### Changed

@@ -24,7 +24,7 @@ const FLOOR_FILE=path.join(ROOT,'evals','COVERAGE-FLOOR.json');
 // so the CLI contract suite contributes the coverage of every CLI process it
 // starts. Without it runtime/cli.mjs -- the largest module, and the surface the
 // skills tell the model to call -- measured zero.
-const ENTRIES=['evals/run-deterministic.mjs','scripts/test-cli-contract.mjs','scripts/test-normalize.mjs','scripts/test-provider.mjs'];
+const ENTRIES=['evals/run-deterministic.mjs','scripts/test-cli-contract.mjs','scripts/test-normalize.mjs','scripts/test-provider.mjs','scripts/test-compat.mjs'];
 const SUBJECT_DIR=path.join(ROOT,'runtime');
 const update=process.argv.includes('--update');
 

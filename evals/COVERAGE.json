@@ -4,12 +4,13 @@
     "evals/run-deterministic.mjs",
     "scripts/test-cli-contract.mjs",
     "scripts/test-normalize.mjs",
-    "scripts/test-provider.mjs"
+    "scripts/test-provider.mjs",
+    "scripts/test-compat.mjs"
   ],
   "measured": "v8-block-bytes",
-  "overall_percent": 82.7,
-  "covered_bytes": 268533,
-  "total_bytes": 324839,
+  "overall_percent": 83.2,
+  "covered_bytes": 272576,
+  "total_bytes": 327488,
   "modules": [
     {
       "file": "runtime/index.mjs",
@@ -19,12 +20,6 @@
       "never_loaded": true
     },
     {
-      "file": "runtime/compat.mjs",
-      "percent": 35,
-      "covered_bytes": 717,
-      "total_bytes": 2048
-    },
-    {
       "file": "runtime/codex-bootstrap.mjs",
       "percent": 41,
       "covered_bytes": 2477,
@@ -32,8 +27,8 @@
     },
     {
       "file": "runtime/cli.mjs",
-      "percent": 46.9,
-      "covered_bytes": 18477,
+      "percent": 47.1,
+      "covered_bytes": 18586,
       "total_bytes": 39424
     },
     {
@@ -259,6 +254,12 @@
       "total_bytes": 934
     },
     {
+      "file": "runtime/compat.mjs",
+      "percent": 99,
+      "covered_bytes": 4651,
+      "total_bytes": 4697
+    },
+    {
       "file": "runtime/router.mjs",
       "percent": 99.2,
       "covered_bytes": 2281,
@@ -269,7 +270,7 @@
     "runtime/index.mjs"
   ],
   "floor": {
-    "overall_percent": 82,
+    "overall_percent": 83,
     "never_loaded": [
       "runtime/index.mjs"
     ]
