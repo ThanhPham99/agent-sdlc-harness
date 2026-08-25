@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/cli-contract-validation/v1",
-  "checks": 40,
-  "passes": 40,
+  "checks": 41,
+  "passes": 41,
   "failures": 0,
   "results": [
     {
@@ -54,6 +54,10 @@
     },
     {
       "name": "transition-advances-with-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "a-string-force-flag-does-not-bypass-a-gate",
       "status": "PASS"
     },
     {

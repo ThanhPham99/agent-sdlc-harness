@@ -1,0 +1,105 @@
+{
+  "schema": "agent-sdlc/mcp-validation/v1",
+  "harness_version": "3.0.0-alpha6",
+  "checks": 24,
+  "passes": 24,
+  "failures": 0,
+  "results": [
+    {
+      "name": "initialize-answers-with-server-identity",
+      "status": "PASS"
+    },
+    {
+      "name": "ping-and-the-initialized-notification-are-handled",
+      "status": "PASS"
+    },
+    {
+      "name": "an-unknown-method-is-a-protocol-error",
+      "status": "PASS"
+    },
+    {
+      "name": "garbage-input-does-not-kill-the-server",
+      "status": "PASS"
+    },
+    {
+      "name": "every-advertised-tool-declares-a-schema",
+      "status": "PASS"
+    },
+    {
+      "name": "route-then-start-produces-a-run",
+      "status": "PASS"
+    },
+    {
+      "name": "status-carries-the-next-stage",
+      "status": "PASS"
+    },
+    {
+      "name": "context-is-bounded-and-hashed",
+      "status": "PASS"
+    },
+    {
+      "name": "artifact_put-attaches-the-artifact-to-the-run",
+      "status": "PASS"
+    },
+    {
+      "name": "tool_check-enforces-the-stage-policy",
+      "status": "PASS"
+    },
+    {
+      "name": "a-gate-without-evidence-is-refused-over-the-transport",
+      "status": "PASS"
+    },
+    {
+      "name": "a-gate-with-evidence-advances",
+      "status": "PASS"
+    },
+    {
+      "name": "task-tools-answer-before-a-graph-exists",
+      "status": "PASS"
+    },
+    {
+      "name": "the-unified-task-tool-matches-its-granular-twin",
+      "status": "PASS"
+    },
+    {
+      "name": "an-unknown-task-op-is-named-in-the-error",
+      "status": "PASS"
+    },
+    {
+      "name": "a-string-force-does-not-bypass-a-gate",
+      "status": "PASS"
+    },
+    {
+      "name": "a-string-where-an-array-is-declared-is-reported",
+      "status": "PASS"
+    },
+    {
+      "name": "a-missing-run-is-an-error-result-not-a-crash",
+      "status": "PASS"
+    },
+    {
+      "name": "an-unknown-tool-is-an-error-result",
+      "status": "PASS"
+    },
+    {
+      "name": "the-server-never-writes-non-json-to-stdout",
+      "status": "PASS"
+    },
+    {
+      "name": "the-server-exits-when-the-host-closes-stdin",
+      "status": "PASS"
+    },
+    {
+      "name": "the-core-profile-advertises-a-narrower-surface",
+      "status": "PASS"
+    },
+    {
+      "name": "a-tool-hidden-by-the-profile-cannot-be-called",
+      "status": "PASS"
+    },
+    {
+      "name": "the-unified-task-tool-still-reaches-the-hidden-work",
+      "status": "PASS"
+    }
+  ]
+}

@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
-import {parseArgs,readJson,rootFrom,writeJson,gitSha,appendJsonl} from './util.mjs';
+import {parseArgs,readJson,rootFrom,writeJson,gitSha,appendJsonl,truthy} from './util.mjs';
 
 const ROOT=rootFrom(import.meta.url);
 const args=parseArgs(process.argv.slice(2));
@@ -53,7 +53,7 @@ async function main(){
       const run=await needRun();
       const {transition}=await import('./orchestrator.mjs');
       const ev=(args.evidence?String(args.evidence).split(',').filter(Boolean):[]);
-      print(transition(ROOT,projectRoot,run,args.to,{evidence:ev,approval:args.approval||null,force:!!args.force}));
+      print(transition(ROOT,projectRoot,run,args.to,{evidence:ev,approval:args.approval||null,force:truthy(args.force)}));
     }
     else if(cmd==='context'){
       const run=await needRun();
@@ -245,7 +245,7 @@ async function main(){
           profile:args.profile||run?.profile||'STANDARD',
           objective:args.objective||run?.objective||args._.slice(2).join(' '),
           declaredSignals:args.signals?String(args.signals).split(',').map(s=>s.trim()).filter(Boolean):[],
-          designAlreadyApproved:!!args.approved
+          designAlreadyApproved:truthy(args.approved)
         }));
       }
       else if(sub==='policy')print(getDesignDiscoveryPolicy());
@@ -325,7 +325,7 @@ async function main(){
       else if(sub==='transition'){
         const run=await needRun();const task=requireTask(projectRoot,run.run_id,needTaskId());
         const tasks=listTasks(projectRoot,run.run_id);
-        const opts={tasks,reason:args.reason||null,force:!!args.force,
+        const opts={tasks,reason:args.reason||null,force:truthy(args.force),
           newEvidence:!!args['new-evidence'],recoveryDecision:!!args['recovery-decision'],
           upstreamRefreshed:!!args['upstream-refreshed'],upstreamChange:!!args['upstream-change'],
           blockerResolved:!!args['blocker-resolved'],primaryWriter:args.writer||null,
@@ -375,7 +375,7 @@ async function main(){
       else if(sub==='usage'){const run=await needRun();print(args['task-id']?reportTaskUsage(projectRoot,run.run_id,args['task-id']):reportRunTaskUsage(projectRoot,run.run_id,listTasks(projectRoot,run.run_id)));}
       else if(sub==='metrics'){const run=await needRun();print(taskMetrics(projectRoot,run.run_id));}
       else if(sub==='workspaces'){const run=await needRun();print({workspaces:listTaskWorkspaces(projectRoot,run.run_id),isolation:checkWriterIsolation(projectRoot,run.run_id)});}
-      else if(sub==='workspace-clean'){const run=await needRun();const task=requireTask(projectRoot,run.run_id,needTaskId());print(cleanupTaskWorkspace(projectRoot,{run,task,force:!!args.force}));}
+      else if(sub==='workspace-clean'){const run=await needRun();const task=requireTask(projectRoot,run.run_id,needTaskId());print(cleanupTaskWorkspace(projectRoot,{run,task,force:truthy(args.force)}));}
       else if(sub==='failure-policy')print({...getTaskFailurePolicy(ROOT),classes_list:FAILURE_CLASSES});
       else if(sub==='classify'){
         const run=await needRun();const task=requireTask(projectRoot,run.run_id,needTaskId());
@@ -416,7 +416,7 @@ async function main(){
       const {buildIndex,loadIndex,indexStale,detectCapability}=await import('./repo-index.mjs');
       const intel=()=>openIntelligence(projectRoot,{refresh:!!args.refresh});
       const paths=()=>args.paths?String(args.paths).split(',').map(s=>s.trim()).filter(Boolean):[];
-      if(sub==='index'){const idx=buildIndex(projectRoot,{force:!!args.force});print({schema:idx.schema,revision:idx.revision,capability:idx.capability,counts:idx.counts,built_at:idx.built_at});}
+      if(sub==='index'){const idx=buildIndex(projectRoot,{force:truthy(args.force)});print({schema:idx.schema,revision:idx.revision,capability:idx.capability,counts:idx.counts,built_at:idx.built_at});}
       else if(sub==='status'){const idx=loadIndex(projectRoot,{build:false});print({indexed:!!idx,capability:detectCapability(projectRoot),counts:idx?.counts||null,revision:idx?.revision||null,stale:indexStale(projectRoot,idx)});}
       else if(sub==='capability')print(detectCapability(projectRoot));
       else if(sub==='symbol')print(findSymbol(intel(),args.name||args._[2]));
@@ -470,7 +470,7 @@ async function main(){
       else if(sub==='branch'){const r=await needRun();print({branch:branchFor(r.run_id,args['task-id']||null)});}
       else if(sub==='push-check'){const r=await needRun();print(checkPushTarget(args.branch||branchFor(r.run_id),{approvals:(r.approvals||[]).map(a=>a.approval)}));}
       else if(sub==='drift')print(baseDrift(projectRoot,{base:args.base||'main',recordedBaseRevision:args.revision||null}));
-      else if(sub==='group'){const r=await needRun();print(groupTaskBranches(listTasks(projectRoot,r.run_id),{allowInterfaceGrouping:!!args['allow-interface-grouping']}));}
+      else if(sub==='group'){const r=await needRun();print(groupTaskBranches(listTasks(projectRoot,r.run_id),{allowInterfaceGrouping:truthy(args['allow-interface-grouping'])}));}
       else if(sub==='record'){
         const run=await needRun();
         const out=recordDelivery(projectRoot,run,{

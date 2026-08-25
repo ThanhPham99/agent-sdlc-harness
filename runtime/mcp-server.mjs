@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import {rootFrom} from './util.mjs';
+import {rootFrom,truthy} from './util.mjs';
 import {detectProject} from './init.mjs';
 import {initProject,loadRun,putArtifact,saveRun,emit,listTasks,listTaskEvents} from './store.mjs';
 import {requireTask,taskProgress} from './task-engine.mjs';
@@ -57,6 +57,16 @@ export function getActiveTools(){
 }
 
 function pr(a){return path.resolve(a.project_root||process.cwd());}
+/**
+ * An argument the schema declares as an array. A bare string would otherwise be
+ * spread character by character downstream, so a single evidence token became
+ * twenty-two one-letter ones; say what was wrong instead.
+ */
+function arrayArg(v,name){
+  if(v===undefined||v===null)return [];
+  if(Array.isArray(v))return v;
+  throw new Error(`${name} must be an array of strings, received ${typeof v}`);
+}
 function execute(name,a={}){
   const projectRoot=pr(a);
   if(name==='agent_sdlc_route')return route(ROOT,a.objective,a.workflow||null,a.profile||null);
@@ -66,8 +76,10 @@ function execute(name,a={}){
   }
   const run=loadRun(projectRoot,a.run_id);
   if(name==='agent_sdlc_status')return {...run,next:nextState(run)};
-  if(name==='agent_sdlc_context')return buildContext(ROOT,projectRoot,run,{artifactRefs:a.artifact_refs||run.artifacts||[],symbols:a.symbols||[]});
-  if(name==='agent_sdlc_transition')return transition(ROOT,projectRoot,run,a.to,{evidence:a.evidence||[],approval:a.approval||null,force:!!a.force});
+  if(name==='agent_sdlc_context')return buildContext(ROOT,projectRoot,run,{artifactRefs:a.artifact_refs===undefined?(run.artifacts||[]):arrayArg(a.artifact_refs,'artifact_refs'),symbols:arrayArg(a.symbols,'symbols')});
+  // truthy, not !!: a host that serializes booleans as strings sent
+  // {"force":"false"} and got a gate bypass out of it.
+  if(name==='agent_sdlc_transition')return transition(ROOT,projectRoot,run,a.to,{evidence:arrayArg(a.evidence,'evidence'),approval:a.approval||null,force:truthy(a.force)});
   if(name==='agent_sdlc_tool_check')return checkTool(ROOT,run,a.tool);
   if(name==='agent_sdlc_tool_run')return invokeTool(ROOT,projectRoot,run,a.tool,a.args||{});
   if(name==='agent_sdlc_artifact_put'){
@@ -120,7 +132,14 @@ function handle(line){let req;try{req=JSON.parse(line);}catch{return;}const id=r
     if(req.method==='ping')return send({jsonrpc:'2.0',id,result:{}});
     if(req.method==='tools/list')return send({jsonrpc:'2.0',id,result:{tools:getActiveTools()}});
     if(req.method==='tools/call'){
-      const result=execute(req.params?.name,req.params?.arguments||{});
+      // The profile shrinks the advertised surface; it must shrink the reachable
+      // one too. `core` hid the granular task tools while still answering calls
+      // to them, so a narrowed surface was advisory only.
+      const requested=req.params?.name;
+      if(!getActiveTools().some(t=>t.name===requested)){
+        throw new Error(`tool ${requested??'(none)'} is not available in the ${(process.env.AGENT_SDLC_MCP_PROFILE||'full').toLowerCase()} MCP profile`);
+      }
+      const result=execute(requested,req.params?.arguments||{});
       return send({jsonrpc:'2.0',id,result:{content:[{type:'text',text:JSON.stringify(result)}],structuredContent:result,isError:false}});
     }
     if(id!==undefined)send({jsonrpc:'2.0',id,error:{code:-32601,message:`Method not found: ${req.method}`}});

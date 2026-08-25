@@ -3,8 +3,8 @@
   "version": "3.0.0-alpha6",
   "workflow": ".github/workflows/ci.yml",
   "check_script": "check",
-  "checks": 26,
-  "passes": 26,
+  "checks": 27,
+  "passes": 27,
   "failures": 0,
   "suites": [
     {
@@ -143,6 +143,12 @@
       "script": "test:compat",
       "status": "PASS",
       "gated_via": "test:compat",
+      "problems": []
+    },
+    {
+      "script": "test:mcp",
+      "status": "PASS",
+      "gated_via": "test:mcp",
       "problems": []
     },
     {

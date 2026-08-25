@@ -5,12 +5,13 @@
     "scripts/test-cli-contract.mjs",
     "scripts/test-normalize.mjs",
     "scripts/test-provider.mjs",
-    "scripts/test-compat.mjs"
+    "scripts/test-compat.mjs",
+    "scripts/test-mcp.mjs"
   ],
   "measured": "v8-block-bytes",
-  "overall_percent": 83.2,
-  "covered_bytes": 272576,
-  "total_bytes": 327488,
+  "overall_percent": 84,
+  "covered_bytes": 276821,
+  "total_bytes": 329466,
   "modules": [
     {
       "file": "runtime/index.mjs",
@@ -27,21 +28,15 @@
     },
     {
       "file": "runtime/cli.mjs",
-      "percent": 47.1,
-      "covered_bytes": 18586,
-      "total_bytes": 39424
+      "percent": 47.2,
+      "covered_bytes": 18611,
+      "total_bytes": 39467
     },
     {
       "file": "runtime/init.mjs",
       "percent": 49.8,
       "covered_bytes": 667,
       "total_bytes": 1339
-    },
-    {
-      "file": "runtime/mcp-server.mjs",
-      "percent": 64.5,
-      "covered_bytes": 7652,
-      "total_bytes": 11857
     },
     {
       "file": "runtime/config.mjs",
@@ -78,6 +73,12 @@
       "percent": 84.4,
       "covered_bytes": 7698,
       "total_bytes": 9123
+    },
+    {
+      "file": "runtime/mcp-server.mjs",
+      "percent": 84.7,
+      "covered_bytes": 10986,
+      "total_bytes": 12965
     },
     {
       "file": "runtime/repo-intelligence.mjs",
@@ -122,12 +123,6 @@
       "total_bytes": 5278
     },
     {
-      "file": "runtime/orchestrator.mjs",
-      "percent": 89.4,
-      "covered_bytes": 9535,
-      "total_bytes": 10669
-    },
-    {
       "file": "runtime/git-delivery.mjs",
       "percent": 89.8,
       "covered_bytes": 5985,
@@ -140,10 +135,10 @@
       "total_bytes": 9877
     },
     {
-      "file": "runtime/util.mjs",
-      "percent": 89.9,
-      "covered_bytes": 3094,
-      "total_bytes": 3443
+      "file": "runtime/orchestrator.mjs",
+      "percent": 90,
+      "covered_bytes": 9607,
+      "total_bytes": 10669
     },
     {
       "file": "runtime/task-recovery.mjs",
@@ -174,6 +169,12 @@
       "percent": 91.5,
       "covered_bytes": 15270,
       "total_bytes": 16687
+    },
+    {
+      "file": "runtime/util.mjs",
+      "percent": 91.5,
+      "covered_bytes": 3908,
+      "total_bytes": 4270
     },
     {
       "file": "runtime/policy.mjs",
@@ -270,7 +271,7 @@
     "runtime/index.mjs"
   ],
   "floor": {
-    "overall_percent": 83,
+    "overall_percent": 84,
     "never_loaded": [
       "runtime/index.mjs"
     ]

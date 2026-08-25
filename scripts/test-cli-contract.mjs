@@ -135,6 +135,20 @@ test('transition-advances-with-evidence',()=>{
   if(out.state!=='PLAN')throw new Error(JSON.stringify(out.state));
   if(!out.evidence.REQUIREMENTS.includes('requirements_confirmed'))throw new Error('evidence not recorded');
 });
+test('a-string-force-flag-does-not-bypass-a-gate',()=>{
+  // `--force false` reached the runtime as the string "false", and !! made it
+  // true, so the flag that exists to be deliberate could be tripped by a value
+  // that says the opposite.
+  const r=json(['start','--objective','Add wishlist capability']);
+  const at=['--run-id',r.run_id];
+  for(const value of ['false','0','no']){
+    const out=raw(['transition',...at,'--to','DESIGN','--force',value]);
+    if(out.status===0)throw new Error(`--force ${value} was honoured`);
+    if(json(['status',...at]).state!=='INTAKE')throw new Error(`--force ${value} moved the run`);
+  }
+  // The bare flag, and an explicit true, must still force.
+  if(json(['transition',...at,'--to','DESIGN','--force']).state!=='DESIGN')throw new Error('a bare --force no longer forces');
+});
 test('tool-check-denies-a-tool-the-stage-forbids',()=>{
   const d=json(['tool-check',...R,'--tool','deploy.production']);
   if(d.decision!=='DENY')throw new Error(JSON.stringify(d));

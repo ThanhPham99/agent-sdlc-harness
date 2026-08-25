@@ -39,5 +39,23 @@ export function dirtyHash(cwd){const r=git(['diff','--binary','HEAD'],cwd);retur
 export function uuid(prefix='id'){return `${prefix}_${crypto.randomUUID()}`;}
 export function estimateTokens(text,charsPerToken=4){return Math.ceil((text||'').length/charsPerToken);}
 export function safeRelative(base,p){const abs=path.resolve(base,p); if(!abs.startsWith(path.resolve(base)+path.sep) && abs!==path.resolve(base)) throw new Error('path escapes project root'); return abs;}
+/**
+ * A boolean arriving from an untrusted boundary — an MCP argument or a CLI flag.
+ *
+ * `!!value` reads the string "false" as true, and hosts (and models driving
+ * them) routinely serialize booleans as strings. That turned
+ * `{"force": "false"}` into a full gate bypass: a run skipped two stages with no
+ * evidence and no approval, from a caller that had explicitly said false.
+ *
+ * Use this for flags whose true value *removes* a protection (force, approved,
+ * allow-*). Flags whose true value adds one (dry-run, no-*) stay permissive, so
+ * an unparseable value fails safe in both directions.
+ */
+export function truthy(v){
+  if(v===true)return true;
+  if(typeof v==='number')return v===1;
+  if(typeof v!=='string')return false;
+  return ['true','1','yes','on'].includes(v.trim().toLowerCase());
+}
 export function parseArgs(argv){const out={_:[]}; for(let i=0;i<argv.length;i++){const a=argv[i]; if(a.startsWith('--')){const k=a.slice(2); const n=argv[i+1]; if(n!==undefined && !n.startsWith('--')){out[k]=n;i++;}else out[k]=true;} else out._.push(a);} return out;}
 export function truncateUtf8(s,maxBytes){const b=Buffer.from(s||''); if(b.length<=maxBytes)return {text:s||'',truncated:false}; return {text:b.subarray(0,maxBytes).toString('utf8'),truncated:true};}
