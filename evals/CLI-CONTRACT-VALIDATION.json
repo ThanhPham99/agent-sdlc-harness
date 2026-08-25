@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/cli-contract-validation/v1",
   "checks": 40,
-  "passes": 33,
-  "failures": 7,
+  "passes": 40,
+  "failures": 0,
   "results": [
     {
       "name": "init-creates-project-state",
@@ -46,13 +46,11 @@
     },
     {
       "name": "a-stage-outside-the-workflow-is-refused",
-      "status": "FAIL",
-      "error": "transition --run-id run_a1a0f73c-81d9-408e-a5b0-c3375e17dedd --to DESIGN unexpectedly succeeded"
+      "status": "PASS"
     },
     {
       "name": "gate-refuses-a-transition-without-evidence",
-      "status": "FAIL",
-      "error": "transition --run-id run_a1a0f73c-81d9-408e-a5b0-c3375e17dedd --to PLAN unexpectedly succeeded"
+      "status": "PASS"
     },
     {
       "name": "transition-advances-with-evidence",
@@ -144,28 +142,23 @@
     },
     {
       "name": "missing-run-id-is-a-structured-error",
-      "status": "FAIL",
-      "error": "status unexpectedly succeeded"
+      "status": "PASS"
     },
     {
       "name": "unknown-run-id-is-a-structured-error",
-      "status": "FAIL",
-      "error": "status --run-id run_does-not-exist unexpectedly succeeded"
+      "status": "PASS"
     },
     {
       "name": "unknown-workflow-is-a-structured-error",
-      "status": "FAIL",
-      "error": "route --objective x --workflow not-a-workflow unexpectedly succeeded"
+      "status": "PASS"
     },
     {
       "name": "unknown-subcommands-are-structured-errors",
-      "status": "FAIL",
-      "error": "task nope --run-id run_a1a0f73c-81d9-408e-a5b0-c3375e17dedd unexpectedly succeeded"
+      "status": "PASS"
     },
     {
       "name": "required-file-flags-are-reported-not-crashed",
-      "status": "FAIL",
-      "error": "plan validate --run-id run_a1a0f73c-81d9-408e-a5b0-c3375e17dedd unexpectedly succeeded"
+      "status": "PASS"
     },
     {
       "name": "a-refused-plan-gate-exits-non-zero",

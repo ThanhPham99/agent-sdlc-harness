@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/coverage-floor/v1",
   "note": "Ratchet, not a target. Raise it with scripts/coverage-report.mjs --update when coverage improves; a drop fails CI.",
-  "overall_percent": 80,
+  "overall_percent": 82,
   "never_loaded": [
     "runtime/index.mjs"
   ]

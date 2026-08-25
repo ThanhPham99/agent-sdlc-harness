@@ -16,12 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/coverage-report.mjs` plus `test:coverage` / `coverage:update`: dependency-free V8 block coverage for `runtime/`, ratcheted in `evals/COVERAGE-FLOOR.json`. Coverage is the union of every process that loaded a module, so a spawned CLI counts.
 - `scripts/test-cli-contract.mjs` (`test:cli-contract`): 40 checks driving the real CLI as an agent does -- spawned, one argv at a time -- over the stage loop, artifact and handoff round-trips, usage accounting, replay, repository intelligence, the read-only reference surfaces, and the error contract (structured error, non-zero exit, no stack trace). Raised measured runtime coverage from 73% to 80% and `runtime/cli.mjs` from 0% to 47%.
 - `scripts/validate-cli-surface.mjs` (`test:cli-surface`, part of `test:integrity`): the CLI help text must match the commands actually dispatched, in both directions.
+- `scripts/test-normalize.mjs` (`test:normalize`): 19 checks over the untrusted document parsers, with OOXML fixtures built by the repository's own zip writer. Raised `runtime/normalize.mjs` from 22% to 90% coverage and the runtime to 82% overall.
+- `zipDir` accepts `{prefix}`; `prefix:''` writes entries at the archive root, which OOXML containers require.
 
 ### Fixed
 - `context_hash` no longer depends on the checked-out line endings: text that feeds a hash goes through `readTextFile`/`normalizeText` in both context compilers and in the repository index, so the same commit produces the same hash on Windows and Linux.
 - Run documents are written atomically (temp file + rename) like task records already were, and `saveRun` refuses a stale write (`STALE_RUN_STATE`) instead of silently discarding a concurrent writer's evidence.
 - Router normalization folds diacritics, so an objective typed without accents (`sua loi`, `su co`) reaches its rule instead of falling through to `new-feature` with the wrong stage set and profile.
 - CLI help text now documents `task replay`, `task fallback` and `task resume`, which were implemented but undiscoverable — the help text is the only CLI discovery surface an agent has.
+
+### Security
+- **Output amplification in the XLSX parser.** A cell reference past the format's column limit was honoured: a single `r="ZZZZZ1"` cell padded the row to 12.3 million entries, turning a 1 KB workbook into a 111 MB markdown artifact (583 MB RSS), and one letter more threw `RangeError: Invalid array length`. References outside `A`–`XFD` are now dropped.
+- **Crash on a malformed character reference.** `&#1114112;` in a DOCX or XLSX reached `String.fromCodePoint` and threw out of the parser; such references are now left as literal text.
+- **Option and traversal injection via archive entry names.** XLSX sheet targets are read from `xl/_rels/workbook.xml.rels` inside the file, and were passed to `unzip` unchecked, so a name beginning with `-` arrived as an option and `..` was followed. Entry names are now validated before they reach the argv.
+- A parser failure on untrusted input returns `PENDING` with `NORMALIZATION_FAILED` and a detail, instead of throwing out of `normalizeInput` and surfacing as a harness error.
 
 ### Changed
 - Event sequence numbers come from a per-stream counter instead of re-reading and splitting the whole event log on every append (was quadratic per run).

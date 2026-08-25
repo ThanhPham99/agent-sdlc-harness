@@ -47,6 +47,8 @@ jobs:
         run: npm run build
       - name: CLI contract (spawned binary, agent-facing surface)
         run: npm run test:cli-contract
+      - name: Input normalization (untrusted document parsers)
+        run: npm run test:normalize
       - name: Development link tooling
         run: npm run test:dev-link
       - name: Runtime coverage floor
@@ -73,6 +75,7 @@ jobs:
             evals/COVERAGE.json
             evals/CLI-CONTRACT-VALIDATION.json
             evals/CLI-SURFACE-VALIDATION.json
+            evals/NORMALIZE-VALIDATION.json
           if-no-files-found: error
           retention-days: 14
 
@@ -102,6 +105,8 @@ jobs:
         run: npm run build
       - name: CLI contract (spawned binary, agent-facing surface)
         run: npm run test:cli-contract
+      - name: Input normalization (untrusted document parsers)
+        run: npm run test:normalize
       - name: Development link tooling (junction semantics)
         run: npm run test:dev-link
       - name: Runtime coverage floor

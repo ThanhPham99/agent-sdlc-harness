@@ -6,12 +6,28 @@ import {sha256} from './util.mjs';
 const TEXT_EXTS=new Set(['.txt','.md','.mdx','.rst','.adoc','.json','.jsonl','.yaml','.yml','.toml','.ini','.cfg','.csv','.tsv','.log','.xml','.html','.htm','.sql']);
 const IMAGE_EXTS=new Set(['.png','.jpg','.jpeg','.webp','.gif','.bmp','.tif','.tiff','.heic','.heif']);
 
+// The largest column an XLSX file may address is XFD. A crafted cell reference
+// beyond it used to be honoured: `r="ZZZZZ1"` padded the row to 12.3 million
+// cells, turning a 1 KB workbook into a 111 MB markdown artifact, and one letter
+// more threw `RangeError: Invalid array length`. Malformed references are
+// dropped rather than trusted.
+export const MAX_COLUMNS=16384;
+
+/**
+ * A character reference outside the Unicode range is left as literal text.
+ * `String.fromCodePoint` throws on it, and a malformed document must produce a
+ * status, never an exception from inside the parser.
+ */
+function codePoint(match,n){
+  if(!Number.isSafeInteger(n)||n<0||n>0x10FFFF)return match;
+  try{return String.fromCodePoint(n);}catch{return match;}
+}
 function decodeXml(s=''){
   return s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g,'$1')
     .replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&amp;/g,'&')
     .replace(/&quot;/g,'"').replace(/&apos;/g,"'")
-    .replace(/&#(\d+);/g,(_,n)=>String.fromCodePoint(Number(n)))
-    .replace(/&#x([0-9a-f]+);/gi,(_,n)=>String.fromCodePoint(parseInt(n,16)));
+    .replace(/&#(\d+);/g,(m,n)=>codePoint(m,Number(n)))
+    .replace(/&#x([0-9a-f]+);/gi,(m,n)=>codePoint(m,parseInt(n,16)));
 }
 function stripXml(xml){
   return decodeXml(xml)
@@ -30,8 +46,20 @@ function commandExists(bin){
   const r=spawnSync(bin,['--help'],{encoding:'utf8',timeout:3000});
   return !r.error && (r.status===0 || r.status===1 || r.status===2);
 }
+// Entry names come from inside the archive, so for XLSX they are attacker
+// controlled: a sheet target is read from xl/_rels/workbook.xml.rels. A name
+// beginning with `-` would reach `unzip` as an option rather than a member, and
+// `..` or an absolute path has no legitimate use in an OOXML container.
+const SAFE_ENTRY=/^[A-Za-z0-9_][A-Za-z0-9_./+-]*$/;
+function safeEntry(entry){
+  return typeof entry==='string'&&entry.length<=255&&SAFE_ENTRY.test(entry)&&!entry.includes('..');
+}
 function unzipEntry(file,entry){
+  if(!safeEntry(entry))throw new Error(`refusing unsafe archive entry name: ${String(entry).slice(0,60)}`);
   const r=spawnSync('unzip',['-p',file,entry],{encoding:'utf8',maxBuffer:64*1024*1024,timeout:15000});
+  // An entry larger than maxBuffer, or a hung unzip, leaves status null and an
+  // error rather than a non-zero exit; say which it was.
+  if(r.error)throw new Error(`unzip could not read ${entry}: ${r.error.code||r.error.message}`);
   if(r.status!==0) throw new Error(`unzip failed for ${entry}: ${(r.stderr||'').trim()}`);
   return r.stdout||'';
 }
@@ -55,8 +83,13 @@ function sharedStrings(xml){
   for(const m of xml.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)){const seg=m[1];const texts=[...seg.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(x=>decodeXml(x[1]));out.push(texts.join(''));}
   return out;
 }
+/** Zero-based column index, or -1 when the reference is outside the format. */
 function colIndex(ref='A1'){
-  const letters=(ref.match(/[A-Z]+/i)||['A'])[0].toUpperCase();let n=0;for(const c of letters)n=n*26+(c.charCodeAt(0)-64);return n-1;
+  const letters=(ref.match(/[A-Z]+/i)||['A'])[0].toUpperCase();
+  // Five letters already exceed XFD; stop before the arithmetic can run away.
+  if(letters.length>5)return -1;
+  let n=0;for(const c of letters)n=n*26+(c.charCodeAt(0)-64);
+  return n>=1&&n<=MAX_COLUMNS?n-1:-1;
 }
 function xlsxText(file){
   if(!commandExists('unzip')) return {status:'PENDING',reason:'UNZIP_NOT_AVAILABLE',text:''};
@@ -69,10 +102,11 @@ function xlsxText(file){
   if(!sheets.length){for(const entry of entries.filter(e=>/^xl\/worksheets\/sheet\d+\.xml$/.test(e)).sort())sheets.push({name:path.basename(entry,'.xml'),entry});}
   const sections=[];
   for(const s of sheets){if(!entries.includes(s.entry))continue;const xml=unzipEntry(file,s.entry);const rows=[];
-    for(const rm of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)){const cells=[];for(const cm of rm[1].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)){const attrs=cm[1],body=cm[2];const ref=(attrs.match(/\br="([^"]+)"/)||[])[1]||'';const type=(attrs.match(/\bt="([^"]+)"/)||[])[1]||'';let val='';const vm=body.match(/<v\b[^>]*>([\s\S]*?)<\/v>/);const im=body.match(/<is\b[^>]*>([\s\S]*?)<\/is>/);if(type==='s'&&vm)val=strings[Number(vm[1])]??'';else if(type==='inlineStr'&&im)val=[...im[1].matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(x=>decodeXml(x[1])).join('');else if(vm)val=decodeXml(vm[1]);const idx=colIndex(ref);while(cells.length<idx)cells.push('');cells[idx]=String(val).replace(/\|/g,'\\|').replace(/\r?\n/g,' ');}
+    for(const rm of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)){const cells=[];for(const cm of rm[1].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)){const attrs=cm[1],body=cm[2];const ref=(attrs.match(/\br="([^"]+)"/)||[])[1]||'';const type=(attrs.match(/\bt="([^"]+)"/)||[])[1]||'';let val='';const vm=body.match(/<v\b[^>]*>([\s\S]*?)<\/v>/);const im=body.match(/<is\b[^>]*>([\s\S]*?)<\/is>/);if(type==='s'&&vm)val=strings[Number(vm[1])]??'';else if(type==='inlineStr'&&im)val=[...im[1].matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(x=>decodeXml(x[1])).join('');else if(vm)val=decodeXml(vm[1]);const idx=colIndex(ref);if(idx<0)continue;while(cells.length<idx)cells.push('');cells[idx]=String(val).replace(/\|/g,'\\|').replace(/\r?\n/g,' ');}
       if(cells.some(x=>x!==''))rows.push(cells);
     }
-    if(rows.length){const width=Math.max(...rows.map(r=>r.length));const norm=rows.map(r=>Array.from({length:width},(_,i)=>r[i]??''));const header=norm[0];const lines=[`## Sheet: ${s.name}`,'',`| ${header.join(' | ')} |`,`| ${header.map(()=> '---').join(' | ')} |`,...norm.slice(1).map(r=>`| ${r.join(' | ')} |`)];sections.push(lines.join('\n'));}
+    // reduce, not Math.max(...spread): a wide sheet would overflow the stack.
+    if(rows.length){const width=rows.reduce((w,r)=>Math.max(w,r.length),0);const norm=rows.map(r=>Array.from({length:width},(_,i)=>r[i]??''));const header=norm[0];const lines=[`## Sheet: ${s.name}`,'',`| ${header.join(' | ')} |`,`| ${header.map(()=> '---').join(' | ')} |`,...norm.slice(1).map(r=>`| ${r.join(' | ')} |`)];sections.push(lines.join('\n'));}
   }
   if(!sections.length)return {status:'PENDING',reason:'XLSX_TEXT_NOT_FOUND',text:''};
   return {status:'NORMALIZED',text:sections.join('\n\n')};
@@ -93,12 +127,20 @@ function textFile(file,ext){
 export function normalizeInput(file,{maxBytes=20*1024*1024}={}){
   const abs=path.resolve(file);const st=fs.statSync(abs);if(!st.isFile())throw new Error('input must be a file');if(st.size>maxBytes)throw new Error(`input exceeds maxBytes=${maxBytes}`);
   const ext=path.extname(abs).toLowerCase();let r;
-  if(TEXT_EXTS.has(ext))r=textFile(abs,ext);
-  else if(ext==='.docx')r=docxText(abs);
-  else if(ext==='.xlsx')r=xlsxText(abs);
-  else if(ext==='.pdf')r=pdfText(abs);
-  else if(IMAGE_EXTS.has(ext))r={status:'NEEDS_MULTIMODAL',reason:'IMAGE_REQUIRES_VISION_EXTRACTION',text:''};
-  else r={status:'PENDING',reason:'UNSUPPORTED_FILE_TYPE',text:''};
+  // The input is untrusted by definition. A malformed or hostile document must
+  // produce a normalization status the caller can act on, never an exception
+  // escaping the parser: the CLI would turn that into a bare ERROR and the
+  // requirement would look like a harness fault instead of a bad input.
+  try{
+    if(TEXT_EXTS.has(ext))r=textFile(abs,ext);
+    else if(ext==='.docx')r=docxText(abs);
+    else if(ext==='.xlsx')r=xlsxText(abs);
+    else if(ext==='.pdf')r=pdfText(abs);
+    else if(IMAGE_EXTS.has(ext))r={status:'NEEDS_MULTIMODAL',reason:'IMAGE_REQUIRES_VISION_EXTRACTION',text:''};
+    else r={status:'PENDING',reason:'UNSUPPORTED_FILE_TYPE',text:''};
+  }catch(e){
+    r={status:'PENDING',reason:'NORMALIZATION_FAILED',detail:String(e.message).slice(0,300),text:''};
+  }
   const source_sha256=sha256(fs.readFileSync(abs));
   const header=[
     '# Normalized Input', '',

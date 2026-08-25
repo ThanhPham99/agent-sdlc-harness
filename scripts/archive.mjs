@@ -64,11 +64,15 @@ function walk(dir,prefix,out){
   return out;
 }
 
-export function zipDir(dir,zipPath){
+/**
+ * `prefix` defaults to the directory's own name, matching `zip -r`, which is
+ * what the distribution packages expect. Pass `prefix:''` for a format that
+ * requires entries at the archive root, such as OOXML (.docx/.xlsx) fixtures.
+ */
+export function zipDir(dir,zipPath,{prefix=`${path.basename(dir)}/`}={}){
   fs.rmSync(zipPath,{force:true});
   fs.mkdirSync(path.dirname(zipPath),{recursive:true});
-  // Entries are prefixed with the directory's own name, matching `zip -r`.
-  const entries=walk(dir,`${path.basename(dir)}/`,[{rel:`${path.basename(dir)}/`,dir:true}]);
+  const entries=walk(dir,prefix,prefix?[{rel:prefix,dir:true}]:[]);
 
   const chunks=[],central=[];
   let offset=0;

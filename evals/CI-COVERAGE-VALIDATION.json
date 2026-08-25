@@ -3,8 +3,8 @@
   "version": "3.0.0-alpha6",
   "workflow": ".github/workflows/ci.yml",
   "check_script": "check",
-  "checks": 23,
-  "passes": 23,
+  "checks": 24,
+  "passes": 24,
   "failures": 0,
   "suites": [
     {
@@ -125,6 +125,12 @@
       "script": "test:cli-contract",
       "status": "PASS",
       "gated_via": "test:cli-contract",
+      "problems": []
+    },
+    {
+      "script": "test:normalize",
+      "status": "PASS",
+      "gated_via": "test:normalize",
       "problems": []
     },
     {

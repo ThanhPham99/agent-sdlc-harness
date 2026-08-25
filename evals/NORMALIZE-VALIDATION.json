@@ -1,0 +1,87 @@
+{
+  "schema": "agent-sdlc/normalize-validation/v1",
+  "unzip_available": true,
+  "pdftotext_available": true,
+  "checks": 19,
+  "passes": 19,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "text-file-is-normalized-with-provenance",
+      "status": "PASS"
+    },
+    {
+      "name": "byte-order-mark-is-stripped",
+      "status": "PASS"
+    },
+    {
+      "name": "json-is-pretty-printed-and-invalid-json-is-passed-through",
+      "status": "PASS"
+    },
+    {
+      "name": "unsupported-and-image-types-report-a-status-not-a-guess",
+      "status": "PASS"
+    },
+    {
+      "name": "oversized-input-is-refused-before-it-is-read",
+      "status": "PASS"
+    },
+    {
+      "name": "a-directory-is-not-an-input",
+      "status": "PASS"
+    },
+    {
+      "name": "docx-body-headers-and-footnotes-are-extracted-in-order",
+      "status": "PASS"
+    },
+    {
+      "name": "docx-markup-becomes-text-not-tags",
+      "status": "PASS"
+    },
+    {
+      "name": "docx-with-no-text-part-is-pending-not-empty-success",
+      "status": "PASS"
+    },
+    {
+      "name": "character-reference-outside-unicode-is-left-as-text",
+      "status": "PASS"
+    },
+    {
+      "name": "xlsx-shared-and-inline-strings-become-a-table",
+      "status": "PASS"
+    },
+    {
+      "name": "xlsx-sheet-names-come-from-the-workbook-relationships",
+      "status": "PASS"
+    },
+    {
+      "name": "a-cell-reference-past-the-column-limit-is-dropped",
+      "status": "PASS"
+    },
+    {
+      "name": "the-last-legal-column-still-works",
+      "status": "PASS"
+    },
+    {
+      "name": "xlsx-cell-text-cannot-forge-table-columns",
+      "status": "PASS"
+    },
+    {
+      "name": "a-sheet-with-no-cells-is-pending",
+      "status": "PASS"
+    },
+    {
+      "name": "an-unsafe-relationship-target-is-refused",
+      "status": "PASS"
+    },
+    {
+      "name": "pdf-without-extractable-text-is-not-silently-empty",
+      "status": "PASS"
+    },
+    {
+      "name": "every-result-carries-a-status-and-a-provenance-header",
+      "status": "PASS"
+    }
+  ]
+}
