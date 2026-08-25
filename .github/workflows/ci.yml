@@ -21,11 +21,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      # Step order mirrors the `check` script. scripts/validate-ci-coverage.mjs
-      # (run by test:integrity) fails if a suite in that chain is missing here.
+      # Step order is generated from the `check` chain: qualification needs the
+      # packages `build` produces, and scripts/validate-ci-coverage.mjs asserts
+      # both membership and order so this cannot drift again.
       - name: Deterministic regression
         run: npm test
-      - name: Integrity gates (versions, skill registry, root sync, host guard, CI coverage)
+      - name: Integrity gates (versions, registry, root sync, host guard, CI coverage, CLI surface)
         run: npm run test:integrity
       - name: Auto-activation contract and per-host bootstrap hooks
         run: npm run test:activation
@@ -35,16 +36,16 @@ jobs:
         run: npm run test:tasks
       - name: Repository intelligence, traceability, delivery, governance, learning
         run: npm run test:alpha6
-      - name: Qualification harness contract
-        run: npm run test:qualification-harness
-      - name: Qualification transport contract
-        run: npm run test:qualification-transport
+      - name: Build provider distributions
+        run: npm run build
       - name: Validate GitHub-native install surfaces
         run: npm run validate:github
       - name: Test bootstrap installers with fake host CLIs
         run: npm run test:github-installers
-      - name: Build provider distributions
-        run: npm run build
+      - name: Qualification harness contract
+        run: npm run test:qualification-harness
+      - name: Qualification transport contract (needs the built packages)
+        run: npm run test:qualification-transport
       - name: CLI contract (spawned binary, agent-facing surface)
         run: npm run test:cli-contract
       - name: Input normalization (untrusted document parsers)
@@ -66,7 +67,7 @@ jobs:
       - name: Package release candidates
         run: npm run package:release
       - name: Upload offline validation artifacts
-        if: matrix.node == '22'
+        if: always() && matrix.node == '22'
         uses: actions/upload-artifact@v4
         with:
           name: agent-sdlc-${{ github.sha }}
@@ -88,7 +89,7 @@ jobs:
             evals/COMPAT-VALIDATION.json
             evals/MCP-VALIDATION.json
             evals/PROJECT-DETECTION-VALIDATION.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
 
   # Windows is a supported development and host platform, and the runtime has
@@ -105,7 +106,7 @@ jobs:
           node-version: '22'
       - name: Deterministic regression
         run: npm test
-      - name: Integrity gates
+      - name: Integrity gates (versions, registry, root sync, host guard, CI coverage, CLI surface)
         run: npm run test:integrity
       - name: Design and plan-quality gates
         run: npm run test:gates
@@ -127,7 +128,7 @@ jobs:
         run: npm run test:mcp
       - name: Project detection and config layering
         run: npm run test:detection
-      - name: Development link tooling (junction semantics)
+      - name: Development link tooling
         run: npm run test:dev-link
       - name: Runtime coverage floor
         run: npm run test:coverage

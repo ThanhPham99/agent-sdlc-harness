@@ -91,9 +91,24 @@ const modules=[...byFile.entries()].map(([file,v])=>({file,percent:pct(v),covere
 const totals=modules.reduce((a,m)=>({covered:a.covered+m.covered_bytes,total:a.total+m.total_bytes}),{covered:0,total:0});
 const overall=pct(totals);
 
+// Some subjects skip work when an external tool is absent -- the OOXML parsers
+// need `unzip`, the PDF path needs `pdftotext` -- which lowers the measured
+// number for reasons that are not a regression. On such a machine the floor is
+// advisory, so a contributor is not sent hunting a phantom drop. CI has the
+// tools, so the gate stays real there.
+const optionalTools=Object.fromEntries(['unzip','pdftotext'].map(bin=>{
+  const r=spawnSync(bin,['--help'],{encoding:'utf8',timeout:3000});
+  return [bin,!r.error];
+}));
+const missingTools=Object.entries(optionalTools).filter(([,present])=>!present).map(([bin])=>bin);
+
 const floor=fs.existsSync(FLOOR_FILE)?JSON.parse(fs.readFileSync(FLOOR_FILE,'utf8')):null;
 const problems=[];
-if(floor&&!update){
+const advisory=[];
+if(floor&&!update&&missingTools.length){
+  if(overall<floor.overall_percent)advisory.push(`overall runtime coverage is ${overall}% against a floor of ${floor.overall_percent}%, but ${missingTools.join(' and ')} ${missingTools.length>1?'are':'is'} not installed here, so suites that need ${missingTools.length>1?'them':'it'} skipped; not treated as a regression`);
+}
+else if(floor&&!update){
   if(overall<floor.overall_percent)problems.push(`overall runtime coverage fell to ${overall}% (floor ${floor.overall_percent}%)`);
   // A module that used to be executed and now is not is a coverage regression
   // even when the overall percentage still clears the floor.
@@ -111,7 +126,9 @@ const report={
   modules,
   never_loaded:modules.filter(m=>m.never_loaded).map(m=>m.file),
   floor:floor?{overall_percent:floor.overall_percent,never_loaded:floor.never_loaded||[]}:null,
+  optional_tools:optionalTools,
   problems,
+  ...(advisory.length?{advisory}:{}),
   status:problems.length?'FAIL':'PASS'
 };
 fs.writeFileSync(path.join(ROOT,'evals','COVERAGE.json'),JSON.stringify(report,null,2)+'\n');

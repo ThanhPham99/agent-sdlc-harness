@@ -166,13 +166,28 @@ test('context-manifest-carries-no-carriage-returns',()=>{
 // the first writer's evidence.
 // ---------------------------------------------------------------------------
 test('stale-run-write-is-rejected',()=>{
+  // The version token must not be a timestamp: on a fast filesystem both writes
+  // of this race land in the same millisecond, which is how CI caught the first
+  // attempt on Linux while it passed on Windows.
   const r=newRun(ROOT,tmp,{objective:'concurrent writers',route:route(ROOT,'Add refund capability')});
   const a=loadRun(tmp,r.run_id),b=loadRun(tmp,r.run_id);
+  if(a.revision!==b.revision)throw Error('two loads of one run disagree on revision');
   a.evidence.INTAKE=['first_writer'];saveRun(tmp,a);
+  if(a.revision!==b.revision+1)throw Error(`a write did not advance the revision: ${b.revision} -> ${a.revision}`);
   b.evidence.INTAKE=['second_writer'];
   let ok=false;try{saveRun(tmp,b);}catch(e){ok=/STALE_RUN_STATE/.test(e.message);}
   if(!ok)throw Error('stale write accepted; first writer lost');
-  if(!loadRun(tmp,r.run_id).evidence.INTAKE.includes('first_writer'))throw Error('first write lost');
+  const onDisk=loadRun(tmp,r.run_id);
+  if(!onDisk.evidence.INTAKE.includes('first_writer'))throw Error('first write lost');
+  if(onDisk.revision!==a.revision)throw Error('the refused write still touched the document');
+});
+test('sequential-writes-of-one-copy-are-not-a-conflict',()=>{
+  // The common case: one holder saving repeatedly, faster than the clock ticks.
+  const r=newRun(ROOT,tmp,{objective:'sequential writes',route:route(ROOT,'Add refund capability')});
+  const start=r.revision;
+  for(let i=0;i<25;i++){r.provider_state={i};saveRun(tmp,r);}
+  if(r.revision!==start+25)throw Error(`revision ${r.revision}, expected ${start+25}`);
+  if(loadRun(tmp,r.run_id).revision!==r.revision)throw Error('disk and memory disagree after sequential writes');
 });
 test('run-write-leaves-no-temp-files',()=>{
   const r=newRun(ROOT,tmp,{objective:'atomic write',route:route(ROOT,'Add refund capability')});

@@ -63,6 +63,30 @@ const rows=leaves(CHECK_SCRIPT).map(({script,covered_by})=>{
 // A workflow that runs nothing at all must not pass by vacuum.
 if(!rows.length)rows.push({script:CHECK_SCRIPT,status:'FAIL',problems:[`no suites reachable from \`npm run ${CHECK_SCRIPT}\`; the check chain is empty`]});
 
+/**
+ * Order, not just membership. Checking only that a suite appears somewhere let
+ * CI run the qualification suites before `build`, so they validated packages
+ * that did not exist yet and every case failed with PACKAGE_VALIDATION_FAILED.
+ * The chain encodes real dependencies; CI must respect them.
+ */
+const chain=children(CHECK_SCRIPT);
+const invocation=/^\s*run:\s*npm (?:run )?([a-z0-9:-]+)/;
+const ciSequence=ci.split('\n').map(l=>l.match(invocation)).filter(Boolean).map(m=>m[1]);
+const orderProblems=[];
+let cursor=-1,previous=null;
+for(const script of chain){
+  const at=ciSequence.indexOf(script,cursor+1);
+  if(at<0){
+    // Membership is reported per suite above; only order is judged here.
+    if(ciSequence.includes(script)){
+      orderProblems.push(`\`${script}\` runs before \`${previous}\` in ${WORKFLOW} but after it in \`${CHECK_SCRIPT}\``);
+    }
+    continue;
+  }
+  cursor=at;previous=script;
+}
+if(orderProblems.length)rows.push({script:`${CHECK_SCRIPT} (step order)`,status:'FAIL',problems:orderProblems});
+
 const failures=rows.filter(r=>r.status==='FAIL');
 const report={
   schema:'agent-sdlc/ci-coverage-validation/v1',

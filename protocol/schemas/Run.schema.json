@@ -36,6 +36,11 @@
     "updated_at": {
       "type": "string"
     },
+    "revision": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Monotonic write counter. A writer holding an older revision is refused (STALE_RUN_STATE) so a concurrent read-modify-write cannot drop the earlier writer's evidence."
+    },
     "provider_state": {
       "type": "object"
     },

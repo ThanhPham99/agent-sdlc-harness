@@ -35,7 +35,7 @@ function addEvidence(projectRoot,run,stage,tokens){
 export function newRun(root,projectRoot,{objective,route}){
   const workflows=readJson(path.join(root,'config','workflows.json')).workflows;
   const spec=workflows[route.workflow]; if(!spec)throw new Error(`unknown workflow ${route.workflow}`);
-  const run={schema:'agent-sdlc/run/v1',run_id:uuid('run'),objective,workflow:route.workflow,profile:route.profile,overlays:route.overlays||[],state:spec.stages[0],stage_index:0,stages:spec.stages,created_at:now(),updated_at:now(),evidence:{},approvals:[],artifacts:[],provider_state:{},failure_counts:{},suspended_from:null};
+  const run={schema:'agent-sdlc/run/v1',run_id:uuid('run'),objective,workflow:route.workflow,profile:route.profile,overlays:route.overlays||[],state:spec.stages[0],stage_index:0,stages:spec.stages,created_at:now(),updated_at:now(),revision:0,evidence:{},approvals:[],artifacts:[],provider_state:{},failure_counts:{},suspended_from:null};
   saveRun(projectRoot,run);emit(projectRoot,run,{type:'run.created',payload:{workflow:run.workflow,profile:run.profile}});return run;
 }
 

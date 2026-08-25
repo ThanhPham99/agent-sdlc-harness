@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - `context_hash` no longer depends on the checked-out line endings: text that feeds a hash goes through `readTextFile`/`normalizeText` in both context compilers and in the repository index, so the same commit produces the same hash on Windows and Linux.
-- Run documents are written atomically (temp file + rename) like task records already were, and `saveRun` refuses a stale write (`STALE_RUN_STATE`) instead of silently discarding a concurrent writer's evidence.
+- Run documents are written atomically (temp file + rename) like task records already were, and `saveRun` refuses a stale write (`STALE_RUN_STATE`) instead of silently discarding a concurrent writer's evidence. The version token is a monotonic `revision` counter, not `updated_at`: millisecond timestamps collide on a fast filesystem, so the timestamp version of this guard let the stale write through on Linux while passing on Windows.
 - Router normalization folds diacritics, so an objective typed without accents (`sua loi`, `su co`) reaches its rule instead of falling through to `new-feature` with the wrong stage set and profile.
 - CLI help text now documents `task replay`, `task fallback` and `task resume`, which were implemented but undiscoverable — the help text is the only CLI discovery surface an agent has.
 
@@ -35,6 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `scripts/test-project-detection.mjs` (`test:detection`): 22 checks over per-stack detection, hand-edited manifests, polyglot repositories and config layering. Raised `runtime/init.mjs` from 50% to 99% and `runtime/config.mjs` from 73% to 98%; runtime 85% overall.
 - Project detection covers maven (`pom.xml`), gradle (`build.gradle`, preferring `./gradlew` when a wrapper is present), dotnet (`*.sln`/`*.csproj`/`*.fsproj`) and python via `requirements.txt`, `setup.py` or `tox.ini`. Each previously reported `stack: unknown` with no commands, leaving verification gates nothing to run.
 - `detectProject` reports every detected stack in `stacks` and explains what it could not work out in `detection_warnings`, including when no test command could be derived.
+
+- `scripts/validate-ci-coverage.mjs` asserts step *order* as well as membership. Checking membership alone let CI run the qualification suites before `build`, so they validated packages that did not exist yet.
+- The CI workflow's step list is generated from the `check` chain rather than hand-ordered, and validation reports upload even when a run fails, so a red CI can be diagnosed from its evidence instead of by reproducing the environment.
+- The coverage floor is advisory on a machine missing `unzip` or `pdftotext`: those suites skip, which lowers the number for a reason that is not a regression. `optional_tools` records what was available.
 
 ### Security
 - **`force` could be set by a value that says false.** `!!"false"` is true, and hosts (and the models driving them) routinely serialize booleans as strings, so `{"force":"false"}` over MCP — and `--force false` on the CLI — bypassed gate evidence: a run skipped two stages with no evidence and no approval. `truthy()` now parses booleans at both boundaries for flags that *remove* a protection (`force`, `approved`, `allow-interface-grouping`); flags that add one stay permissive so an unparseable value fails safe in both directions.

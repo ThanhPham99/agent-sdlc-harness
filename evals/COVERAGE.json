@@ -11,8 +11,8 @@
   ],
   "measured": "v8-block-bytes",
   "overall_percent": 84.5,
-  "covered_bytes": 282141,
-  "total_bytes": 333798,
+  "covered_bytes": 282487,
+  "total_bytes": 334150,
   "modules": [
     {
       "file": "runtime/index.mjs",
@@ -125,9 +125,9 @@
     },
     {
       "file": "runtime/orchestrator.mjs",
-      "percent": 90,
-      "covered_bytes": 9607,
-      "total_bytes": 10669
+      "percent": 90.1,
+      "covered_bytes": 9618,
+      "total_bytes": 10680
     },
     {
       "file": "runtime/task-recovery.mjs",
@@ -227,9 +227,9 @@
     },
     {
       "file": "runtime/store.mjs",
-      "percent": 96.8,
-      "covered_bytes": 7123,
-      "total_bytes": 7357
+      "percent": 96.9,
+      "covered_bytes": 7458,
+      "total_bytes": 7698
     },
     {
       "file": "runtime/config.mjs",
@@ -276,6 +276,10 @@
     "never_loaded": [
       "runtime/index.mjs"
     ]
+  },
+  "optional_tools": {
+    "unzip": true,
+    "pdftotext": true
   },
   "problems": [],
   "status": "PASS"

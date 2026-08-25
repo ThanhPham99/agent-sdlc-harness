@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 249,
-  "passes": 249,
+  "checks": 250,
+  "passes": 250,
   "failures": 0,
   "results": [
     {
@@ -187,6 +187,10 @@
     },
     {
       "name": "stale-run-write-is-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "sequential-writes-of-one-copy-are-not-a-conflict",
       "status": "PASS"
     },
     {

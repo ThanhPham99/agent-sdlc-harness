@@ -10,12 +10,22 @@ export function runPath(projectRoot,runId){return path.join(stateDir(projectRoot
 // loaded the same revision would silently drop the first one's evidence, so a
 // stale write is refused instead: reload the run and reapply. `writeJson` is
 // atomic, so an interrupted write cannot truncate the document either.
+//
+// The version token is a counter, not `updated_at`. Timestamps have millisecond
+// resolution, and on a fast filesystem the two writes of a lost-update race land
+// inside the same millisecond -- which is how CI caught this on Linux while it
+// passed on Windows. A counter cannot collide.
 export function saveRun(projectRoot,run){
   const p=runPath(projectRoot,run.run_id);
   const disk=fs.existsSync(p)?readJson(p,{}):null;
-  if(disk?.updated_at&&run.updated_at&&disk.updated_at!==run.updated_at){
-    throw new Error(`STALE_RUN_STATE: run ${run.run_id} was updated on disk at ${disk.updated_at} after this copy was loaded at ${run.updated_at}; reload the run and reapply the change`);
+  const held=Number(run.revision??0);
+  if(disk){
+    const current=Number(disk.revision??0);
+    if(current!==held){
+      throw new Error(`STALE_RUN_STATE: run ${run.run_id} is at revision ${current} on disk but this copy holds ${held}; reload the run and reapply the change`);
+    }
   }
+  run.revision=held+1;
   run.updated_at=now();
   writeJson(p,run);
 }
