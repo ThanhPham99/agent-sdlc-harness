@@ -5,7 +5,9 @@
     {
       "keywords": [
         "auth bypass",
+        "bảo mật",
         "cve",
+        "lỗ hổng",
         "secret",
         "security",
         "vulnerability"
@@ -19,10 +21,12 @@
     {
       "keywords": [
         "incident",
+        "mất dịch vụ",
         "outage",
         "production down",
         "sev1",
-        "sev2"
+        "sev2",
+        "sự cố"
       ],
       "workflow": "incident-response",
       "profile": "STRICT",
@@ -34,7 +38,8 @@
       "keywords": [
         "hotfix",
         "rollback fix",
-        "urgent production"
+        "urgent production",
+        "vá nóng"
       ],
       "workflow": "hotfix",
       "profile": "STRICT",
@@ -46,7 +51,8 @@
       "keywords": [
         "breaking api",
         "breaking change",
-        "deprecate endpoint"
+        "deprecate endpoint",
+        "thay đổi phá vỡ"
       ],
       "workflow": "api-breaking-change",
       "profile": "STRICT",
@@ -57,6 +63,7 @@
     {
       "keywords": [
         "deprecation removal",
+        "loại bỏ deprecated",
         "remove deprecated"
       ],
       "workflow": "deprecation-removal",
@@ -65,10 +72,12 @@
     },
     {
       "keywords": [
+        "hiện đại hóa",
         "legacy migration",
         "modernize",
         "rewrite",
-        "strangler"
+        "strangler",
+        "viết lại"
       ],
       "workflow": "modernization",
       "profile": "STRICT",
@@ -80,7 +89,9 @@
         "continue phase",
         "existing feature",
         "phase 2",
-        "resume feature"
+        "resume feature",
+        "tiếp tục phase",
+        "tiếp tục tính năng"
       ],
       "workflow": "continue-feature",
       "profile": "STANDARD",
@@ -88,11 +99,14 @@
     },
     {
       "keywords": [
+        "cập nhật yêu cầu",
+        "change request",
+        "requirement delta",
         "requirement update",
         "requirements changed",
+        "thay đổi yêu cầu",
         "updated requirement",
-        "change request",
-        "requirement delta"
+        "yêu cầu mới"
       ],
       "workflow": "requirement-update",
       "profile": "STANDARD",
@@ -101,7 +115,9 @@
     {
       "keywords": [
         "backfill",
+        "chuyển đổi schema",
         "database",
+        "di chuyển dữ liệu",
         "migration",
         "schema change"
       ],
@@ -116,6 +132,8 @@
         "bump version",
         "dependency",
         "library upgrade",
+        "nâng cấp phụ thuộc",
+        "nâng cấp thư viện",
         "upgrade package"
       ],
       "workflow": "dependency-upgrade",
@@ -124,11 +142,15 @@
     },
     {
       "keywords": [
+        "hiệu năng",
         "latency",
         "memory leak",
+        "optimization",
+        "optimize",
         "performance",
         "slow",
-        "throughput"
+        "throughput",
+        "tối ưu"
       ],
       "workflow": "performance",
       "profile": "STANDARD",
@@ -137,8 +159,10 @@
     {
       "keywords": [
         "cleanup",
+        "dọn dẹp code",
         "refactor",
-        "restructure"
+        "restructure",
+        "tái cấu trúc"
       ],
       "workflow": "refactor",
       "profile": "STANDARD",
@@ -149,7 +173,8 @@
         "build workflow",
         "ci",
         "github actions",
-        "pipeline"
+        "pipeline",
+        "quy trình build"
       ],
       "workflow": "ci-cd-change",
       "profile": "STANDARD",
@@ -157,6 +182,7 @@
     },
     {
       "keywords": [
+        "hạ tầng",
         "helm",
         "infrastructure",
         "kubernetes",
@@ -168,6 +194,8 @@
     },
     {
       "keywords": [
+        "ghi log",
+        "giám sát",
         "logging",
         "metric",
         "monitoring",
@@ -182,7 +210,8 @@
       "keywords": [
         "audit evidence",
         "compliance",
-        "privacy control"
+        "privacy control",
+        "tuân thủ"
       ],
       "workflow": "compliance-change",
       "profile": "STRICT",
@@ -193,7 +222,9 @@
         "docs",
         "documentation",
         "guide",
-        "readme"
+        "hướng dẫn",
+        "readme",
+        "tài liệu"
       ],
       "workflow": "documentation",
       "profile": "FAST",
@@ -201,6 +232,14 @@
     },
     {
       "keywords": [
+        "assess",
+        "đánh giá",
+        "điều tra",
+        "evaluate",
+        "feasibility",
+        "investigate",
+        "khảo sát",
+        "nghiên cứu",
         "proof of concept",
         "research prototype",
         "spike"
@@ -212,8 +251,10 @@
     {
       "keywords": [
         "add tests",
+        "kiểm thử",
         "test coverage",
-        "test only"
+        "test only",
+        "thêm test"
       ],
       "workflow": "test-only",
       "profile": "FAST",
@@ -221,10 +262,13 @@
     },
     {
       "keywords": [
+        "báo lỗi",
         "bug",
         "defect",
         "error",
-        "fix"
+        "fix",
+        "khắc phục lỗi",
+        "sửa lỗi"
       ],
       "workflow": "bug-fix",
       "profile": "STANDARD",
@@ -232,8 +276,10 @@
     },
     {
       "keywords": [
+        "bảo trì",
         "chore",
         "maintenance",
+        "nợ kỹ thuật",
         "tech debt"
       ],
       "workflow": "maintenance",

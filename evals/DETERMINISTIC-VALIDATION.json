@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 240,
-  "passes": 240,
+  "checks": 249,
+  "passes": 249,
   "failures": 0,
   "results": [
     {
@@ -47,6 +47,42 @@
     },
     {
       "name": "router-requirement-update-semantic-rule",
+      "status": "PASS"
+    },
+    {
+      "name": "router-vietnamese-bug-fix",
+      "status": "PASS"
+    },
+    {
+      "name": "router-vietnamese-incident-strict",
+      "status": "PASS"
+    },
+    {
+      "name": "router-vietnamese-security-strict",
+      "status": "PASS"
+    },
+    {
+      "name": "router-vietnamese-documentation",
+      "status": "PASS"
+    },
+    {
+      "name": "router-vietnamese-dependency-upgrade",
+      "status": "PASS"
+    },
+    {
+      "name": "router-matches-unaccented-vietnamese",
+      "status": "PASS"
+    },
+    {
+      "name": "router-diacritic-folding-does-not-change-ascii-routes",
+      "status": "PASS"
+    },
+    {
+      "name": "router-assessment-verbs-route-to-spike",
+      "status": "PASS"
+    },
+    {
+      "name": "router-optimization-routes-to-performance",
       "status": "PASS"
     },
     {

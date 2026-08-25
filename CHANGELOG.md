@@ -5,6 +5,22 @@ All notable changes to the Agent SDLC Harness project will be documented in this
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- `scripts/validate-ci-coverage.mjs`: every suite reachable from `npm run check` must be run by CI, directly or through an aggregate; wired into `test:integrity`.
+- CI now gates `test:gates`, `test:tasks`, `test:alpha6` and both qualification suites, which were green locally but ungated.
+- CI matrix: node 18 (the floor declared by `engines`) and node 22, plus a `windows-latest` job covering the platform-sensitive runtime surfaces.
+- Router keyword coverage for Vietnamese objectives and for read-only assessment verbs (`investigate`, `assess`, `evaluate`, `feasibility`).
+
+### Fixed
+- `context_hash` no longer depends on the checked-out line endings: text that feeds a hash goes through `readTextFile`/`normalizeText` in both context compilers and in the repository index, so the same commit produces the same hash on Windows and Linux.
+- Run documents are written atomically (temp file + rename) like task records already were, and `saveRun` refuses a stale write (`STALE_RUN_STATE`) instead of silently discarding a concurrent writer's evidence.
+- Router normalization folds diacritics, so an objective typed without accents (`sua loi`, `su co`) reaches its rule instead of falling through to `new-feature` with the wrong stage set and profile.
+
+### Changed
+- Event sequence numbers come from a per-stream counter instead of re-reading and splitting the whole event log on every append (was quadratic per run).
+
 ## [3.0.0-alpha6] - 2026-08-25
 
 ### Added

@@ -7,14 +7,20 @@ on:
 permissions:
   contents: read
 jobs:
+  # Full offline gate. node 18 is the floor declared by package.json engines and
+  # docs/INSTALLATION.md, so it is tested rather than assumed.
   offline-validation:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        node: ['18', '22']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: ${{ matrix.node }}
       # Step order mirrors the `check` script. scripts/validate-ci-coverage.mjs
       # (run by test:integrity) fails if a suite in that chain is missing here.
       - name: Deterministic regression
@@ -44,6 +50,7 @@ jobs:
       - name: Package release candidates
         run: npm run package:release
       - name: Upload offline validation artifacts
+        if: matrix.node == '22'
         uses: actions/upload-artifact@v4
         with:
           name: agent-sdlc-${{ github.sha }}
@@ -58,3 +65,30 @@ jobs:
             evals/CI-COVERAGE-VALIDATION.json
           if-no-files-found: error
           retention-days: 14
+
+  # Windows is a supported development and host platform, and the runtime has
+  # platform-sensitive surfaces: path handling (fileURLToPath, drive letters),
+  # temp-file + rename durability, and line endings feeding context_hash. The
+  # POSIX installer and bootstrap-hook suites stay on the ubuntu job.
+  windows-validation:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Deterministic regression
+        run: npm test
+      - name: Integrity gates
+        run: npm run test:integrity
+      - name: Design and plan-quality gates
+        run: npm run test:gates
+      - name: Task execution engine
+        run: npm run test:tasks
+      - name: Repository intelligence, traceability, delivery, governance, learning
+        run: npm run test:alpha6
+      - name: Build provider distributions
+        run: npm run build
+      - name: Verify extracted distributions
+        run: npm run verify:dist
