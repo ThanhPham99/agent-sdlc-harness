@@ -1,0 +1,103 @@
+{
+  "schema": "agent-sdlc/provider-validation/v1",
+  "platform": "win32",
+  "real_binary_checks": false,
+  "checks": 23,
+  "passes": 20,
+  "failures": 0,
+  "skipped": 3,
+  "results": [
+    {
+      "name": "every-probe-spawn-is-bounded",
+      "status": "PASS"
+    },
+    {
+      "name": "a-host-that-never-answers-is-treated-as-unavailable",
+      "status": "PASS"
+    },
+    {
+      "name": "probe-falls-through-to-the-next-candidate",
+      "status": "PASS"
+    },
+    {
+      "name": "a-failing-help-call-degrades-capabilities-instead-of-the-probe",
+      "status": "PASS"
+    },
+    {
+      "name": "empty-candidate-names-are-skipped",
+      "status": "PASS"
+    },
+    {
+      "name": "an-unknown-host-is-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "probe-results-are-memoized-per-process",
+      "status": "PASS"
+    },
+    {
+      "name": "capabilities-are-read-from-help-output-only",
+      "status": "PASS"
+    },
+    {
+      "name": "claude-invocation-carries-the-prompt-and-structured-output",
+      "status": "PASS"
+    },
+    {
+      "name": "flags-absent-from-help-are-not-passed",
+      "status": "PASS"
+    },
+    {
+      "name": "codex-sandbox-follows-the-stage",
+      "status": "PASS"
+    },
+    {
+      "name": "codex-prompt-is-the-final-argument",
+      "status": "PASS"
+    },
+    {
+      "name": "a-missing-host-is-pending-not-an-exception",
+      "status": "PASS"
+    },
+    {
+      "name": "argv-limits-are-platform-specific",
+      "status": "PASS"
+    },
+    {
+      "name": "an-unspawnable-prompt-is-reported-not-attempted",
+      "status": "PASS"
+    },
+    {
+      "name": "runHost-does-not-spawn-an-invocation-that-is-not-ready",
+      "status": "PASS"
+    },
+    {
+      "name": "a-successful-host-run-is-pass",
+      "status": "PASS"
+    },
+    {
+      "name": "a-failing-host-run-keeps-its-exit-code",
+      "status": "PASS"
+    },
+    {
+      "name": "a-timeout-is-distinguishable-from-a-failed-run",
+      "status": "PASS"
+    },
+    {
+      "name": "the-wall-clock-budget-reaches-spawn",
+      "status": "PASS"
+    },
+    {
+      "name": "a-real-hanging-binary-is-bounded-by-the-probe-timeout",
+      "status": "SKIP"
+    },
+    {
+      "name": "a-real-binary-that-fails-version-is-unavailable",
+      "status": "SKIP"
+    },
+    {
+      "name": "a-real-binary-round-trips-through-runHost",
+      "status": "SKIP"
+    }
+  ]
+}

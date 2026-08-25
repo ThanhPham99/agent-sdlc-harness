@@ -49,6 +49,8 @@ jobs:
         run: npm run test:cli-contract
       - name: Input normalization (untrusted document parsers)
         run: npm run test:normalize
+      - name: Host provider bounds and invocation building
+        run: npm run test:provider
       - name: Development link tooling
         run: npm run test:dev-link
       - name: Runtime coverage floor
@@ -76,6 +78,7 @@ jobs:
             evals/CLI-CONTRACT-VALIDATION.json
             evals/CLI-SURFACE-VALIDATION.json
             evals/NORMALIZE-VALIDATION.json
+            evals/PROVIDER-VALIDATION.json
           if-no-files-found: error
           retention-days: 14
 
@@ -107,6 +110,8 @@ jobs:
         run: npm run test:cli-contract
       - name: Input normalization (untrusted document parsers)
         run: npm run test:normalize
+      - name: Host provider bounds and invocation building
+        run: npm run test:provider
       - name: Development link tooling (junction semantics)
         run: npm run test:dev-link
       - name: Runtime coverage floor

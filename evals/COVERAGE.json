@@ -3,12 +3,13 @@
   "subjects": [
     "evals/run-deterministic.mjs",
     "scripts/test-cli-contract.mjs",
-    "scripts/test-normalize.mjs"
+    "scripts/test-normalize.mjs",
+    "scripts/test-provider.mjs"
   ],
   "measured": "v8-block-bytes",
-  "overall_percent": 82.1,
-  "covered_bytes": 263977,
-  "total_bytes": 321547,
+  "overall_percent": 82.7,
+  "covered_bytes": 268533,
+  "total_bytes": 324839,
   "modules": [
     {
       "file": "runtime/index.mjs",
@@ -22,12 +23,6 @@
       "percent": 35,
       "covered_bytes": 717,
       "total_bytes": 2048
-    },
-    {
-      "file": "runtime/provider.mjs",
-      "percent": 38.6,
-      "covered_bytes": 1024,
-      "total_bytes": 2655
     },
     {
       "file": "runtime/codex-bootstrap.mjs",
@@ -208,6 +203,12 @@
       "percent": 93.3,
       "covered_bytes": 3974,
       "total_bytes": 4260
+    },
+    {
+      "file": "runtime/provider.mjs",
+      "percent": 93.8,
+      "covered_bytes": 5580,
+      "total_bytes": 5947
     },
     {
       "file": "runtime/task-runner.mjs",

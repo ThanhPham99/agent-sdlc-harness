@@ -25,11 +25,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Router normalization folds diacritics, so an objective typed without accents (`sua loi`, `su co`) reaches its rule instead of falling through to `new-feature` with the wrong stage set and profile.
 - CLI help text now documents `task replay`, `task fallback` and `task resume`, which were implemented but undiscoverable — the help text is the only CLI discovery surface an agent has.
 
+- `scripts/test-provider.mjs` (`test:provider`): 23 checks over host probing, capability detection, invocation building and run outcomes, with `spawn` injected so the bounds hold on every platform. Raised `runtime/provider.mjs` from 39% to 94% coverage and the runtime to 83% overall.
+
 ### Security
+- **Unbounded host probing.** `probe()` ran `--version` and `--help` with no timeout and the default 1 MB buffer, so a host CLI that hung — or one waiting on input — blocked `doctor`, `model-route` and every stage invocation indefinitely. Probes are now bounded (5 s, 4 MB) and a host that does not answer is reported as unavailable. Results are memoized per process; `resetProbeCache()` clears them.
+- **Unspawnable prompts failed opaquely.** The stage prompt travels as an argv element, and Windows caps a command line at 32767 characters while POSIX caps one argument at 128 KiB. `buildInvocation` now returns `PENDING` / `PROMPT_EXCEEDS_ARGV_LIMIT` with the measured size instead of letting `spawn` fail with `E2BIG`.
 - **Output amplification in the XLSX parser.** A cell reference past the format's column limit was honoured: a single `r="ZZZZZ1"` cell padded the row to 12.3 million entries, turning a 1 KB workbook into a 111 MB markdown artifact (583 MB RSS), and one letter more threw `RangeError: Invalid array length`. References outside `A`–`XFD` are now dropped.
 - **Crash on a malformed character reference.** `&#1114112;` in a DOCX or XLSX reached `String.fromCodePoint` and threw out of the parser; such references are now left as literal text.
 - **Option and traversal injection via archive entry names.** XLSX sheet targets are read from `xl/_rels/workbook.xml.rels` inside the file, and were passed to `unzip` unchecked, so a name beginning with `-` arrived as an option and `..` was followed. Entry names are now validated before they reach the argv.
 - A parser failure on untrusted input returns `PENDING` with `NORMALIZATION_FAILED` and a detail, instead of throwing out of `normalizeInput` and surfacing as a harness error.
+- `runHost` reports `timed_out` and the spawn `error` code, and leaves `exit_code` null when the host never ran. It previously forced `exit_code: 1` and discarded the error, making a wall-clock timeout indistinguishable from a host that ran and returned 1 — the distinction the fallback policy is built on.
 
 ### Changed
 - Event sequence numbers come from a per-stream counter instead of re-reading and splitting the whole event log on every append (was quadratic per run).
