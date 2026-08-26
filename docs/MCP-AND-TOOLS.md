@@ -12,6 +12,8 @@ Built-in deterministic tools include `input.normalize`, repository read/search/d
 
 Privileged production actions are never authorized by prompt text alone. Hooks are defense in depth; the canonical policy/tool gateway remains the enforcement point for harness-managed actions. `agent_sdlc_transition` has no `force`/`approval` parameter; both are rejected outright rather than silently ignored. Approvals are readable over MCP (`agent_sdlc_approval_status`) but are only ever granted through `agent-sdlc approval grant`, an interactive, TTY-gated CLI command — there is no approval-grant tool on the MCP surface.
 
+The VERIFY gate's `targeted_verification_pass` cannot be supplied through `agent_sdlc_transition`'s `evidence` array either: it is written only by a real `agent_sdlc_tool_run` call to `test.run_targeted`, bound to the workspace state at the moment the test ran, and a later edit makes it stale rather than still satisfying the gate. `agent_sdlc_gate_status` (read-only) reports exactly what a stage's gate still needs.
+
 ## Task runtime tools (alpha5)
 
 Six read-mostly MCP tools expose the task graph to host orchestration:

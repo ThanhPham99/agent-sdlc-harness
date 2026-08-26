@@ -165,6 +165,15 @@ test('approval-status-starts-empty',()=>{
   const status=json(['approval','status','--run-id',r.run_id]);
   if(!Array.isArray(status)||status.length!==0)throw new Error(JSON.stringify(status));
 });
+test('gate-status-and-explain-report-missing-evidence',()=>{
+  const r=json(['start','--objective','Add gate-status capability']);
+  const at=['--run-id',r.run_id];
+  const g0=json(['gate','status',...at]);
+  if(g0.decision!=='PASS')throw new Error(JSON.stringify(g0)); // INTAKE has no requirements
+  json(['transition',...at,'--to','REQUIREMENTS']);
+  const g1=json(['gate','explain',...at,'--stage','REQUIREMENTS']);
+  if(g1.decision!=='BLOCKED'||!g1.missing.includes('requirements_confirmed'))throw new Error(JSON.stringify(g1));
+});
 test('tool-check-denies-a-tool-the-stage-forbids',()=>{
   const d=json(['tool-check',...R,'--tool','deploy.production']);
   if(d.decision!=='DENY')throw new Error(JSON.stringify(d));

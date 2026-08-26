@@ -5,6 +5,7 @@ import {validateDesignDecision,evaluateDesignGate,getDesignDiscoveryPolicy} from
 import {validateTaskPlan,planGateEvidence} from './plan-validator.mjs';
 import {materializeTaskGraph,taskProgress} from './task-engine.mjs';
 import {findValidApproval} from './approvals.mjs';
+import {evaluateGate} from './gates.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -46,7 +47,6 @@ export function newRun(root,projectRoot,{objective,route}){
 export function transition(root,projectRoot,run,to,{evidence=[],internal=false}={}){
   if(TERMINAL_STATES.includes(run.state))throw new Error(`terminal state ${run.state}`);
   guardEvidenceAuthority(root,run,evidence,{internal});
-  const stagePolicy=stagePolicyOf(root).stages;
   const workflowOrder=run.stages;
   const from=run.state;
 
@@ -69,10 +69,14 @@ export function transition(root,projectRoot,run,to,{evidence=[],internal=false}=
   const currentIdx=workflowOrder.indexOf(run.state);const targetIdx=workflowOrder.indexOf(to);
   if(targetIdx<0)throw new Error(`state ${to} not in workflow ${run.workflow}`);
   if(targetIdx===currentIdx+1){
-    const req=stagePolicy[run.state]?.gate_requirements||[];
-    const have=new Set([...(run.evidence[run.state]||[]),...evidence]);
-    const missing=req.filter(x=>!have.has(x));
-    if(missing.length)throw new Error(`gate blocked at ${run.state}; missing evidence: ${missing.join(', ')}`);
+    const have=[...(run.evidence[run.state]||[]),...evidence];
+    const gate=evaluateGate(root,projectRoot,run,run.state,have);
+    if(gate.decision!=='PASS'){
+      const parts=[];
+      if(gate.missing.length)parts.push(`missing evidence: ${gate.missing.join(', ')}`);
+      if(gate.stale.length)parts.push(`stale evidence (workspace changed since it was recorded): ${gate.stale.join(', ')}`);
+      throw new Error(`gate blocked at ${run.state}; ${parts.join('; ')}`);
+    }
   }else if(targetIdx>currentIdx+1)throw new Error('cannot skip multiple workflow stages');
   else if(targetIdx<currentIdx){
     // Re-entry is allowed only when the canonical state machine explicitly declares the edge.

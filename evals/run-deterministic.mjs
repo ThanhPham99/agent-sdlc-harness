@@ -30,6 +30,7 @@ import {normalizeInput} from '../runtime/normalize.mjs';
 import {loadCases,loadLock,corpusDigest,qualificationSubjectDigest,hostPreflight,packagePath} from '../scripts/qualification-lib.mjs';
 import {BOOTSTRAP_TEXT,getActivationPolicy,getActivationMode,estimateBootstrapCost,classifyActivationFixture} from '../runtime/activation.mjs';
 import {recordApproval,revokeApproval,findValidApproval,listApprovals} from '../runtime/approvals.mjs';
+import {evaluateGate} from '../runtime/gates.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
@@ -240,7 +241,8 @@ function runAtDeploy(objective){
   transition(ROOT,tmp,r,'PLAN',{evidence:['design_or_skip_decision'],internal:true});
   transition(ROOT,tmp,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
   transition(ROOT,tmp,r,'VERIFY',{evidence:['implementation_artifact','task_graph_complete'],internal:true});
-  transition(ROOT,tmp,r,'REVIEW',{evidence:['targeted_verification_pass','no_new_high_security_findings']});
+  invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'}); // records targeted_verification_pass for real
+  transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});
   transition(ROOT,tmp,r,'RELEASE',{evidence:['required_reviews_resolved']});
   transition(ROOT,tmp,r,'DEPLOY',{evidence:['release_evidence_current']});
   return r;
@@ -333,6 +335,58 @@ test('design-gate-wildcard-approval-rejected',()=>{
     affected_interfaces:['GET /v1/orders'],verification_obligations:['contract test']
   },{approvals:['*']});
   if(out.recorded)throw Error('a wildcard approval satisfied the human-approval design gate');
+});
+
+// Tool-backed VERIFY evidence: a real test.run_targeted PASS is the only way
+// to satisfy the gate; a caller-asserted string is rejected the same way a
+// caller-asserted DESIGN/PLAN token is, and evidence goes stale when the
+// workspace it was recorded against changes underneath it.
+function toVerify(objective){
+  const r=newRun(ROOT,tmp,{objective,route:route(ROOT,objective)});
+  transition(ROOT,tmp,r,'REQUIREMENTS');
+  transition(ROOT,tmp,r,'DESIGN',{evidence:['requirements_confirmed']});
+  transition(ROOT,tmp,r,'PLAN',{evidence:['design_or_skip_decision'],internal:true});
+  transition(ROOT,tmp,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
+  transition(ROOT,tmp,r,'VERIFY',{evidence:['implementation_artifact','task_graph_complete'],internal:true});
+  return r;
+}
+test('caller-cannot-assert-verify-evidence-directly',()=>{
+  const r=toVerify('Add no-direct-assert capability');
+  let ok=false;
+  try{transition(ROOT,tmp,r,'REVIEW',{evidence:['targeted_verification_pass','no_new_high_security_findings']});}
+  catch(e){ok=/deterministic validator/.test(e.message);}
+  if(!ok)throw Error('targeted_verification_pass was accepted as caller-asserted evidence');
+});
+test('a-real-test-run-satisfies-the-verify-gate',()=>{
+  const r=toVerify('Add real-test-run capability');
+  invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
+  const out=transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});
+  if(out.state!=='REVIEW')throw Error(JSON.stringify(out));
+});
+test('stale-verify-evidence-blocks-the-gate',()=>{
+  const r=toVerify('Add stale-check capability');
+  invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
+  fs.appendFileSync(path.join(tmp,'README.md'),'dirty\n'); // moves dirtyHash; a new untracked file would not
+  let ok=false;
+  try{transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});}
+  catch(e){ok=/stale evidence/.test(e.message)&&/targeted_verification_pass/.test(e.message);}
+  execFileSync('git',['checkout','--','README.md'],{cwd:tmp});
+  if(!ok)throw Error('stale test evidence satisfied the VERIFY gate');
+  // Re-running the tool against the now-clean workspace refreshes it.
+  invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
+  const out=transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});
+  if(out.state!=='REVIEW')throw Error('a fresh re-run did not reopen the gate');
+});
+test('evaluate-gate-reports-missing-then-satisfied',()=>{
+  const r=newRun(ROOT,tmp,{objective:'Add gate-explain capability',route:route(ROOT,'Add gate-explain capability')});
+  const g0=evaluateGate(ROOT,tmp,r,'INTAKE');
+  if(g0.decision!=='PASS')throw Error(JSON.stringify(g0));
+  transition(ROOT,tmp,r,'REQUIREMENTS');
+  const g1=evaluateGate(ROOT,tmp,r,'REQUIREMENTS');
+  if(g1.decision!=='BLOCKED'||!g1.missing.includes('requirements_confirmed'))throw Error(JSON.stringify(g1));
+  transition(ROOT,tmp,r,'DESIGN',{evidence:['requirements_confirmed']});
+  const g2=evaluateGate(ROOT,tmp,r,'REQUIREMENTS');
+  if(g2.decision!=='PASS'||!g2.satisfied.includes('requirements_confirmed'))throw Error(JSON.stringify(g2));
 });
 
 // Cost/model governance

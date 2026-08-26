@@ -5,6 +5,7 @@ import {safeRelative,truncateUtf8,readJson} from './util.mjs';
 import {checkTool} from './policy.mjs';
 import {putArtifact,emit,saveRun} from './store.mjs';
 import {normalizeInput} from './normalize.mjs';
+import {recordEvidence} from './evidence.mjs';
 
 function exec(argv,cwd,timeout,maxBytes){const r=spawnSync(argv[0],argv.slice(1),{cwd,encoding:'utf8',timeout,maxBuffer:20*1024*1024});const raw=(r.stdout||'')+(r.stderr||'');const t=truncateUtf8(raw,maxBytes);return {status:(r.status===0?'PASS':'FAIL'),exit_code:r.status??1,summary:t.text,truncated:t.truncated,raw};}
 function projectCommand(cfg,key,args){const tmpl=cfg.commands?.[key];if(!Array.isArray(tmpl)||!tmpl.length)throw new Error(`project command ${key} not configured`);return tmpl.map(x=>String(x).replaceAll('{selector}',args.selector||''));}
@@ -84,5 +85,9 @@ export function invokeTool(root,projectRoot,run,tool,args={}){
   else if(tool==='build.run')result=exec(projectCommand(cfg,'build',args),projectRoot,Math.max(timeout,args.timeout_ms||0),maxBytes);
   else throw new Error(`tool ${tool} requires host/MCP/external implementation`);
   let full=null;if((result.truncated||result.status==='FAIL')&&result.raw){const a=putArtifact(projectRoot,{kind:'tool-log',content:result.raw,runId:run.run_id,stage:run.state,filename:`${tool}.log`});full=a.artifact_id;}
+  // A gate token is only as trustworthy as what wrote it. Binding it to the
+  // deterministic tool run that produced it, instead of letting a caller
+  // assert the same string, is what makes it evidence rather than a claim.
+  if(tool==='test.run_targeted')recordEvidence(projectRoot,run,{stage:run.state,claim:'targeted_verification_pass',status:result.status,tool,exitCode:result.exit_code,artifactRef:full});
   const out={tool,status:result.status,exit_code:result.exit_code,summary:result.summary,failures:[],full_log_artifact:full,truncated:result.truncated};emit(projectRoot,run,{type:'tool.completed',payload:{tool,status:out.status,exit_code:out.exit_code,truncated:out.truncated},artifact_refs:full?[full]:[]});return out;
 }

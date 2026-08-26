@@ -116,7 +116,7 @@ await test('garbage-input-does-not-kill-the-server',async()=>{
 });
 await test('every-advertised-tool-declares-a-schema',async()=>{
   const tools=(await c.call('tools/list')).result.tools;
-  assert(tools.length===17,`expected 17 tools, got ${tools.length}`);
+  assert(tools.length===18,`expected 18 tools, got ${tools.length}`);
   for(const t of tools){
     assert(t.name.startsWith('agent_sdlc_'),t.name);
     assert(t.description&&t.description.length>20,`${t.name} has no usable description`);
@@ -210,6 +210,14 @@ await test('approval-status-is-read-only-and-starts-empty',async()=>{
   const status=payload(await c.tool('agent_sdlc_approval_status',{run_id:run.run_id}));
   assert(Array.isArray(status)&&status.length===0,JSON.stringify(status));
 });
+await test('gate-status-reports-the-current-stage-gate',async()=>{
+  const run=payload(await c.tool('agent_sdlc_start',{objective:'Add gate-status capability'}));
+  const g0=payload(await c.tool('agent_sdlc_gate_status',{run_id:run.run_id}));
+  assert(g0.decision==='PASS',JSON.stringify(g0)); // INTAKE has no requirements
+  await c.tool('agent_sdlc_transition',{run_id:run.run_id,to:'REQUIREMENTS'});
+  const g1=payload(await c.tool('agent_sdlc_gate_status',{run_id:run.run_id}));
+  assert(g1.decision==='BLOCKED'&&g1.missing.includes('requirements_confirmed'),JSON.stringify(g1));
+});
 await test('a-string-where-an-array-is-declared-is-reported',async()=>{
   const run=payload(await c.tool('agent_sdlc_start',{objective:'Add wishlist capability'}));
   await c.tool('agent_sdlc_transition',{run_id:run.run_id,to:'REQUIREMENTS'});
@@ -247,8 +255,9 @@ await test('the-server-exits-when-the-host-closes-stdin',async()=>{
 const core=connect({env:{AGENT_SDLC_MCP_PROFILE:'core'}});
 await test('the-core-profile-advertises-a-narrower-surface',async()=>{
   const tools=(await core.call('tools/list')).result.tools.map(t=>t.name);
-  assert(tools.length===11,`core advertised ${tools.length} tools`);
+  assert(tools.length===12,`core advertised ${tools.length} tools`);
   assert(tools.includes('agent_sdlc_approval_status'),'approval status is missing from core');
+  assert(tools.includes('agent_sdlc_gate_status'),'gate status is missing from core');
   assert(tools.includes('agent_sdlc_task'),'the unified task tool is missing from core');
   assert(!tools.includes('agent_sdlc_task_list'),'core still advertises the granular task tools');
 });

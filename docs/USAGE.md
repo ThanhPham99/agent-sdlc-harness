@@ -85,6 +85,14 @@ A privileged capability is authorized only by a human running
 explicit typed confirmation, and — for a privileged capability — an expiry. Read the current
 approvals on a run with `agent-sdlc approval status --run-id <id>`.
 
+`targeted_verification_pass` (the VERIFY gate) cannot be asserted with `--evidence` either: it is
+written only by a real `tool-run --tool test.run_targeted` PASS, bound to the exact git SHA and
+working-tree diff it ran against, so an edit after the test run makes it stale rather than still
+satisfying the gate. Other evidence tokens remain caller-asserted for now — there is no deterministic
+tool behind SAST/SCA yet, so typing them would either fabricate a tool that isn't there or leave the
+gate permanently unsatisfiable. `agent-sdlc gate status --run-id <id>` / `gate explain --run-id <id>
+--stage <stage>` show exactly what's satisfied, missing, or stale for any stage.
+
 ## 7. Cost, telemetry, replay and compatibility
 
 ```bash

@@ -339,6 +339,7 @@
     "plan_scope_conflicts_resolved": "runtime",
     "plan_ready": "runtime",
     "implementation_artifact": "runtime",
-    "task_graph_complete": "runtime"
+    "task_graph_complete": "runtime",
+    "targeted_verification_pass": "runtime"
   }
 }
