@@ -3,6 +3,7 @@
   "version": "3.0.0-alpha6",
   "commands": [
     "activation",
+    "approval",
     "artifact-get",
     "artifact-list",
     "artifact-put",
@@ -14,11 +15,14 @@
     "design",
     "doctor",
     "fallback",
+    "feature",
+    "gate",
     "govern",
     "handoff-get",
     "handoff-list",
     "handoff-put",
     "init",
+    "knowledge",
     "learn",
     "metrics",
     "migrate",
@@ -33,6 +37,7 @@
     "replay-export",
     "replay-validate",
     "repo",
+    "requirement-update",
     "route",
     "start",
     "status",
@@ -44,12 +49,19 @@
     "usage-add",
     "usage-report"
   ],
-  "command_count": 41,
+  "command_count": 46,
   "subcommand_groups": [
     {
       "command": "activation",
       "implemented": 13,
       "documented": 12,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "approval",
+      "implemented": 3,
+      "documented": 2,
       "missing": [],
       "phantom": []
     },
@@ -75,9 +87,30 @@
       "phantom": []
     },
     {
+      "command": "feature",
+      "implemented": 9,
+      "documented": 8,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "gate",
+      "implemented": 2,
+      "documented": 1,
+      "missing": [],
+      "phantom": []
+    },
+    {
       "command": "govern",
       "implemented": 4,
       "documented": 3,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "knowledge",
+      "implemented": 1,
+      "documented": 0,
       "missing": [],
       "phantom": []
     },
@@ -99,6 +132,13 @@
       "command": "repo",
       "implemented": 13,
       "documented": 12,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "requirement-update",
+      "implemented": 2,
+      "documented": 1,
       "missing": [],
       "phantom": []
     },

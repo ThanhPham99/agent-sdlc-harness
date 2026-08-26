@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/mcp-validation/v1",
   "harness_version": "3.0.0-alpha6",
-  "checks": 24,
-  "passes": 24,
+  "checks": 26,
+  "passes": 26,
   "failures": 0,
   "results": [
     {
@@ -66,7 +66,15 @@
       "status": "PASS"
     },
     {
-      "name": "a-string-force-does-not-bypass-a-gate",
+      "name": "force-and-approval-are-rejected-outright",
+      "status": "PASS"
+    },
+    {
+      "name": "approval-status-is-read-only-and-starts-empty",
+      "status": "PASS"
+    },
+    {
+      "name": "gate-status-reports-the-current-stage-gate",
       "status": "PASS"
     },
     {

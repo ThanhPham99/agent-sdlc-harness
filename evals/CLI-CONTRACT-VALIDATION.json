@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/cli-contract-validation/v1",
-  "checks": 41,
-  "passes": 41,
+  "checks": 56,
+  "passes": 56,
   "failures": 0,
   "results": [
     {
@@ -41,6 +41,14 @@
       "status": "PASS"
     },
     {
+      "name": "context-carries-active-roles-for-intake",
+      "status": "PASS"
+    },
+    {
+      "name": "context-carries-the-intake-procedure-and-nothing-out-of-stage",
+      "status": "PASS"
+    },
+    {
       "name": "artifact-put-get-list-round-trip",
       "status": "PASS"
     },
@@ -57,7 +65,23 @@
       "status": "PASS"
     },
     {
-      "name": "a-string-force-flag-does-not-bypass-a-gate",
+      "name": "force-and-approval-flags-are-rejected-outright",
+      "status": "PASS"
+    },
+    {
+      "name": "approval-grant-requires-a-tty",
+      "status": "PASS"
+    },
+    {
+      "name": "approval-status-starts-empty",
+      "status": "PASS"
+    },
+    {
+      "name": "gate-status-and-explain-report-missing-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "knowledge-status-reports-missing-on-a-fresh-project",
       "status": "PASS"
     },
     {
@@ -158,6 +182,42 @@
     },
     {
       "name": "unknown-subcommands-are-structured-errors",
+      "status": "PASS"
+    },
+    {
+      "name": "requirement-update-plan-without-continues-is-refused",
+      "status": "PASS"
+    },
+    {
+      "name": "requirement-update-show-with-no-plan-yet-says-so",
+      "status": "PASS"
+    },
+    {
+      "name": "feature-create-and-show-round-trip",
+      "status": "PASS"
+    },
+    {
+      "name": "a-plain-start-stays-unbound-by-default",
+      "status": "PASS"
+    },
+    {
+      "name": "start-with-track-feature-creates-a-feature-and-phase-named-after-the-objective",
+      "status": "PASS"
+    },
+    {
+      "name": "continue-feature-without-feature-id-is-refused-at-start",
+      "status": "PASS"
+    },
+    {
+      "name": "continue-feature-with-feature-id-resolves-and-attaches",
+      "status": "PASS"
+    },
+    {
+      "name": "feature-phase-complete-marks-status-and-timestamp",
+      "status": "PASS"
+    },
+    {
+      "name": "feature-update-changes-status-explicitly",
       "status": "PASS"
     },
     {

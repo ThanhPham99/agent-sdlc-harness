@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 250,
-  "passes": 250,
+  "checks": 298,
+  "passes": 298,
   "failures": 0,
   "results": [
     {
@@ -122,6 +122,10 @@
       "status": "PASS"
     },
     {
+      "name": "no-active-ai-workflow-references-outside-the-legacy-allowlist",
+      "status": "PASS"
+    },
+    {
       "name": "run-created",
       "status": "PASS"
     },
@@ -171,6 +175,50 @@
     },
     {
       "name": "prompt-does-not-load-chat-history",
+      "status": "PASS"
+    },
+    {
+      "name": "context-carries-active-roles-for-the-stage",
+      "status": "PASS"
+    },
+    {
+      "name": "active-roles-tracks-the-current-stage-not-every-role",
+      "status": "PASS"
+    },
+    {
+      "name": "procedure-registry-is-internally-valid",
+      "status": "PASS"
+    },
+    {
+      "name": "no-orphaned-procedure-files",
+      "status": "PASS"
+    },
+    {
+      "name": "plan-stage-loads-its-always-on-procedures-and-nothing-out-of-stage",
+      "status": "PASS"
+    },
+    {
+      "name": "strict-design-stage-loads-design-discovery-and-solution-design",
+      "status": "PASS"
+    },
+    {
+      "name": "workflow-scoped-procedure-loads-only-for-its-declared-workflow",
+      "status": "PASS"
+    },
+    {
+      "name": "bug-workflow-procedure-loads-only-for-debugging-workflows",
+      "status": "PASS"
+    },
+    {
+      "name": "workflow-maintenance-is-registered-but-never-auto-selected",
+      "status": "PASS"
+    },
+    {
+      "name": "project-knowledge-status-progresses-missing-to-partial-to-ready",
+      "status": "PASS"
+    },
+    {
+      "name": "project-bootstrap-is-not-forced-on-other-workflows",
       "status": "PASS"
     },
     {
@@ -267,6 +315,62 @@
     },
     {
       "name": "production-deploy-approval-recorded",
+      "status": "PASS"
+    },
+    {
+      "name": "transition-no-longer-accepts-force-or-approval",
+      "status": "PASS"
+    },
+    {
+      "name": "wildcard-capability-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "agent-self-approval-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "data-only-approval-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "unknown-authority-approval-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "privileged-capability-requires-expiry",
+      "status": "PASS"
+    },
+    {
+      "name": "expired-approval-does-not-authorize",
+      "status": "PASS"
+    },
+    {
+      "name": "revoked-approval-does-not-authorize",
+      "status": "PASS"
+    },
+    {
+      "name": "approval-status-reports-lifecycle",
+      "status": "PASS"
+    },
+    {
+      "name": "design-gate-wildcard-approval-rejected",
+      "status": "PASS"
+    },
+    {
+      "name": "caller-cannot-assert-verify-evidence-directly",
+      "status": "PASS"
+    },
+    {
+      "name": "a-real-test-run-satisfies-the-verify-gate",
+      "status": "PASS"
+    },
+    {
+      "name": "stale-verify-evidence-blocks-the-gate",
+      "status": "PASS"
+    },
+    {
+      "name": "evaluate-gate-reports-missing-then-satisfied",
       "status": "PASS"
     },
     {
@@ -499,6 +603,66 @@
     },
     {
       "name": "gate-records-are-stage-scoped",
+      "status": "PASS"
+    },
+    {
+      "name": "a-run-created-without-feature-args-stays-fully-standalone",
+      "status": "PASS"
+    },
+    {
+      "name": "feature-title-is-required",
+      "status": "PASS"
+    },
+    {
+      "name": "feature-and-phase-round-trip",
+      "status": "PASS"
+    },
+    {
+      "name": "feature-update-rejects-an-unknown-status",
+      "status": "PASS"
+    },
+    {
+      "name": "attach-run-dedupes-into-the-phase",
+      "status": "PASS"
+    },
+    {
+      "name": "resolve-active-feature-is-unambiguous-or-says-so",
+      "status": "PASS"
+    },
+    {
+      "name": "resolve-active-phase-falls-back-to-the-feature-pointer",
+      "status": "PASS"
+    },
+    {
+      "name": "continue-feature-requires-an-existing-feature-id",
+      "status": "PASS"
+    },
+    {
+      "name": "requirement-update-workflow-also-requires-an-existing-feature-id",
+      "status": "PASS"
+    },
+    {
+      "name": "continue-feature-reuses-an-open-phase-and-preserves-a-completed-one",
+      "status": "PASS"
+    },
+    {
+      "name": "new-feature-workflow-creates-both-when-nothing-is-attached",
+      "status": "PASS"
+    },
+    {
+      "name": "new-feature-workflow-attaches-without-creating-a-feature-when-given-one",
+      "status": "PASS"
+    },
+    {
+      "name": "a-standalone-capable-workflow-stays-unbound-with-no-feature-id",
+      "status": "PASS"
+    },
+    {
+      "name": "newrun-binds-to-the-resolved-feature-and-phase",
+      "status": "PASS"
+    },
+    {
+      "name": "run-completion-and-feature-completion-are-tracked-independently",
       "status": "PASS"
     },
     {
@@ -891,6 +1055,34 @@
     },
     {
       "name": "a6-invalidation/every-delta-class-is-declared-and-bounded",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-requirement_update/missing-continues-run-is-refused",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-requirement_update/a-prior-run-with-no-traceability-graph-is-refused",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-requirement_update/wording-only-update-preserves-and-carries-forward-the-prior-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-requirement_update/behavior-change-invalidates-the-prior-graph-and-excludes-its-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-requirement_update/dry-run-computes-without-mutating-anything",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-requirement_update/context-manifest-surfaces-the-plan-for-a-requirement-update-run",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-requirement_update/an-unrelated-workflow-never-surfaces-a-requirement-update-plan",
       "status": "PASS"
     },
     {
