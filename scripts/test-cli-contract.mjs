@@ -109,6 +109,13 @@ test('context-prompt-mode-returns-text-not-json',()=>{
   if(r.stdout.trim().startsWith('{'))throw new Error('prompt mode printed JSON');
   if(!/ALLOWED TOOLS/.test(r.stdout))throw new Error('prompt is missing its tool section');
 });
+test('context-carries-active-roles-for-intake',()=>{
+  const c=json(['context',...R]);
+  const ids=(c.active_roles||[]).map(x=>x.id);
+  if(!ids.includes('pm')||!ids.includes('support'))throw new Error(JSON.stringify(ids));
+  const pm=c.active_roles.find(x=>x.id==='pm');
+  if(!Array.isArray(pm.responsibilities)||!pm.responsibilities.length)throw new Error(JSON.stringify(pm));
+});
 test('artifact-put-get-list-round-trip',()=>{
   const a=json(['artifact-put',...R,'--kind','requirement','--content','rounding must use bankers rounding']);
   if(!a.artifact_id.startsWith('artifact://sha256/'))throw new Error(a.artifact_id);

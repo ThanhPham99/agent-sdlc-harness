@@ -155,6 +155,24 @@ test('context-loads-core-skill',()=>{const m=buildContext(ROOT,tmp,contextRun,{}
 test('context-loads-workflow-specialty',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(!m.skills.some(x=>x.id==='database'))throw Error(JSON.stringify(m.skills));});
 test('strict-context-loads-security',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(!m.skills.some(x=>x.id==='security'))throw Error(JSON.stringify(m.skills));});
 test('prompt-does-not-load-chat-history',()=>{const m=buildContext(ROOT,tmp,contextRun,{});const p=renderPrompt(ROOT,m);if(/entire chat history/i.test(p)||p.length>30000)throw Error('prompt too large/unsafe');});
+test('context-carries-active-roles-for-the-stage',()=>{
+  // contextRun is at DESIGN; policies/stage-policy.json assigns DESIGN to
+  // architect/security/sre/dba, and config/roles.json is the only source of
+  // their responsibilities -- this is the sole place that registry is read.
+  const m=buildContext(ROOT,tmp,contextRun,{});
+  const ids=m.active_roles.map(r=>r.id);
+  if(!['architect','security','sre','dba'].every(id=>ids.includes(id)))throw Error(JSON.stringify(ids));
+  const architect=m.active_roles.find(r=>r.id==='architect');
+  if(!architect.responsibilities.includes('architecture'))throw Error(JSON.stringify(architect));
+  const p=renderPrompt(ROOT,m);
+  if(!/ACTIVE ROLES/.test(p)||!/architect/.test(p))throw Error('rendered prompt omits active roles');
+});
+test('active-roles-tracks-the-current-stage-not-every-role',()=>{
+  const m=buildContext(ROOT,tmp,run,{}); // run is at PLAN by this point in the suite
+  const ids=m.active_roles.map(r=>r.id);
+  if(ids.includes('pm')||ids.includes('sre'))throw Error(`stage-inappropriate role leaked: ${JSON.stringify(ids)}`);
+  if(!ids.includes('developer'))throw Error(JSON.stringify(ids));
+});
 
 // Project knowledge readiness (G0): a new feature bootstraps missing project
 // knowledge before proceeding, and stops once it has all of it.

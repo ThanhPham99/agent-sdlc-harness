@@ -17,6 +17,14 @@ const WORKFLOW_SKILLS={
 };
 const OVERLAY_SKILLS={security:'security',incident:'incident','db-migration':'database','api-breaking-change':'documentation','client-impact':'frontend-integration'};
 
+function resolveRoles(root,stagePolicy){
+  const registry=readJson(path.join(root,'config','roles.json')).roles||{};
+  return (stagePolicy.roles||[]).filter(id=>registry[id]).map(id=>{
+    const r=registry[id];
+    return {id,responsibilities:r.responsibilities||[],default_constraint:r.default_constraint};
+  });
+}
+
 function resolveSkills(root,projectRoot,run){
   const registry=readJson(path.join(root,'config','skills.json')).internal||{};
   const ids=[]; const add=id=>{if(id&&registry[id]&&!ids.includes(id)&&registry[id].stages?.includes(run.state))ids.push(id);};
@@ -63,7 +71,7 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
     schema:'agent-sdlc/context-manifest/v1',run_id:run.run_id,objective:run.objective,git_sha:gitSha(projectRoot),
     stage:run.state,workflow:run.workflow,profile:run.profile,artifacts:artifactRefs,symbols,
     constraints:[...(cfg.context?.project_invariants||[]),...constraints],evidence_required:stagePolicy.gate_requirements||[],
-    allowed_tools:stagePolicy.allowed_tools,budget:stagePolicy.budget,
+    allowed_tools:stagePolicy.allowed_tools,budget:stagePolicy.budget,active_roles:resolveRoles(root,stagePolicy),
     skills:skills.map(s=>({id:s.id,description:s.description,max_response_words:s.max_response_words})),
     skill_instructions:skills.map(s=>({id:s.id,instructions:s.instructions})),artifact_summaries:artifacts
   };
@@ -77,5 +85,6 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
 export function renderPrompt(root,manifest){
   const system=readTextFile(path.join(root,'prompts','system.md')).trim();
   const skillText=(manifest.skill_instructions||[]).map(s=>`### ${s.id}\n${s.instructions}`).join('\n\n');
-  return `${system}\n\nSTAGE SKILLS\n${skillText||'(none)'}\n\nOBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}\n\nReturn a compact StageResult JSON.`;
+  const roleText=(manifest.active_roles||[]).map(r=>`${r.id}: ${(r.responsibilities||[]).join(', ')}`).join('\n');
+  return `${system}\n\nSTAGE SKILLS\n${skillText||'(none)'}\n\nOBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nACTIVE ROLES\n${roleText||'(none)'}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}\n\nReturn a compact StageResult JSON.`;
 }

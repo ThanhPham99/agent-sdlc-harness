@@ -61,7 +61,7 @@ Save the returned `run_id`. Routing chooses workflow/risk profile deterministica
 ./bin/agent-sdlc context --run-id <id> --prompt
 ```
 
-The manifest loads current stage skills, workflow-specific specialties, compact project invariants, relevant artifact summaries and exact requested symbols—never the entire chat/repository by default.
+The manifest loads current stage skills, workflow-specific specialties, compact project invariants, relevant artifact summaries and exact requested symbols—never the entire chat/repository by default. It also carries `active_roles`: the roles `policies/stage-policy.json` authorizes for the current stage, each resolved against `config/roles.json` for its responsibilities and default constraint, so the model knows whose concerns it is standing in for (e.g. `architect`, `security`, `sre`, `dba` at DESIGN) rather than the registry sitting unused.
 
 ## 5. Tool and model routing
 
