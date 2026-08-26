@@ -29,6 +29,7 @@ import {putHandoff,getHandoff,listHandoffs} from '../runtime/handoff.mjs';
 import {normalizeInput} from '../runtime/normalize.mjs';
 import {loadCases,loadLock,corpusDigest,qualificationSubjectDigest,hostPreflight,packagePath} from '../scripts/qualification-lib.mjs';
 import {BOOTSTRAP_TEXT,getActivationPolicy,getActivationMode,estimateBootstrapCost,classifyActivationFixture} from '../runtime/activation.mjs';
+import {recordApproval,revokeApproval,findValidApproval,listApprovals} from '../runtime/approvals.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
@@ -211,7 +212,11 @@ test('replay-hash-validation',()=>{const events=[{a:1},{b:2}];const b={events,ev
 test('replay-tamper-detected',()=>{const b={events:[{a:1}],event_stream_sha256:sha256(JSON.stringify({a:2}))};if(validateReplay(b).valid)throw Error('tamper not detected');});
 
 // Tool gateway / security
-const toolRun=newRun(ROOT,tmp,{objective:'Implement fixture',route:route(ROOT,'Add fixture feature')});transition(ROOT,tmp,toolRun,'IMPLEMENT',{force:true});
+const toolRun=newRun(ROOT,tmp,{objective:'Implement fixture',route:route(ROOT,'Add fixture feature')});
+transition(ROOT,tmp,toolRun,'REQUIREMENTS');
+transition(ROOT,tmp,toolRun,'DESIGN',{evidence:['requirements_confirmed']});
+transition(ROOT,tmp,toolRun,'PLAN',{evidence:['design_or_skip_decision'],internal:true});
+transition(ROOT,tmp,toolRun,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
 test('repo-read-path-traversal-blocked',()=>{let ok=false;try{invokeTool(ROOT,tmp,toolRun,'repo.read',{path:'../etc/passwd'});}catch(e){ok=/escapes project root/.test(e.message);}if(!ok)throw Error('path traversal accepted');});
 test('sensitive-read-blocked',()=>{fs.writeFileSync(path.join(tmp,'.env'),'TOKEN=x\n');let ok=false;try{invokeTool(ROOT,tmp,toolRun,'repo.read',{path:'.env'});}catch(e){ok=/sensitive path blocked/.test(e.message);}fs.rmSync(path.join(tmp,'.env'));if(!ok)throw Error('sensitive read accepted');});
 test('repo-search-no-match-is-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'repo.search',{pattern:'definitely_not_present_123'});if(out.status!=='PASS'||out.exit_code!==0)throw Error(JSON.stringify(out));});
@@ -225,9 +230,110 @@ test('web-search-clean-query-pass',()=>{const out=invokeTool(ROOT,tmp,researchRu
 test('web-search-sensitive-query-blocked',()=>{const out=invokeTool(ROOT,tmp,researchRun,'web.search',{query:'search with api_key=SECRET123'});if(out.status!=='FAIL'||out.exit_code!==1||!out.summary.includes('violates security policy'))throw Error(JSON.stringify(out));});
 test('web-fetch-valid-url-pass',()=>{const out=invokeTool(ROOT,tmp,researchRun,'web.fetch_url',{url:'https://docs.example.com/api/v1'});if(out.status!=='PASS'||out.exit_code!==0||!out.summary.includes('DOCUMENTATION_CONTENT'))throw Error(JSON.stringify(out));});
 test('web-fetch-blocked-host-fails',()=>{const out=invokeTool(ROOT,tmp,researchRun,'web.fetch_url',{url:'http://localhost:8080/admin'});if(out.status!=='FAIL'||out.exit_code!==1||!out.summary.includes('blocked by security policy'))throw Error(JSON.stringify(out));});
-const depRun=newRun(ROOT,tmp,{objective:'Deploy',route:route(ROOT,'Add deploy feature')});transition(ROOT,tmp,depRun,'DEPLOY',{force:true});
+// Walk a fresh run all the way to DEPLOY with real gate evidence at each step,
+// so `deploy.production` is reachable and any DENY/APPROVAL_REQUIRED verdict
+// comes from the approval check itself, not from an earlier stage-policy deny.
+function runAtDeploy(objective){
+  const r=newRun(ROOT,tmp,{objective,route:route(ROOT,objective)});
+  transition(ROOT,tmp,r,'REQUIREMENTS');
+  transition(ROOT,tmp,r,'DESIGN',{evidence:['requirements_confirmed']});
+  transition(ROOT,tmp,r,'PLAN',{evidence:['design_or_skip_decision'],internal:true});
+  transition(ROOT,tmp,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
+  transition(ROOT,tmp,r,'VERIFY',{evidence:['implementation_artifact','task_graph_complete'],internal:true});
+  transition(ROOT,tmp,r,'REVIEW',{evidence:['targeted_verification_pass','no_new_high_security_findings']});
+  transition(ROOT,tmp,r,'RELEASE',{evidence:['required_reviews_resolved']});
+  transition(ROOT,tmp,r,'DEPLOY',{evidence:['release_evidence_current']});
+  return r;
+}
+const depRun=runAtDeploy('Add deploy feature');
 test('production-deploy-requires-approval',()=>{const d=checkTool(ROOT,depRun,'deploy.production');if(d.decision!=='APPROVAL_REQUIRED')throw Error(JSON.stringify(d));});
-test('production-deploy-approval-recorded',()=>{depRun.approvals.push({approval:'deploy.production'});const d=checkTool(ROOT,depRun,'deploy.production');if(d.decision!=='ALLOW')throw Error(JSON.stringify(d));});
+test('production-deploy-approval-recorded',()=>{
+  const future=new Date(Date.now()+3600000).toISOString();
+  recordApproval(ROOT,tmp,depRun,{capability:'deploy.production',authority:'USER_INTERACTIVE',actor:'test',reason:'test',expiresAt:future});
+  const d=checkTool(ROOT,depRun,'deploy.production');if(d.decision!=='ALLOW')throw Error(JSON.stringify(d));
+});
+
+// Approval authority: only a trusted, non-wildcard, correctly-scoped record
+// may satisfy a privileged gate; every other shape is refused outright.
+test('transition-no-longer-accepts-force-or-approval',()=>{
+  const r=newRun(ROOT,tmp,{objective:'no bypass',route:route(ROOT,'Add refund capability')});
+  transition(ROOT,tmp,r,'REQUIREMENTS');
+  let ok=false;
+  try{transition(ROOT,tmp,r,'DESIGN',{force:true,approval:'*'});}
+  catch(e){ok=/gate blocked/.test(e.message)&&/requirements_confirmed/.test(e.message);}
+  if(!ok)throw Error('force/approval on the options object still bypassed the gate');
+  if(r.state!=='REQUIREMENTS')throw Error(`run moved to ${r.state} without evidence`);
+  // A stage skip is refused unconditionally now -- there is no escape hatch.
+  const skip=newRun(ROOT,tmp,{objective:'no skip',route:route(ROOT,'Add refund capability')});
+  let skipOk=false;
+  try{transition(ROOT,tmp,skip,'PLAN',{force:true});}
+  catch(e){skipOk=/cannot skip multiple workflow stages/.test(e.message);}
+  if(!skipOk)throw Error('force:true skipped multiple stages');
+});
+test('wildcard-capability-rejected',()=>{
+  const r=newRun(ROOT,tmp,{objective:'wildcard',route:route(ROOT,'Add refund capability')});
+  let ok=false;try{recordApproval(ROOT,tmp,r,{capability:'*',authority:'USER_INTERACTIVE'});}catch(e){ok=/wildcard/.test(e.message);}
+  if(!ok)throw Error('a wildcard capability was recorded');
+});
+test('agent-self-approval-rejected',()=>{
+  const r=newRun(ROOT,tmp,{objective:'self-approval',route:route(ROOT,'Add refund capability')});
+  let ok=false;try{recordApproval(ROOT,tmp,r,{capability:'deploy.production',authority:'AGENT_SELF',expiresAt:new Date(Date.now()+3600000).toISOString()});}catch(e){ok=/cannot grant approval/.test(e.message);}
+  if(!ok)throw Error('AGENT_SELF authority was accepted');
+});
+test('data-only-approval-rejected',()=>{
+  const r=newRun(ROOT,tmp,{objective:'data-only',route:route(ROOT,'Add refund capability')});
+  let ok=false;try{recordApproval(ROOT,tmp,r,{capability:'deploy.production',authority:'DATA_ONLY',expiresAt:new Date(Date.now()+3600000).toISOString()});}catch(e){ok=/cannot grant approval/.test(e.message);}
+  if(!ok)throw Error('DATA_ONLY authority was accepted');
+});
+test('unknown-authority-approval-rejected',()=>{
+  const r=newRun(ROOT,tmp,{objective:'unknown-authority',route:route(ROOT,'Add refund capability')});
+  let ok=false;try{recordApproval(ROOT,tmp,r,{capability:'deploy.production',authority:'UNKNOWN',expiresAt:new Date(Date.now()+3600000).toISOString()});}catch(e){ok=/cannot grant approval/.test(e.message);}
+  if(!ok)throw Error('UNKNOWN authority was accepted');
+});
+test('privileged-capability-requires-expiry',()=>{
+  const r=newRun(ROOT,tmp,{objective:'no expiry',route:route(ROOT,'Add refund capability')});
+  let ok=false;try{recordApproval(ROOT,tmp,r,{capability:'deploy.production',authority:'USER_INTERACTIVE'});}catch(e){ok=/requires an expiry/.test(e.message);}
+  if(!ok)throw Error('a privileged approval with no expiry was recorded');
+});
+test('expired-approval-does-not-authorize',()=>{
+  const r=runAtDeploy('Add expired-approval capability');
+  const past=new Date(Date.now()-1000).toISOString();
+  recordApproval(ROOT,tmp,r,{capability:'deploy.production',authority:'USER_INTERACTIVE',expiresAt:past});
+  const d=checkTool(ROOT,r,'deploy.production');
+  if(d.decision!=='APPROVAL_REQUIRED')throw Error(`expired approval authorized: ${JSON.stringify(d)}`);
+});
+test('revoked-approval-does-not-authorize',()=>{
+  const r=runAtDeploy('Add revoked-approval capability');
+  const future=new Date(Date.now()+3600000).toISOString();
+  recordApproval(ROOT,tmp,r,{capability:'deploy.production',authority:'USER_INTERACTIVE',expiresAt:future});
+  revokeApproval(ROOT,tmp,r,'deploy.production',{reason:'test revoke'});
+  const d=checkTool(ROOT,r,'deploy.production');
+  if(d.decision!=='APPROVAL_REQUIRED')throw Error(`revoked approval authorized: ${JSON.stringify(d)}`);
+});
+test('approval-status-reports-lifecycle',()=>{
+  const r=newRun(ROOT,tmp,{objective:'status',route:route(ROOT,'Add refund capability')});
+  const future=new Date(Date.now()+3600000).toISOString();
+  recordApproval(ROOT,tmp,r,{capability:'deploy.production',authority:'USER_INTERACTIVE',expiresAt:future});
+  const statuses=listApprovals(r).map(a=>a.status);
+  if(!statuses.includes('ACTIVE'))throw Error(JSON.stringify(statuses));
+});
+test('design-gate-wildcard-approval-rejected',()=>{
+  const gateRun=newRun(ROOT,tmp,{objective:'wildcard design approval',route:route(ROOT,'Add refund capability')});
+  transition(ROOT,tmp,gateRun,'REQUIREMENTS');
+  transition(ROOT,tmp,gateRun,'DESIGN',{evidence:['requirements_confirmed']});
+  const out=recordDesignDecision(ROOT,tmp,gateRun,{
+    schema:'agent-sdlc/design-decision/v1',decision_id:'DESIGN-WILDCARD',objective:'Change the public order API',mode:'FULL',
+    requirements:['AC-001'],
+    options:[
+      {id:'OPTION-A',summary:'Versioned endpoint',benefits:['no break'],tradeoffs:['two paths']},
+      {id:'OPTION-B',summary:'Break clients',benefits:['one path'],tradeoffs:['client work']}
+    ],
+    recommended_option:'OPTION-A',decision:'Versioned endpoint',
+    approval:{required:true,status:'PENDING'},
+    affected_interfaces:['GET /v1/orders'],verification_obligations:['contract test']
+  },{approvals:['*']});
+  if(out.recorded)throw Error('a wildcard approval satisfied the human-approval design gate');
+});
 
 // Cost/model governance
 test('model-router-mechanical-no-model',()=>{const d=routeModel(ROOT,tmp,toolRun,{task:'test'});if(d.mode!=='DETERMINISTIC')throw Error(JSON.stringify(d));});

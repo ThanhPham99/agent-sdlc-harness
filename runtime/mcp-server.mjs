@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
-import {rootFrom,truthy} from './util.mjs';
+import {rootFrom} from './util.mjs';
 import {detectProject} from './init.mjs';
 import {initProject,loadRun,putArtifact,saveRun,emit,listTasks,listTaskEvents} from './store.mjs';
 import {requireTask,taskProgress} from './task-engine.mjs';
@@ -13,6 +13,7 @@ import {buildContext} from './context.mjs';
 import {checkTool} from './policy.mjs';
 import {invokeTool} from './tools.mjs';
 import {routeModel} from './model-router.mjs';
+import {listApprovals} from './approvals.mjs';
 
 const ROOT=rootFrom(import.meta.url);
 const MANIFEST_VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
@@ -22,6 +23,7 @@ const CORE_TOOL_NAMES=new Set([
   'agent_sdlc_status',
   'agent_sdlc_context',
   'agent_sdlc_transition',
+  'agent_sdlc_approval_status',
   'agent_sdlc_tool_check',
   'agent_sdlc_tool_run',
   'agent_sdlc_artifact_put',
@@ -34,7 +36,8 @@ const toolDefs=[
   {name:'agent_sdlc_start',description:'Initialize project state if needed and start an evidence-driven SDLC run.',inputSchema:{type:'object',required:['objective'],properties:{project_root:{type:'string'},objective:{type:'string'},workflow:{type:'string'},profile:{type:'string'}}}},
   {name:'agent_sdlc_status',description:'Read current run state.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'}}}},
   {name:'agent_sdlc_context',description:'Compile bounded stage context with on-demand internal skill instructions and evidence requirements.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},artifact_refs:{type:'array',items:{type:'string'}},symbols:{type:'array',items:{type:'string'}}}}},
-  {name:'agent_sdlc_transition',description:'Transition a run only when gate evidence is satisfied.',inputSchema:{type:'object',required:['run_id','to'],properties:{project_root:{type:'string'},run_id:{type:'string'},to:{type:'string'},evidence:{type:'array',items:{type:'string'}},approval:{type:'string'},force:{type:'boolean'}}}},
+  {name:'agent_sdlc_transition',description:'Transition a run only when gate evidence is satisfied. There is no force/bypass parameter and none is honoured; a privileged capability is authorized only through a trusted approval recorded outside this tool (see agent_sdlc_approval_status, and `agent-sdlc approval grant` run interactively by a human).',inputSchema:{type:'object',required:['run_id','to'],properties:{project_root:{type:'string'},run_id:{type:'string'},to:{type:'string'},evidence:{type:'array',items:{type:'string'}}}}},
+  {name:'agent_sdlc_approval_status',description:'Read the approval records on a run: capability, authority, and whether each is ACTIVE, EXPIRED or REVOKED. Read-only; approvals can only be granted through the interactive, TTY-gated `agent-sdlc approval grant` CLI command, never over MCP.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'}}}},
   {name:'agent_sdlc_tool_check',description:'Check canonical stage/tool policy before execution.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id','tool'],properties:{project_root:{type:'string'},run_id:{type:'string'},tool:{type:'string'}}}},
   {name:'agent_sdlc_tool_run',description:'Run a deterministic built-in project tool through stage policy and bounded-output handling.',inputSchema:{type:'object',required:['run_id','tool'],properties:{project_root:{type:'string'},run_id:{type:'string'},tool:{type:'string'},args:{type:'object'}}}},
   {name:'agent_sdlc_artifact_put',description:'Store durable external memory as a content-addressed artifact and attach it to a run.',inputSchema:{type:'object',required:['run_id','kind','content'],properties:{project_root:{type:'string'},run_id:{type:'string'},kind:{type:'string'},content:{type:'string'}}}},
@@ -77,9 +80,16 @@ function execute(name,a={}){
   const run=loadRun(projectRoot,a.run_id);
   if(name==='agent_sdlc_status')return {...run,next:nextState(run)};
   if(name==='agent_sdlc_context')return buildContext(ROOT,projectRoot,run,{artifactRefs:a.artifact_refs===undefined?(run.artifacts||[]):arrayArg(a.artifact_refs,'artifact_refs'),symbols:arrayArg(a.symbols,'symbols')});
-  // truthy, not !!: a host that serializes booleans as strings sent
-  // {"force":"false"} and got a gate bypass out of it.
-  if(name==='agent_sdlc_transition')return transition(ROOT,projectRoot,run,a.to,{evidence:arrayArg(a.evidence,'evidence'),approval:a.approval||null,force:truthy(a.force)});
+  if(name==='agent_sdlc_transition'){
+    // force/approval are not part of this tool's contract; a caller that still
+    // sends them gets a named error, not a silently ignored field that leaves
+    // it believing the run moved.
+    if(a.force!==undefined||a.approval!==undefined){
+      throw new Error('FORCE_DISABLED: force/approval are not supported over MCP. Use a declared recovery edge, or have a human run `agent-sdlc approval grant` interactively.');
+    }
+    return transition(ROOT,projectRoot,run,a.to,{evidence:arrayArg(a.evidence,'evidence')});
+  }
+  if(name==='agent_sdlc_approval_status')return listApprovals(run);
   if(name==='agent_sdlc_tool_check')return checkTool(ROOT,run,a.tool);
   if(name==='agent_sdlc_tool_run')return invokeTool(ROOT,projectRoot,run,a.tool,a.args||{});
   if(name==='agent_sdlc_artifact_put'){

@@ -84,7 +84,9 @@ strong on the basis of packaging alone; `strong_activation` stays `false` until 
 qualification observes it.
 
 Activation is not authorization: production, destructive, credential and security-exception
-actions still require approval, and the `PreToolUse` destructive-command guard is unchanged.
+actions still require approval, and the `PreToolUse` destructive-command guard is unchanged. There
+is no `--force`/`approval` bypass on `transition`; a privileged capability is granted only through
+`agent-sdlc approval grant`, an interactive, TTY-gated command that is never reachable over MCP.
 
 ```bash
 agent-sdlc activation doctor            # per-host delivery, class, token cost, warnings

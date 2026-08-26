@@ -77,7 +77,13 @@ External tools (LSP, SAST/SCA, deploy, observability) are mapped through MCP/hos
 ./bin/agent-sdlc handoff-put --run-id <id> --summary "Design approved" --verified "requirements confirmed" --next "implement plan"
 ```
 
-Do not use `--force` in normal operation; it exists for operator recovery/testing and should be auditable.
+`transition` has no `--force` or `--approval` flag; both are rejected outright with a named error.
+Recovery goes through a declared reentry edge in `config/state-machine.json` (blocked at VERIFY
+after new evidence surfaces a code defect, transition back to IMPLEMENT — the edge already exists).
+A privileged capability is authorized only by a human running
+`agent-sdlc approval grant --run-id <id> --capability <name>` interactively; it requires a TTY, an
+explicit typed confirmation, and — for a privileged capability — an expiry. Read the current
+approvals on a run with `agent-sdlc approval status --run-id <id>`.
 
 ## 7. Cost, telemetry, replay and compatibility
 

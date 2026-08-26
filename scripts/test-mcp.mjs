@@ -116,7 +116,7 @@ await test('garbage-input-does-not-kill-the-server',async()=>{
 });
 await test('every-advertised-tool-declares-a-schema',async()=>{
   const tools=(await c.call('tools/list')).result.tools;
-  assert(tools.length===16,`expected 16 tools, got ${tools.length}`);
+  assert(tools.length===17,`expected 17 tools, got ${tools.length}`);
   for(const t of tools){
     assert(t.name.startsWith('agent_sdlc_'),t.name);
     assert(t.description&&t.description.length>20,`${t.name} has no usable description`);
@@ -186,20 +186,29 @@ await test('an-unknown-task-op-is-named-in-the-error',async()=>{
 });
 
 // --- untrusted argument types ---------------------------------------------
-await test('a-string-force-does-not-bypass-a-gate',async()=>{
-  // Regression: !!"false" is true, so a host that serializes booleans as strings
-  // skipped two stages with no evidence and no approval -- from a caller that
-  // had explicitly said false.
+await test('force-and-approval-are-rejected-outright',async()=>{
+  // force/approval used to bypass the gate machinery entirely; a single call
+  // could jump straight to DEPLOY and self-grant a wildcard approval. Neither
+  // parameter exists in the tool's contract any more -- any value, including a
+  // real force:true, is a named error, not a silently-ignored field.
   const run=payload(await c.tool('agent_sdlc_start',{objective:'Add refund capability'}));
-  for(const force of ['false','0','no','']){
+  for(const force of ['false','0','no','',true]){
     const r=await c.tool('agent_sdlc_transition',{run_id:run.run_id,to:'DESIGN',force});
     assert(r.result.isError===true,`force:${JSON.stringify(force)} crossed the gate`);
+    assert(/FORCE_DISABLED/.test(errorText(r)),errorText(r));
     const s=payload(await c.tool('agent_sdlc_status',{run_id:run.run_id}));
     assert(s.state==='INTAKE',`force:${JSON.stringify(force)} moved the run to ${s.state}`);
   }
-  // A real force still works, so the guard did not simply disable the flag.
-  const forced=payload(await c.tool('agent_sdlc_transition',{run_id:run.run_id,to:'DESIGN',force:true}));
-  assert(forced.state==='DESIGN','force:true no longer forces');
+  const withApproval=await c.tool('agent_sdlc_transition',{run_id:run.run_id,to:'DEPLOY',approval:'*'});
+  assert(withApproval.result.isError===true,'a wildcard approval crossed the gate');
+  assert(/FORCE_DISABLED/.test(errorText(withApproval)),errorText(withApproval));
+  const s=payload(await c.tool('agent_sdlc_status',{run_id:run.run_id}));
+  assert(s.state==='INTAKE',`approval:'*' moved the run to ${s.state}`);
+});
+await test('approval-status-is-read-only-and-starts-empty',async()=>{
+  const run=payload(await c.tool('agent_sdlc_start',{objective:'Add wishlist capability'}));
+  const status=payload(await c.tool('agent_sdlc_approval_status',{run_id:run.run_id}));
+  assert(Array.isArray(status)&&status.length===0,JSON.stringify(status));
 });
 await test('a-string-where-an-array-is-declared-is-reported',async()=>{
   const run=payload(await c.tool('agent_sdlc_start',{objective:'Add wishlist capability'}));
@@ -238,7 +247,8 @@ await test('the-server-exits-when-the-host-closes-stdin',async()=>{
 const core=connect({env:{AGENT_SDLC_MCP_PROFILE:'core'}});
 await test('the-core-profile-advertises-a-narrower-surface',async()=>{
   const tools=(await core.call('tools/list')).result.tools.map(t=>t.name);
-  assert(tools.length===10,`core advertised ${tools.length} tools`);
+  assert(tools.length===11,`core advertised ${tools.length} tools`);
+  assert(tools.includes('agent_sdlc_approval_status'),'approval status is missing from core');
   assert(tools.includes('agent_sdlc_task'),'the unified task tool is missing from core');
   assert(!tools.includes('agent_sdlc_task_list'),'core still advertises the granular task tools');
 });

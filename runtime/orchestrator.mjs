@@ -4,6 +4,7 @@ import {emit,saveRun,loadTaskGraph,listTasks} from './store.mjs';
 import {validateDesignDecision,evaluateDesignGate,getDesignDiscoveryPolicy} from './design-discovery.mjs';
 import {validateTaskPlan,planGateEvidence} from './plan-validator.mjs';
 import {materializeTaskGraph,taskProgress} from './task-engine.mjs';
+import {findValidApproval} from './approvals.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -14,15 +15,18 @@ const stagePolicyOf=(root)=>readJson(path.join(root,'policies','stage-policy.jso
 
 // Some gate evidence may not be asserted by a caller. `runtime` tokens exist
 // only when a deterministic validator produced them; `human` tokens exist only
-// alongside a recorded approval. `--force` remains the documented operator
-// escape hatch and is audited as such.
-function guardEvidenceAuthority(root,run,evidence,{approval=null,internal=false,force=false}={}){
-  if(internal||force||!evidence.length)return;
+// when a trusted approval record for that exact token has been recorded
+// through the approvals subsystem, not merely because some string was present
+// on this call. `internal` is not reachable from CLI/MCP; it exists only for
+// the orchestrator's own gate-recording functions and test fixtures that seed
+// pre-vetted evidence directly.
+function guardEvidenceAuthority(root,run,evidence,{internal=false}={}){
+  if(internal||!evidence.length)return;
   const authority=stagePolicyOf(root).evidence_authority||{};
   for(const token of evidence){
     const required=authority[token];
     if(required==='runtime')throw new Error(`evidence ${token} must be produced by the deterministic validator (use design record / plan record), not asserted`);
-    if(required==='human'&&!approval)throw new Error(`evidence ${token} requires a recorded human approval`);
+    if(required==='human'&&!findValidApproval(run,token))throw new Error(`evidence ${token} requires a recorded human approval`);
   }
 }
 
@@ -39,38 +43,38 @@ export function newRun(root,projectRoot,{objective,route}){
   saveRun(projectRoot,run);emit(projectRoot,run,{type:'run.created',payload:{workflow:run.workflow,profile:run.profile}});return run;
 }
 
-export function transition(root,projectRoot,run,to,{evidence=[],approval=null,force=false,internal=false}={}){
+export function transition(root,projectRoot,run,to,{evidence=[],internal=false}={}){
   if(TERMINAL_STATES.includes(run.state))throw new Error(`terminal state ${run.state}`);
-  guardEvidenceAuthority(root,run,evidence,{approval,internal,force});
+  guardEvidenceAuthority(root,run,evidence,{internal});
   const stagePolicy=stagePolicyOf(root).stages;
   const workflowOrder=run.stages;
   const from=run.state;
 
-  // Resume from a non-terminal side state only to the stage that was suspended, unless explicitly forced.
+  // Resume from a non-terminal side state only to the stage that was suspended.
+  // There is no generic override: a resume that wants to land somewhere else is
+  // a new, explicit transition, not this one relabelled.
   if(['NEEDS_CONFIRMATION','BLOCKED'].includes(run.state)&&!SIDE_STATES.includes(to)){
-    if(!force&&to!==run.suspended_from)throw new Error(`resume must return to suspended stage ${run.suspended_from}`);
+    if(to!==run.suspended_from)throw new Error(`resume must return to suspended stage ${run.suspended_from}`);
     const targetIdx=workflowOrder.indexOf(to);if(targetIdx<0)throw new Error(`state ${to} not in workflow ${run.workflow}`);
     run.state=to;run.stage_index=targetIdx;run.suspended_from=null;
-    if(approval)run.approvals.push({stage:to,approval,time:now()});
-    saveRun(projectRoot,run);emit(projectRoot,run,{type:'stage.resumed',payload:{from,to,force}});return run;
+    saveRun(projectRoot,run);emit(projectRoot,run,{type:'stage.resumed',payload:{from,to}});return run;
   }
 
   if(SIDE_STATES.includes(to)){
     if(!SIDE_STATES.includes(run.state))run.suspended_from=run.state;
     run.state=to;
-    if(approval)run.approvals.push({stage:run.suspended_from||from,approval,time:now()});
     saveRun(projectRoot,run);emit(projectRoot,run,{type:'stage.suspended',payload:{from,to,suspended_from:run.suspended_from}});return run;
   }
 
   const currentIdx=workflowOrder.indexOf(run.state);const targetIdx=workflowOrder.indexOf(to);
   if(targetIdx<0)throw new Error(`state ${to} not in workflow ${run.workflow}`);
-  if(!force&&targetIdx===currentIdx+1){
+  if(targetIdx===currentIdx+1){
     const req=stagePolicy[run.state]?.gate_requirements||[];
     const have=new Set([...(run.evidence[run.state]||[]),...evidence]);
     const missing=req.filter(x=>!have.has(x));
     if(missing.length)throw new Error(`gate blocked at ${run.state}; missing evidence: ${missing.join(', ')}`);
-  }else if(!force&&targetIdx>currentIdx+1)throw new Error('cannot skip multiple workflow stages without --force');
-  else if(!force&&targetIdx<currentIdx){
+  }else if(targetIdx>currentIdx+1)throw new Error('cannot skip multiple workflow stages');
+  else if(targetIdx<currentIdx){
     // Re-entry is allowed only when the canonical state machine explicitly declares the edge.
     const sm=readJson(path.join(root,'config','state-machine.json'));
     const allowed=sm.edges.some(e=>e.from===run.state&&e.to===to&&e.kind==='reentry');
@@ -78,9 +82,8 @@ export function transition(root,projectRoot,run,to,{evidence=[],approval=null,fo
   }
 
   if(evidence.length)run.evidence[run.state]=[...new Set([...(run.evidence[run.state]||[]),...evidence])];
-  if(approval)run.approvals.push({stage:run.state,approval,time:now()});
   run.state=to;run.stage_index=targetIdx;run.suspended_from=null;
-  saveRun(projectRoot,run);emit(projectRoot,run,{type:'stage.transition',payload:{from,to,evidence,force}});return run;
+  saveRun(projectRoot,run);emit(projectRoot,run,{type:'stage.transition',payload:{from,to,evidence}});return run;
 }
 
 /**

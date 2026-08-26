@@ -135,19 +135,35 @@ test('transition-advances-with-evidence',()=>{
   if(out.state!=='PLAN')throw new Error(JSON.stringify(out.state));
   if(!out.evidence.REQUIREMENTS.includes('requirements_confirmed'))throw new Error('evidence not recorded');
 });
-test('a-string-force-flag-does-not-bypass-a-gate',()=>{
-  // `--force false` reached the runtime as the string "false", and !! made it
-  // true, so the flag that exists to be deliberate could be tripped by a value
-  // that says the opposite.
+test('force-and-approval-flags-are-rejected-outright',()=>{
+  // --force used to skip the gate machinery entirely; it no longer exists as a
+  // bypass at all, in any form -- a bare flag, an explicit true, or a string
+  // that says false all fail the same named error rather than any of them
+  // being honoured.
   const r=json(['start','--objective','Add wishlist capability']);
   const at=['--run-id',r.run_id];
-  for(const value of ['false','0','no']){
+  for(const value of ['false','0','no','true']){
     const out=raw(['transition',...at,'--to','DESIGN','--force',value]);
     if(out.status===0)throw new Error(`--force ${value} was honoured`);
     if(json(['status',...at]).state!=='INTAKE')throw new Error(`--force ${value} moved the run`);
   }
-  // The bare flag, and an explicit true, must still force.
-  if(json(['transition',...at,'--to','DESIGN','--force']).state!=='DESIGN')throw new Error('a bare --force no longer forces');
+  const bare=failure(['transition',...at,'--to','DESIGN','--force']);
+  if(!/FORCE_DISABLED/.test(bare.error))throw new Error(bare.error);
+  if(json(['status',...at]).state!=='INTAKE')throw new Error('a bare --force moved the run');
+  const withApproval=failure(['transition',...at,'--to','DEPLOY','--approval','*']);
+  if(!/FORCE_DISABLED/.test(withApproval.error))throw new Error(withApproval.error);
+  if(json(['status',...at]).state!=='INTAKE')throw new Error('--approval * moved the run');
+});
+test('approval-grant-requires-a-tty',()=>{
+  const r=json(['start','--objective','Add loyalty points']);
+  const at=['--run-id',r.run_id];
+  const err=failure(['approval','grant',...at,'--capability','deploy.production']);
+  if(!/interactive terminal/.test(err.error))throw new Error(err.error);
+});
+test('approval-status-starts-empty',()=>{
+  const r=json(['start','--objective','Add loyalty tiers']);
+  const status=json(['approval','status','--run-id',r.run_id]);
+  if(!Array.isArray(status)||status.length!==0)throw new Error(JSON.stringify(status));
 });
 test('tool-check-denies-a-tool-the-stage-forbids',()=>{
   const d=json(['tool-check',...R,'--tool','deploy.production']);

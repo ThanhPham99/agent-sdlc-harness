@@ -43,7 +43,9 @@ Two gates are machine-checked and their evidence cannot be asserted by hand.
 
 **PLAN.** Produce a structured `agent-sdlc/task-plan/v1` object, not Markdown prose. `bin/agent-sdlc plan validate` first, then `bin/agent-sdlc plan record --run-id <id> --file task-plan.json`. An invalid dependency graph, an uncovered acceptance criterion, a behaviour-changing task without verification, or two overlapping parallel candidates keeps `PLAN -> IMPLEMENT` closed. Fix the plan; do not `--force` past it.
 
-`--force` exists for operators, is audited, and is never the agent's answer to a blocked gate.
+There is no `--force`; a blocked gate is fixed by producing the missing evidence, or, for a
+privileged capability, by asking a human to run `agent-sdlc approval grant` interactively — never by
+you.
 
 **IMPLEMENT.** The validated plan becomes a persistent task graph, and `IMPLEMENT` means executing it: `bin/agent-sdlc task materialize`, then `task refresh` / `task schedule` / `task start` / `task advance` per the `task-execution` internal module. A task reaches `DONE` only with verification evidence bound to its current attempt and diff, a clean spec-compliance review and a clean code-quality review. `implementation_artifact` is derived by `bin/agent-sdlc task implementation-complete` once every required task is `DONE`; it cannot be asserted either.
 

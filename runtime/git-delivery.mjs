@@ -34,7 +34,7 @@ export function isProtectedBranch(name){return PROTECTED.some(p=>p.test(String(n
  */
 export function checkPushTarget(branch,{approvals=[]}={}){
   if(!isProtectedBranch(branch))return {decision:'ALLOW',reason:'UNPROTECTED_BRANCH',branch};
-  const approved=arr(approvals).some(a=>a==='git.push_protected'||a==='*');
+  const approved=arr(approvals).some(a=>a==='git.push_protected');
   return approved
     ?{decision:'APPROVAL_RECORDED',reason:'PROTECTED_BRANCH_WITH_EXPLICIT_APPROVAL',branch}
     :{decision:'DENY',reason:'PROTECTED_BRANCH_PUSH_DENIED_BY_DEFAULT',branch};

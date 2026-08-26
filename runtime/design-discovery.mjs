@@ -138,7 +138,7 @@ export function evaluateDesignGate({mode=null,evidence=[],humanApprovalRequired=
     missing.push(`one_of:${gate.evidence_any_of.join('|')}`);
   }
   if(humanApprovalRequired){
-    const approved=(approvals||[]).some(a=>a===gate.human_approval_evidence||a==='*');
+    const approved=(approvals||[]).some(a=>a===gate.human_approval_evidence);
     if(!have.has(gate.human_approval_evidence)&&!approved)missing.push(gate.human_approval_evidence);
   }
   return {

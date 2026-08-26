@@ -50,10 +50,45 @@ async function main(){
       print({run_id:run.run_id,state:run.state,next:nextState(run)});
     }
     else if(cmd==='transition'){
+      if(args.force!==undefined||args.approval!==undefined){
+        throw new Error('FORCE_DISABLED: generic transition bypass is not supported. Use a declared recovery edge (see config/state-machine.json reentry edges), or `agent-sdlc approval grant` for a privileged capability.');
+      }
       const run=await needRun();
       const {transition}=await import('./orchestrator.mjs');
       const ev=(args.evidence?String(args.evidence).split(',').filter(Boolean):[]);
-      print(transition(ROOT,projectRoot,run,args.to,{evidence:ev,approval:args.approval||null,force:truthy(args.force)}));
+      print(transition(ROOT,projectRoot,run,args.to,{evidence:ev}));
+    }
+    else if(cmd==='approval'){
+      const sub=args._[1]||'status';
+      const {recordApproval,revokeApproval,listApprovals}=await import('./approvals.mjs');
+      if(sub==='status'){
+        const run=await needRun();
+        print(listApprovals(run));
+      }
+      else if(sub==='grant'){
+        const run=await needRun();
+        const capability=args.capability;
+        if(!capability)throw new Error('--capability required');
+        if(!process.stdin.isTTY)throw new Error('approval grant requires an interactive terminal');
+        let expiresAt=args['expires-at']||null;
+        if(!expiresAt&&args['expires-in'])expiresAt=new Date(Date.now()+Number(args['expires-in'])*60000).toISOString();
+        console.error(`Grant approval for capability "${capability}" on run ${run.run_id} (${projectRoot})`);
+        if(args.reason)console.error(`Reason: ${args.reason}`);
+        console.error(expiresAt?`Expires: ${expiresAt}`:'Expires: never (only allowed for a non-privileged capability)');
+        const readline=await import('node:readline/promises');
+        const rl=readline.createInterface({input:process.stdin,output:process.stderr});
+        const answer=await rl.question('Type "yes" to confirm: ');
+        rl.close();
+        if(answer.trim().toLowerCase()!=='yes')throw new Error('approval grant not confirmed');
+        print(recordApproval(ROOT,projectRoot,run,{capability,authority:'USER_INTERACTIVE',actor:os.userInfo().username,reason:args.reason||null,expiresAt}));
+      }
+      else if(sub==='revoke'){
+        const run=await needRun();
+        const capability=args.capability;
+        if(!capability)throw new Error('--capability required');
+        print(revokeApproval(ROOT,projectRoot,run,capability,{reason:args.reason||null}));
+      }
+      else throw new Error(`unknown approval subcommand ${sub}`);
     }
     else if(cmd==='context'){
       const run=await needRun();
@@ -567,7 +602,7 @@ async function main(){
       });
     }
     else {
-      print(`agent-sdlc ${readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version}\n\nCommands: init, route, start, status, next, transition, context, normalize, artifact-put/get/list, handoff-put/get/list, tool-check/run, usage-add/report, config-show, compat-check, migrate, parallel-plan, metrics, model-route, provider-probe/command/run, replay-export/validate, activation, design, plan, task, repo, trace, delivery, ci, govern, fallback, learn, doctor\n\nactivation subcommands: status, enable, disable, print-bootstrap, policy, cost, classify, events, record, doctor, codex-bootstrap install|uninstall|status\ndesign subcommands: mode, policy, validate, record\nplan subcommands: validate, graph, record\ntask subcommands: list, show, graph, events, progress, state-machine, materialize, migrate, refresh, ready, schedule, transition, context, context-show, start, capture, verify, review, advance, checkpoint, usage-add, usage, metrics, workspaces, workspace-clean, failure-policy, classify, replay, fallback, resume, implementation-complete\nrepo subcommands: index, status, capability, symbol, references, tests, module, dependents, interfaces, entities, events, recent, surface\ntrace subcommands: build, show, kinds, validate, coverage, closure, invalidate, history\ndelivery subcommands: status, targets, branch, push-check, drift, group, record\nci subcommands: record, status, show, history\ngovern subcommands: policy, report, complexity, task\nlearn subcommands: sources, candidate`);
+      print(`agent-sdlc ${readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version}\n\nCommands: init, route, start, status, next, transition, approval, context, normalize, artifact-put/get/list, handoff-put/get/list, tool-check/run, usage-add/report, config-show, compat-check, migrate, parallel-plan, metrics, model-route, provider-probe/command/run, replay-export/validate, activation, design, plan, task, repo, trace, delivery, ci, govern, fallback, learn, doctor\n\nactivation subcommands: status, enable, disable, print-bootstrap, policy, cost, classify, events, record, doctor, codex-bootstrap install|uninstall|status\napproval subcommands: status, grant (interactive, TTY-only), revoke\ndesign subcommands: mode, policy, validate, record\nplan subcommands: validate, graph, record\ntask subcommands: list, show, graph, events, progress, state-machine, materialize, migrate, refresh, ready, schedule, transition, context, context-show, start, capture, verify, review, advance, checkpoint, usage-add, usage, metrics, workspaces, workspace-clean, failure-policy, classify, replay, fallback, resume, implementation-complete\nrepo subcommands: index, status, capability, symbol, references, tests, module, dependents, interfaces, entities, events, recent, surface\ntrace subcommands: build, show, kinds, validate, coverage, closure, invalidate, history\ndelivery subcommands: status, targets, branch, push-check, drift, group, record\nci subcommands: record, status, show, history\ngovern subcommands: policy, report, complexity, task\nlearn subcommands: sources, candidate`);
       process.exit(cmd?2:0);
     }
   }catch(e){

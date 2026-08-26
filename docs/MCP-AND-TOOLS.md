@@ -10,7 +10,7 @@ Built-in deterministic tools include `input.normalize`, repository read/search/d
 
 `web.search` and `web.fetch_url` enable source-driven development across official documentation, vulnerability advisories (CVE), and package changelogs. Queries are sanitized through `policies/security-policy.json` to prevent ambient credential or internal network leakage, and payloads are bounded to protect context budgets.
 
-Privileged production actions are never authorized by prompt text alone. Hooks are defense in depth; the canonical policy/tool gateway remains the enforcement point for harness-managed actions.
+Privileged production actions are never authorized by prompt text alone. Hooks are defense in depth; the canonical policy/tool gateway remains the enforcement point for harness-managed actions. `agent_sdlc_transition` has no `force`/`approval` parameter; both are rejected outright rather than silently ignored. Approvals are readable over MCP (`agent_sdlc_approval_status`) but are only ever granted through `agent-sdlc approval grant`, an interactive, TTY-gated CLI command — there is no approval-grant tool on the MCP surface.
 
 ## Task runtime tools (alpha5)
 
