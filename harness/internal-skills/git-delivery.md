@@ -3,9 +3,9 @@
 Use this internal module when code/config/test changes must move through a branch/worktree, PR/review, CI, merge queue, hotfix backport, release branch, revert, or post-merge reconciliation path.
 
 ## Inputs
-- current feature `state.yaml`;
-- `.ai-workflow/project/delivery-board.yaml` when present;
-- `.ai-workflow/project/coordination-board.yaml` when multiple work items are active;
+- the current run's state (via `agent-sdlc status`);
+- the `delivery-board` artifact via the artifact store, when present;
+- the `coordination-board` artifact via the artifact store, when multiple work items are active;
 - current branch/base/head revisions and PR/CI status when observable;
 - `rules/git-delivery-policy.yaml`;
 - `rules/coordination-policy.yaml` for cross-work-item ordering.

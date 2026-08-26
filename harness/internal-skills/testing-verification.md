@@ -6,7 +6,7 @@
 
 ## Workflow preflight
 
-If an active `.ai-workflow/features/<id>/state.yaml` exists, verify that the current state/gate authorizes this skill before changing project artifacts or code. If invoked out of order, return `BLOCKED` with the required next logical skill; do not bypass the orchestrator. Load only the artifacts required for this step.
+The orchestrator's context compiler only loads this skill when the run's current stage authorizes it — there is no separate legacy state file to check. If you believe you were invoked out of order regardless, return `BLOCKED` with the required next logical skill rather than proceeding. Load only the artifacts required for this step.
 
 
 Create/update `test-plan.md` as needed, then execute the smallest sufficient verification set plus required regression coverage. Consider unit, integration, contract, migration, security, performance, build/lint/static checks, and manual validation only when relevant.

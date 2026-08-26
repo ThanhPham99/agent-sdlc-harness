@@ -6,7 +6,7 @@
 
 ## Workflow preflight
 
-If an active `.ai-workflow/features/<id>/state.yaml` exists, verify that the current state/gate authorizes the build stage. If invoked out of order, return `BLOCKED`; do not bypass the orchestrator.
+The orchestrator's context compiler only loads this skill when the run's current stage authorizes the build stage — there is no separate legacy state file to check. If you believe you were invoked out of order regardless, return `BLOCKED`; do not bypass the orchestrator.
 
 For one bounded behavior slice:
 

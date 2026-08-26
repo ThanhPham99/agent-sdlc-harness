@@ -6,16 +6,16 @@
 
 ## Workflow preflight
 
-If an active `.ai-workflow/features/<id>/state.yaml` exists, verify that the current state/gate authorizes this skill before changing project artifacts or code. If invoked out of order, return `BLOCKED` with the required next logical skill; do not bypass the orchestrator. Load only the artifacts required for this step.
+The orchestrator's context compiler only loads this skill when the run's current stage authorizes it — there is no separate legacy state file to check. If you believe you were invoked out of order regardless, return `BLOCKED` with the required next logical skill rather than proceeding. Load only the artifacts required for this step.
 
 
 Inspect repository structure, build/runtime configuration, entry points, modules/services, public interfaces, persistence, tests, deployment/config, and existing engineering guidance.
 
-Create or update only enough project knowledge for safe work:
-- `.ai-workflow/project/system-context.md`
-- `.ai-workflow/project/architecture.md`
-- `.ai-workflow/project/standards.md`
-- `.ai-workflow/project/feature-index.md`
+Create or update only enough project knowledge for safe work, each stored as a content-addressed artifact via `agent-sdlc artifact-put --kind <kind>` and attached to the run:
+- `kind: system-context`
+- `kind: architecture`
+- `kind: standards`
+- `kind: feature-index`
 
 Label uncertain inferred architecture as `PROPOSED/UNCONFIRMED`. Do not pretend reverse engineering is authoritative business documentation. Prefer progressive understanding: deeply analyze the dependency closure relevant to current work, then enrich project docs after implementation confirms facts.
 

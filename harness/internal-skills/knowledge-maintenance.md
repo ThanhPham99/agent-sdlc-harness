@@ -9,7 +9,7 @@ Maintain the smallest accurate **current project view** without loading or rewri
 ## Read first
 
 1. `rules/knowledge-evolution-policy.yaml`.
-2. `.ai-workflow/project/knowledge-index.yaml` when present.
+2. the `knowledge-index` artifact via the artifact store, when one exists for this run.
 3. Only affected current project artifacts and the concrete change/evidence that triggered maintenance.
 4. `decision-index.yaml`, debt/deprecation registers, or cold shards only when the affected scope requires them.
 

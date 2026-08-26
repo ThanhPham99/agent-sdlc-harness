@@ -7,10 +7,10 @@
 Use this module for release readiness, environment promotion, progressive rollout, feature flags, production migrations, deployment recovery, post-deploy verification, incident linkage, and production feedback.
 
 ## Inputs
-- current feature `state.yaml`;
+- the current run's state (via `agent-sdlc status`);
 - `release-deployment.md` when applicable;
-- `.ai-workflow/project/delivery-board.yaml` for source delivery state;
-- `.ai-workflow/project/release-board.yaml` for release/environment state;
+- the `delivery-board` artifact via the artifact store, for source delivery state;
+- the `release-board` artifact via the artifact store, for release/environment state;
 - coordination board when multiple work items/release-train dependencies exist;
 - current release candidate revision and environment evidence;
 - `rules/production-lifecycle-policy.yaml` and `rules/failure-recovery-policy.yaml`.

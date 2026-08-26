@@ -3,8 +3,8 @@
 Use this internal module only when two or more material work items are active in the repository, when parallel agents are requested, or when an upstream work item merges while another work item is still active.
 
 ## Inputs
-- `.ai-workflow/project/coordination-board.yaml` when present;
-- current feature `state.yaml` and `impact-analysis.md`;
+- the `coordination-board` artifact via the artifact store, when one exists for this run;
+- the current run's state (via `agent-sdlc status`) and its `impact-analysis` artifact;
 - active work-item summaries/change claims;
 - `rules/coordination-policy.yaml`;
 - current project baseline revision.

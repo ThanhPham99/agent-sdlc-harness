@@ -104,6 +104,36 @@ test('all-internal-skill-files-exist',()=>{for(const [id,s] of Object.entries(sk
 test('public-skill-layout-valid',()=>{for(const id of manifest.public_skills){const p=path.join(ROOT,'skills',id,'SKILL.md');const txt=fs.readFileSync(p,'utf8');if(!txt.startsWith('---')||!txt.includes(`name: ${id}`))throw Error(id);}});
 test('tool-output-limit-policy',()=>{const p=JSON.parse(fs.readFileSync(path.join(ROOT,'policies','context-policy.json'),'utf8'));if(p.limits.max_tool_return_bytes>24000)throw Error('too large');});
 test('parallelism-bounded',()=>{const p=JSON.parse(fs.readFileSync(path.join(ROOT,'policies','parallelism-policy.json'),'utf8'));if(p.hard_default_max>2)throw Error('fanout too high');});
+// No active skill/procedure may depend on the legacy .ai-workflow namespace --
+// only historical documentation, migration/compat code, and legacy-format
+// reference fixtures may name it.
+test('no-active-ai-workflow-references-outside-the-legacy-allowlist',()=>{
+  const allowlist=new Set([
+    'docs/MIGRATION.md',
+    'runtime/compat.mjs',
+    'harness/internal-skills/workflow-maintenance.md',
+    'templates/decision-index.yaml',
+    'templates/knowledge-index.yaml',
+    'templates/workflow-meta.yaml',
+    'scripts/test-compat.mjs', // fixture: creates a fake legacy dir to test detection
+    'evals/run-deterministic.mjs' // this guard names the legacy path itself
+  ]);
+  const needle='.'+'ai-workflow';
+  const skipDirs=new Set(['.git','node_modules','dist','.agent-sdlc']);
+  const textFile=/\.(md|mjs|js|json|yaml|yml)$/;
+  const offenders=[];
+  (function walk(dir){
+    for(const entry of fs.readdirSync(dir,{withFileTypes:true})){
+      if(entry.isDirectory()){if(!skipDirs.has(entry.name))walk(path.join(dir,entry.name));continue;}
+      if(!textFile.test(entry.name))continue;
+      const full=path.join(dir,entry.name);
+      const rel=path.relative(ROOT,full).split(path.sep).join('/');
+      if(allowlist.has(rel))continue;
+      if(fs.readFileSync(full,'utf8').includes(needle))offenders.push(rel);
+    }
+  })(ROOT);
+  if(offenders.length)throw Error(`active .ai-workflow reference(s) outside the legacy allowlist: ${offenders.join(', ')}`);
+});
 
 // State, gates and recovery
 const run=newRun(ROOT,tmp,{objective:'Add refund feature',route:route(ROOT,'Add refund feature')});

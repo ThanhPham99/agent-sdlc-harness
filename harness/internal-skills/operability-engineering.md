@@ -6,7 +6,7 @@
 
 ## Workflow preflight
 
-If an active `.ai-workflow/features/<id>/state.yaml` exists, verify that the current workflow state/gate authorizes the operational change. If invoked out of order, return `BLOCKED`; do not bypass impact/design/release gates.
+The orchestrator's context compiler only loads this skill when the run's current stage authorizes the operational change — there is no separate legacy state file to check. If you believe you were invoked out of order regardless, return `BLOCKED`; do not bypass impact/design/release gates.
 
 Identify affected environments and blast radius before changing pipeline/config/IaC/observability assets. Keep production execution separate from preparing code/config unless explicitly authorized. Require validation in the safest representative environment available, and document rollback/backout for meaningful operational changes.
 
