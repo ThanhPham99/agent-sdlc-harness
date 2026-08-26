@@ -8,14 +8,15 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {initProject,listTasks,saveTask,putArtifact,listTaskEvents} from '../runtime/store.mjs';
+import {initProject,listTasks,saveTask,putArtifact,listTaskEvents,loadRun} from '../runtime/store.mjs';
+import {sha256} from '../runtime/util.mjs';
 import {route} from '../runtime/router.mjs';
 import {newRun,transition,recordDesignDecision,recordTaskPlan,materializeRunTasks} from '../runtime/orchestrator.mjs';
 import {refreshReadiness,transitionTask,requireTask} from '../runtime/task-engine.mjs';
 import {buildIndex,loadIndex,indexStale,detectCapability,moduleOf,isTestPath,languageOf,IMPLEMENTED_TIER} from '../runtime/repo-index.mjs';
 import {buildSymbolGraph,dependentClosure,testsForSymbol,testsForFiles,moduleBoundary} from '../runtime/symbol-graph.mjs';
 import {openIntelligence,findSymbol,findReferences,findTestsForSymbol,findModuleBoundary,findDependents,findPublicInterfaces,findDataEntities,findEventContracts,getMinimalChangeSurface} from '../runtime/repo-intelligence.mjs';
-import {buildTraceabilityGraph,validateTraceabilityGraph,computeTraceCoverage,computeInvalidationClosure,applyInvalidation,invalidationHistory,nodeId,DELTA_CLASSES} from '../runtime/traceability.mjs';
+import {buildTraceabilityGraph,loadTraceabilityGraph,validateTraceabilityGraph,computeTraceCoverage,computeInvalidationClosure,applyInvalidation,invalidationHistory,nodeId,DELTA_CLASSES} from '../runtime/traceability.mjs';
 import {recordDelivery,baseDrift,checkPushTarget,branchFor,groupTaskBranches,isProtectedBranch} from '../runtime/git-delivery.mjs';
 import {recordCiEvidence,ciEvidenceCurrent,loadCiEvidence} from '../runtime/ci-evidence.mjs';
 import {resumeFromCheckpoint,taskCheckpoint,startTask,captureTaskDiff} from '../runtime/task-runner.mjs';
@@ -23,6 +24,8 @@ import {governTask,governorReport,taskComplexity,getGovernancePolicy} from '../r
 import {buildRegressionCandidate,validateRegressionCandidate,toEvalCase,sanitizeText,sanitizePath,LEARNING_SOURCES} from '../runtime/learning.mjs';
 import {buildTaskContext,renderTaskPrompt,scopeIntelligence} from '../runtime/task-context.mjs';
 import {getTaskWorkspace} from '../runtime/workspace.mjs';
+import {planRequirementUpdate,loadRequirementUpdatePlan} from '../runtime/requirement-update.mjs';
+import {buildContext,renderPrompt} from '../runtime/context.mjs';
 
 const gitq=(cwd,...a)=>execFileSync('git',a,{cwd,stdio:'ignore'});
 
@@ -469,6 +472,103 @@ export function runAlpha6Suite(root){
       try{computeInvalidationClosure(g,nodeId('ACCEPTANCE_CRITERION','AC-001'),'MADE_UP');}
       catch(e){rejected=/unknown delta class/.test(e.message);}
       if(!rejected)fail('an unknown delta class was accepted');
+    });
+  }
+
+  // ===================== requirement update ================================
+  // The invalidation engine above already computes a correct, deterministic
+  // closure -- nothing before this round ever called it across two different
+  // runs. This group proves the missing wire: a NEW run can point at a PRIOR
+  // run's traceability graph, get a real invalidation applied to that prior
+  // graph (never deleted, per J6), and inherit exactly the artifact refs the
+  // closure proves are still valid.
+  {
+    const t=group('requirement_update');
+    const priorProjectRoot=makeRichFixture();
+    const {run:priorRun}=runToImplement(root,priorProjectRoot);
+    let one=requireTask(priorProjectRoot,priorRun.run_id,'TASK-001');
+    const verification=putArtifact(priorProjectRoot,{kind:'task-verification',content:'{"status":"PASS"}',runId:priorRun.run_id,stage:'IMPLEMENT',filename:'TASK-001-verification.json'});
+    one.evidence_refs=[verification.artifact_id];
+    one.status='DONE';one.diff_hash='deadbeef';saveTask(priorProjectRoot,one);
+    buildTraceabilityGraph(priorProjectRoot,priorRun.run_id,{run:priorRun,designDecisions:[{
+      decision_id:'DESIGN-001',objective:priorRun.objective,requirements:['AC-001','AC-002'],
+      approval:{required:false,status:'NOT_REQUIRED'}}]});
+    const newUpdateRun=()=>newRun(root,priorProjectRoot,{objective:'Refund idempotency key must also cover partial captures',
+      route:route(root,'x','requirement-update')});
+
+    t('missing-continues-run-is-refused',()=>{
+      const r=newUpdateRun();
+      let threw=false;
+      try{planRequirementUpdate(priorProjectRoot,r,{nodeId:nodeId('ACCEPTANCE_CRITERION','AC-001'),deltaClass:'BEHAVIOR_CHANGE'});}
+      catch(e){threw=/--continues/.test(e.message);}
+      if(!threw)fail('a plan with no continues run was accepted');
+    });
+
+    t('a-prior-run-with-no-traceability-graph-is-refused',()=>{
+      const bareRoot=makeRichFixture();
+      const {run:bareRun}=runToImplement(root,bareRoot);
+      const r=newUpdateRun();
+      let threw=false;
+      try{planRequirementUpdate(bareRoot,r,{continuesRunId:bareRun.run_id,nodeId:nodeId('ACCEPTANCE_CRITERION','AC-001'),deltaClass:'BEHAVIOR_CHANGE'});}
+      catch(e){threw=/trace build/.test(e.message);}
+      if(!threw)fail('a prior run with no graph was accepted');
+    });
+
+    t('wording-only-update-preserves-and-carries-forward-the-prior-evidence',()=>{
+      const r=newUpdateRun();
+      const plan=planRequirementUpdate(priorProjectRoot,r,{continuesRunId:priorRun.run_id,
+        nodeId:nodeId('ACCEPTANCE_CRITERION','AC-001'),deltaClass:'WORDING_ONLY'});
+      if(plan.affected_count!==0)fail(JSON.stringify(plan));
+      if(plan.earliest_outer_gate!==null)fail(String(plan.earliest_outer_gate));
+      if(!plan.preserved_artifact_refs.includes(verification.artifact_id))fail(JSON.stringify(plan.preserved_artifact_refs));
+      const reloaded=loadRun(priorProjectRoot,r.run_id);
+      if(!reloaded.artifacts.includes(verification.artifact_id))fail('preserved artifact was not attached to the new run');
+      if(loadRequirementUpdatePlan(priorProjectRoot,r.run_id)?.changed!==plan.changed)fail('plan was not persisted for later reads');
+    });
+
+    t('behavior-change-invalidates-the-prior-graph-and-excludes-its-evidence',()=>{
+      const r=newUpdateRun();
+      const plan=planRequirementUpdate(priorProjectRoot,r,{continuesRunId:priorRun.run_id,
+        nodeId:nodeId('ACCEPTANCE_CRITERION','AC-001'),deltaClass:'BEHAVIOR_CHANGE',reason:'idempotency key must cover partial captures too'});
+      if(plan.affected_count===0)fail('behavior change invalidated nothing');
+      if(plan.earliest_outer_gate!=='REQUIREMENTS')fail(String(plan.earliest_outer_gate));
+      if(plan.preserved_artifact_refs.includes(verification.artifact_id))fail('invalidated evidence was still carried forward as preserved');
+      const g=loadTraceabilityGraph(priorProjectRoot,priorRun.run_id);
+      const t1=g.nodes.find(n=>n.id==='TASK:TASK-001');
+      if(t1.valid!==false)fail('the prior graph itself was not updated');
+      if(!t1.invalidated_by)fail('invalidated node carries no reason');
+      const history=invalidationHistory(priorProjectRoot,priorRun.run_id);
+      if(!history.some(h=>/partial captures/.test(h.reason)))fail('invalidation history missing the new reason (J6: history must be preserved, not overwritten)');
+    });
+
+    t('dry-run-computes-without-mutating-anything',()=>{
+      const before=loadTraceabilityGraph(priorProjectRoot,priorRun.run_id);
+      const beforeSha=sha256(JSON.stringify(before.nodes.map(n=>[n.id,n.valid])));
+      const r=newUpdateRun();
+      const plan=planRequirementUpdate(priorProjectRoot,r,{continuesRunId:priorRun.run_id,
+        nodeId:nodeId('INTERFACE','POST /v1/refunds'),deltaClass:'INTERFACE_CHANGE',dryRun:true});
+      if(!plan.dry_run)fail('dry_run flag not set on the result');
+      const after=loadTraceabilityGraph(priorProjectRoot,priorRun.run_id);
+      const afterSha=sha256(JSON.stringify(after.nodes.map(n=>[n.id,n.valid])));
+      if(beforeSha!==afterSha)fail('dry-run mutated the prior graph');
+      if(loadRun(priorProjectRoot,r.run_id).artifacts?.length)fail('dry-run attached artifacts to the new run');
+      if(loadRequirementUpdatePlan(priorProjectRoot,r.run_id))fail('dry-run persisted a plan record');
+    });
+
+    t('context-manifest-surfaces-the-plan-for-a-requirement-update-run',()=>{
+      const r=newUpdateRun();
+      planRequirementUpdate(priorProjectRoot,r,{continuesRunId:priorRun.run_id,
+        nodeId:nodeId('ACCEPTANCE_CRITERION','AC-002'),deltaClass:'WORDING_ONLY'});
+      const m=buildContext(root,priorProjectRoot,r,{});
+      if(m.requirement_update?.continues_run_id!==priorRun.run_id)fail(JSON.stringify(m.requirement_update));
+      const p=renderPrompt(root,m);
+      if(!/REQUIREMENT UPDATE/.test(p)||!p.includes(priorRun.run_id))fail('rendered prompt omits the requirement-update plan');
+    });
+
+    t('an-unrelated-workflow-never-surfaces-a-requirement-update-plan',()=>{
+      const other=newRun(root,priorProjectRoot,{objective:'Add loyalty tiers',route:route(root,'Add loyalty tiers','new-feature')});
+      const m=buildContext(root,priorProjectRoot,other,{});
+      if(m.requirement_update!==null)fail(JSON.stringify(m.requirement_update));
     });
   }
 

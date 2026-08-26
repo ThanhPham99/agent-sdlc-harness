@@ -274,10 +274,18 @@ test('unknown-workflow-is-a-structured-error',()=>{
   if(!/unknown workflow/.test(err.error))throw new Error(err.error);
 });
 test('unknown-subcommands-are-structured-errors',()=>{
-  for(const args of [['task','nope'],['repo','nope'],['trace','nope'],['ci','nope'],['govern','nope'],['learn','nope'],['design','nope'],['plan','nope'],['delivery','nope'],['activation','nope']]){
+  for(const args of [['task','nope'],['repo','nope'],['trace','nope'],['ci','nope'],['govern','nope'],['learn','nope'],['design','nope'],['plan','nope'],['delivery','nope'],['activation','nope'],['requirement-update','nope']]){
     const err=failure([...args,...R]);
     if(!/unknown .* subcommand/.test(err.error))throw new Error(`${args.join(' ')}: ${err.error}`);
   }
+});
+test('requirement-update-plan-without-continues-is-refused',()=>{
+  const err=failure(['requirement-update','plan',...R,'--node','ACCEPTANCE_CRITERION:AC-001']);
+  if(!/--continues/.test(err.error))throw new Error(err.error);
+});
+test('requirement-update-show-with-no-plan-yet-says-so',()=>{
+  const out=json(['requirement-update','show',...R]);
+  if(out.status!=='NO_PLAN_RECORDED')throw new Error(JSON.stringify(out));
 });
 test('required-file-flags-are-reported-not-crashed',()=>{
   for(const args of [['plan','validate'],['design','validate'],['normalize']]){

@@ -509,6 +509,18 @@ async function main(){
       else if(sub==='history'){const r=await needRun();print(invalidationHistory(projectRoot,r.run_id));}
       else throw new Error(`unknown trace subcommand ${sub}`);
     }
+    else if(cmd==='requirement-update'){
+      const sub=args._[1]||'show';
+      const {planRequirementUpdate,loadRequirementUpdatePlan}=await import('./requirement-update.mjs');
+      if(sub==='plan'){
+        const run=await needRun();
+        const plan=planRequirementUpdate(projectRoot,run,{continuesRunId:args.continues,nodeId:args.node,
+          deltaClass:args.delta||'BEHAVIOR_CHANGE',reason:args.reason||'requirement update',dryRun:truthy(args['dry-run'])});
+        print(plan);
+      }
+      else if(sub==='show'){const r=await needRun();print(loadRequirementUpdatePlan(projectRoot,r.run_id)||{status:'NO_PLAN_RECORDED'});}
+      else throw new Error(`unknown requirement-update subcommand ${sub}`);
+    }
     else if(cmd==='delivery'){
       const sub=args._[1]||'status';
       const {recordDelivery,loadDelivery,baseDrift,checkPushTarget,branchFor,groupTaskBranches,DELIVERY_TARGETS}=await import('./git-delivery.mjs');
@@ -616,7 +628,7 @@ async function main(){
       });
     }
     else {
-      print(`agent-sdlc ${readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version}\n\nCommands: init, route, start, status, next, transition, approval, gate, knowledge, context, normalize, artifact-put/get/list, handoff-put/get/list, tool-check/run, usage-add/report, config-show, compat-check, migrate, parallel-plan, metrics, model-route, provider-probe/command/run, replay-export/validate, activation, design, plan, task, repo, trace, delivery, ci, govern, fallback, learn, doctor\n\nactivation subcommands: status, enable, disable, print-bootstrap, policy, cost, classify, events, record, doctor, codex-bootstrap install|uninstall|status\napproval subcommands: status, grant (interactive, TTY-only), revoke\ngate subcommands: status, explain (--stage <name>)\nknowledge subcommands: status\ndesign subcommands: mode, policy, validate, record\nplan subcommands: validate, graph, record\ntask subcommands: list, show, graph, events, progress, state-machine, materialize, migrate, refresh, ready, schedule, transition, context, context-show, start, capture, verify, review, advance, checkpoint, usage-add, usage, metrics, workspaces, workspace-clean, failure-policy, classify, replay, fallback, resume, implementation-complete\nrepo subcommands: index, status, capability, symbol, references, tests, module, dependents, interfaces, entities, events, recent, surface\ntrace subcommands: build, show, kinds, validate, coverage, closure, invalidate, history\ndelivery subcommands: status, targets, branch, push-check, drift, group, record\nci subcommands: record, status, show, history\ngovern subcommands: policy, report, complexity, task\nlearn subcommands: sources, candidate`);
+      print(`agent-sdlc ${readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version}\n\nCommands: init, route, start, status, next, transition, approval, gate, knowledge, context, normalize, artifact-put/get/list, handoff-put/get/list, tool-check/run, usage-add/report, config-show, compat-check, migrate, parallel-plan, metrics, model-route, provider-probe/command/run, replay-export/validate, activation, design, plan, task, repo, trace, requirement-update, delivery, ci, govern, fallback, learn, doctor\n\nactivation subcommands: status, enable, disable, print-bootstrap, policy, cost, classify, events, record, doctor, codex-bootstrap install|uninstall|status\napproval subcommands: status, grant (interactive, TTY-only), revoke\ngate subcommands: status, explain (--stage <name>)\nknowledge subcommands: status\ndesign subcommands: mode, policy, validate, record\nplan subcommands: validate, graph, record\ntask subcommands: list, show, graph, events, progress, state-machine, materialize, migrate, refresh, ready, schedule, transition, context, context-show, start, capture, verify, review, advance, checkpoint, usage-add, usage, metrics, workspaces, workspace-clean, failure-policy, classify, replay, fallback, resume, implementation-complete\nrepo subcommands: index, status, capability, symbol, references, tests, module, dependents, interfaces, entities, events, recent, surface\ntrace subcommands: build, show, kinds, validate, coverage, closure, invalidate, history\nrequirement-update subcommands: plan (--continues <prior-run-id> --node <id> --delta <class> [--dry-run]), show\ndelivery subcommands: status, targets, branch, push-check, drift, group, record\nci subcommands: record, status, show, history\ngovern subcommands: policy, report, complexity, task\nlearn subcommands: sources, candidate`);
       process.exit(cmd?2:0);
     }
   }catch(e){

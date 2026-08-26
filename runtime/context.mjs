@@ -3,6 +3,7 @@ import {estimateTokens,gitSha,readJson,readTextFile,sha256,truncateUtf8} from '.
 import {getArtifact} from './store.mjs';
 import {getProjectKnowledgeStatus} from './project-knowledge.mjs';
 import {resolveProcedures} from './procedures.mjs';
+import {loadRequirementUpdatePlan} from './requirement-update.mjs';
 
 const CORE_SKILL_BY_STAGE={
   INTAKE:'requirements',REQUIREMENTS:'requirements',DESIGN:'architecture',PLAN:'planning',
@@ -91,7 +92,8 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
     skills:skills.map(s=>({id:s.id,description:s.description,max_response_words:s.max_response_words})),
     skill_instructions:skills.map(s=>({id:s.id,instructions:s.instructions})),artifact_summaries:artifacts,
     procedures:procedures.map(p=>({id:p.id,group:p.group,when:p.when})),
-    procedure_instructions:procedures.map(p=>({id:p.id,instructions:p.instructions}))
+    procedure_instructions:procedures.map(p=>({id:p.id,instructions:p.instructions})),
+    requirement_update:run.workflow==='requirement-update'?loadRequirementUpdatePlan(projectRoot,run.run_id):null
   };
   const serialized=JSON.stringify(manifest);
   manifest.estimated_tokens=estimateTokens(serialized,charsPerToken);
@@ -105,5 +107,7 @@ export function renderPrompt(root,manifest){
   const skillText=(manifest.skill_instructions||[]).map(s=>`### ${s.id}\n${s.instructions}`).join('\n\n');
   const roleText=(manifest.active_roles||[]).map(r=>`${r.id}: ${(r.responsibilities||[]).join(', ')}`).join('\n');
   const procedureText=(manifest.procedure_instructions||[]).map(p=>`### ${p.id}\n${p.instructions}`).join('\n\n');
-  return `${system}\n\nSTAGE SKILLS\n${skillText||'(none)'}\n\nDETAILED PROCEDURES\n${procedureText||'(none)'}\n\nOBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nACTIVE ROLES\n${roleText||'(none)'}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}\n\nReturn a compact StageResult JSON.`;
+  const ru=manifest.requirement_update;
+  const requirementUpdateText=ru?`This run continues ${ru.continues_run_id}. Changed: ${ru.changed} (${ru.delta_class}). ${ru.affected_count} node(s) invalidated, ${ru.preserved_count} preserved -- do not redo preserved work. Earliest affected stage: ${ru.earliest_outer_gate||'none (no downstream impact)'}. This run still must produce its own evidence at every gate it passes through.`:'';
+  return `${system}\n\nSTAGE SKILLS\n${skillText||'(none)'}\n\nDETAILED PROCEDURES\n${procedureText||'(none)'}\n\nOBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nACTIVE ROLES\n${roleText||'(none)'}\n\nREQUIREMENT UPDATE\n${requirementUpdateText||'(none)'}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}\n\nReturn a compact StageResult JSON.`;
 }

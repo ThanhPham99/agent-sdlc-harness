@@ -195,6 +195,12 @@ See `docs/architecture/TASK-ENGINE.md` and `docs/architecture/TASK-SCHEDULER.md`
 ```
 
 ```bash
+./bin/agent-sdlc requirement-update plan --run-id <new-id> --continues <prior-run-id> \
+    --node ACCEPTANCE_CRITERION:AC-001 --delta BEHAVIOR_CHANGE [--reason "..."] [--dry-run]
+./bin/agent-sdlc requirement-update show --run-id <new-id>
+```
+
+```bash
 ./bin/agent-sdlc ci record        --run-id <id> --file ci.json --revision <sha>
 ./bin/agent-sdlc ci status        --run-id <id>
 ./bin/agent-sdlc delivery record  --run-id <id> --target PR_READY --base main --base-revision <sha>
@@ -214,5 +220,15 @@ derives coverage from graph edges, not from claims. `ci status` exits non-zero w
 evidence is not about the current revision. `delivery record` never reports a target its evidence
 cannot justify. `govern task` explains every decision and never trades a security or review
 requirement for cost.
+
+`requirement-update plan` links a new run to the prior run its update targets, computes the same
+deterministic invalidation closure `trace invalidate` uses but against the *prior* run's graph, and
+carries forward exactly the artifact refs the closure proves are still valid onto the new run — a
+wording-only change preserves everything; a behavior or interface change invalidates the affected
+closure in the prior run's history (never deleted, only marked invalid) and reports the earliest
+stage the delta actually reaches. This does not skip the new run's own gates: there is no
+Feature/Phase identity yet to let one run's evidence stand in for another's, so the new run still
+earns its own evidence at every stage — this is honest signal about what changed and what's settled,
+surfaced in its context manifest as `requirement_update`, not an automatic replay shortcut.
 
 See `docs/architecture/REPOSITORY-INTELLIGENCE.md` and `docs/architecture/TRACEABILITY-GRAPH.md`.
