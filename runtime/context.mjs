@@ -1,6 +1,7 @@
 import path from 'node:path';
 import {estimateTokens,gitSha,readJson,readTextFile,sha256,truncateUtf8} from './util.mjs';
 import {getArtifact} from './store.mjs';
+import {getProjectKnowledgeStatus} from './project-knowledge.mjs';
 
 const CORE_SKILL_BY_STAGE={
   INTAKE:'requirements',REQUIREMENTS:'requirements',DESIGN:'architecture',PLAN:'planning',
@@ -16,7 +17,7 @@ const WORKFLOW_SKILLS={
 };
 const OVERLAY_SKILLS={security:'security',incident:'incident','db-migration':'database','api-breaking-change':'documentation','client-impact':'frontend-integration'};
 
-function resolveSkills(root,run){
+function resolveSkills(root,projectRoot,run){
   const registry=readJson(path.join(root,'config','skills.json')).internal||{};
   const ids=[]; const add=id=>{if(id&&registry[id]&&!ids.includes(id)&&registry[id].stages?.includes(run.state))ids.push(id);};
   add(CORE_SKILL_BY_STAGE[run.state]);
@@ -25,6 +26,13 @@ function resolveSkills(root,run){
   // Release/deploy work always needs deployment semantics; strict stages also carry security review guidance.
   if(['RELEASE','DEPLOY'].includes(run.state))add('deployment');
   if(run.profile==='STRICT'&&['DESIGN','VERIFY','REVIEW','RELEASE'].includes(run.state))add('security');
+  // G0: a new feature with no captured project knowledge bootstraps it first,
+  // rather than the model guessing at architecture it was never shown. Scoped
+  // to new-feature only -- a missing doc does not turn every other workflow
+  // into a project bootstrap.
+  if(run.workflow==='new-feature'&&['INTAKE','REQUIREMENTS'].includes(run.state)){
+    if(getProjectKnowledgeStatus(projectRoot).status!=='READY')add('project-bootstrap');
+  }
   // readTextFile, not readFileSync: skill text is hashed into context_hash, so a
   // CRLF checkout must not change the hash for the same commit.
   return ids.map(id=>{const spec=registry[id];let instructions='';try{instructions=readTextFile(path.join(root,spec.instructions)).trim();}catch{}return {id,description:spec.description,instructions,max_response_words:spec.max_response_words};});
@@ -50,7 +58,7 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
       remainingArtifactBytes-=Buffer.byteLength(t.text);
     }catch{artifacts.push({ref,missing:true});}
   }
-  const skills=resolveSkills(root,run);
+  const skills=resolveSkills(root,projectRoot,run);
   const manifest={
     schema:'agent-sdlc/context-manifest/v1',run_id:run.run_id,objective:run.objective,git_sha:gitSha(projectRoot),
     stage:run.state,workflow:run.workflow,profile:run.profile,artifacts:artifactRefs,symbols,

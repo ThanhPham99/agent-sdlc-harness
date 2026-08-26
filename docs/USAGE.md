@@ -32,6 +32,11 @@ below remain the deterministic surface the orchestrator drives, and are equally 
 
 Review detected build/test commands and project invariants in `.agent-sdlc/project.json` before allowing write-capable execution.
 
+A `new-feature` run started before any project knowledge exists (no `system-context`, `architecture`,
+`standards` or `feature-index` artifact yet) automatically loads the `project-bootstrap` skill at
+INTAKE/REQUIREMENTS instead of guessing at architecture it was never shown; it drops out again once
+all four exist. Check the current status directly with `./bin/agent-sdlc knowledge status`.
+
 ## 2. Normalize source material before model reasoning
 
 ```bash

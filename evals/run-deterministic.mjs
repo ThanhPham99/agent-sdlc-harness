@@ -31,6 +31,7 @@ import {loadCases,loadLock,corpusDigest,qualificationSubjectDigest,hostPreflight
 import {BOOTSTRAP_TEXT,getActivationPolicy,getActivationMode,estimateBootstrapCost,classifyActivationFixture} from '../runtime/activation.mjs';
 import {recordApproval,revokeApproval,findValidApproval,listApprovals} from '../runtime/approvals.mjs';
 import {evaluateGate} from '../runtime/gates.mjs';
+import {getProjectKnowledgeStatus} from '../runtime/project-knowledge.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
@@ -154,6 +155,41 @@ test('context-loads-core-skill',()=>{const m=buildContext(ROOT,tmp,contextRun,{}
 test('context-loads-workflow-specialty',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(!m.skills.some(x=>x.id==='database'))throw Error(JSON.stringify(m.skills));});
 test('strict-context-loads-security',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(!m.skills.some(x=>x.id==='security'))throw Error(JSON.stringify(m.skills));});
 test('prompt-does-not-load-chat-history',()=>{const m=buildContext(ROOT,tmp,contextRun,{});const p=renderPrompt(ROOT,m);if(/entire chat history/i.test(p)||p.length>30000)throw Error('prompt too large/unsafe');});
+
+// Project knowledge readiness (G0): a new feature bootstraps missing project
+// knowledge before proceeding, and stops once it has all of it.
+test('project-knowledge-status-progresses-missing-to-partial-to-ready',()=>{
+  const before=getProjectKnowledgeStatus(tmp);
+  if(before.status!=='MISSING'||before.missing.length!==4)throw Error(JSON.stringify(before));
+
+  const bootstrapRun=newRun(ROOT,tmp,{objective:'Add referrals capability',route:route(ROOT,'Add referrals capability')});
+  if(bootstrapRun.workflow!=='new-feature')throw Error(`fixture routed to ${bootstrapRun.workflow}, not new-feature`);
+  const m0=buildContext(ROOT,tmp,bootstrapRun,{});
+  if(!m0.skills.some(s=>s.id==='project-bootstrap'))throw Error('project-bootstrap not offered while knowledge is MISSING');
+
+  for(const kind of ['system-context','architecture','standards']){
+    putArtifact(tmp,{kind,content:`# ${kind}\n(bootstrap fixture)`,runId:bootstrapRun.run_id,stage:bootstrapRun.state});
+  }
+  const mid=getProjectKnowledgeStatus(tmp);
+  if(mid.status!=='PARTIAL'||!mid.missing.includes('feature-index'))throw Error(JSON.stringify(mid));
+  const m1=buildContext(ROOT,tmp,bootstrapRun,{});
+  if(!m1.skills.some(s=>s.id==='project-bootstrap'))throw Error('project-bootstrap dropped while still PARTIAL');
+
+  putArtifact(tmp,{kind:'feature-index',content:'# feature-index\n(bootstrap fixture)',runId:bootstrapRun.run_id,stage:bootstrapRun.state});
+  const after=getProjectKnowledgeStatus(tmp);
+  if(after.status!=='READY')throw Error(JSON.stringify(after));
+  const m2=buildContext(ROOT,tmp,bootstrapRun,{});
+  if(m2.skills.some(s=>s.id==='project-bootstrap'))throw Error('project-bootstrap still offered once knowledge is READY');
+});
+test('project-bootstrap-is-not-forced-on-other-workflows',()=>{
+  // Knowledge is READY from the previous test, but the trigger is scoped to
+  // new-feature regardless -- a non-new-feature workflow at INTAKE never
+  // carries it, missing knowledge or not.
+  const bugRun=newRun(ROOT,tmp,{objective:'Fix refund rounding bug',route:route(ROOT,'Fix refund rounding bug')});
+  if(bugRun.workflow==='new-feature')throw Error('fixture objective routed to new-feature, not bug-fix');
+  const m=buildContext(ROOT,tmp,bugRun,{});
+  if(m.skills.some(s=>s.id==='project-bootstrap'))throw Error('project-bootstrap leaked into a non-new-feature workflow');
+});
 
 // ---------------------------------------------------------------------------
 // Cross-platform reproducibility.

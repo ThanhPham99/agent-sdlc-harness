@@ -174,6 +174,10 @@ test('gate-status-and-explain-report-missing-evidence',()=>{
   const g1=json(['gate','explain',...at,'--stage','REQUIREMENTS']);
   if(g1.decision!=='BLOCKED'||!g1.missing.includes('requirements_confirmed'))throw new Error(JSON.stringify(g1));
 });
+test('knowledge-status-reports-missing-on-a-fresh-project',()=>{
+  const k=json(['knowledge','status']);
+  if(k.status!=='MISSING'||k.missing.length!==4)throw new Error(JSON.stringify(k));
+});
 test('tool-check-denies-a-tool-the-stage-forbids',()=>{
   const d=json(['tool-check',...R,'--tool','deploy.production']);
   if(d.decision!=='DENY')throw new Error(JSON.stringify(d));
