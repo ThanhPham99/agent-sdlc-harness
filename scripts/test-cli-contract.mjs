@@ -116,6 +116,14 @@ test('context-carries-active-roles-for-intake',()=>{
   const pm=c.active_roles.find(x=>x.id==='pm');
   if(!Array.isArray(pm.responsibilities)||!pm.responsibilities.length)throw new Error(JSON.stringify(pm));
 });
+test('context-carries-the-intake-procedure-and-nothing-out-of-stage',()=>{
+  const c=json(['context',...R]);
+  const ids=(c.procedures||[]).map(x=>x.id);
+  if(!ids.includes('requirements-intake'))throw new Error(JSON.stringify(ids));
+  if(ids.includes('docs-update')||ids.includes('workflow-maintenance'))throw new Error(`out-of-stage or manual-only procedure leaked: ${JSON.stringify(ids)}`);
+  const instr=(c.procedure_instructions||[]).find(x=>x.id==='requirements-intake');
+  if(!instr?.instructions)throw new Error('procedure selected but instructions text missing');
+});
 test('artifact-put-get-list-round-trip',()=>{
   const a=json(['artifact-put',...R,'--kind','requirement','--content','rounding must use bankers rounding']);
   if(!a.artifact_id.startsWith('artifact://sha256/'))throw new Error(a.artifact_id);

@@ -2,6 +2,7 @@ import path from 'node:path';
 import {estimateTokens,gitSha,readJson,readTextFile,sha256,truncateUtf8} from './util.mjs';
 import {getArtifact} from './store.mjs';
 import {getProjectKnowledgeStatus} from './project-knowledge.mjs';
+import {resolveProcedures} from './procedures.mjs';
 
 const CORE_SKILL_BY_STAGE={
   INTAKE:'requirements',REQUIREMENTS:'requirements',DESIGN:'architecture',PLAN:'planning',
@@ -16,6 +17,20 @@ const WORKFLOW_SKILLS={
   'observability-change':['monitoring'],'api-breaking-change':['documentation'],'deprecation-removal':['upgrade','documentation']
 };
 const OVERLAY_SKILLS={security:'security',incident:'incident','db-migration':'database','api-breaking-change':'documentation','client-impact':'frontend-integration'};
+// Extra ids resolveSkills adds outside the three maps above (see resolveSkills
+// below): deployment/security are stage- and profile-driven, project-bootstrap
+// is G0-driven. The procedure-coverage audit (runtime/procedures.mjs) treats
+// every id reachable through this function as accounted for, so a file only
+// needs registering in config/procedures.json when nothing here already
+// reaches it.
+export function legacyReachableSkillIds(){
+  return new Set([
+    ...Object.values(CORE_SKILL_BY_STAGE),
+    ...Object.values(WORKFLOW_SKILLS).flat(),
+    ...Object.values(OVERLAY_SKILLS),
+    'deployment','security','project-bootstrap'
+  ]);
+}
 
 function resolveRoles(root,stagePolicy){
   const registry=readJson(path.join(root,'config','roles.json')).roles||{};
@@ -67,13 +82,16 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
     }catch{artifacts.push({ref,missing:true});}
   }
   const skills=resolveSkills(root,projectRoot,run);
+  const procedures=resolveProcedures(root,projectRoot,run);
   const manifest={
     schema:'agent-sdlc/context-manifest/v1',run_id:run.run_id,objective:run.objective,git_sha:gitSha(projectRoot),
     stage:run.state,workflow:run.workflow,profile:run.profile,artifacts:artifactRefs,symbols,
     constraints:[...(cfg.context?.project_invariants||[]),...constraints],evidence_required:stagePolicy.gate_requirements||[],
     allowed_tools:stagePolicy.allowed_tools,budget:stagePolicy.budget,active_roles:resolveRoles(root,stagePolicy),
     skills:skills.map(s=>({id:s.id,description:s.description,max_response_words:s.max_response_words})),
-    skill_instructions:skills.map(s=>({id:s.id,instructions:s.instructions})),artifact_summaries:artifacts
+    skill_instructions:skills.map(s=>({id:s.id,instructions:s.instructions})),artifact_summaries:artifacts,
+    procedures:procedures.map(p=>({id:p.id,group:p.group,when:p.when})),
+    procedure_instructions:procedures.map(p=>({id:p.id,instructions:p.instructions}))
   };
   const serialized=JSON.stringify(manifest);
   manifest.estimated_tokens=estimateTokens(serialized,charsPerToken);
@@ -86,5 +104,6 @@ export function renderPrompt(root,manifest){
   const system=readTextFile(path.join(root,'prompts','system.md')).trim();
   const skillText=(manifest.skill_instructions||[]).map(s=>`### ${s.id}\n${s.instructions}`).join('\n\n');
   const roleText=(manifest.active_roles||[]).map(r=>`${r.id}: ${(r.responsibilities||[]).join(', ')}`).join('\n');
-  return `${system}\n\nSTAGE SKILLS\n${skillText||'(none)'}\n\nOBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nACTIVE ROLES\n${roleText||'(none)'}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}\n\nReturn a compact StageResult JSON.`;
+  const procedureText=(manifest.procedure_instructions||[]).map(p=>`### ${p.id}\n${p.instructions}`).join('\n\n');
+  return `${system}\n\nSTAGE SKILLS\n${skillText||'(none)'}\n\nDETAILED PROCEDURES\n${procedureText||'(none)'}\n\nOBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nACTIVE ROLES\n${roleText||'(none)'}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}\n\nReturn a compact StageResult JSON.`;
 }

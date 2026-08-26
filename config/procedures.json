@@ -1,0 +1,132 @@
+{
+  "schema": "agent-sdlc/procedure-registry/v1",
+  "version": "3.0.0-alpha6",
+  "procedures": {
+    "requirements-intake": {
+      "group": "requirements",
+      "stages": ["INTAKE"],
+      "instructions": "harness/internal-skills/requirements-intake.md",
+      "when": "always"
+    },
+    "requirements-normalize": {
+      "group": "requirements",
+      "stages": ["REQUIREMENTS"],
+      "instructions": "harness/internal-skills/requirements-normalize.md",
+      "when": "always"
+    },
+    "requirements-clarify": {
+      "group": "requirements",
+      "stages": ["REQUIREMENTS"],
+      "instructions": "harness/internal-skills/requirements-clarify.md",
+      "when": "always"
+    },
+    "impact-analysis": {
+      "group": "requirements",
+      "stages": ["REQUIREMENTS"],
+      "instructions": "harness/internal-skills/impact-analysis.md",
+      "when": "workflow:requirement-update"
+    },
+    "design-discovery": {
+      "group": "architecture",
+      "stages": ["DESIGN"],
+      "instructions": "harness/internal-skills/design-discovery.md",
+      "when": "always"
+    },
+    "solution-design": {
+      "group": "architecture",
+      "stages": ["DESIGN"],
+      "instructions": "harness/internal-skills/solution-design.md",
+      "when": "design_mode_not_skip"
+    },
+    "technical-spike": {
+      "group": "architecture",
+      "stages": ["DESIGN"],
+      "instructions": "harness/internal-skills/technical-spike.md",
+      "when": "workflow:technical-spike"
+    },
+    "implementation-plan": {
+      "group": "planning",
+      "stages": ["PLAN"],
+      "instructions": "harness/internal-skills/implementation-plan.md",
+      "when": "always"
+    },
+    "coordination-analysis": {
+      "group": "planning",
+      "stages": ["PLAN", "IMPLEMENT"],
+      "instructions": "harness/internal-skills/coordination-analysis.md",
+      "when": "plan_multi_workstream"
+    },
+    "task-execution": {
+      "group": "implementation",
+      "stages": ["IMPLEMENT", "VERIFY"],
+      "instructions": "harness/internal-skills/task-execution.md",
+      "when": "always"
+    },
+    "repository-intelligence": {
+      "group": "implementation",
+      "stages": ["PLAN", "IMPLEMENT"],
+      "instructions": "harness/internal-skills/repository-intelligence.md",
+      "when": "always"
+    },
+    "systematic-debugging": {
+      "group": "implementation",
+      "stages": ["IMPLEMENT", "VERIFY"],
+      "instructions": "harness/internal-skills/systematic-debugging.md",
+      "when": "bug_workflow"
+    },
+    "tdd": {
+      "group": "implementation",
+      "stages": ["IMPLEMENT"],
+      "instructions": "harness/internal-skills/tdd.md",
+      "when": "strict"
+    },
+    "testing-verification": {
+      "group": "testing",
+      "stages": ["VERIFY"],
+      "instructions": "harness/internal-skills/testing-verification.md",
+      "when": "always"
+    },
+    "git-delivery": {
+      "group": "ci-cd",
+      "stages": ["REVIEW", "RELEASE"],
+      "instructions": "harness/internal-skills/git-delivery.md",
+      "when": "always"
+    },
+    "release-deployment": {
+      "group": "deployment",
+      "stages": ["RELEASE", "DEPLOY"],
+      "instructions": "harness/internal-skills/release-deployment.md",
+      "when": "always"
+    },
+    "operability-engineering": {
+      "group": "deployment",
+      "stages": ["DEPLOY", "OBSERVE"],
+      "instructions": "harness/internal-skills/operability-engineering.md",
+      "when": "always"
+    },
+    "traceability": {
+      "group": "documentation",
+      "stages": ["REVIEW"],
+      "instructions": "harness/internal-skills/traceability.md",
+      "when": "always"
+    },
+    "docs-update": {
+      "group": "documentation",
+      "stages": ["CLOSE"],
+      "instructions": "harness/internal-skills/docs-update.md",
+      "when": "always"
+    },
+    "knowledge-maintenance": {
+      "group": "documentation",
+      "stages": ["CLOSE"],
+      "instructions": "harness/internal-skills/knowledge-maintenance.md",
+      "when": "workflow:new-feature"
+    },
+    "workflow-maintenance": {
+      "group": "maintenance",
+      "stages": ["PLAN", "IMPLEMENT", "VERIFY", "CLOSE"],
+      "instructions": "harness/internal-skills/workflow-maintenance.md",
+      "when": "manual"
+    }
+  }
+}

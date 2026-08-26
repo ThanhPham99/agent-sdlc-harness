@@ -32,6 +32,8 @@ import {BOOTSTRAP_TEXT,getActivationPolicy,getActivationMode,estimateBootstrapCo
 import {recordApproval,revokeApproval,findValidApproval,listApprovals} from '../runtime/approvals.mjs';
 import {evaluateGate} from '../runtime/gates.mjs';
 import {getProjectKnowledgeStatus} from '../runtime/project-knowledge.mjs';
+import {resolveProcedures,validateProcedureRegistry,auditProcedureCoverage} from '../runtime/procedures.mjs';
+import {legacyReachableSkillIds} from '../runtime/context.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
@@ -150,7 +152,12 @@ test('invalid-reentry-blocked',()=>{transition(ROOT,tmp,run,'PLAN',{evidence:['d
 // Context compiler / progressive disclosure
 const contextRun=newRun(ROOT,tmp,{objective:'Migrate customer schema',route:route(ROOT,'database migration')});
 transition(ROOT,tmp,contextRun,'REQUIREMENTS');transition(ROOT,tmp,contextRun,'DESIGN',{evidence:['requirements_confirmed']});
-test('context-bounded',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(m.estimated_tokens>5000||m.context_budget_status!=='WITHIN_BUDGET')throw Error('unexpected context size');if(!m.allowed_tools.length)throw Error('no tools');});
+// contextRun is STRICT/DESIGN/database-migration: architecture+database+security
+// skills plus (post-procedure-registry) design-discovery+solution-design all
+// load for this exact fixture, so the cap here is deliberately looser than a
+// single-skill stage while staying far under DESIGN's real 60000 budget --
+// this test exists to catch runaway bloat, not to pin an exact byte count.
+test('context-bounded',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(m.estimated_tokens>7000||m.context_budget_status!=='WITHIN_BUDGET')throw Error(`unexpected context size: ${m.estimated_tokens}`);if(!m.allowed_tools.length)throw Error('no tools');});
 test('context-loads-core-skill',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(!m.skills.some(x=>x.id==='architecture')||!m.skill_instructions.some(x=>x.id==='architecture'))throw Error('architecture skill absent');});
 test('context-loads-workflow-specialty',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(!m.skills.some(x=>x.id==='database'))throw Error(JSON.stringify(m.skills));});
 test('strict-context-loads-security',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(!m.skills.some(x=>x.id==='security'))throw Error(JSON.stringify(m.skills));});
@@ -172,6 +179,85 @@ test('active-roles-tracks-the-current-stage-not-every-role',()=>{
   const ids=m.active_roles.map(r=>r.id);
   if(ids.includes('pm')||ids.includes('sre'))throw Error(`stage-inappropriate role leaked: ${JSON.stringify(ids)}`);
   if(!ids.includes('developer'))throw Error(JSON.stringify(ids));
+});
+
+// ---------------------------------------------------------------------------
+// Procedure registry / resolver: harness/internal-skills/ carries 37 detailed
+// methodology files, but config/skills.json's stage/workflow/overlay maps in
+// runtime/context.mjs only ever select 20 of them -- 21 files were registered
+// and instructed to be followed, yet structurally unreachable. config/
+// procedures.json + runtime/procedures.mjs close that: a run's current stage
+// and canonical state (workflow, profile, design mode, task graph size)
+// conditionally surface the rest, without eagerly concatenating every
+// procedure belonging to a stage.
+// ---------------------------------------------------------------------------
+test('procedure-registry-is-internally-valid',()=>{
+  const v=validateProcedureRegistry(ROOT);
+  if(!v.valid)throw Error(JSON.stringify(v.problems));
+});
+test('no-orphaned-procedure-files',()=>{
+  const a=auditProcedureCoverage(ROOT,legacyReachableSkillIds());
+  if(a.orphaned.length)throw Error(`orphaned procedure files: ${JSON.stringify(a.orphaned)}`);
+  if(a.total<37)throw Error(`expected at least 37 procedure files, found ${a.total}`);
+});
+test('plan-stage-loads-its-always-on-procedures-and-nothing-out-of-stage',()=>{
+  const m=buildContext(ROOT,tmp,run,{}); // run is at PLAN
+  const ids=m.procedures.map(p=>p.id);
+  if(!ids.includes('implementation-plan')||!ids.includes('repository-intelligence'))throw Error(JSON.stringify(ids));
+  if(ids.includes('docs-update')||ids.includes('requirements-intake'))throw Error(`other-stage procedure leaked into PLAN: ${JSON.stringify(ids)}`);
+});
+test('strict-design-stage-loads-design-discovery-and-solution-design',()=>{
+  // contextRun is DESIGN/STRICT/database-migration; profile bounds never let
+  // STRICT fall to design mode SKIP, so solution-design's real condition
+  // (the same selectDesignDiscoveryMode the DESIGN gate itself uses) fires.
+  const m=buildContext(ROOT,tmp,contextRun,{});
+  const ids=m.procedures.map(p=>p.id);
+  if(!ids.includes('design-discovery')||!ids.includes('solution-design'))throw Error(JSON.stringify(ids));
+  if(ids.includes('technical-spike'))throw Error('workflow-scoped procedure leaked into a non-matching workflow');
+  const p=renderPrompt(ROOT,m);
+  if(!/DETAILED PROCEDURES/.test(p)||!/design-discovery/.test(p))throw Error('rendered prompt omits procedure instructions');
+});
+test('workflow-scoped-procedure-loads-only-for-its-declared-workflow',()=>{
+  const spikeRun=newRun(ROOT,tmp,{objective:'Explore feasibility of a caching layer',route:route(ROOT,'Explore feasibility of a caching layer','technical-spike')});
+  transition(ROOT,tmp,spikeRun,'REQUIREMENTS');
+  transition(ROOT,tmp,spikeRun,'DESIGN',{evidence:['requirements_confirmed']});
+  const ids=resolveProcedures(ROOT,tmp,spikeRun).map(p=>p.id);
+  if(!ids.includes('technical-spike'))throw Error(JSON.stringify(ids));
+});
+// Evidence needed to LEAVE a given stage (evaluateGate checks the origin
+// stage's gate_requirements, not the destination's) -- stage-keyed, not
+// workflow-keyed, so this stays correct for a workflow like bug-fix whose
+// declared run.stages skips DESIGN entirely.
+function stageExitEvidence(stage){
+  if(stage==='REQUIREMENTS')return ['requirements_confirmed'];
+  if(stage==='DESIGN')return ['design_or_skip_decision'];
+  if(stage==='PLAN')return planGateEvidence();
+  return [];
+}
+function toImplement(objective,explicitWorkflow){
+  const r=newRun(ROOT,tmp,{objective,route:route(ROOT,objective,explicitWorkflow)});
+  const stages=r.stages;
+  const stop=stages.indexOf('IMPLEMENT');
+  if(stop<0)throw Error(`workflow ${r.workflow} has no IMPLEMENT stage`);
+  for(let i=0;i<stop;i++)transition(ROOT,tmp,r,stages[i+1],{evidence:stageExitEvidence(stages[i]),internal:true});
+  return r;
+}
+test('bug-workflow-procedure-loads-only-for-debugging-workflows',()=>{
+  const bugRun=toImplement('Investigate incorrect refund total','bug-fix');
+  const bugIds=resolveProcedures(ROOT,tmp,bugRun).map(p=>p.id);
+  if(!bugIds.includes('systematic-debugging'))throw Error(JSON.stringify(bugIds));
+  const featRun=toImplement('Add loyalty rewards tier','new-feature');
+  const featIds=resolveProcedures(ROOT,tmp,featRun).map(p=>p.id);
+  if(featIds.includes('systematic-debugging'))throw Error(`leaked into non-debugging workflow: ${JSON.stringify(featIds)}`);
+  if(!featIds.includes('task-execution')||!featIds.includes('repository-intelligence'))throw Error(JSON.stringify(featIds));
+});
+test('workflow-maintenance-is-registered-but-never-auto-selected',()=>{
+  // "manual" is the one condition that always returns false -- registered so
+  // the orphan check accounts for it, deliberately excluded from resolution
+  // since harness self-maintenance is operator-invoked, not run-driven.
+  const planIds=resolveProcedures(ROOT,tmp,run).map(p=>p.id);
+  const implIds=resolveProcedures(ROOT,tmp,toImplement('Add referral tracking','new-feature')).map(p=>p.id);
+  if(planIds.includes('workflow-maintenance')||implIds.includes('workflow-maintenance'))throw Error('manual-only procedure was auto-selected');
 });
 
 // Project knowledge readiness (G0): a new feature bootstraps missing project
