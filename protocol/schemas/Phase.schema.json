@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/Phase/v1",
+  "title": "Phase",
+  "description": "One bounded slice of work within a feature. Superseded phases are never deleted -- only their status changes, so phase-1 history stays visible once phase-2 starts.",
+  "type": "object",
+  "required": ["schema", "phase_id", "feature_id", "status", "started_at"],
+  "properties": {
+    "schema": { "const": "agent-sdlc/phase/v1" },
+    "phase_id": { "type": "string" },
+    "feature_id": { "type": "string" },
+    "name": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["PLANNED", "ACTIVE", "NEEDS_CONFIRMATION", "BLOCKED", "COMPLETE", "DEFERRED", "SUPERSEDED"]
+    },
+    "objective": { "type": "string" },
+    "source_refs": { "type": "array", "items": { "type": "string" } },
+    "accepted_requirements": { "type": "array", "items": { "type": "string" } },
+    "artifact_refs": { "type": "array", "items": { "type": "string" } },
+    "run_ids": { "type": "array", "items": { "type": "string" } },
+    "started_at": { "type": "string" },
+    "completed_at": { "type": ["string", "null"] },
+    "supersedes_phase_id": { "type": ["string", "null"] },
+    "resume_from": { "type": ["string", "null"] }
+  }
+}

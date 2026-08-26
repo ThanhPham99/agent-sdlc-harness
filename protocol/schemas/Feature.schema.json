@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "agent-sdlc/Feature/v1",
+  "title": "Feature",
+  "description": "A durable piece of work that can span multiple runs and multiple phases. Feature completion is tracked independently of any single run's state.",
+  "type": "object",
+  "required": ["schema", "feature_id", "title", "status", "created_at"],
+  "properties": {
+    "schema": { "const": "agent-sdlc/feature/v1" },
+    "feature_id": { "type": "string" },
+    "title": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["ACTIVE", "NEEDS_CONFIRMATION", "BLOCKED", "DEFERRED", "COMPLETE", "SUPERSEDED"]
+    },
+    "current_phase_id": { "type": ["string", "null"] },
+    "workflow_family": { "type": "string" },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" },
+    "source_refs": { "type": "array", "items": { "type": "string" } },
+    "artifact_refs": { "type": "array", "items": { "type": "string" } },
+    "open_questions": { "type": "array", "items": { "type": "string" } },
+    "deferred_items": { "type": "array", "items": { "type": "string" } },
+    "resume": { "type": ["object", "null"] }
+  }
+}

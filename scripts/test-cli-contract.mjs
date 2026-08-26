@@ -274,7 +274,7 @@ test('unknown-workflow-is-a-structured-error',()=>{
   if(!/unknown workflow/.test(err.error))throw new Error(err.error);
 });
 test('unknown-subcommands-are-structured-errors',()=>{
-  for(const args of [['task','nope'],['repo','nope'],['trace','nope'],['ci','nope'],['govern','nope'],['learn','nope'],['design','nope'],['plan','nope'],['delivery','nope'],['activation','nope'],['requirement-update','nope']]){
+  for(const args of [['task','nope'],['repo','nope'],['trace','nope'],['ci','nope'],['govern','nope'],['learn','nope'],['design','nope'],['plan','nope'],['delivery','nope'],['activation','nope'],['requirement-update','nope'],['feature','nope']]){
     const err=failure([...args,...R]);
     if(!/unknown .* subcommand/.test(err.error))throw new Error(`${args.join(' ')}: ${err.error}`);
   }
@@ -286,6 +286,51 @@ test('requirement-update-plan-without-continues-is-refused',()=>{
 test('requirement-update-show-with-no-plan-yet-says-so',()=>{
   const out=json(['requirement-update','show',...R]);
   if(out.status!=='NO_PLAN_RECORDED')throw new Error(JSON.stringify(out));
+});
+
+// --- feature/phase identity -------------------------------------------------
+test('feature-create-and-show-round-trip',()=>{
+  const f=json(['feature','create','--title','CLI feature test']);
+  if(f.status!=='ACTIVE'||f.title!=='CLI feature test'||f.current_phase_id!==null)throw new Error(JSON.stringify(f));
+  const shown=json(['feature','show','--feature-id',f.feature_id]);
+  if(shown.feature_id!==f.feature_id)throw new Error(JSON.stringify(shown));
+  if(!json(['feature','list']).some(x=>x.feature_id===f.feature_id))throw new Error('feature missing from list');
+});
+test('a-plain-start-stays-unbound-by-default',()=>{
+  const r=json(['start','--objective','Add an unrelated capability']);
+  if(r.feature_id!==null||r.phase_id!==null)throw new Error(JSON.stringify(r));
+});
+test('start-with-track-feature-creates-a-feature-and-phase-named-after-the-objective',()=>{
+  const r=json(['start','--objective','Track this new feature end to end','--track-feature']);
+  if(!r.feature_id||!r.phase_id)throw new Error(JSON.stringify(r));
+  const f=json(['feature','show','--feature-id',r.feature_id]);
+  if(f.title!=='Track this new feature end to end')throw new Error(JSON.stringify(f));
+  if(f.current_phase_id!==r.phase_id)throw new Error('feature pointer does not match the bound phase');
+  const phase=json(['feature','phase-show','--feature-id',r.feature_id,'--phase-id',r.phase_id]);
+  if(!phase.run_ids.includes(r.run_id))throw new Error('phase was not attached to the new run');
+});
+test('continue-feature-without-feature-id-is-refused-at-start',()=>{
+  const err=failure(['start','--objective','Continue something','--workflow','continue-feature']);
+  if(!/--feature-id/.test(err.error))throw new Error(err.error);
+});
+test('continue-feature-with-feature-id-resolves-and-attaches',()=>{
+  const f=json(['feature','create','--title','Continuation target']);
+  const p=json(['feature','phase-create','--feature-id',f.feature_id,'--name','phase 1']);
+  const r=json(['start','--objective','Continue phase 1 work','--workflow','continue-feature','--feature-id',f.feature_id]);
+  if(r.feature_id!==f.feature_id||r.phase_id!==p.phase_id)throw new Error(JSON.stringify(r));
+});
+test('feature-phase-complete-marks-status-and-timestamp',()=>{
+  const f=json(['feature','create','--title','Phase completion check']);
+  const p=json(['feature','phase-create','--feature-id',f.feature_id]);
+  const completed=json(['feature','phase-complete','--feature-id',f.feature_id,'--phase-id',p.phase_id]);
+  if(completed.status!=='COMPLETE'||!completed.completed_at)throw new Error(JSON.stringify(completed));
+  // Completing a phase must never silently complete the feature (B5).
+  if(json(['feature','show','--feature-id',f.feature_id]).status!=='ACTIVE')throw new Error('phase completion leaked into feature status');
+});
+test('feature-update-changes-status-explicitly',()=>{
+  const f=json(['feature','create','--title','Status update check']);
+  const updated=json(['feature','update','--feature-id',f.feature_id,'--status','DEFERRED']);
+  if(updated.status!=='DEFERRED')throw new Error(JSON.stringify(updated));
 });
 test('required-file-flags-are-reported-not-crashed',()=>{
   for(const args of [['plan','validate'],['design','validate'],['normalize']]){

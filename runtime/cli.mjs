@@ -36,9 +36,19 @@ async function main(){
       const {initProject}=await import('./store.mjs');
       const {route}=await import('./router.mjs');
       const {newRun}=await import('./orchestrator.mjs');
+      const {resolveFeatureBinding}=await import('./features.mjs');
       if(!fs.existsSync(path.join(projectRoot,'.agent-sdlc','project.json')))initProject(projectRoot,detectProject(projectRoot));
       const r=route(ROOT,objective,args.workflow||null,args.profile||null);
-      const run=newRun(ROOT,projectRoot,{objective,route:r});
+      // Binding is always resolved for continue-feature/requirement-update
+      // (they refuse to run unbound) and whenever --feature-id is given. For
+      // plain new-feature starts it stays opt-in via --track-feature so the
+      // default `start` behavior is unchanged unless a caller actually asks
+      // for feature/phase tracking.
+      const skipBinding=r.workflow==='new-feature'&&!args['feature-id']&&!truthy(args['track-feature']);
+      const binding=skipBinding?{featureId:null,phaseId:null}:resolveFeatureBinding(projectRoot,
+        {workflow:r.workflow,featureId:args['feature-id']||null,phaseId:args['phase-id']||null,title:args['feature-title']||objective});
+      const run=newRun(ROOT,projectRoot,{objective,route:r,featureId:binding.featureId,phaseId:binding.phaseId,
+        parentRunId:args['parent-run-id']||null,runKind:args['run-kind']||null});
       print(run);
     }
     else if(cmd==='status'){
@@ -509,6 +519,42 @@ async function main(){
       else if(sub==='history'){const r=await needRun();print(invalidationHistory(projectRoot,r.run_id));}
       else throw new Error(`unknown trace subcommand ${sub}`);
     }
+    else if(cmd==='feature'){
+      const sub=args._[1]||'list';
+      const {createFeature,loadFeature,updateFeature,listFeatures,createPhase,loadPhase,updatePhase,listPhases,resolveActiveFeature}=await import('./features.mjs');
+      if(sub==='create')print(createFeature(projectRoot,{title:args.title,workflowFamily:args.workflow||'new-feature',sourceRefs:args['source-refs']?String(args['source-refs']).split(','):[]}));
+      else if(sub==='show'){
+        if(!args['feature-id'])throw new Error('--feature-id required');
+        print(loadFeature(projectRoot,args['feature-id']));
+      }
+      else if(sub==='list')print(listFeatures(projectRoot));
+      else if(sub==='active')print(resolveActiveFeature(projectRoot,{featureId:args['feature-id']||null}));
+      else if(sub==='update'){
+        if(!args['feature-id'])throw new Error('--feature-id required');
+        const patch={};
+        if(args.status)patch.status=args.status;
+        if(args['open-questions'])patch.open_questions=String(args['open-questions']).split(',');
+        if(args['deferred-items'])patch.deferred_items=String(args['deferred-items']).split(',');
+        print(updateFeature(projectRoot,args['feature-id'],patch));
+      }
+      else if(sub==='phase-create'){
+        if(!args['feature-id'])throw new Error('--feature-id required');
+        print(createPhase(projectRoot,args['feature-id'],{name:args.name||null,objective:args.objective||null}));
+      }
+      else if(sub==='phase-show'){
+        if(!args['feature-id']||!args['phase-id'])throw new Error('--feature-id and --phase-id required');
+        print(loadPhase(projectRoot,args['feature-id'],args['phase-id']));
+      }
+      else if(sub==='phase-list'){
+        if(!args['feature-id'])throw new Error('--feature-id required');
+        print(listPhases(projectRoot,args['feature-id']));
+      }
+      else if(sub==='phase-complete'){
+        if(!args['feature-id']||!args['phase-id'])throw new Error('--feature-id and --phase-id required');
+        print(updatePhase(projectRoot,args['feature-id'],args['phase-id'],{status:'COMPLETE',completed_at:new Date().toISOString()}));
+      }
+      else throw new Error(`unknown feature subcommand ${sub}`);
+    }
     else if(cmd==='requirement-update'){
       const sub=args._[1]||'show';
       const {planRequirementUpdate,loadRequirementUpdatePlan}=await import('./requirement-update.mjs');
@@ -628,7 +674,7 @@ async function main(){
       });
     }
     else {
-      print(`agent-sdlc ${readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version}\n\nCommands: init, route, start, status, next, transition, approval, gate, knowledge, context, normalize, artifact-put/get/list, handoff-put/get/list, tool-check/run, usage-add/report, config-show, compat-check, migrate, parallel-plan, metrics, model-route, provider-probe/command/run, replay-export/validate, activation, design, plan, task, repo, trace, requirement-update, delivery, ci, govern, fallback, learn, doctor\n\nactivation subcommands: status, enable, disable, print-bootstrap, policy, cost, classify, events, record, doctor, codex-bootstrap install|uninstall|status\napproval subcommands: status, grant (interactive, TTY-only), revoke\ngate subcommands: status, explain (--stage <name>)\nknowledge subcommands: status\ndesign subcommands: mode, policy, validate, record\nplan subcommands: validate, graph, record\ntask subcommands: list, show, graph, events, progress, state-machine, materialize, migrate, refresh, ready, schedule, transition, context, context-show, start, capture, verify, review, advance, checkpoint, usage-add, usage, metrics, workspaces, workspace-clean, failure-policy, classify, replay, fallback, resume, implementation-complete\nrepo subcommands: index, status, capability, symbol, references, tests, module, dependents, interfaces, entities, events, recent, surface\ntrace subcommands: build, show, kinds, validate, coverage, closure, invalidate, history\nrequirement-update subcommands: plan (--continues <prior-run-id> --node <id> --delta <class> [--dry-run]), show\ndelivery subcommands: status, targets, branch, push-check, drift, group, record\nci subcommands: record, status, show, history\ngovern subcommands: policy, report, complexity, task\nlearn subcommands: sources, candidate`);
+      print(`agent-sdlc ${readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version}\n\nCommands: init, route, start, status, next, transition, approval, gate, knowledge, context, normalize, artifact-put/get/list, handoff-put/get/list, tool-check/run, usage-add/report, config-show, compat-check, migrate, parallel-plan, metrics, model-route, provider-probe/command/run, replay-export/validate, activation, design, plan, task, repo, trace, feature, requirement-update, delivery, ci, govern, fallback, learn, doctor\n\nactivation subcommands: status, enable, disable, print-bootstrap, policy, cost, classify, events, record, doctor, codex-bootstrap install|uninstall|status\napproval subcommands: status, grant (interactive, TTY-only), revoke\ngate subcommands: status, explain (--stage <name>)\nknowledge subcommands: status\ndesign subcommands: mode, policy, validate, record\nplan subcommands: validate, graph, record\ntask subcommands: list, show, graph, events, progress, state-machine, materialize, migrate, refresh, ready, schedule, transition, context, context-show, start, capture, verify, review, advance, checkpoint, usage-add, usage, metrics, workspaces, workspace-clean, failure-policy, classify, replay, fallback, resume, implementation-complete\nrepo subcommands: index, status, capability, symbol, references, tests, module, dependents, interfaces, entities, events, recent, surface\ntrace subcommands: build, show, kinds, validate, coverage, closure, invalidate, history\nfeature subcommands: create (--title), show/update/phase-create/phase-list (--feature-id), list, active, phase-show/phase-complete (--feature-id --phase-id)\nrequirement-update subcommands: plan (--continues <prior-run-id> --node <id> --delta <class> [--dry-run]), show\ndelivery subcommands: status, targets, branch, push-check, drift, group, record\nci subcommands: record, status, show, history\ngovern subcommands: policy, report, complexity, task\nlearn subcommands: sources, candidate\n\nstart flags: --objective, --workflow, --profile, --feature-id, --phase-id, --feature-title, --track-feature (auto-create a feature for a plain new-feature start), --parent-run-id, --run-kind`);
       process.exit(cmd?2:0);
     }
   }catch(e){

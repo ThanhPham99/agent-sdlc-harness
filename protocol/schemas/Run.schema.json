@@ -49,6 +49,22 @@
     },
     "approvals": {
       "type": "array"
+    },
+    "feature_id": {
+      "type": ["string", "null"],
+      "description": "Set only when this run is bound to a durable Feature (see Feature.schema.json). Never required for standalone workflows."
+    },
+    "phase_id": {
+      "type": ["string", "null"],
+      "description": "Set only alongside feature_id. See Phase.schema.json."
+    },
+    "parent_run_id": {
+      "type": ["string", "null"],
+      "description": "The run this one continues from, if any -- distinct from feature/phase binding."
+    },
+    "run_kind": {
+      "type": ["string", "null"],
+      "enum": ["feature", "requirement-update", "continuation", "maintenance", "incident", "standalone", null]
     }
   }
 }

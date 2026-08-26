@@ -173,7 +173,42 @@ reports cost per verified DONE task, `success@1` and retry rate.
 
 See `docs/architecture/TASK-ENGINE.md` and `docs/architecture/TASK-SCHEDULER.md`.
 
-## 10. Repository intelligence, traceability and delivery (v3.0.0-alpha6)
+## 10. Feature / phase identity (v3.0.0-alpha6)
+
+A feature is durable project state that can span multiple runs and multiple phases; a run alone
+used to be the only unit that existed, so "continue this feature" or "this requirement changed"
+had no actual feature to point at.
+
+```bash
+./bin/agent-sdlc feature create --title "Coupon support"
+./bin/agent-sdlc feature show|update --feature-id <id>
+./bin/agent-sdlc feature list
+./bin/agent-sdlc feature active [--feature-id <id>]
+./bin/agent-sdlc feature phase-create --feature-id <id> [--name ...] [--objective ...]
+./bin/agent-sdlc feature phase-show|phase-complete --feature-id <id> --phase-id <id>
+./bin/agent-sdlc feature phase-list --feature-id <id>
+```
+
+`agent-sdlc start` stays unbound by default — nothing changes for a plain `start --objective ...`.
+Pass `--feature-id <id>` to attach to an existing feature, or `--track-feature` to have a plain
+`new-feature` start create one automatically (titled from the objective unless `--feature-title` is
+given). `--workflow continue-feature` and `--workflow requirement-update` always require
+`--feature-id` — they refuse to run unbound rather than silently starting a disconnected run.
+Completing a phase (`feature phase-complete`) never marks the feature itself complete: a feature can
+carry deferred phases long after one run's phase closes, and `run.state === 'CLOSE'` is never treated
+as `feature.status === 'COMPLETE'`. A superseded phase is never deleted, only marked `SUPERSEDED` —
+starting phase 2 does not erase phase 1's history. A bound run's context manifest carries a `feature`
+summary (title, status, current phase, deferred items, open questions) so the model knows it is
+picking up prior work rather than starting cold.
+
+There is deliberately no automatic "resume mid-stage" here: Feature.schema.json's `resume` field and
+Phase.schema.json's `resume_from` field exist for a future increment, but nothing reads them yet — a
+bound run still walks its own state machine from that workflow's first stage and earns every gate's
+evidence itself. Skipping stages based on "this was already proven valid on a prior run" would need a
+provenance chain this codebase does not have yet; building that without it would reopen exactly the
+kind of evidence-bypass this project spent several rounds closing.
+
+## 11. Repository intelligence, traceability and delivery (v3.0.0-alpha6)
 
 ```bash
 ./bin/agent-sdlc repo index

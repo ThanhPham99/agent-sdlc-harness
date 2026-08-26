@@ -34,6 +34,7 @@ import {evaluateGate} from '../runtime/gates.mjs';
 import {getProjectKnowledgeStatus} from '../runtime/project-knowledge.mjs';
 import {resolveProcedures,validateProcedureRegistry,auditProcedureCoverage} from '../runtime/procedures.mjs';
 import {legacyReachableSkillIds} from '../runtime/context.mjs';
+import {createFeature,loadFeature,updateFeature,listFeatures,createPhase,loadPhase,updatePhase,listPhases,attachRun,resolveActiveFeature,resolveActivePhase,resolveFeatureBinding} from '../runtime/features.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
@@ -898,6 +899,138 @@ test('gate-records-are-stage-scoped',()=>{
   if(!ok)throw Error('plan recorded outside PLAN');
   let ok2=false;try{recordDesignDecision(ROOT,tmp,gateRun,{schema:'agent-sdlc/design-decision/v1',decision_id:'DESIGN-012',objective:'x',mode:'SKIP',skip_reason:'y'});}catch(e){ok2=/recorded in DESIGN/.test(e.message);}
   if(!ok2)throw Error('design recorded outside DESIGN');
+});
+
+// ---------------------------------------------------------------------------
+// Feature/Phase identity (Workstream B): a durable project -> features ->
+// phases model as first-class runtime state, not a naming convention baked
+// into one run's objective string. Every existing newRun() call in this
+// suite passes no feature/phase args and must keep behaving exactly as
+// before -- binding is additive, never required.
+// ---------------------------------------------------------------------------
+test('a-run-created-without-feature-args-stays-fully-standalone',()=>{
+  const r=newRun(ROOT,tmp,{objective:'Standalone check',route:route(ROOT,'Standalone check')});
+  if(r.feature_id!==null||r.phase_id!==null||r.parent_run_id!==null||r.run_kind!==null)throw Error(JSON.stringify(r));
+});
+test('feature-title-is-required',()=>{
+  let ok=false;try{createFeature(tmp,{});}catch(e){ok=/title/.test(e.message);}
+  if(!ok)throw Error('a feature with no title was accepted');
+});
+test('feature-and-phase-round-trip',()=>{
+  const f=createFeature(tmp,{title:'Coupon support'});
+  if(f.status!=='ACTIVE'||f.current_phase_id!==null)throw Error(JSON.stringify(f));
+  const p=createPhase(tmp,f.feature_id,{name:'initial API'});
+  if(p.status!=='ACTIVE'||p.feature_id!==f.feature_id||p.run_ids.length)throw Error(JSON.stringify(p));
+  const reloadedFeature=loadFeature(tmp,f.feature_id);
+  if(reloadedFeature.current_phase_id!==p.phase_id)throw Error('creating a phase did not update the feature pointer');
+  if(!listFeatures(tmp).some(x=>x.feature_id===f.feature_id))throw Error('feature missing from listFeatures');
+  if(!listPhases(tmp,f.feature_id).some(x=>x.phase_id===p.phase_id))throw Error('phase missing from listPhases');
+});
+test('feature-update-rejects-an-unknown-status',()=>{
+  const f=createFeature(tmp,{title:'Status check'});
+  let ok=false;try{updateFeature(tmp,f.feature_id,{status:'NOT_A_STATUS'});}catch(e){ok=/unknown feature status/.test(e.message);}
+  if(!ok)throw Error('an invalid feature status was accepted');
+  const updated=updateFeature(tmp,f.feature_id,{status:'DEFERRED',deferred_items:['phase 3 analytics']});
+  if(updated.status!=='DEFERRED'||!updated.deferred_items.includes('phase 3 analytics'))throw Error(JSON.stringify(updated));
+});
+test('attach-run-dedupes-into-the-phase',()=>{
+  const f=createFeature(tmp,{title:'Attach check'});
+  const p=createPhase(tmp,f.feature_id);
+  attachRun(tmp,{featureId:f.feature_id,phaseId:p.phase_id,runId:'run_a'});
+  const twice=attachRun(tmp,{featureId:f.feature_id,phaseId:p.phase_id,runId:'run_a'});
+  if(twice.run_ids.length!==1)throw Error(JSON.stringify(twice.run_ids));
+});
+test('resolve-active-feature-is-unambiguous-or-says-so',()=>{
+  const isolated=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-features-'));
+  execFileSync('git',['init','-q'],{cwd:isolated});
+  if(resolveActiveFeature(isolated,{})!==null)throw Error('a project with no features resolved one');
+  const only=createFeature(isolated,{title:'Only active feature'});
+  const solo=resolveActiveFeature(isolated,{});
+  if(solo.feature_id!==only.feature_id)throw Error(JSON.stringify(solo));
+  const second=createFeature(isolated,{title:'Second active feature'});
+  const ambiguous=resolveActiveFeature(isolated,{});
+  if(!ambiguous.ambiguous||ambiguous.candidates.length!==2)throw Error(JSON.stringify(ambiguous));
+  const explicit=resolveActiveFeature(isolated,{featureId:second.feature_id});
+  if(explicit.feature_id!==second.feature_id)throw Error('an explicit featureId did not win over ambiguity');
+});
+test('resolve-active-phase-falls-back-to-the-feature-pointer',()=>{
+  const f=createFeature(tmp,{title:'Phase resolution check'});
+  if(resolveActivePhase(tmp,f.feature_id,{})!==null)throw Error('a feature with no phase yet resolved one');
+  const p=createPhase(tmp,f.feature_id,{name:'P1'});
+  const resolved=resolveActivePhase(tmp,f.feature_id,{});
+  if(resolved.phase_id!==p.phase_id)throw Error(JSON.stringify(resolved));
+});
+test('continue-feature-requires-an-existing-feature-id',()=>{
+  let ok=false;
+  try{resolveFeatureBinding(tmp,{workflow:'continue-feature'});}
+  catch(e){ok=/--feature-id/.test(e.message);}
+  if(!ok)throw Error('continue-feature silently proceeded with no feature');
+});
+test('requirement-update-workflow-also-requires-an-existing-feature-id',()=>{
+  let ok=false;
+  try{resolveFeatureBinding(tmp,{workflow:'requirement-update'});}
+  catch(e){ok=/--feature-id/.test(e.message);}
+  if(!ok)throw Error('requirement-update silently proceeded with no feature');
+});
+test('continue-feature-reuses-an-open-phase-and-preserves-a-completed-one',()=>{
+  const f=createFeature(tmp,{title:'Continuation check'});
+  const p1=createPhase(tmp,f.feature_id,{name:'phase 1'});
+  const openReuse=resolveFeatureBinding(tmp,{workflow:'continue-feature',featureId:f.feature_id});
+  if(openReuse.phaseId!==p1.phase_id||openReuse.created.phase)throw Error(JSON.stringify(openReuse));
+  updatePhase(tmp,f.feature_id,p1.phase_id,{status:'COMPLETE',completed_at:new Date().toISOString()});
+  const afterComplete=resolveFeatureBinding(tmp,{workflow:'continue-feature',featureId:f.feature_id});
+  if(!afterComplete.created.phase||afterComplete.phaseId===p1.phase_id)throw Error('a completed phase was reused instead of started fresh');
+  const newPhase=loadPhase(tmp,f.feature_id,afterComplete.phaseId);
+  if(newPhase.supersedes_phase_id!==p1.phase_id)throw Error('the new phase does not record what it supersedes');
+  // B4: phase-1 history must still be there, untouched, not overwritten.
+  const stillThere=loadPhase(tmp,f.feature_id,p1.phase_id);
+  if(stillThere.status!=='COMPLETE'||stillThere.name!=='phase 1')throw Error('phase-1 history was not preserved');
+});
+test('new-feature-workflow-creates-both-when-nothing-is-attached',()=>{
+  const binding=resolveFeatureBinding(tmp,{workflow:'new-feature',title:'Brand new thing'});
+  if(!binding.created.feature||!binding.created.phase)throw Error(JSON.stringify(binding));
+  if(loadFeature(tmp,binding.featureId).title!=='Brand new thing')throw Error('feature title not recorded');
+});
+test('new-feature-workflow-attaches-without-creating-a-feature-when-given-one',()=>{
+  const f=createFeature(tmp,{title:'Existing feature to attach to'});
+  const binding=resolveFeatureBinding(tmp,{workflow:'new-feature',featureId:f.feature_id});
+  if(binding.created.feature)throw Error('a new feature was created despite an explicit featureId');
+  if(binding.featureId!==f.feature_id)throw Error(JSON.stringify(binding));
+});
+test('a-standalone-capable-workflow-stays-unbound-with-no-feature-id',()=>{
+  const binding=resolveFeatureBinding(tmp,{workflow:'bug-fix'});
+  if(binding.featureId!==null||binding.phaseId!==null)throw Error(JSON.stringify(binding));
+});
+test('newrun-binds-to-the-resolved-feature-and-phase',()=>{
+  const f=createFeature(tmp,{title:'Bound run check'});
+  const p=createPhase(tmp,f.feature_id);
+  const r=newRun(ROOT,tmp,{objective:'Do bound work',route:route(ROOT,'Do bound work'),featureId:f.feature_id,phaseId:p.phase_id,runKind:'feature'});
+  if(r.feature_id!==f.feature_id||r.phase_id!==p.phase_id||r.run_kind!=='feature')throw Error(JSON.stringify(r));
+  const reloadedPhase=loadPhase(tmp,f.feature_id,p.phase_id);
+  if(!reloadedPhase.run_ids.includes(r.run_id))throw Error('newRun did not attach itself to the phase');
+});
+test('run-completion-and-feature-completion-are-tracked-independently',()=>{
+  // B5: run.state === 'CLOSE' must never silently flip feature.status.
+  const f=createFeature(tmp,{title:'Independent completion check'});
+  const p=createPhase(tmp,f.feature_id);
+  const r=newRun(ROOT,tmp,{objective:'Finish one phase of a bigger feature',route:route(ROOT,'Finish one phase of a bigger feature'),featureId:f.feature_id,phaseId:p.phase_id});
+  transition(ROOT,tmp,r,'REQUIREMENTS');
+  transition(ROOT,tmp,r,'DESIGN',{evidence:['requirements_confirmed']});
+  transition(ROOT,tmp,r,'PLAN',{evidence:['design_or_skip_decision'],internal:true});
+  transition(ROOT,tmp,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
+  transition(ROOT,tmp,r,'VERIFY',{evidence:['implementation_artifact','task_graph_complete'],internal:true});
+  invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
+  transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});
+  transition(ROOT,tmp,r,'RELEASE',{evidence:['required_reviews_resolved']});
+  transition(ROOT,tmp,r,'DEPLOY',{evidence:['release_evidence_current']});
+  transition(ROOT,tmp,r,'OBSERVE',{evidence:['deployment_receipt']});
+  transition(ROOT,tmp,r,'CLOSE',{evidence:['production_health_verified']});
+  if(r.state!=='CLOSE')throw Error(r.state);
+  if(loadFeature(tmp,f.feature_id).status!=='ACTIVE')throw Error('run reaching CLOSE silently changed feature status');
+  // Completion is explicit, not automatic.
+  const completed=updatePhase(tmp,f.feature_id,p.phase_id,{status:'COMPLETE',completed_at:new Date().toISOString()});
+  if(completed.status!=='COMPLETE')throw Error(JSON.stringify(completed));
+  if(loadFeature(tmp,f.feature_id).status!=='ACTIVE')throw Error('completing a phase explicitly still should not auto-complete the feature');
 });
 
 // ---------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import {validateTaskPlan,planGateEvidence} from './plan-validator.mjs';
 import {materializeTaskGraph,taskProgress} from './task-engine.mjs';
 import {findValidApproval} from './approvals.mjs';
 import {evaluateGate} from './gates.mjs';
+import {attachRun} from './features.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -37,11 +38,17 @@ function addEvidence(projectRoot,run,stage,tokens){
   return run.evidence[stage];
 }
 
-export function newRun(root,projectRoot,{objective,route}){
+export function newRun(root,projectRoot,{objective,route,featureId=null,phaseId=null,parentRunId=null,runKind=null}){
   const workflows=readJson(path.join(root,'config','workflows.json')).workflows;
   const spec=workflows[route.workflow]; if(!spec)throw new Error(`unknown workflow ${route.workflow}`);
-  const run={schema:'agent-sdlc/run/v1',run_id:uuid('run'),objective,workflow:route.workflow,profile:route.profile,overlays:route.overlays||[],state:spec.stages[0],stage_index:0,stages:spec.stages,created_at:now(),updated_at:now(),revision:0,evidence:{},approvals:[],artifacts:[],provider_state:{},failure_counts:{},suspended_from:null};
-  saveRun(projectRoot,run);emit(projectRoot,run,{type:'run.created',payload:{workflow:run.workflow,profile:run.profile}});return run;
+  const run={schema:'agent-sdlc/run/v1',run_id:uuid('run'),objective,workflow:route.workflow,profile:route.profile,overlays:route.overlays||[],state:spec.stages[0],stage_index:0,stages:spec.stages,created_at:now(),updated_at:now(),revision:0,evidence:{},approvals:[],artifacts:[],provider_state:{},failure_counts:{},suspended_from:null,
+    feature_id:featureId,phase_id:phaseId,parent_run_id:parentRunId,run_kind:runKind};
+  saveRun(projectRoot,run);emit(projectRoot,run,{type:'run.created',payload:{workflow:run.workflow,profile:run.profile}});
+  // Mechanical binding only -- which feature/phase a run belongs to is a
+  // policy decision made by the caller (see resolveFeatureBinding in
+  // features.mjs), not guessed here.
+  if(featureId&&phaseId)attachRun(projectRoot,{featureId,phaseId,runId:run.run_id});
+  return run;
 }
 
 export function transition(root,projectRoot,run,to,{evidence=[],internal=false}={}){
