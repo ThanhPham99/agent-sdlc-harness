@@ -12,12 +12,11 @@ import {fileURLToPath} from 'node:url';
 import {execFileSync,spawnSync} from 'node:child_process';
 import {initProject} from '../runtime/store.mjs';
 import {compatCheck,migrateState,stateSchema} from '../runtime/compat.mjs';
+import {createSuite} from './lib/suite.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
-let pass=0,fail=0;const rows=[];
-const test=(name,fn)=>{try{fn();pass++;rows.push({name,status:'PASS'});}catch(e){fail++;rows.push({name,status:'FAIL',error:String(e.message).slice(0,400)});}};
-const assert=(cond,msg)=>{if(!cond)throw new Error(msg);};
+const {test,assert,finish}=createSuite('agent-sdlc/compat-validation/v1','COMPAT-VALIDATION.json');
 
 /** A bare directory: a git repo with no harness state at all. */
 function bare(){
@@ -171,7 +170,4 @@ test('the-cli-reports-corrupt-state-without-a-stack-trace',()=>{
   assert(err.status==='ERROR'&&/CORRUPT_STATE/.test(err.error),migrate.stderr.slice(0,200));
 });
 
-const report={schema:'agent-sdlc/compat-validation/v1',harness_version:VERSION,checks:rows.length,passes:pass,failures:fail,results:rows};
-fs.writeFileSync(path.join(ROOT,'evals','COMPAT-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
-console.log(JSON.stringify(fail?report:{...report,results:'all-pass'},null,2));
-process.exit(fail?1:0);
+finish({harness_version:VERSION});

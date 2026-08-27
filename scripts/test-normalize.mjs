@@ -17,14 +17,11 @@ import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {zipDir} from './archive.mjs';
 import {normalizeInput} from '../runtime/normalize.mjs';
+import {createSuite} from './lib/suite.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const TMP=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-normalize-'));
-let pass=0,fail=0,skip=0;const rows=[];
-const test=(name,fn)=>{
-  try{const r=fn();if(r==='SKIP'){skip++;rows.push({name,status:'SKIP'});return;}pass++;rows.push({name,status:'PASS'});}
-  catch(e){fail++;rows.push({name,status:'FAIL',error:String(e.message).slice(0,400)});}
-};
+const {test,assert,finish}=createSuite('agent-sdlc/normalize-validation/v1','NORMALIZE-VALIDATION.json');
 const has=bin=>{const r=spawnSync(bin,['--help'],{encoding:'utf8',timeout:3000});return !r.error;};
 const HAS_UNZIP=has('unzip');
 const HAS_PDFTOTEXT=has('pdftotext');
@@ -221,11 +218,4 @@ test('every-result-carries-a-status-and-a-provenance-header',()=>{
   }
 });
 
-const report={
-  schema:'agent-sdlc/normalize-validation/v1',
-  unzip_available:HAS_UNZIP,pdftotext_available:HAS_PDFTOTEXT,
-  checks:rows.length,passes:pass,failures:fail,skipped:skip,results:rows
-};
-fs.writeFileSync(path.join(ROOT,'evals','NORMALIZE-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
-console.log(JSON.stringify(fail?report:{...report,results:'all-pass'},null,2));
-process.exit(fail?1:0);
+finish({unzip_available:HAS_UNZIP,pdftotext_available:HAS_PDFTOTEXT});

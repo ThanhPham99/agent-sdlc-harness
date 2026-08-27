@@ -4,6 +4,7 @@
   "checks": 26,
   "passes": 26,
   "failures": 0,
+  "skipped": 0,
   "results": [
     {
       "name": "initialize-answers-with-server-identity",

@@ -4,6 +4,7 @@
   "checks": 12,
   "passes": 12,
   "failures": 0,
+  "skipped": 0,
   "results": [
     {
       "name": "an-uninitialized-project-is-compatible-and-says-what-to-run",

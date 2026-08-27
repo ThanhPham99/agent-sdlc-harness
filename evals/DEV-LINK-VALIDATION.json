@@ -3,6 +3,7 @@
   "checks": 6,
   "passes": 6,
   "failures": 0,
+  "skipped": 0,
   "results": [
     {
       "name": "status-reports-drift-without-touching-the-cache",

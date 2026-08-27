@@ -13,12 +13,11 @@ import {fileURLToPath} from 'node:url';
 import {execFileSync,spawnSync} from 'node:child_process';
 import {detectProject} from '../runtime/init.mjs';
 import {resolveConfig} from '../runtime/config.mjs';
+import {createSuite} from './lib/suite.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const CLI=path.join(ROOT,'runtime','cli.mjs');
-let pass=0,fail=0;const rows=[];
-const test=(name,fn)=>{try{fn();pass++;rows.push({name,status:'PASS'});}catch(e){fail++;rows.push({name,status:'FAIL',error:String(e.message).slice(0,400)});}};
-const assert=(cond,msg)=>{if(!cond)throw new Error(msg);};
+const {test,assert,finish}=createSuite('agent-sdlc/project-detection-validation/v1','PROJECT-DETECTION-VALIDATION.json');
 
 function repo(files={},{git=true}={}){
   const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-detect-'));
@@ -173,7 +172,4 @@ test('the-detected-commands-reach-the-persisted-project-config',()=>{
   assert(persisted.stacks.includes('go'),JSON.stringify(persisted.stacks));
 });
 
-const report={schema:'agent-sdlc/project-detection-validation/v1',checks:rows.length,passes:pass,failures:fail,results:rows};
-fs.writeFileSync(path.join(ROOT,'evals','PROJECT-DETECTION-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
-console.log(JSON.stringify(fail?report:{...report,results:'all-pass'},null,2));
-process.exit(fail?1:0);
+finish();

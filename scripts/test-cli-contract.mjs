@@ -15,11 +15,11 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync,spawnSync} from 'node:child_process';
+import {createSuite} from './lib/suite.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const CLI=path.join(ROOT,'runtime','cli.mjs');
-let pass=0,fail=0;const rows=[];
-const test=(name,fn)=>{try{fn();pass++;rows.push({name,status:'PASS'});}catch(e){fail++;rows.push({name,status:'FAIL',error:String(e.message).slice(0,400)});}};
+const {test,assert,finish}=createSuite('agent-sdlc/cli-contract-validation/v1','CLI-CONTRACT-VALIDATION.json');
 
 function fixture(){
   const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-cli-'));
@@ -637,7 +637,10 @@ for(const args of [
   ['activation','status'],['activation','doctor'],['activation','classify'],
   ['plan','graph','--file',PLAN_FILE(ENGINE[1])],['design','mode'],['feature','active']
 ]){
-  test(`read-surface-${args.join('-').replace(/[^a-z0-9-]/gi,'')}`,()=>{
+  // Named from the command and subcommand only. Folding the whole argv in put a
+  // temp path and a run id into one case name, so that row changed on every run
+  // and the tracked report churned for no reason.
+  test(`read-surface-${args.slice(0,2).join('-').replace(/[^a-z0-9-]/gi,'')}`,()=>{
     const out=json([...args,...ENGINE]);
     if(out===undefined)throw new Error('no document');
   });
@@ -669,7 +672,4 @@ test('required-flags-are-guarded-across-every-command-group',()=>{
   }
 });
 
-const report={schema:'agent-sdlc/cli-contract-validation/v1',checks:rows.length,passes:pass,failures:fail,results:rows};
-fs.writeFileSync(path.join(ROOT,'evals','CLI-CONTRACT-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
-console.log(JSON.stringify(fail?report:{...report,results:'all-pass'},null,2));
-process.exit(fail?1:0);
+finish();

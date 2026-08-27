@@ -13,13 +13,12 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync,spawn} from 'node:child_process';
+import {createSuite} from './lib/suite.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const SERVER=path.join(ROOT,'runtime','mcp-server.mjs');
 const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
-let pass=0,fail=0;const rows=[];
-const results=[];
-const assert=(cond,msg)=>{if(!cond)throw new Error(msg);};
+const {test,assert,finish}=createSuite('agent-sdlc/mcp-validation/v1','MCP-VALIDATION.json');
 
 function project(){
   const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-mcp-'));
@@ -82,10 +81,6 @@ function connect({env={}}={}){
 const payload=(r)=>r.result?.structuredContent??JSON.parse(r.result?.content?.[0]?.text||'null');
 const errorText=(r)=>r.result?.content?.[0]?.text||'';
 
-async function test(name,fn){
-  try{await fn();pass++;results.push({name,status:'PASS'});}
-  catch(e){fail++;results.push({name,status:'FAIL',error:String(e.message).slice(0,400)});}
-}
 
 const c=connect();
 
@@ -274,8 +269,4 @@ await test('the-unified-task-tool-still-reaches-the-hidden-work',async()=>{
 });
 await core.close();
 
-for(const r of results)rows.push(r);
-const report={schema:'agent-sdlc/mcp-validation/v1',harness_version:VERSION,checks:rows.length,passes:pass,failures:fail,results:rows};
-fs.writeFileSync(path.join(ROOT,'evals','MCP-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
-console.log(JSON.stringify(fail?report:{...report,results:'all-pass'},null,2));
-process.exit(fail?1:0);
+finish({harness_version:VERSION});

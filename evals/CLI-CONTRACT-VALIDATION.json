@@ -3,6 +3,7 @@
   "checks": 109,
   "passes": 109,
   "failures": 0,
+  "skipped": 0,
   "results": [
     {
       "name": "init-creates-project-state",
@@ -301,27 +302,27 @@
       "status": "PASS"
     },
     {
-      "name": "read-surface-task-show---task-id-TASK-001",
+      "name": "read-surface-task-show",
       "status": "PASS"
     },
     {
-      "name": "read-surface-task-context---task-id-TASK-001",
+      "name": "read-surface-task-context",
       "status": "PASS"
     },
     {
-      "name": "read-surface-task-context-show---task-id-TASK-001",
+      "name": "read-surface-task-context-show",
       "status": "PASS"
     },
     {
-      "name": "read-surface-task-checkpoint---task-id-TASK-001",
+      "name": "read-surface-task-checkpoint",
       "status": "PASS"
     },
     {
-      "name": "read-surface-task-classify---task-id-TASK-001",
+      "name": "read-surface-task-classify",
       "status": "PASS"
     },
     {
-      "name": "read-surface-task-replay---task-id-TASK-001",
+      "name": "read-surface-task-replay",
       "status": "PASS"
     },
     {
@@ -353,15 +354,15 @@
       "status": "PASS"
     },
     {
-      "name": "read-surface-repo-references---name-charge",
+      "name": "read-surface-repo-references",
       "status": "PASS"
     },
     {
-      "name": "read-surface-repo-module---module-src",
+      "name": "read-surface-repo-module",
       "status": "PASS"
     },
     {
-      "name": "read-surface-repo-dependents---target-srcservicejs",
+      "name": "read-surface-repo-dependents",
       "status": "PASS"
     },
     {
@@ -421,7 +422,7 @@
       "status": "PASS"
     },
     {
-      "name": "read-surface-plan-graph---file-tmpagent-sdlc-cli-9dAvl5plan-run4cbbe202-20f3-4211-b723-09cfd0e6a87ejson",
+      "name": "read-surface-plan-graph",
       "status": "PASS"
     },
     {

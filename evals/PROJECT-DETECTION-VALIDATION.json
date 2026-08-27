@@ -3,6 +3,7 @@
   "checks": 22,
   "passes": 22,
   "failures": 0,
+  "skipped": 0,
   "results": [
     {
       "name": "detects-node-from-package.json",

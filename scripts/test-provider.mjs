@@ -15,15 +15,11 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {probeBin,probe,resetProbeCache,capabilities,buildInvocation,runHost,argvLimitProblem,DEFAULT_MAX_WALL_MS} from '../runtime/provider.mjs';
+import {createSuite} from './lib/suite.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const POSIX=process.platform!=='win32';
-let pass=0,fail=0,skip=0;const rows=[];
-const test=(name,fn)=>{
-  try{if(fn()==='SKIP'){skip++;rows.push({name,status:'SKIP'});return;}pass++;rows.push({name,status:'PASS'});}
-  catch(e){fail++;rows.push({name,status:'FAIL',error:String(e.message).slice(0,400)});}
-};
-const assert=(cond,msg)=>{if(!cond)throw new Error(msg);};
+const {test,assert,finish}=createSuite('agent-sdlc/provider-validation/v1','PROVIDER-VALIDATION.json');
 
 const CLAUDE_HELP='-p --print --output-format --json-schema --max-turns --model --mcp-config --permission-mode';
 const CODEX_HELP='exec --json --ephemeral --sandbox --output-schema --model';
@@ -315,11 +311,4 @@ test('a-real-binary-round-trips-through-runHost',()=>{
   assert(out.stdout.includes('carried through'),`prompt did not reach the host: ${out.stdout}`);
 });
 
-const report={
-  schema:'agent-sdlc/provider-validation/v1',
-  platform:process.platform,real_binary_checks:POSIX,
-  checks:rows.length,passes:pass,failures:fail,skipped:skip,results:rows
-};
-fs.writeFileSync(path.join(ROOT,'evals','PROVIDER-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
-console.log(JSON.stringify(fail?report:{...report,results:'all-pass'},null,2));
-process.exit(fail?1:0);
+finish({platform:process.platform,real_binary_checks:POSIX});

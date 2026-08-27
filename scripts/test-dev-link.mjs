@@ -11,11 +11,11 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
+import {createSuite} from './lib/suite.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const SCRIPT=path.join(ROOT,'scripts','dev-link.mjs');
-let pass=0,fail=0;const rows=[];
-const test=(name,fn)=>{try{fn();pass++;rows.push({name,status:'PASS'});}catch(e){fail++;rows.push({name,status:'FAIL',error:e.message});}};
+const {test,assert,finish}=createSuite('agent-sdlc/dev-link-validation/v1','DEV-LINK-VALIDATION.json');
 
 /** A host root shaped like ~/.claude, with one recorded install. */
 function hostFixture(version='3.0.0-alpha4'){
@@ -96,7 +96,4 @@ test('missing-host-record-is-reported-not-crashed',()=>{
   if(!out.note)throw Error('no explanation for the empty result');
 });
 
-const report={schema:'agent-sdlc/dev-link-validation/v1',checks:rows.length,passes:pass,failures:fail,results:rows};
-fs.writeFileSync(path.join(ROOT,'evals','DEV-LINK-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
-console.log(JSON.stringify(report,null,2));
-process.exit(fail?1:0);
+finish();
