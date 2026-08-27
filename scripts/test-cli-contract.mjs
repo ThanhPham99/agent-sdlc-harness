@@ -708,4 +708,47 @@ test('required-flags-are-guarded-across-every-command-group',()=>{
   }
 });
 
+// --- shim execution: bin/agent-sdlc.cmd and bin/agent-sdlc.ps1 on Windows ---
+// scripts/verify-dist.mjs drives the packaged .cmd, and only on win32.
+// scripts/validate-cli-surface.mjs asserts both shims' source text forwards
+// argv and propagates the exit code, but a source-text regex cannot catch a
+// shim that merely mentions the right tokens without actually doing them --
+// nothing anywhere had ever executed bin/agent-sdlc.ps1 to find out. This
+// drives both real shims the way an agent would, on win32 only; elsewhere they
+// cannot run at all, so the cases record SKIP rather than fail.
+const WIN32=process.platform==='win32';
+const BIN=path.join(ROOT,'bin');
+
+/** Run bin/agent-sdlc.cmd through cmd.exe, the way a cmd.exe caller would.
+ *  The command line is already quoted for cmd.exe, so windowsVerbatimArguments
+ *  is required -- otherwise libuv re-quotes it and cmd.exe sees garbage. */
+function runCmdShim(args,cwd=PROJECT){
+  const line=[path.join(BIN,'agent-sdlc.cmd'),...args,'--project',cwd].map(a=>`"${a}"`).join(' ');
+  const r=spawnSync(process.env.ComSpec||'cmd.exe',['/d','/s','/c',`"${line}"`],
+    {cwd,encoding:'utf8',timeout:60000,maxBuffer:32*1024*1024,windowsVerbatimArguments:true});
+  return {status:r.status,stdout:r.stdout||'',stderr:r.stderr||''};
+}
+/** Run bin/agent-sdlc.ps1 through powershell.exe, the way a PowerShell caller would. */
+function runPs1Shim(args,cwd=PROJECT){
+  const r=spawnSync('powershell.exe',
+    ['-NoProfile','-NonInteractive','-File',path.join(BIN,'agent-sdlc.ps1'),...args,'--project',cwd],
+    {cwd,encoding:'utf8',timeout:60000,maxBuffer:32*1024*1024});
+  return {status:r.status,stdout:r.stdout||'',stderr:r.stderr||''};
+}
+
+for(const [label,run] of [['cmd',runCmdShim],['ps1',runPs1Shim]]){
+  test(`${label}-shim-prints-json-and-exits-0`,()=>{
+    if(!WIN32)return 'SKIP';
+    const r=run(['route','--objective','fix bug']);
+    if(r.status!==0)throw new Error(`exit ${r.status}: ${(r.stderr||r.stdout).slice(0,300)}`);
+    let doc;try{doc=JSON.parse(r.stdout);}catch{throw new Error(`shim did not print JSON: ${r.stdout.slice(0,200)}`);}
+    if(!doc.workflow)throw new Error(JSON.stringify(doc));
+  });
+  test(`${label}-shim-propagates-a-non-zero-exit-code`,()=>{
+    if(!WIN32)return 'SKIP';
+    const r=run(['no-such-command']);
+    if(r.status!==2)throw new Error(`exit ${r.status}, expected 2`);
+  });
+}
+
 finish();

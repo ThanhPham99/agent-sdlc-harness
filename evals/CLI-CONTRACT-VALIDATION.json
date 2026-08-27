@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/cli-contract-validation/v1",
-  "checks": 110,
-  "passes": 110,
+  "checks": 114,
+  "passes": 114,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -443,6 +443,22 @@
     },
     {
       "name": "required-flags-are-guarded-across-every-command-group",
+      "status": "PASS"
+    },
+    {
+      "name": "cmd-shim-prints-json-and-exits-0",
+      "status": "PASS"
+    },
+    {
+      "name": "cmd-shim-propagates-a-non-zero-exit-code",
+      "status": "PASS"
+    },
+    {
+      "name": "ps1-shim-prints-json-and-exits-0",
+      "status": "PASS"
+    },
+    {
+      "name": "ps1-shim-propagates-a-non-zero-exit-code",
       "status": "PASS"
     }
   ]

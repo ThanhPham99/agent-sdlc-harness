@@ -87,19 +87,30 @@ for(const name of COMMAND_NAMES){
 // document in the middle of a pipeline" and in cmd.exe it is "not recognized",
 // so the documented entry point did not exist for a whole supported platform.
 // scripts/verify-dist.mjs had already worked around this privately.
+// Assertions run against the shim body with comment lines stripped, so a
+// comment merely mentioning `$args`/`LASTEXITCODE`/`cli.mjs` cannot satisfy an
+// assertion whose actual code no longer does the thing described.
+const stripComments=(name,body)=>body.split('\n').filter(line=>{
+  const t=line.trim();
+  if(name.endsWith('.ps1'))return !t.startsWith('#');
+  if(name.endsWith('.cmd'))return !/^(rem\b|::)/i.test(t);
+  return true;
+}).join('\n');
 const SHIMS=['agent-sdlc','agent-sdlc.cmd','agent-sdlc.ps1'];
+const shimCode=new Map();
 for(const name of SHIMS){
   const p=path.join(ROOT,'bin',name);
   if(!fs.existsSync(p)){problems.push(`bin/${name} is missing; the documented entry point must exist on every supported platform`);continue;}
-  if(!fs.readFileSync(p,'utf8').includes('cli.mjs')){
+  const code=stripComments(name,fs.readFileSync(p,'utf8'));
+  shimCode.set(name,code);
+  if(!code.includes('cli.mjs')){
     problems.push(`bin/${name} does not exec runtime/cli.mjs`);
   }
 }
-const shimBody=name=>{const p=path.join(ROOT,'bin',name);return fs.existsSync(p)?fs.readFileSync(p,'utf8'):'';};
-const cmdBody=shimBody('agent-sdlc.cmd');
+const cmdBody=shimCode.get('agent-sdlc.cmd')||'';
 if(cmdBody&&!/%\*/.test(cmdBody))problems.push('bin/agent-sdlc.cmd does not forward its arguments (%*)');
 if(cmdBody&&!/exit \/b/i.test(cmdBody))problems.push('bin/agent-sdlc.cmd does not propagate the exit code');
-const ps1Body=shimBody('agent-sdlc.ps1');
+const ps1Body=shimCode.get('agent-sdlc.ps1')||'';
 if(ps1Body&&!/\$args/.test(ps1Body))problems.push('bin/agent-sdlc.ps1 does not forward its arguments ($args)');
 if(ps1Body&&!/LASTEXITCODE/.test(ps1Body))problems.push('bin/agent-sdlc.ps1 does not propagate the exit code');
 
