@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 305,
-  "passes": 305,
+  "checks": 306,
+  "passes": 306,
   "failures": 0,
   "results": [
     {
@@ -327,6 +327,10 @@
     },
     {
       "name": "web-search-sensitive-query-blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "web-search-honours-registry-return-limit-not-hardcoded-24000",
       "status": "PASS"
     },
     {

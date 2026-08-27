@@ -514,6 +514,24 @@ const researchRun=newRun(ROOT,tmp,{objective:'Design cache solution',route:route
 transition(ROOT,tmp,researchRun,'REQUIREMENTS');transition(ROOT,tmp,researchRun,'DESIGN',{evidence:['requirements_confirmed']});
 test('web-search-clean-query-pass',()=>{const out=invokeTool(ROOT,tmp,researchRun,'web.search',{query:'Redis cluster cache architecture'});if(out.status!=='PASS'||out.exit_code!==0||!out.summary.includes('Redis cluster'))throw Error(JSON.stringify(out));});
 test('web-search-sensitive-query-blocked',()=>{const out=invokeTool(ROOT,tmp,researchRun,'web.search',{query:'search with api_key=SECRET123'});if(out.status!=='FAIL'||out.exit_code!==1||!out.summary.includes('violates security policy'))throw Error(JSON.stringify(out));});
+// The two gateway-* cases above pin values that happen to equal the old
+// hardcoded 24000/120000, so they would pass even if invokeTool went back to
+// ignoring the registry. web.search is the one tool the registry declares
+// with a byte limit that differs (16000, not 24000), and its payload is
+// caller-supplied, so a big enough `results` array lets us assert against the
+// DECLARED number rather than the old constant. Read it out of the registry
+// (not hardcode 16000 here) and guard that it has not drifted back to 24000,
+// so a future registry edit makes this case say it stopped discriminating
+// instead of quietly passing for the wrong reason.
+test('web-search-honours-registry-return-limit-not-hardcoded-24000',()=>{
+  const registry=JSON.parse(fs.readFileSync(path.join(ROOT,'config','tools.json'),'utf8'));
+  const declared=registry.tools['web.search'].max_return_bytes;
+  if(declared===24000)throw Error('fixture no longer discriminates: web.search.max_return_bytes now equals the old hardcoded 24000');
+  const results=Array.from({length:2000},(_,i)=>({title:`Result ${i} — a padded title long enough to push the serialized payload well past both 16000 and 24000 bytes`,query:'Redis cluster cache architecture',status:'SEARCH_READY_HOST_DELEGATED'}));
+  const out=invokeTool(ROOT,tmp,researchRun,'web.search',{query:'Redis cluster cache architecture',results});
+  if(!out.truncated)throw Error('payload should exceed the declared limit');
+  if(Buffer.byteLength(out.summary)>declared)throw Error(`summary is ${Buffer.byteLength(out.summary)} bytes, expected <= declared ${declared}`);
+});
 test('web-fetch-valid-url-pass',()=>{const out=invokeTool(ROOT,tmp,researchRun,'web.fetch_url',{url:'https://docs.example.com/api/v1'});if(out.status!=='PASS'||out.exit_code!==0||!out.summary.includes('DOCUMENTATION_CONTENT'))throw Error(JSON.stringify(out));});
 test('web-fetch-blocked-host-fails',()=>{const out=invokeTool(ROOT,tmp,researchRun,'web.fetch_url',{url:'http://localhost:8080/admin'});if(out.status!=='FAIL'||out.exit_code!==1||!out.summary.includes('blocked by security policy'))throw Error(JSON.stringify(out));});
 // Walk a fresh run all the way to DEPLOY with real gate evidence at each step,
