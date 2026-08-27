@@ -50,6 +50,17 @@ function catastrophic(token){
   return CATASTROPHIC.has(t)||CATASTROPHIC.has(t.replace(/\/+$/,''))||CATASTROPHIC.has(t.replace(/\/+\*$/,'/*'));
 }
 
+// System roots, for the rules that judge a single file rather than a recursive
+// target. Deliberately excludes `~`, `.` and the Windows profile: a file under
+// those is ordinary work, which is the whole reason CATASTROPHIC only matches
+// the root itself.
+const SYSTEM_ROOTS=['/bin','/boot','/dev','/etc','/lib','/lib64','/opt','/proc','/sbin','/sys','/usr','/var',
+  'c:/windows','%windir%','$env:windir'];
+function underSystemRoot(token){
+  const t=String(token||'').toLowerCase().replace(/\\/g,'/');
+  return SYSTEM_ROOTS.some(r=>t===r||t.startsWith(`${r}/`));
+}
+
 // Wrappers that prefix a real command without changing what it does.
 const WRAPPER=/^(?:sudo|doas|su|env|nohup|time|timeout|command|builtin|exec|xargs|cmd|cmd\.exe|powershell|powershell\.exe|pwsh|bash|sh|zsh|\/c|\/k|-c|-command|-noprofile|-executionpolicy|bypass|unrestricted|-file|--)$/i;
 
@@ -69,6 +80,14 @@ const flag=(decision,rule,detail)=>findings.push({decision,rule,detail});
 // Remote script piped straight into an interpreter: unreviewed code execution.
 if(/\b(?:curl|wget|iwr|invoke-webrequest)\b[^|;]*\|\s*(?:sudo\s+)?(?:ba|z|k|da)?sh\b/i.test(norm)||/\biex\s*\(/i.test(norm))
   flag('ask','remote-script-execution','a downloaded script would run unreviewed');
+
+// A shell function that pipes itself into its own background copy: the only
+// thing it can do is exhaust the process table. Matched on the recursion shape
+// rather than the `:(){ :|:& };:` spelling, so renaming the function does not
+// evade it, and the backreference is what keeps an ordinary function definition
+// out of it.
+if(/([:\w.-]+)\s*\(\s*\)\s*\{[^{}]*\|\s*\1\s*&[^{}]*\}\s*;?\s*\1/.test(norm))
+  flag('deny','fork-bomb','a self-replicating shell function would exhaust the process table');
 
 if(/\bdrop\s+(?:database|schema)\b/i.test(norm))flag('deny','sql-drop-database','irreversible loss of a whole database');
 if(/\btruncate\s+table\b/i.test(norm))flag('ask','sql-truncate-table','irreversible table-wide delete');
@@ -135,10 +154,35 @@ for(const rawSeg of norm.split(/(?:\|\||&&|[;|&\n])/)){
     else if(recursive&&force&&targets.some(t=>/^\*$/.test(t)))
       flag('ask','rm-recursive-wildcard','recursive delete of every entry in the working directory');
   }
+  // `find <root> -delete` and `find <root> -exec rm -rf {} \;` destroy exactly
+  // what `rm -rf <root>` does, and `find` was not a verb this guard knew at all.
+  // A model told to clean up build output reaches for it readily, and one wrong
+  // root wipes the machine.
+  //
+  // Both halves are required. The target test is the same one `rm` uses, so
+  // `find ./build -delete` stays ordinary work; the action test is what keeps
+  // `find . -name '*.log'` -- a read-only search whose target is in the
+  // catastrophic set -- from being blocked.
+  if(cmd==='find'){
+    const deletes=flags.some(f=>/^-delete$/i.test(f));
+    const execs=flags.some(f=>/^-(?:exec|execdir|ok|okdir)$/i.test(f))
+      &&rest.some(t=>/^(?:rm|shred|unlink|truncate|dd)$/i.test(t.replace(/^.*[\\/]/,'')));
+    if((deletes||execs)&&targets.some(catastrophic))
+      flag('deny','find-delete-catastrophic-target',`find would delete everything under ${targets.find(catastrophic)}`);
+  }
   if((cmd==='chmod'||cmd==='chown')&&hasFlag(flags,'[rR]','recursive')&&targets.some(catastrophic))
     flag('deny','permission-change-catastrophic-target','recursive ownership/permission change over a system root');
   if(cmd==='shred'&&targets.some(t=>/^\/dev\//i.test(t)))
     flag('deny','shred-block-device','overwrites a raw device');
+  // A single file under a system root is not the "path *under* a catastrophic
+  // target is ordinary work" case that CATASTROPHIC is written around: nothing
+  // routine shreds /etc/passwd. Scoped to system roots only, so `shred
+  // ~/id_rsa` and `truncate -s 0 ./app.log` stay untouched.
+  if(cmd==='shred'&&targets.some(underSystemRoot))
+    flag('deny','shred-system-file',`unrecoverable overwrite of ${targets.find(underSystemRoot)}`);
+  if(cmd==='truncate'&&flags.some(f=>/^(?:-s|--size)$/i.test(f)||/^-s0$/i.test(f))
+    &&rest.some(t=>/^0$/.test(t))&&targets.some(underSystemRoot))
+    flag('ask','truncate-system-file',`would empty ${targets.find(underSystemRoot)}`);
   if(cmd==='git'&&sub==='clean'){
     const f=hasFlag(flags,'f','force');
     if(f&&(hasFlag(flags,'d')||hasFlag(flags,'x')))
