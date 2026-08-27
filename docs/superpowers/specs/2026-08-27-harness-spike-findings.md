@@ -47,7 +47,7 @@ order then decides. Reproduced with `bin/agent-sdlc route`:
   eval cases including Vietnamese; add suffix folding for the -ate/-ation family.
 
 ## F3 (Medium) Host loads a stale plugin version, silently
-`node scripts/dev-link.mjs`: host loads 3.0.0-alpha4, working tree is 3.0.0-alpha6. This very
+`node scripts/dev-link.mjs`: host loads `3.0.0-alpha4`, working tree is `3.0.0-alpha6`. This very
 session executed alpha4 skill bodies against an alpha6 tree. dev-link reports drift only when
 asked. Fix: surface drift as a warning from the Claude SessionStart bootstrap hook (and
 `doctor`), so a two-version-stale plugin cannot shape a whole session unnoticed.
