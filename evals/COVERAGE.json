@@ -10,16 +10,15 @@
     "scripts/test-project-detection.mjs"
   ],
   "measured": "v8-block-bytes",
-  "overall_percent": 85.1,
-  "covered_bytes": 317737,
-  "total_bytes": 373290,
+  "overall_percent": 86.8,
+  "covered_bytes": 335672,
+  "total_bytes": 386658,
   "modules": [
     {
-      "file": "runtime/index.mjs",
-      "percent": 0,
-      "covered_bytes": 0,
-      "total_bytes": 218,
-      "never_loaded": true
+      "file": "runtime/commands/task.mjs",
+      "percent": 31.5,
+      "covered_bytes": 3262,
+      "total_bytes": 10366
     },
     {
       "file": "runtime/codex-bootstrap.mjs",
@@ -28,16 +27,34 @@
       "total_bytes": 5896
     },
     {
-      "file": "runtime/cli.mjs",
-      "percent": 50.8,
-      "covered_bytes": 23668,
-      "total_bytes": 46563
+      "file": "runtime/commands/delivery.mjs",
+      "percent": 41.7,
+      "covered_bytes": 2496,
+      "total_bytes": 5980
     },
     {
-      "file": "runtime/model-router.mjs",
-      "percent": 71.7,
-      "covered_bytes": 1452,
-      "total_bytes": 2025
+      "file": "runtime/commands/activation.mjs",
+      "percent": 43.6,
+      "covered_bytes": 1718,
+      "total_bytes": 3943
+    },
+    {
+      "file": "runtime/commands/repo.mjs",
+      "percent": 54.6,
+      "covered_bytes": 2581,
+      "total_bytes": 4728
+    },
+    {
+      "file": "runtime/commands/artifacts.mjs",
+      "percent": 72.2,
+      "covered_bytes": 2908,
+      "total_bytes": 4026
+    },
+    {
+      "file": "runtime/commands/run.mjs",
+      "percent": 74.9,
+      "covered_bytes": 4806,
+      "total_bytes": 6420
     },
     {
       "file": "runtime/ci-evidence.mjs",
@@ -46,22 +63,40 @@
       "total_bytes": 3374
     },
     {
+      "file": "runtime/commands/feature.mjs",
+      "percent": 81.2,
+      "covered_bytes": 2712,
+      "total_bytes": 3341
+    },
+    {
+      "file": "runtime/commands/design.mjs",
+      "percent": 81.8,
+      "covered_bytes": 3148,
+      "total_bytes": 3848
+    },
+    {
       "file": "runtime/task-verification.mjs",
       "percent": 82.5,
       "covered_bytes": 6188,
       "total_bytes": 7505
     },
     {
-      "file": "runtime/tools.mjs",
-      "percent": 83,
-      "covered_bytes": 6971,
-      "total_bytes": 8402
+      "file": "runtime/model-router.mjs",
+      "percent": 82.6,
+      "covered_bytes": 1673,
+      "total_bytes": 2025
     },
     {
       "file": "runtime/activation.mjs",
       "percent": 84.4,
       "covered_bytes": 7698,
       "total_bytes": 9123
+    },
+    {
+      "file": "runtime/tools.mjs",
+      "percent": 84.6,
+      "covered_bytes": 7109,
+      "total_bytes": 8402
     },
     {
       "file": "runtime/repo-intelligence.mjs",
@@ -178,16 +213,16 @@
       "total_bytes": 8503
     },
     {
-      "file": "runtime/orchestrator.mjs",
-      "percent": 92.3,
-      "covered_bytes": 10486,
-      "total_bytes": 11362
-    },
-    {
       "file": "runtime/traceability.mjs",
       "percent": 92.3,
       "covered_bytes": 15406,
       "total_bytes": 16687
+    },
+    {
+      "file": "runtime/orchestrator.mjs",
+      "percent": 92.4,
+      "covered_bytes": 10500,
+      "total_bytes": 11362
     },
     {
       "file": "runtime/features.mjs",
@@ -202,28 +237,22 @@
       "total_bytes": 4260
     },
     {
-      "file": "runtime/provider.mjs",
-      "percent": 93.8,
-      "covered_bytes": 5580,
-      "total_bytes": 5947
-    },
-    {
-      "file": "runtime/task-runner.mjs",
-      "percent": 93.8,
-      "covered_bytes": 12079,
-      "total_bytes": 12871
-    },
-    {
-      "file": "runtime/policy.mjs",
-      "percent": 93.9,
-      "covered_bytes": 849,
-      "total_bytes": 904
-    },
-    {
       "file": "runtime/handoff.mjs",
       "percent": 94.1,
       "covered_bytes": 997,
       "total_bytes": 1060
+    },
+    {
+      "file": "runtime/task-runner.mjs",
+      "percent": 94.1,
+      "covered_bytes": 12112,
+      "total_bytes": 12871
+    },
+    {
+      "file": "runtime/commands/project.mjs",
+      "percent": 94.4,
+      "covered_bytes": 2592,
+      "total_bytes": 2746
     },
     {
       "file": "runtime/project-knowledge.mjs",
@@ -274,10 +303,28 @@
       "total_bytes": 1628
     },
     {
+      "file": "runtime/commands/provider.mjs",
+      "percent": 98.7,
+      "covered_bytes": 2430,
+      "total_bytes": 2462
+    },
+    {
+      "file": "runtime/provider.mjs",
+      "percent": 98.8,
+      "covered_bytes": 7733,
+      "total_bytes": 7824
+    },
+    {
       "file": "runtime/replay.mjs",
       "percent": 98.8,
       "covered_bytes": 917,
       "total_bytes": 928
+    },
+    {
+      "file": "runtime/commands/index.mjs",
+      "percent": 99,
+      "covered_bytes": 5560,
+      "total_bytes": 5615
     },
     {
       "file": "runtime/compat.mjs",
@@ -298,26 +345,40 @@
       "total_bytes": 1194
     },
     {
+      "file": "runtime/cli.mjs",
+      "percent": 99.5,
+      "covered_bytes": 2963,
+      "total_bytes": 2978
+    },
+    {
       "file": "runtime/init.mjs",
       "percent": 99.5,
       "covered_bytes": 4998,
       "total_bytes": 5022
     },
     {
+      "file": "runtime/commands/tools.mjs",
+      "percent": 99.7,
+      "covered_bytes": 1813,
+      "total_bytes": 1819
+    },
+    {
       "file": "runtime/evidence.mjs",
       "percent": 100,
       "covered_bytes": 2333,
       "total_bytes": 2333
+    },
+    {
+      "file": "runtime/policy.mjs",
+      "percent": 100,
+      "covered_bytes": 904,
+      "total_bytes": 904
     }
   ],
-  "never_loaded": [
-    "runtime/index.mjs"
-  ],
+  "never_loaded": [],
   "floor": {
-    "overall_percent": 84,
-    "never_loaded": [
-      "runtime/index.mjs"
-    ]
+    "overall_percent": 86,
+    "never_loaded": []
   },
   "optional_tools": {
     "unzip": true,

@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/cli-contract-validation/v1",
-  "checks": 56,
-  "passes": 56,
+  "checks": 63,
+  "passes": 63,
   "failures": 0,
   "results": [
     {
@@ -226,6 +226,34 @@
     },
     {
       "name": "a-refused-plan-gate-exits-non-zero",
+      "status": "PASS"
+    },
+    {
+      "name": "tool-run-passes-and-binds-its-evidence-to-the-revision",
+      "status": "PASS"
+    },
+    {
+      "name": "tool-run-outside-an-allowing-stage-is-a-policy-deny-not-an-error",
+      "status": "PASS"
+    },
+    {
+      "name": "a-missing-required-flag-is-an-argument-error-not-a-domain-answer",
+      "status": "PASS"
+    },
+    {
+      "name": "provider-command-builds-an-invocation-without-spawning-the-host",
+      "status": "PASS"
+    },
+    {
+      "name": "provider-run-round-trips-a-host-and-records-the-completion",
+      "status": "PASS"
+    },
+    {
+      "name": "fallback-without-a-target-provider-refuses-structurally",
+      "status": "PASS"
+    },
+    {
+      "name": "fallback-resumes-a-task-on-the-target-provider-from-its-checkpoint",
       "status": "PASS"
     }
   ]

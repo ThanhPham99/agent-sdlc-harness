@@ -33,15 +33,18 @@ function fixture(){
 }
 const PROJECT=fixture();
 
-/** Run the CLI the way an agent does and return {status, stdout, stderr}. */
-function raw(args,cwd=PROJECT){
+/** Run the CLI the way an agent does and return {status, stdout, stderr}.
+ *  `env` overlays the child environment; the provider commands use it to pin a
+ *  fake host binary so they stay hermetic on a machine with a real host CLI. */
+function raw(args,cwd=PROJECT,env=null){
   const r=spawnSync(process.execPath,[CLI,...args,'--project',cwd],
-    {cwd,encoding:'utf8',timeout:120000,maxBuffer:32*1024*1024});
+    {cwd,encoding:'utf8',timeout:120000,maxBuffer:32*1024*1024,
+     ...(env?{env:{...process.env,...env}}:{})});
   return {status:r.status,stdout:r.stdout||'',stderr:r.stderr||''};
 }
 /** Expect success and JSON on stdout. */
-function json(args,cwd=PROJECT){
-  const r=raw(args,cwd);
+function json(args,cwd=PROJECT,env=null){
+  const r=raw(args,cwd,env);
   if(r.status!==0)throw new Error(`${args.join(' ')} exited ${r.status}: ${(r.stderr||r.stdout).slice(0,300)}`);
   try{return JSON.parse(r.stdout);}catch{throw new Error(`${args.join(' ')} did not print JSON: ${r.stdout.slice(0,200)}`);}
 }
@@ -345,6 +348,182 @@ test('a-refused-plan-gate-exits-non-zero',()=>{
   if(r.status===0)throw new Error('an invalid plan validated successfully');
   const doc=JSON.parse(r.stdout||'{}');
   if(doc.valid!==false)throw new Error('no validation verdict on stdout');
+});
+
+// --- tool-run, the command that actually produces evidence ------------------
+// tool-run is the only command that writes a tool-evidence record bound to a git
+// SHA -- the hinge of the whole evidence-driven model -- and no suite had ever
+// invoked it, in this file or any other. Neither had provider-command,
+// provider-run or fallback.
+//
+// Reaching a stage that allows a verification tool means walking the entire gate
+// chain, and the gates refuse hand-asserted evidence: PLAN evidence must come
+// from the deterministic validator, not from --evidence. So this block doubles
+// as the only end-to-end CLI drive of the stage loop up to IMPLEMENT.
+
+/** Drive a fresh run from INTAKE to IMPLEMENT through the real gates. */
+function runToImplement(objective){
+  const r=json(['start','--objective',objective]);
+  const at=['--run-id',r.run_id];
+  json(['transition',...at,'--to','REQUIREMENTS']);
+  json(['transition',...at,'--to','DESIGN','--evidence','requirements_confirmed']);
+  const design=path.join(PROJECT,`design-${r.run_id}.json`);
+  fs.writeFileSync(design,JSON.stringify({
+    schema:'agent-sdlc/design-decision/v1',decision_id:'DESIGN-001',objective,mode:'COMPACT',
+    requirements:['AC-001','AC-002'],decision:'Key refunds by idempotency key in the existing repository',
+    approval:{required:false,status:'NOT_REQUIRED'},
+    affected_interfaces:['POST /v1/refunds'],verification_obligations:['contract test for POST /v1/refunds']
+  }));
+  if(!json(['design','record',...at,'--file',design]).recorded)throw new Error('design decision was refused');
+  json(['transition',...at,'--to','PLAN']);
+  const planFile=path.join(PROJECT,`plan-${r.run_id}.json`);
+  fs.writeFileSync(planFile,JSON.stringify({
+    schema:'agent-sdlc/task-plan/v1',plan_id:'PLAN-001',objective,profile:'STANDARD',
+    requirements:['AC-001','AC-002'],design_decisions:['DESIGN-001'],integration_tasks:['TASK-002'],
+    tasks:[
+      {task_id:'TASK-001',title:'Idempotent refund',goal:'Make PaymentService.refund idempotent',
+        category:'implementation',acceptance_criteria:['AC-001'],design_decisions:['DESIGN-001'],
+        modules:['src'],write_scope:['src/service.js'],read_scope:['src/'],
+        likely_symbols:['charge'],interface_scope:['POST /v1/refunds'],
+        compatibility_obligations:['keep the v1 refund response shape'],
+        verification:{targeted_tests:['tests/service.test.js'],expected_behavior:['a repeated refund is a no-op']},
+        done_conditions:['a repeated refund does not double-refund; targeted tests pass'],
+        estimated_seconds:300},
+      {task_id:'TASK-002',title:'Refund flow integration',goal:'Verify the assembled refund flow',
+        category:'integration',depends_on:['TASK-001'],acceptance_criteria:['AC-002'],
+        design_decisions:['DESIGN-001'],changes_behavior:false,
+        verification:{targeted_tests:['tests/routes.test.js'],expected_behavior:['refund endpoint stays compatible']},
+        done_conditions:['end-to-end refund flow passes'],estimated_seconds:120}
+    ]
+  }));
+  if(!json(['plan','record',...at,'--file',planFile]).recorded)throw new Error('plan was refused');
+  if(!json(['task','materialize',...at,'--file',planFile]).materialized)throw new Error('tasks were not materialized');
+  const state=json(['transition',...at,'--to','IMPLEMENT']).state;
+  if(state!=='IMPLEMENT')throw new Error(`run stalled at ${state}`);
+  return at;
+}
+
+test('tool-run-passes-and-binds-its-evidence-to-the-revision',()=>{
+  // The project fixture has no test runner, so the targeted command is declared
+  // explicitly: what is under test is the tool gateway and the evidence record,
+  // not the detector.
+  const cfgPath=path.join(PROJECT,'.agent-sdlc','project.json');
+  const cfg=JSON.parse(fs.readFileSync(cfgPath,'utf8'));
+  cfg.commands={...(cfg.commands||{}),test_targeted:[process.execPath,'-e','console.log("targeted {selector} ok")']};
+  fs.writeFileSync(cfgPath,JSON.stringify(cfg,null,2));
+
+  const at=runToImplement('Add refund idempotency');
+  if(json(['tool-check',...at,'--tool','test.run_targeted']).decision!=='ALLOW')throw new Error('IMPLEMENT did not allow the targeted test tool');
+
+  const out=json(['tool-run',...at,'--tool','test.run_targeted','--args','{"selector":"service"}']);
+  if(out.status!=='PASS'||out.exit_code!==0)throw new Error(JSON.stringify(out));
+  // The {selector} placeholder is substituted, not passed through literally.
+  if(!/targeted service ok/.test(out.summary))throw new Error(`selector not substituted: ${JSON.stringify(out.summary)}`);
+
+  // A PASS is what turns into gate evidence, and the record is bound to the
+  // exact revision it was produced at -- otherwise stale evidence would pass a
+  // gate for code that has since changed.
+  const runId=at[1];
+  const ledger=path.join(PROJECT,'.agent-sdlc','evidence',`${runId}.jsonl`);
+  const rec=fs.readFileSync(ledger,'utf8').trim().split('\n').map(l=>JSON.parse(l))
+    .find(e=>e.tool==='test.run_targeted');
+  if(!rec)throw new Error('tool-run wrote no evidence record');
+  if(rec.claim!=='targeted_verification_pass'||rec.status!=='PASS')throw new Error(JSON.stringify(rec));
+  if(!/^[0-9a-f]{40}$/.test(rec.workspace?.git_sha||''))throw new Error(`evidence not bound to a revision: ${JSON.stringify(rec.workspace)}`);
+  if(!json(['status',...at]).evidence.IMPLEMENT?.includes('targeted_verification_pass'))throw new Error('evidence never reached the run');
+});
+
+test('tool-run-outside-an-allowing-stage-is-a-policy-deny-not-an-error',()=>{
+  // A stage refusal is an answer, not a failure: it stays exit 0 with a DENY
+  // envelope so a caller can tell "policy said no" from "the command broke".
+  const r=json(['start','--objective','Add a deny-path check']);
+  const at=['--run-id',r.run_id];
+  const out=raw(['tool-run',...at,'--tool','test.run_targeted']);
+  if(out.status!==0)throw new Error(`a policy DENY exited ${out.status}`);
+  const doc=JSON.parse(out.stdout);
+  if(doc.status!=='DENY'||doc.summary?.reason!=='NOT_ALLOWED_IN_STAGE')throw new Error(JSON.stringify(doc));
+});
+
+test('a-missing-required-flag-is-an-argument-error-not-a-domain-answer',()=>{
+  // Regression: these commands read their flag straight out of argv, so a
+  // missing --tool reached the policy engine and came back DENY/UNKNOWN_TOOL at
+  // exit 0 -- indistinguishable from a real refusal -- while a missing --to
+  // leaked "state undefined not in workflow ..." and a missing --ref leaked a
+  // TypeError. Every one of them is now an argument error like --run-id.
+  const r=json(['start','--objective','Add a missing-flag check']);
+  const at=['--run-id',r.run_id];
+  for(const [args,flag] of [
+    [['tool-run',...at],'--tool'],[['tool-check',...at],'--tool'],
+    [['transition',...at],'--to'],[['artifact-get'],'--ref'],
+    [['provider-command',...at],'--host'],[['provider-run',...at],'--host'],
+    [['fallback',...at],'--task-id']
+  ]){
+    const err=failure(args);
+    if(err.error!==`${flag} required`)throw new Error(`${args[0]}: ${err.error}`);
+  }
+});
+
+// --- provider transport through the CLI -------------------------------------
+// A fake host binary keeps these hermetic: without the pin they would answer
+// differently on a developer machine with a real host CLI than on CI, and
+// provider-run would spawn the real thing.
+const FAKE_HOST=(()=>{
+  const bin=path.join(PROJECT,'claude.mjs');
+  fs.copyFileSync(path.join(ROOT,'evals','fake-host-cli.mjs'),bin);
+  fs.chmodSync(bin,0o755);
+  return {AI_SDLC_CLAUDE_BIN:bin};
+})();
+
+test('provider-command-builds-an-invocation-without-spawning-the-host',()=>{
+  const r=json(['start','--objective','Add idempotent refund processing']);
+  const inv=json(['provider-command','--run-id',r.run_id,'--host','claude'],PROJECT,FAKE_HOST);
+  if(inv.status!=='READY'||!Array.isArray(inv.argv)||!inv.argv.length)throw new Error(JSON.stringify(inv).slice(0,300));
+  // The pin is authoritative: the invocation targets the pinned binary rather
+  // than whatever `claude` happens to be on PATH.
+  if(inv.argv[0]!==FAKE_HOST.AI_SDLC_CLAUDE_BIN)throw new Error(`invocation targets ${inv.argv[0]}`);
+  // Structured output is what makes a stage result parseable rather than prose,
+  // and the flag is only passed because the host's --help advertises it.
+  const schemaFlag=inv.argv.indexOf('--json-schema');
+  if(schemaFlag<0||!/StageResult\.schema\.json$/.test(inv.argv[schemaFlag+1]||''))throw new Error(`no StageResult schema in ${JSON.stringify(inv.argv)}`);
+  // The compiled run context reaches the host as the prompt.
+  if(!inv.argv.some(a=>/SDLC execution agent/.test(a)))throw new Error('the compiled prompt is not in the invocation');
+  // provider-command prints a command a caller may run themselves, and Claude
+  // has no timeout flag, so the argv alone never says when to give up. The
+  // budget is part of the document.
+  if(!(inv.max_wall_ms>0))throw new Error(`invocation reports no budget: ${JSON.stringify(inv).slice(0,200)}`);
+});
+
+test('provider-run-round-trips-a-host-and-records-the-completion',()=>{
+  const r=json(['start','--objective','Add idempotent refund processing']);
+  const at=['--run-id',r.run_id];
+  const out=json(['provider-run',...at,'--host','claude'],PROJECT,FAKE_HOST);
+  if(out.status!=='PASS')throw new Error(JSON.stringify(out).slice(0,300));
+  // The run must carry the provider call, not just return it: a provider
+  // invocation that leaves no event is invisible to replay and cost reporting.
+  const bundle=json(['replay-export',...at]);
+  const ev=bundle.events.find(e=>e.type==='provider.completed');
+  if(!ev)throw new Error('provider-run emitted no provider.completed event');
+  if(ev.provider!=='claude'||ev.payload?.status!=='PASS')throw new Error(JSON.stringify(ev));
+});
+
+test('fallback-without-a-target-provider-refuses-structurally',()=>{
+  // No --to means there is nothing to fall back to. That is a domain answer with
+  // a checkpoint attached, not an error, so the caller can see where the task
+  // stood before deciding.
+  const at=runToImplement('Add refund retry handling');
+  const out=json(['fallback',...at,'--task-id','TASK-001','--from','claude']);
+  if(out.resumed!==false||out.reason!=='NO_FALLBACK_PROVIDER')throw new Error(JSON.stringify(out).slice(0,300));
+  if(!out.checkpoint)throw new Error('a refusal carried no checkpoint');
+});
+
+test('fallback-resumes-a-task-on-the-target-provider-from-its-checkpoint',()=>{
+  const at=runToImplement('Add refund reconciliation');
+  const out=json(['fallback',...at,'--task-id','TASK-001','--from','claude','--to','codex','--failure-class','PROVIDER_TIMEOUT']);
+  if(out.resumed!==true)throw new Error(JSON.stringify(out).slice(0,300));
+  if(out.fallback_provider!=='codex'||out.failure_class!=='PROVIDER_TIMEOUT')throw new Error(JSON.stringify(out).slice(0,300));
+  // Resumption reconstructs context from durable state rather than replaying a
+  // conversation, so the task must come back bound to a context manifest.
+  if(!out.context_delta)throw new Error('no context delta reported on resume');
 });
 
 const report={schema:'agent-sdlc/cli-contract-validation/v1',checks:rows.length,passes:pass,failures:fail,results:rows};
