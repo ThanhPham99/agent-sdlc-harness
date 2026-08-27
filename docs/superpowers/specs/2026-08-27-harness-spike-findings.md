@@ -144,6 +144,18 @@ CLI-SURFACE-VALIDATION.json), so every local gate run leaves the worktree dirty 
 a spurious diff in a delivery check. Fix: write reports to a gitignored dir, or commit them only
 via an explicit `--update`.
 
+## F15 (High) Task-verification path bypasses the launcher and repeats F9/F10/F11
+`runtime/task-verification.mjs:82` runs `spawnSync(c.command[0], c.command.slice(1), ...)` with
+`c.command` read verbatim from `.agent-sdlc/project.json`'s `plannedCommands` (lines 34-42) --
+no `resolveLaunch`, no `describeSpawn`, no `{selector}` substitution. This is a second consumer
+of the same project config that `runtime/tools.mjs` now routes through `runtime/launcher.mjs`,
+and it still carries all three original bugs on this execution path: `npm` is ENOENT on Windows
+because no shim resolution runs, that ENOENT is laundered into `exit_code:1`/FAIL with no
+diagnostic, and an unsubstituted `{selector}` is handed to the test runner literally. Found by
+the whole-branch review of this plan and deliberately deferred, since fixing it belongs to its
+own reviewed change rather than a final-review commit. Fix: route `plannedCommands` execution
+through `runtime/launcher.mjs` the way `runtime/tools.mjs` now does.
+
 ## Local state changed by this spike (disclosed)
 `.agent-sdlc/project.json` `commands.test_targeted` was changed from `["npm","test","--",
 "{selector}"]` to `["node","{selector}"]` to get past F9 and obtain real verification evidence.

@@ -24,7 +24,11 @@ export const commands={
     // because parseArgs keeps unknown flags and nothing read them.
     const a=args.args?JSON.parse(args.args):{};
     if(a.selector===undefined&&args.selector!==undefined&&args.selector!==true)a.selector=String(args.selector);
-    if(a.timeout_ms===undefined&&args['timeout-ms']!==undefined&&args['timeout-ms']!==true)a.timeout_ms=Number(args['timeout-ms']);
+    if(a.timeout_ms===undefined&&args['timeout-ms']!==undefined&&args['timeout-ms']!==true){
+      const timeoutMs=Number(args['timeout-ms']);
+      if(!Number.isFinite(timeoutMs))throw new Error(`--timeout-ms must be a number, got ${JSON.stringify(args['timeout-ms'])}`);
+      a.timeout_ms=timeoutMs;
+    }
     print(invokeTool(ROOT,projectRoot,run,tool,a));
   },
   'usage-add':async ctx=>{

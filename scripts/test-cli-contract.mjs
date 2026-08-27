@@ -489,6 +489,16 @@ test('tool-run-reads-the-selector-flag-and-refuses-an-empty-one',()=>{
   }
 });
 
+// A non-numeric --timeout-ms used to become NaN, and
+// Math.max(timeout,args.timeout_ms||0) silently fell back to the default
+// timeout rather than surfacing the bad flag -- "flag accepted and quietly
+// dropped" is exactly the shape this branch removes elsewhere.
+test('tool-run-rejects-a-non-numeric-timeout-ms',()=>{
+  const at=runToImplement('Adjust refund rounding calculation');
+  const err=failure(['tool-run',...at,'--tool','test.run_targeted','--timeout-ms','abc']);
+  if(!/--timeout-ms/.test(err.error))throw new Error(JSON.stringify(err));
+});
+
 test('tool-run-outside-an-allowing-stage-is-a-policy-deny-not-an-error',()=>{
   // A stage refusal is an answer, not a failure: it stays exit 0 with a DENY
   // envelope so a caller can tell "policy said no" from "the command broke".

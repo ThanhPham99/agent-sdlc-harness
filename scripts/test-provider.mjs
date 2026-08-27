@@ -378,7 +378,7 @@ test('launcher-windows-unresolved-is-tool-not-executable',()=>{
 
 test('launcher-windows-cmd-shim-goes-through-comspec',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-launch-'));
-  fs.writeFileSync(path.join(dir,'npm.cmd'),'@echo off\n');
+  fs.writeFileSync(path.join(dir,'npm.CMD'),'@echo off\n');
   const env={...WIN.env,PATH:dir};
   const l=resolveLaunch(['npm','test'],{platform:'win32',env});
   fs.rmSync(dir,{recursive:true,force:true});
@@ -389,14 +389,14 @@ test('launcher-windows-cmd-shim-goes-through-comspec',()=>{
   // the line itself has to be wrapped in a second pair or the first token loses
   // its quoting and a path with a space breaks.
   assert(l.args[3].startsWith('""')&&l.args[3].endsWith('""'),l.args[3]);
-  assert(l.args[3].includes('npm.cmd')&&l.args[3].includes('"test"'),l.args[3]);
+  assert(l.args[3].toLowerCase().includes('npm.cmd')&&l.args[3].includes('"test"'),l.args[3]);
   assert(l.spawnOptions.windowsVerbatimArguments===true,JSON.stringify(l.spawnOptions));
   assert(l.via==='cmd',l.via);
 });
 
 test('launcher-windows-shim-rejects-cmd-metacharacters',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-launch-'));
-  fs.writeFileSync(path.join(dir,'npm.cmd'),'@echo off\n');
+  fs.writeFileSync(path.join(dir,'npm.CMD'),'@echo off\n');
   const l=resolveLaunch(['npm','test','--','a&calc.exe'],{platform:'win32',env:{...WIN.env,PATH:dir}});
   fs.rmSync(dir,{recursive:true,force:true});
   assert(l.status==='UNLAUNCHABLE'&&l.reason==='ARGUMENT_NOT_SHELL_SAFE',JSON.stringify(l));
@@ -455,11 +455,14 @@ test('provider-probes-a-windows-shim-host',()=>{
   // A host CLI installed as claude.cmd used to be invisible to the probe on
   // Windows: spawnSync('claude') is ENOENT, so the host reported unavailable.
   // The launch step is injected against a fake win32 environment (a real
-  // directory holding one real claude.cmd file, but a synthetic PATH/PATHEXT/
-  // ComSpec) rather than the real PATH, so this is pinned on every platform
-  // the suite runs on -- including POSIX CI -- not only on a real win32 box.
+  // directory holding one real claude.CMD file, with its casing matching the
+  // injected PATHEXT entry, plus a synthetic PATH/PATHEXT/ComSpec) rather than
+  // the real PATH, so this is pinned on every platform the suite runs on --
+  // including POSIX CI, which is case-sensitive and would otherwise ENOENT on
+  // a candidate built from PATHEXT casing that the fixture's name doesn't
+  // match -- not only on a real win32 box.
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-shim-'));
-  fs.writeFileSync(path.join(dir,'claude.cmd'),'@echo off\n');
+  fs.writeFileSync(path.join(dir,'claude.CMD'),'@echo off\n');
   const seen=[];
   const spawn=(bin,args)=>{seen.push({bin,args});return {status:0,stdout:'2.0.0 (Claude Code)',stderr:''};};
   const launch=argv=>resolveLaunch(argv,{platform:'win32',env:{PATH:dir,PATHEXT:'.EXE;.CMD',ComSpec:'cmd.exe'}});
