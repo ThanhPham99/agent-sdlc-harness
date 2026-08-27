@@ -393,6 +393,23 @@ test('launcher-windows-shim-rejects-cmd-metacharacters',()=>{
   assert(l.detail==='a&calc.exe',String(l.detail));
 });
 
+test('launcher-posix-symlinked-script-stays-direct',()=>{
+  // Many POSIX toolchains install as a PATH entry symlinked to a .js target
+  // (Debian npm, nvm, Homebrew shims). Resolving through the symlink's real
+  // target must not flip `via` from 'direct' to 'node' -- callers spawn the
+  // PATH entry itself, not the interpreter plus its resolved script path.
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-launch-'));
+  const target=path.join(dir,'real-target.js');
+  fs.writeFileSync(target,'#!/usr/bin/env node\n');
+  const link=path.join(dir,'thing');
+  try{fs.symlinkSync(target,link);}catch{fs.rmSync(dir,{recursive:true,force:true});return 'SKIP';}
+  const l=resolveLaunch(['thing','x'],{platform:'linux',env:{PATH:dir}});
+  fs.rmSync(dir,{recursive:true,force:true});
+  assert(l.status==='OK',JSON.stringify(l));
+  assert(l.via==='direct',l.via);
+  assert(l.bin===link,`expected the PATH entry ${link}, got ${l.bin}`);
+});
+
 test('launcher-resolve-on-path-tries-pathext',()=>{
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-launch-'));
   fs.writeFileSync(path.join(dir,'thing.CMD'),'@echo off\n');

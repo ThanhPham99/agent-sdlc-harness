@@ -2,10 +2,10 @@
   "schema": "agent-sdlc/provider-validation/v1",
   "platform": "win32",
   "real_binary_checks": false,
-  "checks": 39,
+  "checks": 40,
   "passes": 36,
   "failures": 0,
-  "skipped": 3,
+  "skipped": 4,
   "results": [
     {
       "name": "every-probe-spawn-is-bounded",
@@ -142,6 +142,10 @@
     {
       "name": "launcher-windows-shim-rejects-cmd-metacharacters",
       "status": "PASS"
+    },
+    {
+      "name": "launcher-posix-symlinked-script-stays-direct",
+      "status": "SKIP"
     },
     {
       "name": "launcher-resolve-on-path-tries-pathext",

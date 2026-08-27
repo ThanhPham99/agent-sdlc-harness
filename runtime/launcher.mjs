@@ -42,8 +42,13 @@ export function resolveOnPath(bin,{env=process.env,platform=process.platform}={}
       // Windows filesystems are case-insensitive but case-preserving: a
       // candidate built from PATHEXT casing (e.g. ".CMD") can stat-match a
       // file actually named "npm.cmd". Normalize to the on-disk casing so
-      // callers (and cmd.exe) see the real name rather than our guess.
-      try{return fs.realpathSync.native(c);}catch{return c;}
+      // callers (and cmd.exe) see the real name rather than our guess. This
+      // is scoped to win32 only: realpathSync also follows symlinks to their
+      // real target, which is how many POSIX toolchains install (a PATH
+      // entry symlinked to a .js file) -- resolving through it there would
+      // wrongly flip `via` from 'direct' to 'node' for those installs.
+      if(platform==='win32'){try{return fs.realpathSync.native(c);}catch{return c;}}
+      return c;
     }catch{/* next candidate */}
   }
   return null;
