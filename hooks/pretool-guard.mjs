@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 // Defence-in-depth PreToolUse guard.
 //
+// MIRRORED FILE. adapters/hooks/pretool-guard.mjs is authoritative and
+// hooks/pretool-guard.mjs is a byte-for-byte copy that
+// scripts/validate-root-sync.mjs keeps in step. Edit the adapters/ copy: the
+// root copy is the install surface, and scripts/validate-guard.mjs runs the
+// adapters/ one, so an edit made only at the root leaves the corpus green
+// against code that is not what shipped -- and root-sync then fails. The other
+// mirrors are generated and say so in their own banners; this one is written by
+// hand, which is why it says so here.
+//
 // This runs inside the host, before a command reaches a shell, and is the only
 // layer that still applies when the model has been talked out of every other
 // rule. It is deliberately narrow: it blocks commands that are catastrophic by
