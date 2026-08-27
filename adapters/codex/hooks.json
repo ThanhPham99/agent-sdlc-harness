@@ -9,6 +9,12 @@
             "command": "node \"${PLUGIN_ROOT}/hooks/pretool-guard.mjs\"",
             "timeout": 5,
             "statusMessage": "Agent SDLC policy check"
+          },
+          {
+            "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/test-output-guard.mjs\"",
+            "timeout": 5,
+            "statusMessage": "Agent SDLC token-hygiene check"
           }
         ]
       }

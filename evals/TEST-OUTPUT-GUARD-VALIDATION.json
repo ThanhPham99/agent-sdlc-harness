@@ -1,0 +1,234 @@
+{
+  "schema": "agent-sdlc/test-output-guard-validation/v1",
+  "version": "3.0.0-alpha6",
+  "guard": "adapters/hooks/test-output-guard.mjs",
+  "checks": 22,
+  "passes": 22,
+  "failures": 0,
+  "by_expectation": {
+    "deny": 8,
+    "allow": 12
+  },
+  "false_positives": 0,
+  "missed_verbose_output": 0,
+  "matcher_coverage": [
+    {
+      "adapter": "adapters/claude/hooks.json",
+      "tool": "Bash",
+      "status": "PASS",
+      "matchers": [
+        "Bash|PowerShell|Shell|shell"
+      ]
+    },
+    {
+      "adapter": "adapters/codex/hooks.json",
+      "tool": "Bash",
+      "status": "PASS",
+      "matchers": [
+        "Bash|PowerShell|pwsh|Shell|shell|shell_command|exec_command|local_shell"
+      ]
+    }
+  ],
+  "results": [
+    {
+      "case_id": "deny-npm-test-raw",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npm test",
+      "expected": "deny",
+      "actual": "deny",
+      "failure_class": null,
+      "reason": "Agent SDLC token-hygiene guard: this command’s raw output is usually too large to be worth reading in full, and most of it will not be relevant. Re-run it bounded, for example pipe test output through grep -A 5 -E \"(FAIL|ERROR|error:)\" | head -120, use the runner’s quiet/reporter flag, or bound a log dump with --tail N / tail -n N. If the full output is genuinely needed, redirect it to a file first and read back only the part that matters."
+    },
+    {
+      "case_id": "deny-pytest-raw",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "pytest",
+      "expected": "deny",
+      "actual": "deny",
+      "failure_class": null,
+      "reason": "Agent SDLC token-hygiene guard: this command’s raw output is usually too large to be worth reading in full, and most of it will not be relevant. Re-run it bounded, for example pipe test output through grep -A 5 -E \"(FAIL|ERROR|error:)\" | head -120, use the runner’s quiet/reporter flag, or bound a log dump with --tail N / tail -n N. If the full output is genuinely needed, redirect it to a file first and read back only the part that matters."
+    },
+    {
+      "case_id": "deny-go-test-raw",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "go test ./...",
+      "expected": "deny",
+      "actual": "deny",
+      "failure_class": null,
+      "reason": "Agent SDLC token-hygiene guard: this command’s raw output is usually too large to be worth reading in full, and most of it will not be relevant. Re-run it bounded, for example pipe test output through grep -A 5 -E \"(FAIL|ERROR|error:)\" | head -120, use the runner’s quiet/reporter flag, or bound a log dump with --tail N / tail -n N. If the full output is genuinely needed, redirect it to a file first and read back only the part that matters."
+    },
+    {
+      "case_id": "deny-cargo-test-raw",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "cargo test",
+      "expected": "deny",
+      "actual": "deny",
+      "failure_class": null,
+      "reason": "Agent SDLC token-hygiene guard: this command’s raw output is usually too large to be worth reading in full, and most of it will not be relevant. Re-run it bounded, for example pipe test output through grep -A 5 -E \"(FAIL|ERROR|error:)\" | head -120, use the runner’s quiet/reporter flag, or bound a log dump with --tail N / tail -n N. If the full output is genuinely needed, redirect it to a file first and read back only the part that matters."
+    },
+    {
+      "case_id": "deny-jest-raw",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npx jest",
+      "expected": "deny",
+      "actual": "deny",
+      "failure_class": null,
+      "reason": "Agent SDLC token-hygiene guard: this command’s raw output is usually too large to be worth reading in full, and most of it will not be relevant. Re-run it bounded, for example pipe test output through grep -A 5 -E \"(FAIL|ERROR|error:)\" | head -120, use the runner’s quiet/reporter flag, or bound a log dump with --tail N / tail -n N. If the full output is genuinely needed, redirect it to a file first and read back only the part that matters."
+    },
+    {
+      "case_id": "deny-cat-log",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "cat production.log",
+      "expected": "deny",
+      "actual": "deny",
+      "failure_class": null,
+      "reason": "Agent SDLC token-hygiene guard: this command’s raw output is usually too large to be worth reading in full, and most of it will not be relevant. Re-run it bounded, for example pipe test output through grep -A 5 -E \"(FAIL|ERROR|error:)\" | head -120, use the runner’s quiet/reporter flag, or bound a log dump with --tail N / tail -n N. If the full output is genuinely needed, redirect it to a file first and read back only the part that matters."
+    },
+    {
+      "case_id": "deny-docker-logs-no-tail",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "docker logs my-container",
+      "expected": "deny",
+      "actual": "deny",
+      "failure_class": null,
+      "reason": "Agent SDLC token-hygiene guard: this command’s raw output is usually too large to be worth reading in full, and most of it will not be relevant. Re-run it bounded, for example pipe test output through grep -A 5 -E \"(FAIL|ERROR|error:)\" | head -120, use the runner’s quiet/reporter flag, or bound a log dump with --tail N / tail -n N. If the full output is genuinely needed, redirect it to a file first and read back only the part that matters."
+    },
+    {
+      "case_id": "deny-kubectl-logs-no-tail",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "kubectl logs my-pod",
+      "expected": "deny",
+      "actual": "deny",
+      "failure_class": null,
+      "reason": "Agent SDLC token-hygiene guard: this command’s raw output is usually too large to be worth reading in full, and most of it will not be relevant. Re-run it bounded, for example pipe test output through grep -A 5 -E \"(FAIL|ERROR|error:)\" | head -120, use the runner’s quiet/reporter flag, or bound a log dump with --tail N / tail -n N. If the full output is genuinely needed, redirect it to a file first and read back only the part that matters."
+    },
+    {
+      "case_id": "allow-npm-test-piped-grep",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npm test 2>&1 | grep -A 5 -E '(FAIL|ERROR|error:)' | head -120",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-pytest-quiet",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "pytest -q",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-jest-reporter-dot",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npx jest --reporter=dot",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-docker-logs-tail",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "docker logs --tail 200 my-container",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-kubectl-logs-tail",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "kubectl logs --tail=200 my-pod",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-cat-log-piped",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "cat production.log | grep ERROR | tail -200",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-cat-log-redirect",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "cat production.log > /tmp/errors.log",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-npm-run-named-script",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npm run test:integrity",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-npm-install",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npm install",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-git-status",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "git status",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-ls",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "ls -la",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-non-shell-tool",
+      "status": "PASS",
+      "tool": "Read",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    }
+  ],
+  "status": "PASS"
+}

@@ -1,0 +1,126 @@
+{
+  "schema": "agent-sdlc/test-output-guard-cases/v1",
+  "description": "Token-hygiene PreToolUse guard corpus. `expect` is the permission decision the guard must return: deny, or null for no opinion (allow/no output). Cases marked with a comment are the false-positive guards: already-bounded or unrelated commands the guard must NOT block.",
+  "cases": [
+    {
+      "id": "deny-npm-test-raw",
+      "tool": "Bash",
+      "command": "npm test",
+      "expect": "deny"
+    },
+    {
+      "id": "deny-pytest-raw",
+      "tool": "Bash",
+      "command": "pytest",
+      "expect": "deny"
+    },
+    {
+      "id": "deny-go-test-raw",
+      "tool": "Bash",
+      "command": "go test ./...",
+      "expect": "deny"
+    },
+    {
+      "id": "deny-cargo-test-raw",
+      "tool": "Bash",
+      "command": "cargo test",
+      "expect": "deny"
+    },
+    {
+      "id": "deny-jest-raw",
+      "tool": "Bash",
+      "command": "npx jest",
+      "expect": "deny"
+    },
+    {
+      "id": "deny-cat-log",
+      "tool": "Bash",
+      "command": "cat production.log",
+      "expect": "deny"
+    },
+    {
+      "id": "deny-docker-logs-no-tail",
+      "tool": "Bash",
+      "command": "docker logs my-container",
+      "expect": "deny"
+    },
+    {
+      "id": "deny-kubectl-logs-no-tail",
+      "tool": "Bash",
+      "command": "kubectl logs my-pod",
+      "expect": "deny"
+    },
+    {
+      "id": "allow-npm-test-piped-grep",
+      "tool": "Bash",
+      "command": "npm test 2>&1 | grep -A 5 -E '(FAIL|ERROR|error:)' | head -120",
+      "expect": null
+    },
+    {
+      "id": "allow-pytest-quiet",
+      "tool": "Bash",
+      "command": "pytest -q",
+      "expect": null
+    },
+    {
+      "id": "allow-jest-reporter-dot",
+      "tool": "Bash",
+      "command": "npx jest --reporter=dot",
+      "expect": null
+    },
+    {
+      "id": "allow-docker-logs-tail",
+      "tool": "Bash",
+      "command": "docker logs --tail 200 my-container",
+      "expect": null
+    },
+    {
+      "id": "allow-kubectl-logs-tail",
+      "tool": "Bash",
+      "command": "kubectl logs --tail=200 my-pod",
+      "expect": null
+    },
+    {
+      "id": "allow-cat-log-piped",
+      "tool": "Bash",
+      "command": "cat production.log | grep ERROR | tail -200",
+      "expect": null
+    },
+    {
+      "id": "allow-cat-log-redirect",
+      "tool": "Bash",
+      "command": "cat production.log > /tmp/errors.log",
+      "expect": null
+    },
+    {
+      "id": "allow-npm-run-named-script",
+      "tool": "Bash",
+      "command": "npm run test:integrity",
+      "expect": null
+    },
+    {
+      "id": "allow-npm-install",
+      "tool": "Bash",
+      "command": "npm install",
+      "expect": null
+    },
+    {
+      "id": "allow-git-status",
+      "tool": "Bash",
+      "command": "git status",
+      "expect": null
+    },
+    {
+      "id": "allow-ls",
+      "tool": "Bash",
+      "command": "ls -la",
+      "expect": null
+    },
+    {
+      "id": "allow-non-shell-tool",
+      "tool": "Read",
+      "file_path": "package.json",
+      "expect": null
+    }
+  ]
+}

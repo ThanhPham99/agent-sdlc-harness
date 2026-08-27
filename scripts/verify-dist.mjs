@@ -72,6 +72,21 @@ for(const host of hosts){
       for(const rel of required.filter(x=>x.endsWith('.json')))JSON.parse(fs.readFileSync(path.join(root,rel),'utf8'));
       return {required};
     });
+    check(host,'token-hygiene-guard-asset',()=>{
+      if(host==='antigravity')return {skipped:'antigravity has no PreToolUse hook stage'};
+      const rel='hooks/test-output-guard.mjs';
+      const p=path.join(root,rel);
+      if(!fs.existsSync(p))throw Error(`missing ${rel}`);
+      const hooksCfg=JSON.parse(fs.readFileSync(path.join(root,'hooks','hooks.json'),'utf8'));
+      const wired=(hooksCfg.hooks?.PreToolUse||[]).some(e=>JSON.stringify(e.hooks||[]).includes('test-output-guard.mjs'));
+      if(!wired)throw Error('test-output-guard.mjs shipped but not wired into PreToolUse');
+      return {asset:rel};
+    });
+    if(host==='claude')check(host,'statusline-asset',()=>{
+      const rel='hooks/statusline.mjs';
+      if(!fs.existsSync(path.join(root,rel)))throw Error(`missing ${rel}`);
+      return {asset:rel,note:'opt-in via settings.json statusLine, not auto-wired'};
+    });
     check(host,'auto-activation-assets',()=>{
       const policy=getActivationPolicy();
       const required=host==='claude'?['hooks/hooks.json','hooks/claude-session-start.mjs','hooks/pretool-guard.mjs']:

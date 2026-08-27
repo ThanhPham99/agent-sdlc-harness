@@ -20,6 +20,8 @@ const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.jso
 // source (authoritative) -> root install surface (copy)
 const MIRRORS=[
   ['adapters/hooks/pretool-guard.mjs','hooks/pretool-guard.mjs'],
+  ['adapters/hooks/test-output-guard.mjs','hooks/test-output-guard.mjs'],
+  ['adapters/hooks/statusline.mjs','hooks/statusline.mjs'],
   ['adapters/hooks/claude-session-start.mjs','hooks/claude-session-start.mjs'],
   ['adapters/hooks/antigravity-preinvocation.mjs','hooks/antigravity-preinvocation.mjs'],
   ['adapters/antigravity/hooks.json','hooks.json'],

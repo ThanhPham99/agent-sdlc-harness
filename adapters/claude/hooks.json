@@ -1,5 +1,5 @@
 {
-  "description": "Agent SDLC auto-activation bootstrap plus defense-in-depth guard for destructive shell operations.",
+  "description": "Agent SDLC auto-activation bootstrap plus defense-in-depth guard for destructive shell operations and a token-hygiene guard for unfiltered test/log output.",
   "hooks": {
     "SessionStart": [
       {
@@ -20,6 +20,11 @@
           {
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/pretool-guard.mjs\"",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/test-output-guard.mjs\"",
             "timeout": 5
           }
         ]

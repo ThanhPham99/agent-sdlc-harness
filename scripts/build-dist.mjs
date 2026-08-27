@@ -67,6 +67,8 @@ if(fs.existsSync(path.join(ROOT,'commands'))){
 fs.mkdirSync(path.join(c,'hooks'),{recursive:true});
 fs.copyFileSync(path.join(ROOT,'adapters/claude/hooks.json'),path.join(c,'hooks','hooks.json'));
 fs.copyFileSync(path.join(ROOT,'adapters/hooks/pretool-guard.mjs'),path.join(c,'hooks','pretool-guard.mjs'));
+fs.copyFileSync(path.join(ROOT,'adapters/hooks/test-output-guard.mjs'),path.join(c,'hooks','test-output-guard.mjs'));
+fs.copyFileSync(path.join(ROOT,'adapters/hooks/statusline.mjs'),path.join(c,'hooks','statusline.mjs'));
 // Auto-activation bootstrap: SessionStart re-delivers the compact invariant on
 // startup/resume/clear/compact/fork without preloading any skill body.
 fs.copyFileSync(path.join(ROOT,'adapters/hooks/claude-session-start.mjs'),path.join(c,'hooks','claude-session-start.mjs'));
@@ -81,6 +83,7 @@ fs.copyFileSync(path.join(ROOT,'adapters/codex/.mcp.json'),path.join(x,'.mcp.jso
 fs.mkdirSync(path.join(x,'hooks'),{recursive:true});
 fs.copyFileSync(path.join(ROOT,'adapters/codex/hooks.json'),path.join(x,'hooks','hooks.json'));
 fs.copyFileSync(path.join(ROOT,'adapters/hooks/pretool-guard.mjs'),path.join(x,'hooks','pretool-guard.mjs'));
+fs.copyFileSync(path.join(ROOT,'adapters/hooks/test-output-guard.mjs'),path.join(x,'hooks','test-output-guard.mjs'));
 
 let a=host('antigravity');
 fs.copyFileSync(path.join(ROOT,'adapters/antigravity/plugin.json'),path.join(a,'plugin.json'));

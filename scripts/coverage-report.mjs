@@ -65,7 +65,9 @@ const NOT_MEASURED={
   'scripts/validate-registry.mjs':'file consistency check; never enters runtime/',
   'scripts/validate-root-sync.mjs':'file consistency check; never enters runtime/',
   'scripts/validate-ci-coverage.mjs':'checks the CI step list; never enters runtime/',
-  'scripts/validate-guard.mjs':'runs the host guard in adapters/, outside runtime/'
+  'scripts/validate-guard.mjs':'runs the host guard in adapters/, outside runtime/',
+  'scripts/validate-test-output-guard.mjs':'runs the host guard in adapters/, outside runtime/',
+  'scripts/test-statusline.mjs':'exercises the opt-in statusline script in adapters/, outside runtime/'
 };
 
 /** Every suite the `check` chain runs, expanded through its npm-script aliases. */

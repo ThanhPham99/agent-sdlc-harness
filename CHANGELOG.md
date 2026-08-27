@@ -8,6 +8,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `hooks/test-output-guard.mjs` (`adapters/hooks/test-output-guard.mjs`): a second PreToolUse guard, wired alongside `pretool-guard.mjs` on Claude Code and Codex, that denies known-verbose unfiltered test-runner and log-dump commands (`npm test`, `pytest`, `cat *.log`, `docker/kubectl logs` without `--tail`, ...) and asks for a bounded form instead, so raw output does not reach the model's context uninspected. Already-bounded commands pass through untouched. Corpus and matcher-coverage checks: `scripts/validate-test-output-guard.mjs` / `npm run test:test-output-guard`, wired into `test:integrity`.
+- `hooks/statusline.mjs` (`adapters/hooks/statusline.mjs`): opt-in Claude Code status line showing model, context %, cost and git branch, wired manually via `settings.json` since a status line is a per-user/per-project preference, not something a plugin manifest can impose. Smoke-tested by `scripts/test-statusline.mjs` / `npm run test:statusline`.
 - `scripts/validate-ci-coverage.mjs`: every suite reachable from `npm run check` must be run by CI, directly or through an aggregate; wired into `test:integrity`.
 - CI now gates `test:gates`, `test:tasks`, `test:alpha6` and both qualification suites, which were green locally but ungated.
 - CI matrix: node 18 (the floor declared by `engines`) and node 22, plus a `windows-latest` job covering the platform-sensitive runtime surfaces.

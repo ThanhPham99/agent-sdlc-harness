@@ -43,6 +43,26 @@ budgets live there. Detail: `docs/AUTO-ACTIVATION.md`.
 
 Host binaries can be pinned with `AI_SDLC_CLAUDE_BIN`, `AI_SDLC_CODEX_BIN`, and `AI_SDLC_ANTIGRAVITY_BIN`. Provider model IDs and pricing are deliberately not baked into prompts; model routing uses policy tiers and runtime capability/availability signals.
 
+## Hooks: shell guards and status line
+
+Two PreToolUse hooks wire into every Bash-capable tool call on Claude Code and Codex (`adapters/claude/hooks.json`, `adapters/codex/hooks.json`):
+
+- `hooks/pretool-guard.mjs` — defense-in-depth guard for destructive/irreversible shell commands.
+- `hooks/test-output-guard.mjs` — token-hygiene guard: denies known verbose, unfiltered test-runner and log-dump commands (`npm test`, `pytest`, `cat *.log`, `docker logs` without `--tail`, ...) and asks for a bounded form instead (piped through `grep`/`head`, a quiet/reporter flag, or a line cap), so raw output does not reach the model's context uninspected. Already-bounded commands are left untouched. Disable with `AGENT_SDLC_TEST_OUTPUT_GUARD=0|false|off`. Corpus and matcher-coverage checks: `npm run test:test-output-guard`.
+
+A status line is a per-user/per-project display preference, so it is not wired automatically. Opt in from `.claude/settings.json` (project) or `~/.claude/settings.json` (user):
+
+```json
+{
+  "statusLine": {
+    "type": "command",
+    "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/statusline.mjs\""
+  }
+}
+```
+
+It prints `model | ctx N% | cost $N.NN | branch <name>`, omitting any field the host's status payload does not provide. Smoke test: `npm run test:statusline`.
+
 ## Repository intelligence (alpha6)
 
 `.agent-sdlc/index/repo-index.json` is a cache, not state: delete it freely, `repo index`

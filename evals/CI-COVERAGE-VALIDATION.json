@@ -3,8 +3,8 @@
   "version": "3.0.0-alpha6",
   "workflow": ".github/workflows/ci.yml",
   "check_script": "check",
-  "checks": 28,
-  "passes": 28,
+  "checks": 30,
+  "passes": 30,
   "failures": 0,
   "suites": [
     {
@@ -33,6 +33,18 @@
     },
     {
       "script": "test:guard",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:test-output-guard",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:statusline",
       "status": "PASS",
       "gated_via": "test:integrity",
       "problems": []

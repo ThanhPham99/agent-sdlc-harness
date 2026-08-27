@@ -56,6 +56,8 @@ const outputs=[
   ['adapters/hooks/claude-session-start.mjs',claudeHook],
   ['hooks/claude-session-start.mjs',claudeHook],
   ['hooks/pretool-guard.mjs',fs.readFileSync(path.join(ROOT,'adapters/hooks/pretool-guard.mjs'),'utf8')],
+  ['hooks/test-output-guard.mjs',fs.readFileSync(path.join(ROOT,'adapters/hooks/test-output-guard.mjs'),'utf8')],
+  ['hooks/statusline.mjs',fs.readFileSync(path.join(ROOT,'adapters/hooks/statusline.mjs'),'utf8')],
   ['adapters/hooks/antigravity-preinvocation.mjs',antigravityHook],
   ['hooks/antigravity-preinvocation.mjs',antigravityHook],
   ['adapters/antigravity/rules.md',rules],

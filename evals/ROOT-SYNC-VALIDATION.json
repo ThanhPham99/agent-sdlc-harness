@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/root-sync-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 7,
-  "passes": 7,
+  "checks": 9,
+  "passes": 9,
   "failures": 0,
   "mirrors": [
     {
@@ -11,6 +11,22 @@
       "status": "PASS",
       "source_sha256": "f930147396c48370",
       "root_sha256": "f930147396c48370",
+      "problems": []
+    },
+    {
+      "source": "adapters/hooks/test-output-guard.mjs",
+      "root_copy": "hooks/test-output-guard.mjs",
+      "status": "PASS",
+      "source_sha256": "d9ad54730624d14a",
+      "root_sha256": "d9ad54730624d14a",
+      "problems": []
+    },
+    {
+      "source": "adapters/hooks/statusline.mjs",
+      "root_copy": "hooks/statusline.mjs",
+      "status": "PASS",
+      "source_sha256": "42b33ad59f2b7ba9",
+      "root_sha256": "42b33ad59f2b7ba9",
       "problems": []
     },
     {

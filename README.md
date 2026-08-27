@@ -114,7 +114,9 @@ The 18 canonical internal capability groups live under `harness/internal-skills/
 - artifact-first external memory, JSONL event stream, durable handoffs, replay and token/cost ledger;
 - bounded context compiler, progressive disclosure, model/effort routing, bounded parallelism and stage-specific budgets;
 - stage/security policy engine, approval checks, deterministic tool gateway, secret redaction and MCP contracts for LSP/SAST/SCA/deploy/observability integrations;
-- fixed live qualification corpus with 84 semantic/security + 8 repository-E2E cases per host, exact package/corpus/subject digest binding, freshness checks and fail-closed promotion.
+- fixed live qualification corpus with 84 semantic/security + 8 repository-E2E cases per host, exact package/corpus/subject digest binding, freshness checks and fail-closed promotion;
+- PreToolUse token-hygiene guard (`hooks/test-output-guard.mjs`) that denies unfiltered verbose test/log commands and nudges toward a bounded form, alongside the destructive-command safety guard;
+- opt-in status line (`hooks/statusline.mjs`) showing model, context %, cost and git branch on every turn — see [Configuration](docs/CONFIGURATION.md).
 
 ## Local development
 
