@@ -20,17 +20,20 @@ function check(host,id,fn){
   try{const detail=fn();rows.push({host,id,status:'PASS',...(detail?{detail}:{})});}
   catch(e){failures++;rows.push({host,id,status:'FAIL',detail:e.message});}
 }
-function jsonCmd(bin,args,cwd){
-  const r=spawnSync(bin,args,{cwd,encoding:'utf8',timeout:15000,maxBuffer:5*1024*1024});
+function jsonCmd(bin,args,cwd,extra={}){
+  const r=spawnSync(bin,args,{cwd,encoding:'utf8',timeout:15000,maxBuffer:5*1024*1024,...extra});
   if(r.status!==0)throw new Error((r.stderr||r.stdout||`exit ${r.status}`).trim().slice(0,1200));
   return JSON.parse(r.stdout.trim());
 }
-// The POSIX shell entrypoint is not executable on Windows; fall back to the same
-// CLI module the entrypoint execs so the packaged tree is verifiable everywhere.
+// Each platform's own entry point, so the packaged shim is what gets verified.
+// This used to run runtime/cli.mjs directly on Windows, which meant the shipped
+// Windows entry point was never executed by any suite -- and for a long while
+// there was not one to execute.
 function cli(root,args,cwd){
-  return process.platform==='win32'
-    ? jsonCmd(process.execPath,[path.join(root,'runtime','cli.mjs'),...args],cwd)
-    : jsonCmd(path.join(root,'bin','agent-sdlc'),args,cwd);
+  if(process.platform!=='win32')return jsonCmd(path.join(root,'bin','agent-sdlc'),args,cwd);
+  // Already quoted for cmd.exe, so libuv must not re-quote it.
+  const line=[path.join(root,'bin','agent-sdlc.cmd'),...args].map(a=>`"${a}"`).join(' ');
+  return jsonCmd(process.env.ComSpec||'cmd.exe',['/d','/s','/c',`"${line}"`],cwd,{windowsVerbatimArguments:true});
 }
 function immediateDirs(dir){return fs.readdirSync(dir,{withFileTypes:true}).filter(x=>x.isDirectory()).map(x=>x.name).sort();}
 

@@ -60,6 +60,11 @@ Auto-activation options:
 ./install.ps1 -HostName codex -NoAutoActivate
 ```
 
+On Windows use `bin\agent-sdlc.cmd` (cmd.exe) or `bin\agent-sdlc.ps1`
+(PowerShell); `bin/agent-sdlc` is a POSIX `sh` script and neither shell will run
+it. `node runtime/cli.mjs <command>` works everywhere and is what all three
+shims exec.
+
 The script invokes native host commands; the only host-owned file it writes is the delimited
 Agent SDLC auto-activation block in `$CODEX_HOME/AGENTS.md`, which exists because Codex has no
 plugin hook contract this package will claim. It is idempotent, backed up before first

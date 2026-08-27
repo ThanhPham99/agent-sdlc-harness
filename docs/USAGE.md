@@ -19,6 +19,11 @@ substitutes for approval on production, destructive, credential or security-exce
 ./bin/agent-sdlc activation status --host claude
 ```
 
+On Windows use `bin\agent-sdlc.cmd` (cmd.exe) or `bin\agent-sdlc.ps1`
+(PowerShell); `bin/agent-sdlc` is a POSIX `sh` script and neither shell will run
+it. `node runtime/cli.mjs <command>` works everywhere and is what all three
+shims exec.
+
 Codex installed natively is soft activation only; see `docs/AUTO-ACTIVATION.md`. The commands
 below remain the deterministic surface the orchestrator drives, and are equally usable by hand.
 
@@ -73,6 +78,10 @@ The manifest loads current stage skills, workflow-specific specialties, compact 
 ./bin/agent-sdlc model-route --run-id <id>
 ./bin/agent-sdlc parallel-plan --tasks '[{"id":"a","write_set":["a.ts"]},{"id":"b","write_set":["b.ts"]}]'
 ```
+
+`tool-run` also accepts `--selector <value>` and `--timeout-ms <n>` as shorthand for the
+`selector`/`timeout_ms` keys inside `--args`; if `--args` already sets one of those keys, the
+`--args` value wins.
 
 External tools (LSP, SAST/SCA, deploy, observability) are mapped through MCP/host integrations while retaining the canonical policy decision.
 
