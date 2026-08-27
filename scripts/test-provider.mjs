@@ -14,7 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {probeBin,probe,resetProbeCache,capabilities,buildInvocation,runHost,argvLimitProblem} from '../runtime/provider.mjs';
+import {probeBin,probe,resetProbeCache,capabilities,buildInvocation,runHost,argvLimitProblem,DEFAULT_MAX_WALL_MS} from '../runtime/provider.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const POSIX=process.platform!=='win32';
@@ -27,6 +27,7 @@ const assert=(cond,msg)=>{if(!cond)throw new Error(msg);};
 
 const CLAUDE_HELP='-p --print --output-format --json-schema --max-turns --model --mcp-config --permission-mode';
 const CODEX_HELP='exec --json --ephemeral --sandbox --output-schema --model';
+const AGY_HELP='--sandbox --print -p --print-timeout --output-format --json-schema --model --effort';
 
 /** A scripted spawn: records every call and answers from a table. */
 function fakeSpawn(answers){
@@ -156,6 +157,41 @@ test('codex-prompt-is-the-final-argument',()=>{
   const out=inv('codex',CODEX_HELP,'the prompt');
   assert(out.argv.at(-1)==='the prompt',JSON.stringify(out.argv));
   assert(out.argv[1]==='exec','codex is not invoked in exec mode');
+});
+test('every-invocation-reports-the-budget-it-was-built-with',()=>{
+  // provider-command hands this document to a caller who may run the argv
+  // themselves, and on Claude and Codex nothing in the argv says when to give
+  // up. Leaving the bound implicit in the spawn made the printed command look
+  // unbounded, so the budget is reported whether or not a flag carries it.
+  const explicit=inv('claude',CLAUDE_HELP,'p',{maxWallMs:1234,maxTurns:8});
+  assert(explicit.max_wall_ms===1234&&explicit.max_turns===8,JSON.stringify(explicit));
+  const fallback=inv('claude',CLAUDE_HELP,'p');
+  assert(fallback.max_wall_ms===DEFAULT_MAX_WALL_MS,`no default budget: ${fallback.max_wall_ms}`);
+  // A refusal is still bounded: the caller learns the budget that would apply.
+  const tooBig=inv('claude',CLAUDE_HELP,'x'.repeat(300000),{maxWallMs:1234});
+  assert(tooBig.status==='PENDING'&&tooBig.max_wall_ms===1234,JSON.stringify({s:tooBig.status,b:tooBig.max_wall_ms}));
+});
+test('a-host-with-an-in-band-timeout-gets-the-same-budget-as-the-spawn',()=>{
+  // Regression: antigravity bounds print mode itself and defaults to 5m, and the
+  // flag was never passed. The host gave up at its own default while the harness
+  // waited out a 15m spawn timeout, so a budget overrun surfaced as a host FAIL
+  // rather than a clean timeout. scripts/qualify-host.mjs already passed this
+  // flag; the runtime did not.
+  const out=inv('antigravity',AGY_HELP,'p',{maxWallMs:120000});
+  assert(out.argv[out.argv.indexOf('--print-timeout')+1]==='120s',JSON.stringify(out.argv));
+  assert(out.max_wall_ms===120000,JSON.stringify(out));
+  // Claude and Codex advertise no such flag, so nothing is invented for them.
+  for(const [host,help] of [['claude',CLAUDE_HELP],['codex',CODEX_HELP]]){
+    assert(!inv(host,help,'p',{maxWallMs:120000}).argv.includes('--print-timeout'),`${host} was given a flag it does not support`);
+  }
+});
+test('the-in-band-bound-and-the-spawn-bound-cannot-diverge',()=>{
+  resetProbeCache();
+  const spawn=fakeSpawn({'agy --version':ok('1.0'),'agy --help':ok(AGY_HELP),'agy --print':ok('')});
+  runHost('antigravity','p',schema,{maxWallMs:45000},{spawn});
+  const run=spawn.calls.at(-1);
+  assert(run.opts.timeout===45000,`spawn bound ${run.opts.timeout}`);
+  assert(run.args[run.args.indexOf('--print-timeout')+1]==='45s',JSON.stringify(run.args));
 });
 test('a-missing-host-is-pending-not-an-exception',()=>{
   resetProbeCache();

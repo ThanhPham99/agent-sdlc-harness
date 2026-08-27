@@ -2,8 +2,8 @@
   "schema": "agent-sdlc/provider-validation/v1",
   "platform": "linux",
   "real_binary_checks": true,
-  "checks": 24,
-  "passes": 24,
+  "checks": 27,
+  "passes": 27,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -57,6 +57,18 @@
     },
     {
       "name": "codex-prompt-is-the-final-argument",
+      "status": "PASS"
+    },
+    {
+      "name": "every-invocation-reports-the-budget-it-was-built-with",
+      "status": "PASS"
+    },
+    {
+      "name": "a-host-with-an-in-band-timeout-gets-the-same-budget-as-the-spawn",
+      "status": "PASS"
+    },
+    {
+      "name": "the-in-band-bound-and-the-spawn-bound-cannot-diverge",
       "status": "PASS"
     },
     {

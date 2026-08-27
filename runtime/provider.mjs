@@ -18,6 +18,13 @@ const PROBE_MAX_BUFFER=4*1024*1024;
 const WINDOWS_COMMAND_LINE_LIMIT=32767;
 const POSIX_ARG_LIMIT=128*1024;
 
+// The wall-clock budget for one host turn. It lives here rather than at the
+// single spawn site because two things need to agree on it: the out-of-band
+// spawn timeout, and the in-band flag on hosts that have one.
+export const DEFAULT_MAX_WALL_MS=900000;
+
+/** A Go duration, for hosts whose timeout flag is parsed by Go. */
+const goDuration=ms=>`${Math.max(1,Math.round(ms/1000))}s`;
 
 // A pinned binary is authoritative: when AI_SDLC_<HOST>_BIN is set, it is the
 // only candidate. Falling through to a PATH binary silently re-pointed every
@@ -97,6 +104,7 @@ export function argvLimitProblem(argv,platform=process.platform){
 
 export function buildInvocation(host,prompt,schemaPath,budget={},{spawn=spawnSync}={}){
   const p=probe(host,{spawn});
+  const maxWallMs=budget.maxWallMs||DEFAULT_MAX_WALL_MS;
   if(!p)return {status:'PENDING',reason:'HOST_CLI_NOT_FOUND',argv:null};
   const h=p.help||'';
   let a;
@@ -118,17 +126,29 @@ export function buildInvocation(host,prompt,schemaPath,budget={},{spawn=spawnSyn
     if(/--output-format/.test(h))a.push('--output-format','json');
     if(/--json-schema/.test(h)&&schemaPath)a.push('--json-schema',schemaPath);
     if(/--sandbox/.test(h))a.push('--sandbox');
+    // Antigravity bounds print mode itself and defaults to 5m. Left unset, the
+    // host gave up at its own default while the harness waited out a 15m spawn
+    // timeout, so a budget overrun surfaced as a host FAIL rather than a clean
+    // timeout. Where the host has an in-band bound it gets the same budget the
+    // spawn is given. Claude and Codex advertise no such flag, so for them the
+    // spawn timeout stays the only bound -- which is why every invocation
+    // reports max_wall_ms below rather than leaving it implicit in the argv.
+    if(/--print-timeout/.test(h))a.push('--print-timeout',goDuration(maxWallMs));
   }
   const tooLong=argvLimitProblem(a);
-  if(tooLong)return {status:'PENDING',...tooLong,argv:null,version:p.version};
-  return {status:'READY',argv:a,version:p.version};
+  if(tooLong)return {status:'PENDING',...tooLong,argv:null,version:p.version,max_wall_ms:maxWallMs};
+  // The budget is part of the invocation contract, not a private detail of the
+  // spawn: `provider-command` hands this document to a caller who may run the
+  // argv themselves, and on Claude and Codex nothing in the argv says when to
+  // give up.
+  return {status:'READY',argv:a,version:p.version,max_wall_ms:maxWallMs,max_turns:budget.maxTurns??null};
 }
 
 export function runHost(host,prompt,schemaPath,budget={},{spawn=spawnSync}={}){
   const inv=buildInvocation(host,prompt,schemaPath,budget,{spawn});
   if(inv.status!=='READY')return inv;
   const r=spawn(inv.argv[0],inv.argv.slice(1),
-    {encoding:'utf8',timeout:budget.maxWallMs||900000,maxBuffer:20*1024*1024});
+    {encoding:'utf8',timeout:inv.max_wall_ms,maxBuffer:20*1024*1024});
   // A spawn that timed out or never started has no exit code. Reporting 1 there
   // made a wall-clock timeout indistinguishable from a host that ran and failed,
   // which is exactly the distinction the fallback policy needs.
@@ -137,7 +157,7 @@ export function runHost(host,prompt,schemaPath,budget={},{spawn=spawnSync}={}){
     ...inv,
     exit_code:r?.status??null,
     stdout:r?.stdout||'',stderr:r?.stderr||'',
-    timed_out:errorCode==='ETIMEDOUT'||(r?.status==null&&r?.signal!=null&&!!budget.maxWallMs),
+    timed_out:errorCode==='ETIMEDOUT'||(r?.status==null&&r?.signal!=null&&!!inv.max_wall_ms),
     error:errorCode,
     status:r?.status===0?'PASS':'FAIL'
   };
