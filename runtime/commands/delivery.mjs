@@ -57,15 +57,15 @@ export const commands={
     else throw new Error(`unknown ci subcommand ${sub}`);
   },
   govern:async ctx=>{
-    const {args,ROOT,projectRoot,print,needRun}=ctx;
+    const {args,ROOT,projectRoot,print,needRun,need}=ctx;
     const sub=args._[1]||'report';
     const {governTask,governorReport,getGovernancePolicy,taskComplexity}=await import('../governor.mjs');
     const {requireTask}=await import('../task-engine.mjs');
     if(sub==='policy')print(getGovernancePolicy(ROOT));
     else if(sub==='report'){const r=await needRun();print(governorReport(ROOT,projectRoot,r));}
-    else if(sub==='complexity'){const r=await needRun();print(taskComplexity(ROOT,requireTask(projectRoot,r.run_id,args['task-id'])));}
+    else if(sub==='complexity'){const r=await needRun();print(taskComplexity(ROOT,requireTask(projectRoot,r.run_id,need('task-id'))));}
     else if(sub==='task'){
-      const run=await needRun();const task=requireTask(projectRoot,run.run_id,args['task-id']);
+      const run=await needRun();const task=requireTask(projectRoot,run.run_id,need('task-id'));
       print(governTask(ROOT,projectRoot,run,task,{
         contextEstimate:args['context-estimate']?Number(args['context-estimate']):null,
         contextBudget:args['context-budget']?Number(args['context-budget']):null,
@@ -76,14 +76,14 @@ export const commands={
     else throw new Error(`unknown govern subcommand ${sub}`);
   },
   learn:async ctx=>{
-    const {args,projectRoot,print}=ctx;
+    const {args,projectRoot,print,need}=ctx;
     const sub=args._[1]||'sources';
     const {buildRegressionCandidate,validateRegressionCandidate,toEvalCase,LEARNING_SOURCES}=await import('../learning.mjs');
     if(sub==='sources')print({sources:LEARNING_SOURCES,note:'a candidate is proposed for eval validation; nothing here mutates policy'});
     else if(sub==='candidate'){
       const list=k=>args[k]?String(args[k]).split(',').map(s=>s.trim()).filter(Boolean):[];
       const candidate=buildRegressionCandidate({
-        source:args.source,title:args.title,observed:args.observed,expected:args.expected,
+        source:need('source'),title:args.title,observed:args.observed,expected:args.expected,
         failureClass:args['failure-class']||null,runId:args['run-id']||null,taskId:args['task-id']||null,
         paths:list('paths'),evidence:list('evidence'),diagnostic:args.diagnostic||null,
         policyHypothesis:args['policy-hypothesis']||null,projectRoot

@@ -37,9 +37,9 @@ export const commands={
     print(putHandoff(projectRoot,run,payload));
   },
   'handoff-get':async ctx=>{
-    const {args,projectRoot,print}=ctx;
+    const {projectRoot,print,need}=ctx;
     const {getHandoff}=await import('../handoff.mjs');
-    print(getHandoff(projectRoot,args.id));
+    print(getHandoff(projectRoot,need('id')));
   },
   'handoff-list':async ctx=>{
     const {args,projectRoot,print}=ctx;
@@ -72,8 +72,8 @@ export const commands={
     print(b);
   },
   'replay-validate':async ctx=>{
-    const {args,print}=ctx;
+    const {print,need}=ctx;
     const {validateReplay}=await import('../replay.mjs');
-    print(validateReplay(readJson(path.resolve(args.file))));
+    print(validateReplay(readJson(path.resolve(need('file')))));
   }
 };
