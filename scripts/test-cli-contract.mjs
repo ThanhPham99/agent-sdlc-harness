@@ -361,6 +361,26 @@ test('a-refused-plan-gate-exits-non-zero',()=>{
 // from the deterministic validator, not from --evidence. So this block doubles
 // as the only end-to-end CLI drive of the stage loop up to IMPLEMENT.
 
+/** sha256 of nothing: what an empty diff hashes to. */
+const EMPTY_SHA256='e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855';
+
+/** Where runToImplement wrote a run's plan, for the commands that re-read it. */
+const PLAN_FILE=runId=>path.join(PROJECT,`plan-${runId}.json`);
+
+/** A review bound to the task's current attempt and diff, written to a file.
+ *  `overrides` supplies the schema, the verdict and anything a case wants to
+ *  break on purpose. */
+function reviewFile(runId,label,task,overrides){
+  const file=path.join(PROJECT,`review-${runId}-${label}.json`);
+  fs.writeFileSync(file,JSON.stringify({
+    task_id:task.task_id,attempt:task.attempt,diff_hash:task.diff_hash,findings:[],
+    independence:{requested:false,achieved:true,mode:'SEPARATE_CONTEXT',
+      worker_reasoning_withheld:true,reviewer:'independent-reviewer'},
+    ...overrides
+  },null,2));
+  return file;
+}
+
 /** Drive a fresh run from INTAKE to IMPLEMENT through the real gates. */
 function runToImplement(objective){
   const r=json(['start','--objective',objective]);
@@ -524,6 +544,129 @@ test('fallback-resumes-a-task-on-the-target-provider-from-its-checkpoint',()=>{
   // Resumption reconstructs context from durable state rather than replaying a
   // conversation, so the task must come back bound to a context manifest.
   if(!out.context_delta)throw new Error('no context delta reported on resume');
+});
+
+// --- the task engine, driven the way an agent drives it ---------------------
+// 78 subcommands were dispatched and documented without any suite invoking them
+// through the CLI. The task engine was the worst of it: 3 of 31. It is exercised
+// in-process by validate-task-engine, but the CLI is the surface the skills tell
+// the model to call, and nothing had ever walked a task from materialized to
+// DONE across process boundaries.
+test('a-task-runs-from-materialized-to-done-through-the-cli',()=>{
+  const at=runToImplement('Add refund idempotency end to end');
+  const runId=at[1];
+  const T=['--task-id','TASK-001'];
+
+  if(json(['task','refresh',...at]).promoted?.[0]!=='TASK-001')throw new Error('the root task was not promoted to ready');
+  const started=json(['task','start',...at,...T]);
+  if(!started.started||started.task.status!=='RUNNING')throw new Error(JSON.stringify(started).slice(0,200));
+
+  // Writer isolation: the task gets its own git worktree, and edits made
+  // anywhere else are correctly invisible to it. Writing to the project root
+  // here would leave changed_paths empty and the whole lifecycle would pass
+  // while verifying nothing.
+  const ws=json(['task','workspaces',...at]).workspaces.find(w=>w.task_id==='TASK-001');
+  if(ws.mode!=='isolated-worktree'||!ws.root)throw new Error(JSON.stringify(ws).slice(0,200));
+  fs.writeFileSync(path.join(ws.root,'src','service.js'),
+    'const seen=new Map();\nexport function charge(id,amount){\n  if(seen.has(id))return seen.get(id);\n  const r={id,amount};seen.set(id,r);return r;\n}\n');
+
+  const captured=json(['task','capture',...at,...T]);
+  if(!captured.changed_paths.includes('src/service.js'))throw new Error(`capture missed the edit: ${JSON.stringify(captured)}`);
+  if(captured.diff_hash===EMPTY_SHA256)throw new Error('a real edit hashed as an empty diff');
+
+  const verified=json(['task','verify',...at,...T]);
+  if(verified.evidence?.status!=='PASS')throw new Error(JSON.stringify(verified.evidence).slice(0,200));
+  // verify records evidence; it does not move the task. The state machine is
+  // walked by advance, which re-verifies rather than trusting an earlier
+  // attempt, so a stale PASS cannot carry a task forward.
+  if(json(['task','show',...at,...T]).status!=='RUNNING')throw new Error('verify moved the task on its own');
+
+  // advance takes the reviews as arguments rather than trusting whatever was
+  // recorded earlier, so a task cannot be walked to DONE by recording a review
+  // for some other attempt.
+  const blocked=json(['task','advance',...at,...T]);
+  if(blocked.advanced!==false||blocked.awaiting!=='SPEC_COMPLIANCE_REVIEW')throw new Error(JSON.stringify(blocked).slice(0,200));
+  if(json(['task','show',...at,...T]).status!=='SPEC_REVIEW')throw new Error('advance did not walk verification to the review state');
+
+  const task=json(['task','show',...at,...T]);
+  const spec=reviewFile(runId,'spec',task,{schema:'agent-sdlc/spec-compliance-review/v1',verdict:'COMPLIANT',
+    acceptance_criteria_checked:task.acceptance_criteria||[]});
+  const quality=reviewFile(runId,'quality',task,{schema:'agent-sdlc/code-quality-review/v1',verdict:'ACCEPTED'});
+
+  const done=json(['task','advance',...at,...T,'--spec-review',spec,'--quality-review',quality]);
+  if(!done.advanced||done.task.status!=='DONE')throw new Error(JSON.stringify({a:done.advanced,s:done.task.status,steps:done.steps}));
+  const progress=json(['task','progress',...at]);
+  if(progress.by_status?.DONE!==1||progress.done_count!==1)throw new Error(JSON.stringify(progress).slice(0,200));
+});
+
+test('a-review-cannot-claim-independence-it-did-not-have',()=>{
+  // The one thing the review contract exists to prevent: a reviewer asserting
+  // independence while admitting it shared the worker's context. Recorded
+  // through the CLI, the invalid review must be refused with a non-zero exit.
+  const at=runToImplement('Add refund independence check');
+  const T=['--task-id','TASK-001'];
+  json(['task','refresh',...at]);
+  json(['task','start',...at,...T]);
+  const task=json(['task','show',...at,...T]);
+  const bad=reviewFile(at[1],'spec-contradictory',task,{schema:'agent-sdlc/spec-compliance-review/v1',verdict:'COMPLIANT',
+    acceptance_criteria_checked:task.acceptance_criteria||[],
+    independence:{requested:true,achieved:true,mode:'SAME_CONTEXT',worker_reasoning_withheld:true}});
+  const r=raw(['task','review',...at,...T,'--file',bad]);
+  if(r.status===0)throw new Error('a contradictory independence claim was accepted');
+  const doc=JSON.parse(r.stdout);
+  if(!doc.validation?.errors?.includes('INDEPENDENCE_CLAIM_CONTRADICTS_MODE'))throw new Error(JSON.stringify(doc.validation));
+});
+
+// --- read-only surfaces that needed a run with real tasks -------------------
+const ENGINE=runToImplement('Add refund reporting surfaces');
+json(['task','refresh',...ENGINE]);
+json(['repo','index']);
+json(['trace','build',...ENGINE]);
+for(const args of [
+  ['task','list'],['task','ready'],['task','progress'],['task','graph'],['task','events'],
+  ['task','metrics'],['task','usage'],['task','workspaces'],['task','schedule'],
+  ['task','show','--task-id','TASK-001'],['task','context','--task-id','TASK-001'],
+  ['task','context-show','--task-id','TASK-001'],['task','checkpoint','--task-id','TASK-001'],
+  ['task','classify','--task-id','TASK-001'],['task','replay','--task-id','TASK-001'],
+  ['repo','capability'],['repo','tests'],['repo','entities'],['repo','events'],['repo','recent'],
+  ['repo','surface'],['repo','interfaces'],['repo','references','--name','charge'],
+  ['repo','module','--module','src'],['repo','dependents','--target','src/service.js'],
+  ['trace','show'],['trace','validate'],['trace','coverage'],['trace','history'],
+  ['delivery','status'],['delivery','branch'],['delivery','push-check'],['delivery','drift'],['delivery','group'],
+  ['ci','history'],['govern','report'],
+  ['activation','status'],['activation','doctor'],['activation','classify'],
+  ['plan','graph','--file',PLAN_FILE(ENGINE[1])],['design','mode'],['feature','active']
+]){
+  test(`read-surface-${args.join('-').replace(/[^a-z0-9-]/gi,'')}`,()=>{
+    const out=json([...args,...ENGINE]);
+    if(out===undefined)throw new Error('no document');
+  });
+}
+
+test('activation-print-bootstrap-emits-pasteable-text-not-json',()=>{
+  // The bootstrap instruction is meant to be pasted into a host config, so this
+  // one command answers in text. It is in the sweep as a text case rather than
+  // dropped, because an empty answer here means auto-activation ships nothing.
+  const r=raw(['activation','print-bootstrap',...ENGINE]);
+  if(r.status!==0)throw new Error(`exit ${r.status}`);
+  if(r.stdout.trim().startsWith('{'))throw new Error('print-bootstrap printed JSON');
+  if(!/sdlc-router/.test(r.stdout))throw new Error('the bootstrap text names no skill');
+});
+
+test('required-flags-are-guarded-across-every-command-group',()=>{
+  // A sweep of all 152 command+subcommand surfaces found five more places that
+  // read a flag straight out of argv: `handoff-get` opened a path with the
+  // literal string "undefined" in it, `replay-validate` threw a raw Node
+  // TypeError about paths[0], and govern/learn reported "unknown task
+  // undefined". None of them said which flag was missing.
+  for(const [args,flag] of [
+    [['handoff-get'],'--id'],[['replay-validate'],'--file'],
+    [['govern','complexity'],'--task-id'],[['govern','task'],'--task-id'],
+    [['learn','candidate'],'--source']
+  ]){
+    const err=failure([...args,...ENGINE]);
+    if(err.error!==`${flag} required`)throw new Error(`${args.join(' ')}: ${err.error}`);
+  }
 });
 
 const report={schema:'agent-sdlc/cli-contract-validation/v1',checks:rows.length,passes:pass,failures:fail,results:rows};

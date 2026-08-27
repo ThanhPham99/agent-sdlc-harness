@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/cli-contract-validation/v1",
-  "checks": 63,
-  "passes": 63,
+  "checks": 109,
+  "passes": 109,
   "failures": 0,
   "results": [
     {
@@ -254,6 +254,190 @@
     },
     {
       "name": "fallback-resumes-a-task-on-the-target-provider-from-its-checkpoint",
+      "status": "PASS"
+    },
+    {
+      "name": "a-task-runs-from-materialized-to-done-through-the-cli",
+      "status": "PASS"
+    },
+    {
+      "name": "a-review-cannot-claim-independence-it-did-not-have",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-list",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-ready",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-progress",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-graph",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-events",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-metrics",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-usage",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-workspaces",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-schedule",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-show---task-id-TASK-001",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-context---task-id-TASK-001",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-context-show---task-id-TASK-001",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-checkpoint---task-id-TASK-001",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-classify---task-id-TASK-001",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-task-replay---task-id-TASK-001",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-repo-capability",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-repo-tests",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-repo-entities",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-repo-events",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-repo-recent",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-repo-surface",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-repo-interfaces",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-repo-references---name-charge",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-repo-module---module-src",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-repo-dependents---target-srcservicejs",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-trace-show",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-trace-validate",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-trace-coverage",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-trace-history",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-delivery-status",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-delivery-branch",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-delivery-push-check",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-delivery-drift",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-delivery-group",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-ci-history",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-govern-report",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-activation-status",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-activation-doctor",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-activation-classify",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-plan-graph---file-tmpagent-sdlc-cli-yEC2YBplan-run3f08c6fd-53e0-47ad-aaab-dba81d8f87e8json",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-design-mode",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-feature-active",
+      "status": "PASS"
+    },
+    {
+      "name": "activation-print-bootstrap-emits-pasteable-text-not-json",
+      "status": "PASS"
+    },
+    {
+      "name": "required-flags-are-guarded-across-every-command-group",
       "status": "PASS"
     }
   ]
