@@ -1,11 +1,11 @@
 {
   "schema": "agent-sdlc/provider-validation/v1",
-  "platform": "linux",
-  "real_binary_checks": true,
-  "checks": 28,
-  "passes": 28,
+  "platform": "win32",
+  "real_binary_checks": false,
+  "checks": 39,
+  "passes": 36,
   "failures": 0,
-  "skipped": 0,
+  "skipped": 3,
   "results": [
     {
       "name": "every-probe-spawn-is-bounded",
@@ -105,18 +105,62 @@
     },
     {
       "name": "a-real-hanging-binary-is-bounded-by-the-probe-timeout",
-      "status": "PASS"
+      "status": "SKIP"
     },
     {
       "name": "a-real-binary-that-fails-version-is-unavailable",
-      "status": "PASS"
+      "status": "SKIP"
     },
     {
       "name": "a-real-binary-round-trips-through-runHost",
-      "status": "PASS"
+      "status": "SKIP"
     },
     {
       "name": "a-node-script-binary-probes-and-runs-across-platforms",
+      "status": "PASS"
+    },
+    {
+      "name": "launcher-script-host-runs-under-node",
+      "status": "PASS"
+    },
+    {
+      "name": "launcher-empty-argv-is-unlaunchable",
+      "status": "PASS"
+    },
+    {
+      "name": "launcher-posix-unresolved-passes-through",
+      "status": "PASS"
+    },
+    {
+      "name": "launcher-windows-unresolved-is-tool-not-executable",
+      "status": "PASS"
+    },
+    {
+      "name": "launcher-windows-cmd-shim-goes-through-comspec",
+      "status": "PASS"
+    },
+    {
+      "name": "launcher-windows-shim-rejects-cmd-metacharacters",
+      "status": "PASS"
+    },
+    {
+      "name": "launcher-resolve-on-path-tries-pathext",
+      "status": "PASS"
+    },
+    {
+      "name": "describe-spawn-enoent-is-error-not-fail",
+      "status": "PASS"
+    },
+    {
+      "name": "describe-spawn-timeout-is-error-not-fail",
+      "status": "PASS"
+    },
+    {
+      "name": "describe-spawn-kill-without-errno-is-timeout",
+      "status": "PASS"
+    },
+    {
+      "name": "describe-spawn-real-exit-codes-are-verdicts",
       "status": "PASS"
     }
   ]

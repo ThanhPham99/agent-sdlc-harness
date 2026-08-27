@@ -15,6 +15,7 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {probeBin,probe,resetProbeCache,capabilities,buildInvocation,runHost,argvLimitProblem,DEFAULT_MAX_WALL_MS} from '../runtime/provider.mjs';
+import {resolveLaunch,resolveOnPath,describeSpawn} from '../runtime/launcher.mjs';
 import {createSuite} from './lib/suite.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -329,6 +330,98 @@ test('a-node-script-binary-probes-and-runs-across-platforms',()=>{
   delete process.env.AI_SDLC_CLAUDE_BIN;
   resetProbeCache();
   assert(out.status==='PASS',JSON.stringify(out));
+});
+
+// --- shared launcher -------------------------------------------------------
+// runtime/tools.mjs used to spawn the project's configured command directly.
+// `init` writes ["npm","test"] for every node project and npm is npm.cmd on
+// Windows, so every test and build the gateway ran died there with ENOENT.
+
+const WIN={platform:'win32',env:{PATH:'C:\\bin',PATHEXT:'.COM;.EXE;.BAT;.CMD',ComSpec:'C:\\Windows\\System32\\cmd.exe'}};
+const NIX={platform:'linux',env:{PATH:'/usr/bin'}};
+
+test('launcher-script-host-runs-under-node',()=>{
+  const l=resolveLaunch(['runtime/cli.mjs','doctor'],NIX);
+  assert(l.status==='OK','expected OK');
+  assert(l.bin===process.execPath,`expected node, got ${l.bin}`);
+  assert(l.args[0]==='runtime/cli.mjs'&&l.args[1]==='doctor',JSON.stringify(l.args));
+  assert(l.via==='node',l.via);
+});
+
+test('launcher-empty-argv-is-unlaunchable',()=>{
+  const l=resolveLaunch([],NIX);
+  assert(l.status==='UNLAUNCHABLE'&&l.reason==='EMPTY_ARGV',JSON.stringify(l));
+});
+
+test('launcher-posix-unresolved-passes-through',()=>{
+  // On POSIX the spawn itself reports ENOENT accurately, so an unresolved name
+  // is still attempted rather than pre-judged.
+  const l=resolveLaunch(['definitely-not-on-path','x'],NIX);
+  assert(l.status==='OK'&&l.bin==='definitely-not-on-path',JSON.stringify(l));
+  assert(l.via==='direct',l.via);
+});
+
+test('launcher-windows-unresolved-is-tool-not-executable',()=>{
+  const l=resolveLaunch(['definitely-not-on-path'],WIN);
+  assert(l.status==='UNLAUNCHABLE'&&l.reason==='TOOL_NOT_EXECUTABLE',JSON.stringify(l));
+});
+
+test('launcher-windows-cmd-shim-goes-through-comspec',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-launch-'));
+  fs.writeFileSync(path.join(dir,'npm.cmd'),'@echo off\n');
+  const env={...WIN.env,PATH:dir};
+  const l=resolveLaunch(['npm','test'],{platform:'win32',env});
+  fs.rmSync(dir,{recursive:true,force:true});
+  assert(l.status==='OK',JSON.stringify(l));
+  assert(l.bin===env.ComSpec,l.bin);
+  assert(l.args[0]==='/d'&&l.args[1]==='/s'&&l.args[2]==='/c',JSON.stringify(l.args));
+  // cmd.exe with /s /c strips one outer quote pair from the whole remainder, so
+  // the line itself has to be wrapped in a second pair or the first token loses
+  // its quoting and a path with a space breaks.
+  assert(l.args[3].startsWith('""')&&l.args[3].endsWith('""'),l.args[3]);
+  assert(l.args[3].includes('npm.cmd')&&l.args[3].includes('"test"'),l.args[3]);
+  assert(l.spawnOptions.windowsVerbatimArguments===true,JSON.stringify(l.spawnOptions));
+  assert(l.via==='cmd',l.via);
+});
+
+test('launcher-windows-shim-rejects-cmd-metacharacters',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-launch-'));
+  fs.writeFileSync(path.join(dir,'npm.cmd'),'@echo off\n');
+  const l=resolveLaunch(['npm','test','--','a&calc.exe'],{platform:'win32',env:{...WIN.env,PATH:dir}});
+  fs.rmSync(dir,{recursive:true,force:true});
+  assert(l.status==='UNLAUNCHABLE'&&l.reason==='ARGUMENT_NOT_SHELL_SAFE',JSON.stringify(l));
+  assert(l.detail==='a&calc.exe',String(l.detail));
+});
+
+test('launcher-resolve-on-path-tries-pathext',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-launch-'));
+  fs.writeFileSync(path.join(dir,'thing.CMD'),'@echo off\n');
+  const got=resolveOnPath('thing',{platform:'win32',env:{PATH:dir,PATHEXT:'.EXE;.CMD'}});
+  fs.rmSync(dir,{recursive:true,force:true});
+  assert(got&&got.toLowerCase().endsWith('thing.cmd'),String(got));
+});
+
+test('describe-spawn-enoent-is-error-not-fail',()=>{
+  const d=describeSpawn({status:null,signal:null,error:{code:'ENOENT'},stdout:'',stderr:''});
+  assert(d.status==='ERROR'&&d.reason==='TOOL_NOT_EXECUTABLE',JSON.stringify(d));
+  assert(d.exit_code===null,JSON.stringify(d));
+});
+
+test('describe-spawn-timeout-is-error-not-fail',()=>{
+  const d=describeSpawn({status:null,signal:'SIGTERM',error:{code:'ETIMEDOUT'},stdout:'',stderr:''});
+  assert(d.status==='ERROR'&&d.reason==='TIMEOUT'&&d.signal==='SIGTERM',JSON.stringify(d));
+});
+
+test('describe-spawn-kill-without-errno-is-timeout',()=>{
+  const d=describeSpawn({status:null,signal:'SIGKILL',stdout:'',stderr:''});
+  assert(d.status==='ERROR'&&d.reason==='TIMEOUT',JSON.stringify(d));
+});
+
+test('describe-spawn-real-exit-codes-are-verdicts',()=>{
+  const ok=describeSpawn({status:0,signal:null,stdout:'',stderr:''});
+  const bad=describeSpawn({status:3,signal:null,stdout:'',stderr:''});
+  assert(ok.status==='PASS'&&ok.exit_code===0&&ok.reason===null,JSON.stringify(ok));
+  assert(bad.status==='FAIL'&&bad.exit_code===3,JSON.stringify(bad));
 });
 
 finish({platform:process.platform,real_binary_checks:POSIX});
