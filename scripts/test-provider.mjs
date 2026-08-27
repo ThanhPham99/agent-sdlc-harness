@@ -26,13 +26,29 @@ const CLAUDE_HELP='-p --print --output-format --json-schema --max-turns --model 
 const CODEX_HELP='exec --json --ephemeral --sandbox --output-schema --model';
 const AGY_HELP='--sandbox --print -p --print-timeout --output-format --json-schema --model --effort';
 
+// spawnHost now resolves every bin through resolveLaunch, which does a real
+// PATH lookup even when spawn itself is injected. A name that is genuinely on
+// this machine's PATH (claude, agy) therefore arrives here as a resolved
+// absolute path rather than the literal candidate string, and a name that is
+// not on PATH at all is refused before spawn is ever called (on win32). The
+// fake-binary directory below gives the synthetic names (x, first, second,
+// real, codex) something to resolve to, and matching by basename -- rather
+// than the raw `bin` -- lets the answer tables below keep using the plain
+// host name regardless of what directory or extension resolution added.
+const FAKE_BIN_DIR=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-provider-fake-bins-'));
+for(const name of ['x','first','second','real','codex'])fs.writeFileSync(path.join(FAKE_BIN_DIR,name),'');
+process.env.PATH=`${FAKE_BIN_DIR}${path.delimiter}${process.env.PATH||''}`;
+process.on('exit',()=>{try{fs.rmSync(FAKE_BIN_DIR,{recursive:true,force:true});}catch{/* best effort */}});
+
+const baseOf=bin=>path.basename(String(bin||'')).replace(/\.[^./\\]+$/,'');
+
 /** A scripted spawn: records every call and answers from a table. */
 function fakeSpawn(answers){
   const calls=[];
   const spawn=(bin,args,opts)=>{
     calls.push({bin,args,opts});
-    const key=`${bin} ${args[0]}`;
-    const answer=answers[key]??answers[bin]??answers.default;
+    const key=`${baseOf(bin)} ${args[0]}`;
+    const answer=answers[key]??answers[baseOf(bin)]??answers[bin]??answers.default;
     if(typeof answer==='function')return answer(bin,args,opts);
     return answer??{status:1,stdout:'',stderr:''};
   };
@@ -76,7 +92,7 @@ test('empty-candidate-names-are-skipped',()=>{
   const spawn=fakeSpawn({'real --version':ok('1'),'real --help':ok('')});
   const p=probeBin([undefined,'',null,'real'],{spawn});
   assert(p?.binary==='real',JSON.stringify(p));
-  assert(spawn.calls.every(c=>c.bin==='real'),'an empty binary name was spawned');
+  assert(spawn.calls.every(c=>baseOf(c.bin)==='real'),'an empty binary name was spawned');
 });
 test('a-pinned-binary-does-not-fall-through-to-path',()=>{
   // Regression: HOST_CANDIDATES listed the pin and the PATH name together, so a
@@ -439,6 +455,42 @@ test('describe-spawn-real-exit-codes-are-verdicts',()=>{
   const bad=describeSpawn({status:3,signal:null,stdout:'',stderr:''});
   assert(ok.status==='PASS'&&ok.exit_code===0&&ok.reason===null,JSON.stringify(ok));
   assert(bad.status==='FAIL'&&bad.exit_code===3,JSON.stringify(bad));
+});
+
+test('provider-probes-a-windows-shim-host',()=>{
+  // A host CLI installed as claude.cmd used to be invisible to the probe on
+  // Windows: spawnSync('claude') is ENOENT, so the host reported unavailable.
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-shim-'));
+  fs.writeFileSync(path.join(dir,'claude.cmd'),'@echo off\n');
+  const seen=[];
+  const spawn=(bin,args)=>{seen.push({bin,args});return {status:0,stdout:'2.0.0 (Claude Code)',stderr:''};};
+  const prev={PATH:process.env.PATH,PATHEXT:process.env.PATHEXT};
+  try{
+    process.env.PATH=dir;process.env.PATHEXT='.EXE;.CMD';
+    resetProbeCache();
+    const p=probeBin(['claude'],{spawn});
+    assert(p!==null,'shim host was not probed');
+    if(process.platform==='win32'){
+      assert(/cmd\.exe$/i.test(seen[0].bin),seen[0].bin);
+      assert(seen[0].args[0]==='/d',JSON.stringify(seen[0].args));
+    }
+  }finally{
+    process.env.PATH=prev.PATH;
+    if(prev.PATHEXT===undefined)delete process.env.PATHEXT;else process.env.PATHEXT=prev.PATHEXT;
+    resetProbeCache();
+    fs.rmSync(dir,{recursive:true,force:true});
+  }
+});
+
+test('provider-script-host-still-runs-under-node',()=>{
+  const seen=[];
+  const spawn=(bin,args)=>{seen.push({bin,args});return {status:0,stdout:'1.0.0',stderr:''};};
+  resetProbeCache();
+  const p=probeBin(['/opt/hosts/fake-host.mjs'],{spawn});
+  assert(p!==null,'script host was not probed');
+  assert(seen[0].bin===process.execPath,seen[0].bin);
+  assert(seen[0].args[0]==='/opt/hosts/fake-host.mjs',JSON.stringify(seen[0].args));
+  resetProbeCache();
 });
 
 finish({platform:process.platform,real_binary_checks:POSIX});

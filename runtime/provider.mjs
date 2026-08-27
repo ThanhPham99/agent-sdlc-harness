@@ -1,4 +1,5 @@
 import {spawnSync} from 'node:child_process';
+import {resolveLaunch} from './launcher.mjs';
 
 // Host CLI probing and invocation building.
 //
@@ -41,15 +42,17 @@ const HOST_CANDIDATES=Object.fromEntries(Object.keys(HOST_DEFAULTS).map(h=>[h,()
 // transport regression and test suites use fake host CLIs). Windows cannot exec
 // a JS file directly, so script binaries are launched through this process's
 // Node executable on every platform.
-function launcher(bin){
-  return /\.(mjs|cjs|js)$/i.test(String(bin||''))
-    ? {bin:process.execPath,prefix:[String(bin)]}
-    : {bin:String(bin),prefix:[]};
-}
-
+//
+// Host resolution moved to runtime/launcher.mjs so the tool gateway gets the
+// same rules. This kept the .mjs/.cjs/.js case and gained the one it was
+// missing: a host installed as a Windows .cmd shim, which spawnSync refuses to
+// start directly and which therefore reported as "host not installed".
 function spawnHost(spawn,bin,args,opts){
-  const l=launcher(bin);
-  return spawn(l.bin,[...l.prefix,...args],opts);
+  const l=resolveLaunch([String(bin),...args]);
+  // An unlaunchable candidate is reported the way an unanswered probe already
+  // was, so probeBin moves to the next name instead of throwing.
+  if(l.status!=='OK')return {status:null,stdout:'',stderr:'',error:{code:'ENOENT'}};
+  return spawn(l.bin,l.args,{...opts,...l.spawnOptions});
 }
 
 /**

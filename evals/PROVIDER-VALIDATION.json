@@ -2,8 +2,8 @@
   "schema": "agent-sdlc/provider-validation/v1",
   "platform": "win32",
   "real_binary_checks": false,
-  "checks": 40,
-  "passes": 36,
+  "checks": 42,
+  "passes": 38,
   "failures": 0,
   "skipped": 4,
   "results": [
@@ -165,6 +165,14 @@
     },
     {
       "name": "describe-spawn-real-exit-codes-are-verdicts",
+      "status": "PASS"
+    },
+    {
+      "name": "provider-probes-a-windows-shim-host",
+      "status": "PASS"
+    },
+    {
+      "name": "provider-script-host-still-runs-under-node",
       "status": "PASS"
     }
   ]
