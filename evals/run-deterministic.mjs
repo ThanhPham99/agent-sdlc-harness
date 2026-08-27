@@ -39,7 +39,11 @@ import {createFeature,loadFeature,updateFeature,listFeatures,createPhase,loadPha
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
 function test(name,fn){try{fn();pass++;rows.push({name,status:'PASS'});}catch(e){fail++;rows.push({name,status:'FAIL',error:e.message});}}
-function fixture(){const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-v3-'));execFileSync('git',['init','-q'],{cwd:d});fs.writeFileSync(path.join(d,'README.md'),'fixture\n');fs.writeFileSync(path.join(d,'src.js'),'export const value = 1;\n');execFileSync('git',['add','.'],{cwd:d});execFileSync('git',['-c','user.email=a@b.c','-c','user.name=t','commit','-qm','init'],{cwd:d});initProject(d,{schema:'agent-sdlc/project/v1',project:'fixture',commands:{test_targeted:['node','-e','process.exit(0)'],test_full:['node','-e','process.exit(0)'],build:['node','-e','process.exit(0)']},context:{project_invariants:['do not edit generated files']},providers:{preferred:['claude','codex','antigravity']}});return d;}
+function fixture(){const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-v3-'));execFileSync('git',['init','-q'],{cwd:d});fs.writeFileSync(path.join(d,'README.md'),'fixture\n');fs.writeFileSync(path.join(d,'src.js'),'export const value = 1;\n');execFileSync('git',['add','.'],{cwd:d});execFileSync('git',['-c','user.email=a@b.c','-c','user.name=t','commit','-qm','init'],{cwd:d});initProject(d,{schema:'agent-sdlc/project/v1',project:'fixture',// test_targeted takes the selector, so a case can observe that it was really
+// substituted. The old template ignored it, which is why an empty selector
+// producing `node ''` -- exit 0, no output, recorded as
+// targeted_verification_pass -- went unnoticed.
+commands:{test_targeted:['node','-e','if(!process.argv[1])process.exit(3);console.log("ran "+process.argv[1]);','{selector}'],test_full:['node','-e','process.exit(0)'],build:['node','-e','process.exit(0)']},context:{project_invariants:['do not edit generated files']},providers:{preferred:['claude','codex','antigravity']}});return d;}
 const tmp=fixture();
 const manifest=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8'));
 const workflows=JSON.parse(fs.readFileSync(path.join(ROOT,'config','workflows.json'),'utf8')).workflows;
@@ -395,6 +399,28 @@ test('repo-search-no-match-is-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'
 test('secret-scan-clean-is-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'security.secret_scan',{});if(out.status!=='PASS')throw Error(JSON.stringify(out));});
 test('secret-scan-finding-redacts-value',()=>{fs.writeFileSync(path.join(tmp,'leak.txt'),'api_key=SUPERSECRET\n');execFileSync('git',['add','leak.txt'],{cwd:tmp});const out=invokeTool(ROOT,tmp,toolRun,'security.secret_scan',{});execFileSync('git',['reset','-q','HEAD','leak.txt'],{cwd:tmp});fs.rmSync(path.join(tmp,'leak.txt'));if(out.status!=='FAIL'||out.summary.includes('SUPERSECRET')||out.full_log_artifact)throw Error(JSON.stringify(out));});
 test('targeted-test-built-in-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'test.run_targeted',{selector:'x'});if(out.status!=='PASS')throw Error(JSON.stringify(out));});
+test('targeted-test-substitutes-the-selector',()=>{
+  const out=invokeTool(ROOT,tmp,toolRun,'test.run_targeted',{selector:'tests/refund.test.js'});
+  if(out.status!=='PASS')throw Error(JSON.stringify(out));
+  if(!out.summary.includes('ran tests/refund.test.js'))throw Error(JSON.stringify(out));
+});
+
+// A missing selector used to substitute the empty string, so the gateway ran
+// `node ''`, got exit 0 with no output, and recorded targeted_verification_pass.
+// A flag typo was enough to satisfy the VERIFY gate.
+test('targeted-test-refuses-an-empty-selector',()=>{
+  for(const args of [{},{selector:''},{selector:'   '}]){
+    let message=null;
+    try{invokeTool(ROOT,tmp,toolRun,'test.run_targeted',args);}catch(e){message=e.message;}
+    if(!message||!/requires a selector/.test(message))throw Error(`selector ${JSON.stringify(args)} accepted: ${message}`);
+  }
+});
+
+test('selectorless-command-is-unaffected',()=>{
+  // build has no {selector} in its template, so it must not start demanding one.
+  const out=invokeTool(ROOT,tmp,toolRun,'build.run',{});
+  if(out.status!=='PASS')throw Error(JSON.stringify(out));
+});
 // A spawn that never started is not a test that failed. ENOENT used to arrive
 // as {status:'FAIL',exit_code:1,summary:'',full_log_artifact:null} and was
 // recorded as targeted_verification_pass:FAIL, so an operator read "the suite

@@ -19,7 +19,12 @@ export const commands={
     const run=await needRun();
     const tool=need('tool');
     const {invokeTool}=await import('../tools.mjs');
+    // --args is the general form; --selector and --timeout-ms are the two flags
+    // callers actually reach for. They used to be accepted silently and dropped,
+    // because parseArgs keeps unknown flags and nothing read them.
     const a=args.args?JSON.parse(args.args):{};
+    if(a.selector===undefined&&args.selector!==undefined&&args.selector!==true)a.selector=String(args.selector);
+    if(a.timeout_ms===undefined&&args['timeout-ms']!==undefined&&args['timeout-ms']!==true)a.timeout_ms=Number(args['timeout-ms']);
     print(invokeTool(ROOT,projectRoot,run,tool,a));
   },
   'usage-add':async ctx=>{

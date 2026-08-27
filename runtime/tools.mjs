@@ -29,7 +29,19 @@ function exec(argv,cwd,timeout,maxBytes){
     : t.text;
   return {status:d.status,reason:d.reason,exit_code:d.exit_code,summary,truncated:t.truncated,raw};
 }
-function projectCommand(cfg,key,args){const tmpl=cfg.commands?.[key];if(!Array.isArray(tmpl)||!tmpl.length)throw new Error(`project command ${key} not configured`);return tmpl.map(x=>String(x).replaceAll('{selector}',args.selector||''));}
+function projectCommand(cfg,key,args){
+  const tmpl=cfg.commands?.[key];
+  if(!Array.isArray(tmpl)||!tmpl.length)throw new Error(`project command ${key} not configured`);
+  const selector=args.selector===undefined||args.selector===null?'':String(args.selector);
+  // An unsubstituted placeholder used to become the empty string, which turned
+  // `node {selector}` into `node ''`: exit 0, no output, recorded as
+  // targeted_verification_pass. A command that asks for a selector gets one or
+  // does not run.
+  if(tmpl.some(x=>String(x).includes('{selector}'))&&!selector.trim()){
+    throw new Error(`project command ${key} requires a selector; none was provided`);
+  }
+  return tmpl.map(x=>String(x).replaceAll('{selector}',selector));
+}
 function sensitivePath(root,rel){const sec=readJson(path.join(root,'policies','security-policy.json'));const p=String(rel||'').replaceAll('\\','/');return (sec.sensitive_read_patterns||[]).some(g=>{const re='^'+g.replace(/[.+^${}()|[\]\\]/g,'\\$&').replaceAll('**','.*').replaceAll('*','[^/]*')+'$';return new RegExp(re).test(p);});}
 function secretScan(projectRoot){
   const pattern='(AKIA[0-9A-Z]{16}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|api[_-]?key\\s*[:=]|secret\\s*[:=]|token\\s*[:=])';

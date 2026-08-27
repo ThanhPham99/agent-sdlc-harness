@@ -453,6 +453,42 @@ test('tool-run-passes-and-binds-its-evidence-to-the-revision',()=>{
   if(!json(['status',...at]).evidence.IMPLEMENT?.includes('targeted_verification_pass'))throw new Error('evidence never reached the run');
 });
 
+// --selector was never read: tool-run built its args from --args JSON only, and
+// parseArgs keeps unknown flags silently, so `--selector X` looked accepted,
+// substituted the empty string, ran `node ''`, and exited 0 with no output --
+// which was then recorded as targeted_verification_pass. The case above proves
+// --args substitutes; this one proves the flag form works and that a missing
+// selector is refused rather than silently satisfying the gate.
+test('tool-run-reads-the-selector-flag-and-refuses-an-empty-one',()=>{
+  const cfgPath=path.join(PROJECT,'.agent-sdlc','project.json');
+  const before=fs.readFileSync(cfgPath,'utf8');
+  try{
+    const cfg=JSON.parse(before);
+    // The selector is its own argv element here, so an empty one really would
+    // run `node ''` -- exit 0, no output -- if nothing refused it.
+    cfg.commands={...(cfg.commands||{}),test_targeted:[process.execPath,'-e','if(!process.argv[1])process.exit(0);console.log("ran "+process.argv[1]);','{selector}']};
+    fs.writeFileSync(cfgPath,JSON.stringify(cfg,null,2));
+
+    // 'Fix incorrect refund rounding', the objective text this case would
+    // naturally use, is worded around a real defect and matches the
+    // "fix" keyword in config/router-rules.json, which routes it to the
+    // bug-fix workflow. That workflow's stage list (config/workflows.json)
+    // has no DESIGN stage, so runToImplement's unconditional DESIGN
+    // transition fails with "state DESIGN not in workflow bug-fix" --
+    // unrelated to the selector guard under test here. This wording avoids
+    // every router keyword and lands on the default new-feature workflow.
+    const at=runToImplement('Adjust refund rounding calculation');
+    const out=json(['tool-run',...at,'--tool','test.run_targeted','--selector','tests/refund.test.js']);
+    if(out.status!=='PASS')throw new Error(JSON.stringify(out));
+    if(!/ran tests\/refund\.test\.js/.test(out.summary))throw new Error(`--selector was dropped: ${JSON.stringify(out.summary)}`);
+
+    const err=failure(['tool-run',...at,'--tool','test.run_targeted']);
+    if(!/requires a selector/.test(err.error))throw new Error(JSON.stringify(err));
+  }finally{
+    fs.writeFileSync(cfgPath,before);
+  }
+});
+
 test('tool-run-outside-an-allowing-stage-is-a-policy-deny-not-an-error',()=>{
   // A stage refusal is an answer, not a failure: it stays exit 0 with a DENY
   // envelope so a caller can tell "policy said no" from "the command broke".

@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/cli-contract-validation/v1",
-  "checks": 109,
-  "passes": 109,
+  "checks": 110,
+  "passes": 110,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -231,6 +231,10 @@
     },
     {
       "name": "tool-run-passes-and-binds-its-evidence-to-the-revision",
+      "status": "PASS"
+    },
+    {
+      "name": "tool-run-reads-the-selector-flag-and-refuses-an-empty-one",
       "status": "PASS"
     },
     {

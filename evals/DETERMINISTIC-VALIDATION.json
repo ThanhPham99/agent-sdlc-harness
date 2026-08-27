@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 300,
-  "passes": 300,
+  "checks": 303,
+  "passes": 303,
   "failures": 0,
   "results": [
     {
@@ -287,6 +287,18 @@
     },
     {
       "name": "targeted-test-built-in-pass",
+      "status": "PASS"
+    },
+    {
+      "name": "targeted-test-substitutes-the-selector",
+      "status": "PASS"
+    },
+    {
+      "name": "targeted-test-refuses-an-empty-selector",
+      "status": "PASS"
+    },
+    {
+      "name": "selectorless-command-is-unaffected",
       "status": "PASS"
     },
     {
