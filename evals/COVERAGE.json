@@ -7,23 +7,26 @@
     "scripts/test-provider.mjs",
     "scripts/test-compat.mjs",
     "scripts/test-mcp.mjs",
-    "scripts/test-project-detection.mjs"
+    "scripts/test-project-detection.mjs",
+    "scripts/test-auto-bootstrap.mjs",
+    "scripts/test-claude-bootstrap-hook.mjs",
+    "scripts/test-antigravity-bootstrap-hook.mjs",
+    "scripts/test-codex-bootstrap.mjs",
+    "scripts/test-dev-link.mjs",
+    "scripts/validate-gates.mjs",
+    "scripts/validate-task-engine.mjs",
+    "scripts/validate-alpha6.mjs",
+    "scripts/validate-cli-surface.mjs"
   ],
   "measured": "v8-block-bytes",
-  "overall_percent": 89.7,
-  "covered_bytes": 346970,
+  "overall_percent": 90.9,
+  "covered_bytes": 351669,
   "total_bytes": 386677,
   "modules": [
     {
-      "file": "runtime/codex-bootstrap.mjs",
-      "percent": 40.2,
-      "covered_bytes": 2372,
-      "total_bytes": 5896
-    },
-    {
       "file": "runtime/commands/activation.mjs",
-      "percent": 65.2,
-      "covered_bytes": 2569,
+      "percent": 70.9,
+      "covered_bytes": 2795,
       "total_bytes": 3943
     },
     {
@@ -91,12 +94,6 @@
       "percent": 86.4,
       "covered_bytes": 8096,
       "total_bytes": 9365
-    },
-    {
-      "file": "runtime/activation.mjs",
-      "percent": 86.6,
-      "covered_bytes": 7896,
-      "total_bytes": 9123
     },
     {
       "file": "runtime/workspace.mjs",
@@ -279,6 +276,12 @@
       "total_bytes": 15947
     },
     {
+      "file": "runtime/activation.mjs",
+      "percent": 96.9,
+      "covered_bytes": 8844,
+      "total_bytes": 9123
+    },
+    {
       "file": "runtime/store.mjs",
       "percent": 96.9,
       "covered_bytes": 7458,
@@ -345,12 +348,6 @@
       "total_bytes": 1194
     },
     {
-      "file": "runtime/cli.mjs",
-      "percent": 99.5,
-      "covered_bytes": 2963,
-      "total_bytes": 2978
-    },
-    {
       "file": "runtime/init.mjs",
       "percent": 99.5,
       "covered_bytes": 4998,
@@ -361,6 +358,18 @@
       "percent": 99.7,
       "covered_bytes": 1813,
       "total_bytes": 1819
+    },
+    {
+      "file": "runtime/codex-bootstrap.mjs",
+      "percent": 99.8,
+      "covered_bytes": 5882,
+      "total_bytes": 5896
+    },
+    {
+      "file": "runtime/cli.mjs",
+      "percent": 100,
+      "covered_bytes": 2978,
+      "total_bytes": 2978
     },
     {
       "file": "runtime/evidence.mjs",
@@ -377,7 +386,7 @@
   ],
   "never_loaded": [],
   "floor": {
-    "overall_percent": 89,
+    "overall_percent": 90,
     "never_loaded": []
   },
   "optional_tools": {

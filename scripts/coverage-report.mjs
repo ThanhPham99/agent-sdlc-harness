@@ -24,9 +24,70 @@ const FLOOR_FILE=path.join(ROOT,'evals','COVERAGE-FLOOR.json');
 // so the CLI contract suite contributes the coverage of every CLI process it
 // starts. Without it runtime/cli.mjs -- the largest module, and the surface the
 // skills tell the model to call -- measured zero.
-const ENTRIES=['evals/run-deterministic.mjs','scripts/test-cli-contract.mjs','scripts/test-normalize.mjs','scripts/test-provider.mjs','scripts/test-compat.mjs','scripts/test-mcp.mjs','scripts/test-project-detection.mjs'];
+// Every offline suite that exercises runtime/. This list is the measurement's
+// definition of "the suite", so a suite left out of it does not just go
+// uncounted -- the modules it covers are reported as untested, which sends the
+// next person to write tests that already exist. runtime/codex-bootstrap.mjs
+// read 40% while thirteen dedicated tests were passing, because
+// test-codex-bootstrap.mjs was not listed here.
+const ENTRIES=[
+  'evals/run-deterministic.mjs',
+  'scripts/test-cli-contract.mjs',
+  'scripts/test-normalize.mjs',
+  'scripts/test-provider.mjs',
+  'scripts/test-compat.mjs',
+  'scripts/test-mcp.mjs',
+  'scripts/test-project-detection.mjs',
+  'scripts/test-auto-bootstrap.mjs',
+  'scripts/test-claude-bootstrap-hook.mjs',
+  'scripts/test-antigravity-bootstrap-hook.mjs',
+  'scripts/test-codex-bootstrap.mjs',
+  'scripts/test-dev-link.mjs',
+  'scripts/validate-gates.mjs',
+  'scripts/validate-task-engine.mjs',
+  'scripts/validate-alpha6.mjs',
+  'scripts/validate-cli-surface.mjs'
+];
+
+// Suites deliberately not measured, each with the reason. Naming them rather
+// than merely leaving them out is what makes the completeness check below
+// possible: a new suite has to be classified, not silently forgotten.
+const NOT_MEASURED={
+  'scripts/build-dist.mjs':'produces the packaged tree; measures no runtime behaviour',
+  'scripts/verify-dist.mjs':'measures a built tree, not this one',
+  'scripts/package-release.mjs':'aggregates reports into a release candidate',
+  'scripts/coverage-report.mjs':'this script',
+  'scripts/test-qualification-harness.mjs':'needs the built packages; would tie coverage to build order',
+  'scripts/test-qualification-transport.mjs':'needs the built packages; would tie coverage to build order',
+  'scripts/test-github-installers.mjs':'drives installers against fake host CLIs, outside runtime/',
+  'scripts/validate-github-install.mjs':'checks install surfaces, not runtime behaviour',
+  'scripts/validate-versions.mjs':'file consistency check; never enters runtime/',
+  'scripts/validate-registry.mjs':'file consistency check; never enters runtime/',
+  'scripts/validate-root-sync.mjs':'file consistency check; never enters runtime/',
+  'scripts/validate-ci-coverage.mjs':'checks the CI step list; never enters runtime/',
+  'scripts/validate-guard.mjs':'runs the host guard in adapters/, outside runtime/'
+};
+
+/** Every suite the `check` chain runs, expanded through its npm-script aliases. */
+function checkChainSuites(){
+  const scripts=JSON.parse(fs.readFileSync(path.join(ROOT,'package.json'),'utf8')).scripts;
+  const expand=cmd=>String(cmd||'').split('&&').map(s=>s.trim())
+    .flatMap(s=>s.startsWith('npm run ')?expand(scripts[s.slice(8).trim()]):[s]);
+  return [...new Set(expand(scripts.check)
+    .flatMap(c=>[...c.matchAll(/(?:scripts|evals)\/[a-z0-9-]+\.mjs/g)].map(m=>m[0])))];
+}
+
 const SUBJECT_DIR=path.join(ROOT,'runtime');
 const update=process.argv.includes('--update');
+
+// A suite missing from ENTRIES does not merely go uncounted: the modules it
+// covers are reported as untested, which sends the next person to write tests
+// that already exist. Classify every suite, one way or the other.
+const unclassified=checkChainSuites().filter(s=>!ENTRIES.includes(s)&&!NOT_MEASURED[s]);
+if(unclassified.length){
+  console.error(`coverage measures an incomplete suite list. Add each of these to ENTRIES, or to NOT_MEASURED with the reason it cannot be measured:\n  ${unclassified.join('\n  ')}`);
+  process.exit(1);
+}
 
 const outDir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-cov-'));
 for(const entry of ENTRIES){
