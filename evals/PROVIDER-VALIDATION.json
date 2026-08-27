@@ -2,8 +2,8 @@
   "schema": "agent-sdlc/provider-validation/v1",
   "platform": "linux",
   "real_binary_checks": true,
-  "checks": 23,
-  "passes": 23,
+  "checks": 24,
+  "passes": 24,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -25,6 +25,10 @@
     },
     {
       "name": "empty-candidate-names-are-skipped",
+      "status": "PASS"
+    },
+    {
+      "name": "a-pinned-binary-does-not-fall-through-to-path",
       "status": "PASS"
     },
     {

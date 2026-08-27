@@ -80,6 +80,22 @@ test('empty-candidate-names-are-skipped',()=>{
   assert(p?.binary==='real',JSON.stringify(p));
   assert(spawn.calls.every(c=>c.bin==='real'),'an empty binary name was spawned');
 });
+test('a-pinned-binary-does-not-fall-through-to-path',()=>{
+  // Regression: HOST_CANDIDATES listed the pin and the PATH name together, so a
+  // pinned binary that hung or could not report --version silently resolved to
+  // whatever `claude` happened to be installed. On a developer machine with a
+  // real host CLI this turned two suites red; in qualification it would have
+  // attributed evidence to the wrong binary. Hermetic so it also holds on CI,
+  // where no host CLI exists.
+  resetProbeCache();
+  const spawn=fakeSpawn({'/pinned/claude --version':missing(),'claude --version':ok('9.9'),'claude --help':ok(CLAUDE_HELP)});
+  process.env.AI_SDLC_CLAUDE_BIN='/pinned/claude';
+  const p=probe('claude',{spawn,cache:false});
+  delete process.env.AI_SDLC_CLAUDE_BIN;
+  resetProbeCache();
+  assert(p===null,`a broken pin resolved to ${p?.binary}`);
+  assert(spawn.calls.every(c=>c.bin==='/pinned/claude'),'a PATH binary was probed while a pin was set');
+});
 test('an-unknown-host-is-rejected',()=>{
   let threw=false;
   try{probe('not-a-host',{spawn:fakeSpawn({})});}catch(e){threw=/unknown host/.test(e.message);}
