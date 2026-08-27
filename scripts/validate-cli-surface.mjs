@@ -1,79 +1,93 @@
 #!/usr/bin/env node
-// CLI help text vs. the commands the CLI actually dispatches.
+// The CLI surface: the registry, the handlers that exist, and the help text.
 //
-// runtime/cli.mjs answers an unknown command with a hand-written help string
-// listing every command and subcommand. Nothing kept that string honest, and it
-// had already drifted: three implemented `task` subcommands were absent from it.
-// The help text is the only discovery surface an agent has for the CLI, so a
-// missing entry means a capability the model never learns it can use.
+// This check used to regex `cmd==='...'` out of a 46-branch if/else chain in
+// runtime/cli.mjs and compare it against a hand-written help string. That string
+// was the only discovery surface an agent had for the CLI, and it had already
+// drifted -- three implemented `task` subcommands were missing from it, so they
+// were capabilities the model never learned it could use.
 //
-// Both directions fail: an implemented command missing from help, and a help
-// entry that dispatches nowhere.
+// The help text is now generated from runtime/commands/index.mjs, which removes
+// that failure mode rather than testing for it. What remains to check is that
+// the registry tells the truth about the code:
+//   every entry in the registry resolves to a handler that actually exists;
+//   every handler a group exports is listed in the registry;
+//   every subcommand a handler dispatches is declared in the registry;
+//   nothing is declared that dispatches nowhere;
+//   and the generated help names all of it.
+// Only the last of those was previously checkable at all, and only by regex.
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {COMMANDS,COMMAND_NAMES,GROUP_NAMES,loadGroup,renderHelp} from '../runtime/commands/index.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const CLI=path.join(ROOT,'runtime','cli.mjs');
 const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
-const src=fs.readFileSync(CLI,'utf8');
-
-// Commands the dispatcher compares against, in source order.
-const dispatched=[...src.matchAll(/cmd===' ?([a-z-]+)'/g)].map(m=>m[1]);
-// Subcommands, grouped by the command block they appear in.
-const groups=new Map();
-let current=null;
-for(const line of src.split('\n')){
-  const cmd=line.match(/cmd==='([a-z-]+)'/);
-  if(cmd){current=cmd[1];continue;}
-  if(!current)continue;
-  for(const m of line.matchAll(/sub===' ?([a-z-]+)'/g)){
-    if(!groups.has(current))groups.set(current,new Set());
-    groups.get(current).add(m[1]);
-  }
-  for(const m of line.matchAll(/action===' ?([a-z-]+)'/g)){
-    if(!groups.has(current))groups.set(current,new Set());
-    groups.get(current).add(m[1]);
-  }
-}
-
-// The help block is the final else branch: a single template string.
-const helpMatch=src.match(/print\(`agent-sdlc \$\{[^`]*`\)/s);
-if(!helpMatch){console.error('could not locate the help text in runtime/cli.mjs');process.exit(1);}
-const help=helpMatch[0];
-const helpTokens=new Set([...help.matchAll(/[a-z][a-z-]+/g)].map(m=>m[0]));
-// The help text compresses families as `artifact-put/get/list`; expand them so
-// each member counts as documented.
-for(const m of help.matchAll(new RegExp("([a-z]+)-([a-z-]+(?:/[a-z-]+)+)","g"))){
-  for(const part of m[2].split("/"))helpTokens.add(`${m[1]}-${part}`);
-}
-
 const problems=[];
-for(const cmd of new Set(dispatched)){
-  if(!helpTokens.has(cmd))problems.push(`command \`${cmd}\` is dispatched but absent from the help text`);
+
+// --- registry vs the handlers that actually exist ---------------------------
+const handlersByGroup=new Map();
+for(const group of GROUP_NAMES){
+  const mod=await loadGroup(group);
+  if(!mod?.commands){problems.push(`group \`${group}\` exports no commands map`);continue;}
+  handlersByGroup.set(group,new Set(Object.keys(mod.commands)));
+  for(const name of Object.keys(mod.commands)){
+    if(typeof mod.commands[name]!=='function')problems.push(`handler \`${name}\` in group \`${group}\` is not callable`);
+    if(!COMMANDS[name])problems.push(`group \`${group}\` exports handler \`${name}\`, which the registry does not list`);
+    else if(COMMANDS[name].group!==group)problems.push(`\`${name}\` is registered under group \`${COMMANDS[name].group}\` but implemented in \`${group}\``);
+  }
 }
+for(const name of COMMAND_NAMES){
+  const group=COMMANDS[name].group;
+  if(!GROUP_NAMES.includes(group)){problems.push(`\`${name}\` names unknown group \`${group}\``);continue;}
+  if(!handlersByGroup.get(group)?.has(name))problems.push(`\`${name}\` is in the registry but group \`${group}\` implements no such handler`);
+}
+
+// --- registry vs the subcommands each handler dispatches --------------------
+// Subcommands are dispatched inside a handler body rather than declared, so this
+// is the one place a source scan is still the honest check. It is scoped to a
+// single handler at a time, not to a whole file.
 const subRows=[];
-for(const [cmd,subs] of groups){
-  // The help lists subcommands on a line naming the command.
-  // The help text is source code: its line breaks are the two-character
-  // escape sequence, not real newlines, so the list is matched directly.
-  const listMatch=help.match(new RegExp(cmd+" subcommands: ([a-z0-9 ,|-]+)"));
-  const line=listMatch?listMatch[1]:"";
-  const listed=new Set([...line.matchAll(/[a-z][a-z-]+/g)].map(m=>m[0]));
-  const missing=[...subs].filter(s=>!listed.has(s)).sort();
-  const phantom=[...listed].filter(s=>!['subcommands',cmd].includes(s)&&!subs.has(s)
-    // `codex-bootstrap install|uninstall|status` documents actions, not subcommands.
-    &&!(groups.get(cmd)?.has(s))).sort();
-  subRows.push({command:cmd,implemented:subs.size,documented:listed.size?listed.size-1:0,missing,phantom});
-  for(const s of missing)problems.push(`\`${cmd} ${s}\` is implemented but absent from the help text`);
-  for(const s of phantom)problems.push(`\`${cmd} ${s}\` is documented in the help text but dispatches nowhere`);
+for(const group of GROUP_NAMES){
+  const src=fs.readFileSync(path.join(ROOT,'runtime','commands',`${group}.mjs`),'utf8');
+  let current=null;
+  const dispatched=new Map();
+  for(const line of src.split('\n')){
+    const head=line.match(/^ {2}'?([a-z][a-z0-9-]*)'?:async ctx=>\{/);
+    if(head){current=head[1];dispatched.set(current,new Set());continue;}
+    if(!current)continue;
+    for(const m of line.matchAll(/(?:sub|action)===' ?([a-z0-9-]+)'/g))dispatched.get(current).add(m[1]);
+  }
+  for(const [name,subs] of dispatched){
+    const declared=new Set(COMMANDS[name]?.subcommands||[]);
+    const missing=[...subs].filter(s=>!declared.has(s)).sort();
+    const phantom=[...declared].filter(s=>!subs.has(s)).sort();
+    if(subs.size||declared.size)subRows.push({command:name,implemented:subs.size,declared:declared.size,missing,phantom});
+    for(const s of missing)problems.push(`\`${name} ${s}\` is implemented but absent from the registry`);
+    for(const s of phantom)problems.push(`\`${name} ${s}\` is declared in the registry but dispatches nowhere`);
+  }
+}
+
+// --- the generated help names the whole surface -----------------------------
+const help=renderHelp(VERSION);
+if(!help.startsWith(`agent-sdlc ${VERSION}`))problems.push('the help text does not open with the version');
+for(const name of COMMAND_NAMES){
+  if(!new RegExp(`(^|[ ,])${name}([ ,]|$)`,'m').test(help))problems.push(`command \`${name}\` is absent from the generated help`);
+  for(const s of COMMANDS[name].subcommands||[]){
+    const line=help.split('\n').find(l=>l.startsWith(`${name} subcommands: `));
+    if(!line||!line.slice(`${name} subcommands: `.length).split(', ').includes(s)){
+      problems.push(`\`${name} ${s}\` is absent from the generated help`);
+    }
+  }
 }
 
 const report={
   schema:'agent-sdlc/cli-surface-validation/v1',
   version:VERSION,
-  commands:[...new Set(dispatched)].sort(),
-  command_count:new Set(dispatched).size,
+  commands:[...COMMAND_NAMES].sort(),
+  command_count:COMMAND_NAMES.length,
+  groups:GROUP_NAMES,
+  help_generated:true,
   subcommand_groups:subRows.sort((a,b)=>a.command.localeCompare(b.command)),
   problems,
   status:problems.length?'FAIL':'PASS'

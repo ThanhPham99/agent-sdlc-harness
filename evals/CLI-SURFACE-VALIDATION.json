@@ -50,109 +50,123 @@
     "usage-report"
   ],
   "command_count": 46,
+  "groups": [
+    "project",
+    "run",
+    "artifacts",
+    "tools",
+    "provider",
+    "activation",
+    "design",
+    "task",
+    "repo",
+    "feature",
+    "delivery"
+  ],
+  "help_generated": true,
   "subcommand_groups": [
     {
       "command": "activation",
       "implemented": 13,
-      "documented": 12,
+      "declared": 13,
       "missing": [],
       "phantom": []
     },
     {
       "command": "approval",
       "implemented": 3,
-      "documented": 2,
+      "declared": 3,
       "missing": [],
       "phantom": []
     },
     {
       "command": "ci",
       "implemented": 4,
-      "documented": 3,
+      "declared": 4,
       "missing": [],
       "phantom": []
     },
     {
       "command": "delivery",
       "implemented": 7,
-      "documented": 6,
+      "declared": 7,
       "missing": [],
       "phantom": []
     },
     {
       "command": "design",
       "implemented": 4,
-      "documented": 3,
+      "declared": 4,
       "missing": [],
       "phantom": []
     },
     {
       "command": "feature",
       "implemented": 9,
-      "documented": 8,
+      "declared": 9,
       "missing": [],
       "phantom": []
     },
     {
       "command": "gate",
       "implemented": 2,
-      "documented": 1,
+      "declared": 2,
       "missing": [],
       "phantom": []
     },
     {
       "command": "govern",
       "implemented": 4,
-      "documented": 3,
+      "declared": 4,
       "missing": [],
       "phantom": []
     },
     {
       "command": "knowledge",
       "implemented": 1,
-      "documented": 0,
+      "declared": 1,
       "missing": [],
       "phantom": []
     },
     {
       "command": "learn",
       "implemented": 2,
-      "documented": 1,
+      "declared": 2,
       "missing": [],
       "phantom": []
     },
     {
       "command": "plan",
       "implemented": 3,
-      "documented": 2,
+      "declared": 3,
       "missing": [],
       "phantom": []
     },
     {
       "command": "repo",
       "implemented": 13,
-      "documented": 12,
+      "declared": 13,
       "missing": [],
       "phantom": []
     },
     {
       "command": "requirement-update",
       "implemented": 2,
-      "documented": 1,
+      "declared": 2,
       "missing": [],
       "phantom": []
     },
     {
       "command": "task",
       "implemented": 31,
-      "documented": 30,
+      "declared": 31,
       "missing": [],
       "phantom": []
     },
     {
       "command": "trace",
       "implemented": 8,
-      "documented": 7,
+      "declared": 8,
       "missing": [],
       "phantom": []
     }

@@ -79,10 +79,20 @@ for(const [rel,runs] of instances){
 }
 
 // Modules the suite never loaded at all do not appear in the coverage output.
+// The sweep recurses: the commands each live in runtime/commands/ now, and a
+// top-level-only listing would have made a whole command module that no test
+// ever loads invisible to the ratchet rather than reporting it at 0%.
+function subjectFiles(dir=SUBJECT_DIR){
+  return fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>{
+    const full=path.join(dir,e.name);
+    if(e.isDirectory())return subjectFiles(full);
+    return e.name.endsWith('.mjs')?[full]:[];
+  });
+}
 const loaded=new Set(byFile.keys());
-for(const name of fs.readdirSync(SUBJECT_DIR).filter(f=>f.endsWith('.mjs'))){
-  const rel=`runtime/${name}`;
-  if(!loaded.has(rel))byFile.set(rel,{covered:0,total:fs.statSync(path.join(SUBJECT_DIR,name)).size,never_loaded:true});
+for(const full of subjectFiles()){
+  const rel=`runtime/${path.relative(SUBJECT_DIR,full).split(path.sep).join('/')}`;
+  if(!loaded.has(rel))byFile.set(rel,{covered:0,total:fs.statSync(full).size,never_loaded:true});
 }
 
 const pct=({covered,total})=>total?Math.round((covered/total)*1000)/10:0;
