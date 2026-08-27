@@ -26,29 +26,23 @@ const CLAUDE_HELP='-p --print --output-format --json-schema --max-turns --model 
 const CODEX_HELP='exec --json --ephemeral --sandbox --output-schema --model';
 const AGY_HELP='--sandbox --print -p --print-timeout --output-format --json-schema --model --effort';
 
-// spawnHost now resolves every bin through resolveLaunch, which does a real
-// PATH lookup even when spawn itself is injected. A name that is genuinely on
-// this machine's PATH (claude, agy) therefore arrives here as a resolved
-// absolute path rather than the literal candidate string, and a name that is
-// not on PATH at all is refused before spawn is ever called (on win32). The
-// fake-binary directory below gives the synthetic names (x, first, second,
-// real, codex) something to resolve to, and matching by basename -- rather
-// than the raw `bin` -- lets the answer tables below keep using the plain
-// host name regardless of what directory or extension resolution added.
-const FAKE_BIN_DIR=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-provider-fake-bins-'));
-for(const name of ['x','first','second','real','codex'])fs.writeFileSync(path.join(FAKE_BIN_DIR,name),'');
-process.env.PATH=`${FAKE_BIN_DIR}${path.delimiter}${process.env.PATH||''}`;
-process.on('exit',()=>{try{fs.rmSync(FAKE_BIN_DIR,{recursive:true,force:true});}catch{/* best effort */}});
-
-const baseOf=bin=>path.basename(String(bin||'')).replace(/\.[^./\\]+$/,'');
+// probeBin/probe/buildInvocation/runHost now take an injectable `launch`
+// (defaulting to the real resolveLaunch) alongside the injectable `spawn`, the
+// same way tools.mjs's gateway can be tested without touching the real PATH.
+// The hermetic tests below inject a `launch` that resolves against a fake,
+// empty POSIX-shaped environment -- never the real PATH -- so a candidate name
+// like 'x' or 'claude' is handed straight to `spawn` unresolved, exactly as
+// resolveLaunch itself already does for an unresolved name on POSIX. That
+// keeps these tests independent of whatever host CLIs are actually installed.
+const POSIX_LAUNCH=argv=>resolveLaunch(argv,{platform:'linux',env:{PATH:''}});
 
 /** A scripted spawn: records every call and answers from a table. */
 function fakeSpawn(answers){
   const calls=[];
   const spawn=(bin,args,opts)=>{
     calls.push({bin,args,opts});
-    const key=`${baseOf(bin)} ${args[0]}`;
-    const answer=answers[key]??answers[baseOf(bin)]??answers[bin]??answers.default;
+    const key=`${bin} ${args[0]}`;
+    const answer=answers[key]??answers[bin]??answers.default;
     if(typeof answer==='function')return answer(bin,args,opts);
     return answer??{status:1,stdout:'',stderr:''};
   };
@@ -62,7 +56,7 @@ const missing=()=>({status:null,stdout:'',stderr:'',error:{code:'ENOENT'}});
 // --- probe bounds ----------------------------------------------------------
 test('every-probe-spawn-is-bounded',()=>{
   const spawn=fakeSpawn({'x --version':ok('1.0'),'x --help':ok(CLAUDE_HELP)});
-  probeBin(['x'],{spawn});
+  probeBin(['x'],{spawn,launch:POSIX_LAUNCH});
   assert(spawn.calls.length===2,`expected two probe calls, got ${spawn.calls.length}`);
   for(const c of spawn.calls){
     assert(Number.isFinite(c.opts?.timeout)&&c.opts.timeout>0,`unbounded probe: ${c.args[0]} has no timeout`);
@@ -72,17 +66,17 @@ test('every-probe-spawn-is-bounded',()=>{
 });
 test('a-host-that-never-answers-is-treated-as-unavailable',()=>{
   const spawn=fakeSpawn({default:timeout()});
-  assert(probeBin(['hangs'],{spawn})===null,'a timed-out probe reported an available host');
+  assert(probeBin(['hangs'],{spawn,launch:POSIX_LAUNCH})===null,'a timed-out probe reported an available host');
 });
 test('probe-falls-through-to-the-next-candidate',()=>{
   const spawn=fakeSpawn({'first --version':missing(),'second --version':ok('2.0'),'second --help':ok(CODEX_HELP)});
-  const p=probeBin(['first','second'],{spawn});
+  const p=probeBin(['first','second'],{spawn,launch:POSIX_LAUNCH});
   assert(p?.binary==='second',JSON.stringify(p));
   assert(p.version==='2.0',p.version);
 });
 test('a-failing-help-call-degrades-capabilities-instead-of-the-probe',()=>{
   const spawn=fakeSpawn({'x --version':ok('1.0'),'x --help':timeout()});
-  const p=probeBin(['x'],{spawn});
+  const p=probeBin(['x'],{spawn,launch:POSIX_LAUNCH});
   assert(p!==null,'probe was lost because --help failed');
   const cap=capabilities('claude',p);
   assert(cap.available===true,'host reported unavailable');
@@ -90,9 +84,9 @@ test('a-failing-help-call-degrades-capabilities-instead-of-the-probe',()=>{
 });
 test('empty-candidate-names-are-skipped',()=>{
   const spawn=fakeSpawn({'real --version':ok('1'),'real --help':ok('')});
-  const p=probeBin([undefined,'',null,'real'],{spawn});
+  const p=probeBin([undefined,'',null,'real'],{spawn,launch:POSIX_LAUNCH});
   assert(p?.binary==='real',JSON.stringify(p));
-  assert(spawn.calls.every(c=>baseOf(c.bin)==='real'),'an empty binary name was spawned');
+  assert(spawn.calls.every(c=>c.bin==='real'),'an empty binary name was spawned');
 });
 test('a-pinned-binary-does-not-fall-through-to-path',()=>{
   // Regression: HOST_CANDIDATES listed the pin and the PATH name together, so a
@@ -104,7 +98,7 @@ test('a-pinned-binary-does-not-fall-through-to-path',()=>{
   resetProbeCache();
   const spawn=fakeSpawn({'/pinned/claude --version':missing(),'claude --version':ok('9.9'),'claude --help':ok(CLAUDE_HELP)});
   process.env.AI_SDLC_CLAUDE_BIN='/pinned/claude';
-  const p=probe('claude',{spawn,cache:false});
+  const p=probe('claude',{spawn,launch:POSIX_LAUNCH,cache:false});
   delete process.env.AI_SDLC_CLAUDE_BIN;
   resetProbeCache();
   assert(p===null,`a broken pin resolved to ${p?.binary}`);
@@ -118,12 +112,12 @@ test('an-unknown-host-is-rejected',()=>{
 test('probe-results-are-memoized-per-process',()=>{
   resetProbeCache();
   const spawn=fakeSpawn({default:missing()});
-  probe('claude',{spawn});
+  probe('claude',{spawn,launch:POSIX_LAUNCH});
   const afterFirst=spawn.calls.length;
-  probe('claude',{spawn});
+  probe('claude',{spawn,launch:POSIX_LAUNCH});
   assert(spawn.calls.length===afterFirst,`probe re-spawned: ${afterFirst} -> ${spawn.calls.length}`);
   resetProbeCache();
-  probe('claude',{spawn});
+  probe('claude',{spawn,launch:POSIX_LAUNCH});
   assert(spawn.calls.length>afterFirst,'resetProbeCache did not clear the memo');
   resetProbeCache();
 });
@@ -144,7 +138,7 @@ function inv(host,help,prompt='do the thing',budget={}){
   resetProbeCache();
   const bin={claude:'claude',codex:'codex',antigravity:'agy'}[host];
   const spawn=fakeSpawn({[`${bin} --version`]:ok('1.0'),[`${bin} --help`]:ok(help)});
-  return buildInvocation(host,prompt,schema,budget,{spawn});
+  return buildInvocation(host,prompt,schema,budget,{spawn,launch:POSIX_LAUNCH});
 }
 test('claude-invocation-carries-the-prompt-and-structured-output',()=>{
   const out=inv('claude',CLAUDE_HELP,'do the thing',{maxTurns:8});
@@ -201,14 +195,14 @@ test('a-host-with-an-in-band-timeout-gets-the-same-budget-as-the-spawn',()=>{
 test('the-in-band-bound-and-the-spawn-bound-cannot-diverge',()=>{
   resetProbeCache();
   const spawn=fakeSpawn({'agy --version':ok('1.0'),'agy --help':ok(AGY_HELP),'agy --print':ok('')});
-  runHost('antigravity','p',schema,{maxWallMs:45000},{spawn});
+  runHost('antigravity','p',schema,{maxWallMs:45000},{spawn,launch:POSIX_LAUNCH});
   const run=spawn.calls.at(-1);
   assert(run.opts.timeout===45000,`spawn bound ${run.opts.timeout}`);
   assert(run.args[run.args.indexOf('--print-timeout')+1]==='45s',JSON.stringify(run.args));
 });
 test('a-missing-host-is-pending-not-an-exception',()=>{
   resetProbeCache();
-  const out=buildInvocation('claude','p',schema,{},{spawn:fakeSpawn({default:missing()})});
+  const out=buildInvocation('claude','p',schema,{},{spawn:fakeSpawn({default:missing()}),launch:POSIX_LAUNCH});
   assert(out.status==='PENDING'&&out.reason==='HOST_CLI_NOT_FOUND',JSON.stringify(out));
   assert(out.argv===null,'an argv was produced for a host that is not installed');
 });
@@ -239,7 +233,7 @@ test('an-unspawnable-prompt-is-reported-not-attempted',()=>{
 test('runHost-does-not-spawn-an-invocation-that-is-not-ready',()=>{
   resetProbeCache();
   const spawn=fakeSpawn({default:missing()});
-  const out=runHost('claude','p',schema,{},{spawn});
+  const out=runHost('claude','p',schema,{},{spawn,launch:POSIX_LAUNCH});
   assert(out.status==='PENDING',JSON.stringify(out));
   // Only the probe calls; no host run.
   assert(spawn.calls.every(c=>['--version','--help'].includes(c.args[0])),'a host was run despite an unusable invocation');
@@ -249,7 +243,7 @@ test('runHost-does-not-spawn-an-invocation-that-is-not-ready',()=>{
 function hostRun(answer,budget={}){
   resetProbeCache();
   const spawn=fakeSpawn({'claude --version':ok('1.0'),'claude --help':ok(CLAUDE_HELP),'claude -p':answer});
-  return runHost('claude','p',schema,budget,{spawn});
+  return runHost('claude','p',schema,budget,{spawn,launch:POSIX_LAUNCH});
 }
 test('a-successful-host-run-is-pass',()=>{
   const out=hostRun(ok('{"ok":true}'));
@@ -276,7 +270,7 @@ test('a-timeout-is-distinguishable-from-a-failed-run',()=>{
 test('the-wall-clock-budget-reaches-spawn',()=>{
   resetProbeCache();
   const spawn=fakeSpawn({'claude --version':ok('1.0'),'claude --help':ok(CLAUDE_HELP),'claude -p':ok('')});
-  runHost('claude','p',schema,{maxWallMs:1234},{spawn});
+  runHost('claude','p',schema,{maxWallMs:1234},{spawn,launch:POSIX_LAUNCH});
   const run=spawn.calls.at(-1);
   assert(run.opts.timeout===1234,`budget not applied: ${run.opts.timeout}`);
   assert(run.opts.maxBuffer>1024*1024,'host output is not capped above the default');
@@ -460,26 +454,20 @@ test('describe-spawn-real-exit-codes-are-verdicts',()=>{
 test('provider-probes-a-windows-shim-host',()=>{
   // A host CLI installed as claude.cmd used to be invisible to the probe on
   // Windows: spawnSync('claude') is ENOENT, so the host reported unavailable.
+  // The launch step is injected against a fake win32 environment (a real
+  // directory holding one real claude.cmd file, but a synthetic PATH/PATHEXT/
+  // ComSpec) rather than the real PATH, so this is pinned on every platform
+  // the suite runs on -- including POSIX CI -- not only on a real win32 box.
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-shim-'));
   fs.writeFileSync(path.join(dir,'claude.cmd'),'@echo off\n');
   const seen=[];
   const spawn=(bin,args)=>{seen.push({bin,args});return {status:0,stdout:'2.0.0 (Claude Code)',stderr:''};};
-  const prev={PATH:process.env.PATH,PATHEXT:process.env.PATHEXT};
-  try{
-    process.env.PATH=dir;process.env.PATHEXT='.EXE;.CMD';
-    resetProbeCache();
-    const p=probeBin(['claude'],{spawn});
-    assert(p!==null,'shim host was not probed');
-    if(process.platform==='win32'){
-      assert(/cmd\.exe$/i.test(seen[0].bin),seen[0].bin);
-      assert(seen[0].args[0]==='/d',JSON.stringify(seen[0].args));
-    }
-  }finally{
-    process.env.PATH=prev.PATH;
-    if(prev.PATHEXT===undefined)delete process.env.PATHEXT;else process.env.PATHEXT=prev.PATHEXT;
-    resetProbeCache();
-    fs.rmSync(dir,{recursive:true,force:true});
-  }
+  const launch=argv=>resolveLaunch(argv,{platform:'win32',env:{PATH:dir,PATHEXT:'.EXE;.CMD',ComSpec:'cmd.exe'}});
+  const p=probeBin(['claude'],{spawn,launch});
+  fs.rmSync(dir,{recursive:true,force:true});
+  assert(p!==null,'shim host was not probed');
+  assert(/cmd\.exe$/i.test(seen[0].bin),seen[0].bin);
+  assert(seen[0].args[0]==='/d',JSON.stringify(seen[0].args));
 });
 
 test('provider-script-host-still-runs-under-node',()=>{

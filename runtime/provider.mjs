@@ -47,8 +47,8 @@ const HOST_CANDIDATES=Object.fromEntries(Object.keys(HOST_DEFAULTS).map(h=>[h,()
 // same rules. This kept the .mjs/.cjs/.js case and gained the one it was
 // missing: a host installed as a Windows .cmd shim, which spawnSync refuses to
 // start directly and which therefore reported as "host not installed".
-function spawnHost(spawn,bin,args,opts){
-  const l=resolveLaunch([String(bin),...args]);
+function spawnHost(spawn,bin,args,opts,launch=resolveLaunch){
+  const l=launch([String(bin),...args]);
   // An unlaunchable candidate is reported the way an unanswered probe already
   // was, so probeBin moves to the next name instead of throwing.
   if(l.status!=='OK')return {status:null,stdout:'',stderr:'',error:{code:'ENOENT'}};
@@ -56,16 +56,18 @@ function spawnHost(spawn,bin,args,opts){
 }
 
 /**
- * First candidate that answers `--version`. `spawn` is injectable so the
- * bounded-probe contract can be tested without a real host binary.
+ * First candidate that answers `--version`. `spawn` and `launch` are
+ * injectable so the bounded-probe contract, and how a candidate name becomes
+ * a spawnable bin/args pair, can both be tested without a real host binary or
+ * the real PATH.
  */
-export function probeBin(names,{spawn=spawnSync}={}){
+export function probeBin(names,{spawn=spawnSync,launch=resolveLaunch}={}){
   for(const n of names){
     if(!n)continue;
     const opts={encoding:'utf8',timeout:PROBE_TIMEOUT_MS,maxBuffer:PROBE_MAX_BUFFER};
-    const v=spawnHost(spawn,n,['--version'],opts);
+    const v=spawnHost(spawn,n,['--version'],opts,launch);
     if(v?.error||v?.status!==0)continue;
-    const h=spawnHost(spawn,n,['--help'],opts);
+    const h=spawnHost(spawn,n,['--help'],opts,launch);
     // A help call that timed out or overflowed still leaves partial output;
     // capability detection degrades rather than failing the probe.
     return {binary:n,version:(v.stdout||v.stderr||'').trim(),help:(h?.stdout||h?.stderr||'')};
@@ -77,13 +79,13 @@ export function probeBin(names,{spawn=spawnSync}={}){
 // probed every host twice. Memoized per process, keyed by host and the binary
 // override that selected it.
 const probeCache=new Map();
-export function probe(host,{spawn=spawnSync,cache=true}={}){
+export function probe(host,{spawn=spawnSync,launch=resolveLaunch,cache=true}={}){
   const candidates=HOST_CANDIDATES[host];
   if(!candidates)throw new Error('unknown host');
   const names=candidates().filter(Boolean);
   const key=`${host}\0${names.join('\0')}`;
   if(cache&&probeCache.has(key))return probeCache.get(key);
-  const result=probeBin(names,{spawn});
+  const result=probeBin(names,{spawn,launch});
   if(cache)probeCache.set(key,result);
   return result;
 }
@@ -120,8 +122,8 @@ export function argvLimitProblem(argv,platform=process.platform){
   return null;
 }
 
-export function buildInvocation(host,prompt,schemaPath,budget={},{spawn=spawnSync}={}){
-  const p=probe(host,{spawn});
+export function buildInvocation(host,prompt,schemaPath,budget={},{spawn=spawnSync,launch=resolveLaunch}={}){
+  const p=probe(host,{spawn,launch});
   const maxWallMs=budget.maxWallMs||DEFAULT_MAX_WALL_MS;
   if(!p)return {status:'PENDING',reason:'HOST_CLI_NOT_FOUND',argv:null};
   const h=p.help||'';
@@ -162,11 +164,11 @@ export function buildInvocation(host,prompt,schemaPath,budget={},{spawn=spawnSyn
   return {status:'READY',argv:a,version:p.version,max_wall_ms:maxWallMs,max_turns:budget.maxTurns??null};
 }
 
-export function runHost(host,prompt,schemaPath,budget={},{spawn=spawnSync}={}){
-  const inv=buildInvocation(host,prompt,schemaPath,budget,{spawn});
+export function runHost(host,prompt,schemaPath,budget={},{spawn=spawnSync,launch=resolveLaunch}={}){
+  const inv=buildInvocation(host,prompt,schemaPath,budget,{spawn,launch});
   if(inv.status!=='READY')return inv;
   const r=spawnHost(spawn,inv.argv[0],inv.argv.slice(1),
-    {encoding:'utf8',timeout:inv.max_wall_ms,maxBuffer:20*1024*1024});
+    {encoding:'utf8',timeout:inv.max_wall_ms,maxBuffer:20*1024*1024},launch);
   // A spawn that timed out or never started has no exit code. Reporting 1 there
   // made a wall-clock timeout indistinguishable from a host that ran and failed,
   // which is exactly the distinction the fallback policy needs.
