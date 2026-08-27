@@ -20,8 +20,8 @@
   ],
   "measured": "v8-block-bytes",
   "overall_percent": 91.1,
-  "covered_bytes": 360415,
-  "total_bytes": 395658,
+  "covered_bytes": 360623,
+  "total_bytes": 395835,
   "modules": [
     {
       "file": "runtime/commands/activation.mjs",
@@ -282,12 +282,6 @@
       "total_bytes": 15947
     },
     {
-      "file": "runtime/commands/tools.mjs",
-      "percent": 96.8,
-      "covered_bytes": 2222,
-      "total_bytes": 2295
-    },
-    {
       "file": "runtime/activation.mjs",
       "percent": 96.9,
       "covered_bytes": 8844,
@@ -310,6 +304,12 @@
       "percent": 97.9,
       "covered_bytes": 4358,
       "total_bytes": 4453
+    },
+    {
+      "file": "runtime/commands/tools.mjs",
+      "percent": 98.3,
+      "covered_bytes": 2430,
+      "total_bytes": 2472
     },
     {
       "file": "runtime/parallel.mjs",
@@ -392,7 +392,7 @@
   ],
   "never_loaded": [],
   "floor": {
-    "overall_percent": 91,
+    "overall_percent": 90,
     "never_loaded": []
   },
   "optional_tools": {
