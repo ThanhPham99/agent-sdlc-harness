@@ -6,8 +6,29 @@ import {checkTool} from './policy.mjs';
 import {putArtifact,emit,saveRun} from './store.mjs';
 import {normalizeInput} from './normalize.mjs';
 import {recordEvidence} from './evidence.mjs';
+import {resolveLaunch,describeSpawn} from './launcher.mjs';
 
-function exec(argv,cwd,timeout,maxBytes){const r=spawnSync(argv[0],argv.slice(1),{cwd,encoding:'utf8',timeout,maxBuffer:20*1024*1024});const raw=(r.stdout||'')+(r.stderr||'');const t=truncateUtf8(raw,maxBytes);return {status:(r.status===0?'PASS':'FAIL'),exit_code:r.status??1,summary:t.text,truncated:t.truncated,raw};}
+// A command the harness was told to run, resolved the same way host binaries
+// are, and a result that distinguishes "it ran and failed" from "it never ran".
+function exec(argv,cwd,timeout,maxBytes){
+  const launch=resolveLaunch(argv);
+  if(launch.status!=='OK'){
+    const detail=launch.detail?` (${launch.detail})`:'';
+    return {status:'ERROR',reason:launch.reason,exit_code:null,
+      summary:`${launch.reason}${detail}: cannot launch ${argv.join(' ')}`,
+      truncated:false,raw:''};
+  }
+  const r=spawnSync(launch.bin,launch.args,{cwd,encoding:'utf8',timeout,maxBuffer:20*1024*1024,...launch.spawnOptions});
+  const d=describeSpawn(r);
+  const raw=(r.stdout||'')+(r.stderr||'');
+  const t=truncateUtf8(raw,maxBytes);
+  // On ERROR the child's own output is usually empty and the errno is the only
+  // fact there is, so it leads the summary instead of being dropped.
+  const summary=d.status==='ERROR'
+    ? [`${d.reason}: ${argv.join(' ')}`,d.signal?`killed by ${d.signal}`:null,t.text||null].filter(Boolean).join('\n')
+    : t.text;
+  return {status:d.status,reason:d.reason,exit_code:d.exit_code,summary,truncated:t.truncated,raw};
+}
 function projectCommand(cfg,key,args){const tmpl=cfg.commands?.[key];if(!Array.isArray(tmpl)||!tmpl.length)throw new Error(`project command ${key} not configured`);return tmpl.map(x=>String(x).replaceAll('{selector}',args.selector||''));}
 function sensitivePath(root,rel){const sec=readJson(path.join(root,'policies','security-policy.json'));const p=String(rel||'').replaceAll('\\','/');return (sec.sensitive_read_patterns||[]).some(g=>{const re='^'+g.replace(/[.+^${}()|[\]\\]/g,'\\$&').replaceAll('**','.*').replaceAll('*','[^/]*')+'$';return new RegExp(re).test(p);});}
 function secretScan(projectRoot){
@@ -84,10 +105,12 @@ export function invokeTool(root,projectRoot,run,tool,args={}){
   else if(tool==='test.run_full')result=exec(projectCommand(cfg,'test_full',args),projectRoot,Math.max(timeout,args.timeout_ms||0),maxBytes);
   else if(tool==='build.run')result=exec(projectCommand(cfg,'build',args),projectRoot,Math.max(timeout,args.timeout_ms||0),maxBytes);
   else throw new Error(`tool ${tool} requires host/MCP/external implementation`);
-  let full=null;if((result.truncated||result.status==='FAIL')&&result.raw){const a=putArtifact(projectRoot,{kind:'tool-log',content:result.raw,runId:run.run_id,stage:run.state,filename:`${tool}.log`});full=a.artifact_id;}
+  // Anything that is not a clean pass is worth keeping the raw log for, ERROR
+  // included; the previous condition named FAIL only.
+  let full=null;if((result.truncated||result.status!=='PASS')&&result.raw){const a=putArtifact(projectRoot,{kind:'tool-log',content:result.raw,runId:run.run_id,stage:run.state,filename:`${tool}.log`});full=a.artifact_id;}
   // A gate token is only as trustworthy as what wrote it. Binding it to the
   // deterministic tool run that produced it, instead of letting a caller
   // assert the same string, is what makes it evidence rather than a claim.
   if(tool==='test.run_targeted')recordEvidence(projectRoot,run,{stage:run.state,claim:'targeted_verification_pass',status:result.status,tool,exitCode:result.exit_code,artifactRef:full});
-  const out={tool,status:result.status,exit_code:result.exit_code,summary:result.summary,failures:[],full_log_artifact:full,truncated:result.truncated};emit(projectRoot,run,{type:'tool.completed',payload:{tool,status:out.status,exit_code:out.exit_code,truncated:out.truncated},artifact_refs:full?[full]:[]});return out;
+  const out={tool,status:result.status,reason:result.reason??null,exit_code:result.exit_code,summary:result.summary,failures:[],full_log_artifact:full,truncated:result.truncated};emit(projectRoot,run,{type:'tool.completed',payload:{tool,status:out.status,reason:out.reason,exit_code:out.exit_code,truncated:out.truncated},artifact_refs:full?[full]:[]});return out;
 }

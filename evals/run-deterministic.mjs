@@ -395,6 +395,51 @@ test('repo-search-no-match-is-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'
 test('secret-scan-clean-is-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'security.secret_scan',{});if(out.status!=='PASS')throw Error(JSON.stringify(out));});
 test('secret-scan-finding-redacts-value',()=>{fs.writeFileSync(path.join(tmp,'leak.txt'),'api_key=SUPERSECRET\n');execFileSync('git',['add','leak.txt'],{cwd:tmp});const out=invokeTool(ROOT,tmp,toolRun,'security.secret_scan',{});execFileSync('git',['reset','-q','HEAD','leak.txt'],{cwd:tmp});fs.rmSync(path.join(tmp,'leak.txt'));if(out.status!=='FAIL'||out.summary.includes('SUPERSECRET')||out.full_log_artifact)throw Error(JSON.stringify(out));});
 test('targeted-test-built-in-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'test.run_targeted',{selector:'x'});if(out.status!=='PASS')throw Error(JSON.stringify(out));});
+// A spawn that never started is not a test that failed. ENOENT used to arrive
+// as {status:'FAIL',exit_code:1,summary:'',full_log_artifact:null} and was
+// recorded as targeted_verification_pass:FAIL, so an operator read "the suite
+// failed" when the truth was "npm is not spawnable here".
+test('gateway-missing-binary-is-error-not-fail',()=>{
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-enoent-'));
+  execFileSync('git',['init','-q'],{cwd:d});
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'enoent',commands:{
+    test_targeted:['definitely-not-a-real-binary-9f3','{selector}'],
+    test_full:['definitely-not-a-real-binary-9f3'],
+    build:['definitely-not-a-real-binary-9f3']
+  },providers:{preferred:['claude']}});
+  const r=newRun(ROOT,d,{objective:'x',route:route(ROOT,'Add fixture feature')});
+  transition(ROOT,d,r,'REQUIREMENTS');
+  transition(ROOT,d,r,'DESIGN',{evidence:['requirements_confirmed']});
+  transition(ROOT,d,r,'PLAN',{evidence:['design_or_skip_decision'],internal:true});
+  transition(ROOT,d,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
+  const out=invokeTool(ROOT,d,r,'test.run_targeted',{selector:'anything'});
+  if(out.status!=='ERROR')throw Error(`expected ERROR, got ${JSON.stringify(out)}`);
+  if(out.reason!=='TOOL_NOT_EXECUTABLE')throw Error(JSON.stringify(out));
+  if(out.exit_code!==null)throw Error(JSON.stringify(out));
+  if(!out.summary.includes('definitely-not-a-real-binary-9f3'))throw Error(JSON.stringify(out));
+  // And it must not grant the gate token.
+  if((r.evidence.IMPLEMENT||[]).includes('targeted_verification_pass'))throw Error('ERROR granted evidence');
+});
+
+test('gateway-real-failure-keeps-its-log',()=>{
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-realfail-'));
+  execFileSync('git',['init','-q'],{cwd:d});
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'failing',commands:{
+    test_targeted:['node','-e','console.log("2 passed, 1 failed");process.exit(1)'],
+    test_full:['node','-e','process.exit(0)'],
+    build:['node','-e','process.exit(0)']
+  },providers:{preferred:['claude']}});
+  const r=newRun(ROOT,d,{objective:'x',route:route(ROOT,'Add fixture feature')});
+  transition(ROOT,d,r,'REQUIREMENTS');
+  transition(ROOT,d,r,'DESIGN',{evidence:['requirements_confirmed']});
+  transition(ROOT,d,r,'PLAN',{evidence:['design_or_skip_decision'],internal:true});
+  transition(ROOT,d,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
+  const out=invokeTool(ROOT,d,r,'test.run_targeted',{});
+  if(out.status!=='FAIL'||out.exit_code!==1)throw Error(JSON.stringify(out));
+  if(!out.summary.includes('2 passed, 1 failed'))throw Error(JSON.stringify(out));
+  if(!out.full_log_artifact)throw Error('a real failure must keep its full log');
+  if(out.reason!==null)throw Error(JSON.stringify(out));
+});
 test('unknown-tool-denied',()=>{const d=checkTool(ROOT,toolRun,'shell.root');if(d.decision!=='DENY'||d.reason!=='UNKNOWN_TOOL')throw Error(JSON.stringify(d));});
 const researchRun=newRun(ROOT,tmp,{objective:'Design cache solution',route:route(ROOT,'Design cache architecture')});
 transition(ROOT,tmp,researchRun,'REQUIREMENTS');transition(ROOT,tmp,researchRun,'DESIGN',{evidence:['requirements_confirmed']});

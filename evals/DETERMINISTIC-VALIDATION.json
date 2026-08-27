@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 298,
-  "passes": 298,
+  "checks": 300,
+  "passes": 300,
   "failures": 0,
   "results": [
     {
@@ -287,6 +287,14 @@
     },
     {
       "name": "targeted-test-built-in-pass",
+      "status": "PASS"
+    },
+    {
+      "name": "gateway-missing-binary-is-error-not-fail",
+      "status": "PASS"
+    },
+    {
+      "name": "gateway-real-failure-keeps-its-log",
       "status": "PASS"
     },
     {
