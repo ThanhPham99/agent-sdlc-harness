@@ -37,6 +37,21 @@ const HOST_CANDIDATES=Object.fromEntries(Object.keys(HOST_DEFAULTS).map(h=>[h,()
   return pinned?[pinned]:HOST_DEFAULTS[h];
 }]));
 
+// A host "binary" may be a real executable or a Node script (the offline
+// transport regression and test suites use fake host CLIs). Windows cannot exec
+// a JS file directly, so script binaries are launched through this process's
+// Node executable on every platform.
+function launcher(bin){
+  return /\.(mjs|cjs|js)$/i.test(String(bin||''))
+    ? {bin:process.execPath,prefix:[String(bin)]}
+    : {bin:String(bin),prefix:[]};
+}
+
+function spawnHost(spawn,bin,args,opts){
+  const l=launcher(bin);
+  return spawn(l.bin,[...l.prefix,...args],opts);
+}
+
 /**
  * First candidate that answers `--version`. `spawn` is injectable so the
  * bounded-probe contract can be tested without a real host binary.
@@ -45,9 +60,9 @@ export function probeBin(names,{spawn=spawnSync}={}){
   for(const n of names){
     if(!n)continue;
     const opts={encoding:'utf8',timeout:PROBE_TIMEOUT_MS,maxBuffer:PROBE_MAX_BUFFER};
-    const v=spawn(n,['--version'],opts);
+    const v=spawnHost(spawn,n,['--version'],opts);
     if(v?.error||v?.status!==0)continue;
-    const h=spawn(n,['--help'],opts);
+    const h=spawnHost(spawn,n,['--help'],opts);
     // A help call that timed out or overflowed still leaves partial output;
     // capability detection degrades rather than failing the probe.
     return {binary:n,version:(v.stdout||v.stderr||'').trim(),help:(h?.stdout||h?.stderr||'')};
@@ -147,7 +162,7 @@ export function buildInvocation(host,prompt,schemaPath,budget={},{spawn=spawnSyn
 export function runHost(host,prompt,schemaPath,budget={},{spawn=spawnSync}={}){
   const inv=buildInvocation(host,prompt,schemaPath,budget,{spawn});
   if(inv.status!=='READY')return inv;
-  const r=spawn(inv.argv[0],inv.argv.slice(1),
+  const r=spawnHost(spawn,inv.argv[0],inv.argv.slice(1),
     {encoding:'utf8',timeout:inv.max_wall_ms,maxBuffer:20*1024*1024});
   // A spawn that timed out or never started has no exit code. Reporting 1 there
   // made a wall-clock timeout indistinguishable from a host that ran and failed,

@@ -19,9 +19,9 @@
     "scripts/validate-cli-surface.mjs"
   ],
   "measured": "v8-block-bytes",
-  "overall_percent": 90.9,
-  "covered_bytes": 351669,
-  "total_bytes": 386677,
+  "overall_percent": 91,
+  "covered_bytes": 352247,
+  "total_bytes": 387259,
   "modules": [
     {
       "file": "runtime/commands/activation.mjs",
@@ -312,16 +312,16 @@
       "total_bytes": 2462
     },
     {
-      "file": "runtime/provider.mjs",
-      "percent": 98.8,
-      "covered_bytes": 7733,
-      "total_bytes": 7824
-    },
-    {
       "file": "runtime/replay.mjs",
       "percent": 98.8,
       "covered_bytes": 917,
       "total_bytes": 928
+    },
+    {
+      "file": "runtime/provider.mjs",
+      "percent": 98.9,
+      "covered_bytes": 8311,
+      "total_bytes": 8406
     },
     {
       "file": "runtime/commands/index.mjs",

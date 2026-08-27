@@ -311,4 +311,24 @@ test('a-real-binary-round-trips-through-runHost',()=>{
   assert(out.stdout.includes('carried through'),`prompt did not reach the host: ${out.stdout}`);
 });
 
+test('a-node-script-binary-probes-and-runs-across-platforms',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-provider-script-'));
+  const bin=path.join(dir,'fake-host.mjs');
+  fs.writeFileSync(bin,
+    'const args=process.argv.slice(2);\n'+
+    'if(args.includes("--version")){console.log("script-host 1.0");process.exit(0);}\n'+
+    'if(args.includes("--help")){console.log("-p --output-format --json-schema");process.exit(0);}\n'+
+    'console.log(JSON.stringify({structured_output:{ok:true},usage:{input_tokens:10,output_tokens:5}}));\n'+
+    'process.exit(0);\n');
+  process.env.AI_SDLC_CLAUDE_BIN=bin;
+  resetProbeCache();
+  const p=probe('claude',{cache:false});
+  assert(p!==null,'a node script binary was not detected');
+  assert(p.version==='script-host 1.0',`unexpected version: ${p.version}`);
+  const out=runHost('claude','test prompt',null,{maxWallMs:10000});
+  delete process.env.AI_SDLC_CLAUDE_BIN;
+  resetProbeCache();
+  assert(out.status==='PASS',JSON.stringify(out));
+});
+
 finish({platform:process.platform,real_binary_checks:POSIX});

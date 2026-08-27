@@ -2,8 +2,8 @@
   "schema": "agent-sdlc/provider-validation/v1",
   "platform": "linux",
   "real_binary_checks": true,
-  "checks": 27,
-  "passes": 27,
+  "checks": 28,
+  "passes": 28,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -113,6 +113,10 @@
     },
     {
       "name": "a-real-binary-round-trips-through-runHost",
+      "status": "PASS"
+    },
+    {
+      "name": "a-node-script-binary-probes-and-runs-across-platforms",
       "status": "PASS"
     }
   ]
