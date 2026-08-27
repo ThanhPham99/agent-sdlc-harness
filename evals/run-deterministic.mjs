@@ -466,6 +466,49 @@ test('gateway-real-failure-keeps-its-log',()=>{
   if(!out.full_log_artifact)throw Error('a real failure must keep its full log');
   if(out.reason!==null)throw Error(JSON.stringify(out));
 });
+// config/tools.json declares default_timeout_ms and max_return_bytes per tool.
+// invokeTool hardcoded 120000 and 24000 and never read either, so tightening a
+// tool's budget in config had no effect at all.
+test('gateway-honours-per-tool-return-limit',()=>{
+  const registry=JSON.parse(fs.readFileSync(path.join(ROOT,'config','tools.json'),'utf8'));
+  if(registry.tools['test.run_targeted'].max_return_bytes!==24000)throw Error('fixture assumption changed');
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-limits-'));
+  execFileSync('git',['init','-q'],{cwd:d});
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'chatty',commands:{
+    test_targeted:['node','-e','console.log("x".repeat(40000));','{selector}'],
+    test_full:['node','-e','process.exit(0)'],
+    build:['node','-e','process.exit(0)']
+  },providers:{preferred:['claude']}});
+  const r=newRun(ROOT,d,{objective:'x',route:route(ROOT,'Add fixture feature')});
+  transition(ROOT,d,r,'REQUIREMENTS');
+  transition(ROOT,d,r,'DESIGN',{evidence:['requirements_confirmed']});
+  transition(ROOT,d,r,'PLAN',{evidence:['design_or_skip_decision'],internal:true});
+  transition(ROOT,d,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
+  const out=invokeTool(ROOT,d,r,'test.run_targeted',{selector:'all'});
+  if(!out.truncated)throw Error('40000 bytes should exceed the declared 24000');
+  if(Buffer.byteLength(out.summary)>24000)throw Error(`summary is ${Buffer.byteLength(out.summary)} bytes`);
+  if(!out.full_log_artifact)throw Error('a truncated result must keep its full log');
+});
+
+test('gateway-caller-timeout-still-wins-when-larger',()=>{
+  // args.timeout_ms raising the ceiling is existing behaviour (Math.max);
+  // reading the registry must not remove it.
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-tmo-'));
+  execFileSync('git',['init','-q'],{cwd:d});
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'brief',commands:{
+    test_targeted:['node','-e','console.log("done");','{selector}'],
+    test_full:['node','-e','process.exit(0)'],
+    build:['node','-e','process.exit(0)']
+  },providers:{preferred:['claude']}});
+  const r=newRun(ROOT,d,{objective:'x',route:route(ROOT,'Add fixture feature')});
+  transition(ROOT,d,r,'REQUIREMENTS');
+  transition(ROOT,d,r,'DESIGN',{evidence:['requirements_confirmed']});
+  transition(ROOT,d,r,'PLAN',{evidence:['design_or_skip_decision'],internal:true});
+  transition(ROOT,d,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
+  const out=invokeTool(ROOT,d,r,'test.run_targeted',{selector:'all',timeout_ms:300000});
+  if(out.status!=='PASS'||!out.summary.includes('done'))throw Error(JSON.stringify(out));
+});
+
 test('unknown-tool-denied',()=>{const d=checkTool(ROOT,toolRun,'shell.root');if(d.decision!=='DENY'||d.reason!=='UNKNOWN_TOOL')throw Error(JSON.stringify(d));});
 const researchRun=newRun(ROOT,tmp,{objective:'Design cache solution',route:route(ROOT,'Design cache architecture')});
 transition(ROOT,tmp,researchRun,'REQUIREMENTS');transition(ROOT,tmp,researchRun,'DESIGN',{evidence:['requirements_confirmed']});

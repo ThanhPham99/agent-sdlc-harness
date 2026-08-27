@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 303,
-  "passes": 303,
+  "checks": 305,
+  "passes": 305,
   "failures": 0,
   "results": [
     {
@@ -307,6 +307,14 @@
     },
     {
       "name": "gateway-real-failure-keeps-its-log",
+      "status": "PASS"
+    },
+    {
+      "name": "gateway-honours-per-tool-return-limit",
+      "status": "PASS"
+    },
+    {
+      "name": "gateway-caller-timeout-still-wins-when-larger",
       "status": "PASS"
     },
     {

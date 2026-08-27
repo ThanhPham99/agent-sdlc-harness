@@ -78,7 +78,12 @@ function checkWebUrl(root,urlStr){
   }catch{return {ok:false,reason:`Invalid URL format: ${urlStr}`};}
 }
 export function invokeTool(root,projectRoot,run,tool,args={}){
-  const cfg=JSON.parse(fs.readFileSync(path.join(projectRoot,'.agent-sdlc','project.json'),'utf8'));const decision=checkTool(root,run,tool,cfg);if(decision.decision!=='ALLOW')return {tool,status:decision.decision==='DENY'?'DENY':'APPROVAL_REQUIRED',exit_code:null,summary:decision,failures:[],full_log_artifact:null,truncated:false};let result;const maxBytes=24000;const timeout=120000;
+  const cfg=JSON.parse(fs.readFileSync(path.join(projectRoot,'.agent-sdlc','project.json'),'utf8'));const decision=checkTool(root,run,tool,cfg);if(decision.decision!=='ALLOW')return {tool,status:decision.decision==='DENY'?'DENY':'APPROVAL_REQUIRED',exit_code:null,summary:decision,failures:[],full_log_artifact:null,truncated:false};let result;
+  // config/tools.json declares these per tool and nothing read them, so a budget
+  // tightened in config had no effect. The literals stay as the fallback for a
+  // tool the registry does not size.
+  const spec=readJson(path.join(root,'config','tools.json')).tools?.[tool]||{};
+  const maxBytes=spec.max_return_bytes||24000;const timeout=spec.default_timeout_ms||120000;
   if(tool==='input.normalize'){
     const rel=String(args.path||'');const p=safeRelative(projectRoot,rel);const n=normalizeInput(p,{maxBytes:Number(args.max_bytes||20*1024*1024)});
     let artifact=null;if(n.status==='NORMALIZED'){artifact=putArtifact(projectRoot,{kind:'normalized-requirement',content:n.markdown,runId:run.run_id,stage:run.state,filename:path.basename(rel)+'.md'});run.artifacts=[...new Set([...(run.artifacts||[]),artifact.artifact_id])];saveRun(projectRoot,run);}
