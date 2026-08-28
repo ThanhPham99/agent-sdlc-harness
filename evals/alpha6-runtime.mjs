@@ -196,6 +196,39 @@ export function runAlpha6Suite(root){
       }
     });
 
+    t('the-maxFiles-budget-is-spent-on-indexable-files-not-on-skipped-dirs',()=>{
+      // A committed dist/ (published JS libraries, browser extensions) or
+      // vendor/ (Go) is discovered by `git ls-files` and then dropped by
+      // SKIP_DIR. Capping the raw list BEFORE that filter spends the budget on
+      // files that are never indexed: `dist/` sorts before `src/`, so a real
+      // source file falls off the end of a repository well under the cap.
+      const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-vendorcap-'));
+      try{
+        gitq(dir,'init','-q');
+        const write=(rel,text)=>{
+          const p=path.join(dir,rel);
+          fs.mkdirSync(path.dirname(p),{recursive:true});
+          fs.writeFileSync(p,text);
+        };
+        // ls-files sorts, so 'dist/' is yielded before 'src/'.
+        for(let i=0;i<6;i++)write(`dist/bundle${i}.js`,`export const dep${i}=${i};\n`);
+        write('src/payments.js','export function chargeCard(){return 1;}\n');
+        gitq(dir,'add','.');
+        execFileSync('git',['-c','user.email=a@b.c','-c','user.name=t','commit','-qm','init'],{cwd:dir,stdio:'ignore'});
+
+        const idx=buildIndex(dir,{force:true,maxFiles:4});
+        const paths=idx.files.map(f=>f.path);
+        if(!paths.includes('src/payments.js'))fail(`the only real source file was crowded out by dist/: ${JSON.stringify(paths)}`);
+        if(paths.some(p=>p.startsWith('dist/')))fail(`dist/ must never be indexed: ${JSON.stringify(paths)}`);
+        // total_discovered / omitted_files describe the indexable set, so a
+        // repository under the cap is not reported as truncated.
+        if(idx.is_truncated)fail(`1 indexable file under a cap of 4 reported as truncated: ${JSON.stringify(idx.counts)}`);
+        if(idx.counts.omitted_files!==0)fail(`omitted_files should be 0, got ${idx.counts.omitted_files}`);
+      }finally{
+        try{fs.rmSync(dir,{recursive:true,force:true});}catch{}
+      }
+    });
+
     t('regex-extracts-ruby-rust-csharp-php-kotlin',()=>{
       const multiDir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-multilang-'));
       try{

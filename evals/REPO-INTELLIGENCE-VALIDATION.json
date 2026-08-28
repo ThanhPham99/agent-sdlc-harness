@@ -37,8 +37,8 @@
     "rule": "anchored to the task declared scope, consulted before any broad repo.search, never mined from free text",
     "no_match_behaviour": "reports NO_DETERMINISTIC_MATCH_BROADER_SEARCH_REQUIRED instead of returning the repository"
   },
-  "checks": 14,
-  "passes": 14,
+  "checks": 15,
+  "passes": 15,
   "failures": 0,
   "results": [
     {
@@ -55,6 +55,10 @@
     },
     {
       "name": "index-records-truncation-for-oversized-files",
+      "status": "PASS"
+    },
+    {
+      "name": "the-maxFiles-budget-is-spent-on-indexable-files-not-on-skipped-dirs",
       "status": "PASS"
     },
     {

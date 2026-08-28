@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 333,
-  "passes": 333,
+  "checks": 334,
+  "passes": 334,
   "failures": 0,
   "results": [
     {
@@ -1095,6 +1095,10 @@
     },
     {
       "name": "a6-repo_intelligence/index-records-truncation-for-oversized-files",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/the-maxFiles-budget-is-spent-on-indexable-files-not-on-skipped-dirs",
       "status": "PASS"
     },
     {

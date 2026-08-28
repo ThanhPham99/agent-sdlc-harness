@@ -288,12 +288,19 @@ export function buildIndex(projectRoot,{force=false,maxFiles=20000}={}){
   const previous=new Map((cached?.files||[]).map(f=>[f.path,f]));
   const entries=trackedEntries(projectRoot);
   const fileList=entries.size?[...entries.keys()]:trackedFiles(projectRoot);
-  const totalDiscovered=fileList.length;
+  // SKIP_DIR first, then the cap. The other order spent the budget on files
+  // that are dropped a line later: `git ls-files` is sorted, and a committed
+  // dist/ (published JS packages, browser extensions) or vendor/ (Go) sorts
+  // before src/, so a repository well under maxFiles could index nothing at
+  // all. It also made the counts describe the wrong set -- `omitted_files`
+  // and `is_truncated` were reporting never-indexable files as dropped work.
+  const indexable=fileList.filter(rel=>!SKIP_DIR.test(`/${rel}/`));
+  const excludedDirs=fileList.length-indexable.length;
+  const totalDiscovered=indexable.length;
   const omittedFiles=Math.max(0,totalDiscovered-maxFiles);
   const isTruncated=omittedFiles>0;
-  const files=[];let reused=0,parsed=0,skipped=0,truncated=0;
-  for(const rel of fileList.slice(0,maxFiles)){
-    if(SKIP_DIR.test(`/${rel}/`)){skipped++;continue;}
+  const files=[];let reused=0,parsed=0,skipped=excludedDirs,truncated=0;
+  for(const rel of indexable.slice(0,maxFiles)){
     const abs=path.join(projectRoot,rel);
     let stat;try{stat=fs.statSync(abs);}catch{skipped++;continue;}
     if(!stat.isFile()){skipped++;continue;}
