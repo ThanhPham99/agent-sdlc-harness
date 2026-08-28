@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 341,
-  "passes": 341,
+  "checks": 342,
+  "passes": 342,
   "failures": 0,
   "results": [
     {
@@ -979,6 +979,10 @@
     },
     {
       "name": "task-verification_review/review-must-be-bound-to-the-current-diff-and-attempt",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/a-review-that-declares-no-diff-is-not-bound-to-anything",
       "status": "PASS"
     },
     {

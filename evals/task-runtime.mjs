@@ -710,6 +710,39 @@ export function runTaskRuntimeSuite(root){
       if(!stale.errors.some(e=>e.startsWith('ATTEMPT_MISMATCH')))fail(JSON.stringify(stale.errors));
     });
 
+    t('a-review-that-declares-no-diff-is-not-bound-to-anything',()=>{
+      // The binding was checked only when the review volunteered a diff_hash,
+      // and neither JSON schema requires the field. So omitting it skipped the
+      // check entirely -- a review could come back COMPLIANT/ACCEPTED, validate
+      // clean and open the gate while bound to no diff at all. `attempt` was
+      // already mandatory; this is the same binding, half-enforced.
+      //
+      // task.diff_hash is always set by review time: RUNNING -> VERIFYING
+      // requires diff_captured, so there is no legitimate reason to omit it.
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot);
+      const task=requireTask(projectRoot,run.run_id,'TASK-001');
+      task.diff_hash='current';saveTask(projectRoot,task);
+      const cur=requireTask(projectRoot,run.run_id,'TASK-001');
+
+      for(const [label,build,validate] of [
+        ['spec',specReviewFor,validateSpecComplianceReview],
+        ['quality',qualityReviewFor,validateCodeQualityReview]
+      ]){
+        const bound=validate(build(cur),cur);
+        if(!bound.clean)fail(`${label}: a correctly bound review was refused: ${JSON.stringify(bound.errors)}`);
+
+        const review=build(cur);
+        delete review.diff_hash;
+        const unbound=validate(review,cur);
+        if(unbound.clean)fail(`${label}: a review declaring no diff was accepted as clean`);
+        if(!unbound.errors.includes('REVIEW_NOT_BOUND_TO_A_DIFF'))fail(`${label}: ${JSON.stringify(unbound.errors)}`);
+
+        const wrong=validate(build(cur,{diff_hash:'previous'}),cur);
+        if(wrong.clean)fail(`${label}: a review bound to another diff was accepted`);
+      }
+    });
+
     t('acceptance-criteria-must-actually-be-checked',()=>{
       const projectRoot=makeFixture();
       const {run}=runAtImplement(root,projectRoot);

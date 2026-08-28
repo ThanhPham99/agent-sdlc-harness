@@ -29,8 +29,8 @@
     "blocking_finding_blocks_done": true,
     "independence": "recorded truthfully; an achieved claim contradicting its mode is rejected, and an unachieved claim requires a recorded limitation"
   },
-  "checks": 21,
-  "passes": 21,
+  "checks": 22,
+  "passes": 22,
   "failures": 0,
   "results": [
     {
@@ -63,6 +63,10 @@
     },
     {
       "name": "review-must-be-bound-to-the-current-diff-and-attempt",
+      "status": "PASS"
+    },
+    {
+      "name": "a-review-that-declares-no-diff-is-not-bound-to-anything",
       "status": "PASS"
     },
     {
