@@ -14,11 +14,12 @@ export const commands={
     const sub=args._[1]||'status';
     const {recordDelivery,loadDelivery,baseDrift,checkPushTarget,branchFor,groupTaskBranches,DELIVERY_TARGETS}=await import('../git-delivery.mjs');
     const {loadCiEvidence}=await import('../ci-evidence.mjs');
+    const {activeCapabilities}=await import('../approvals.mjs');
     const {listTasks}=await import('../store.mjs');
     if(sub==='status'){const r=await needRun();print(loadDelivery(projectRoot,r.run_id)||{status:'NO_DELIVERY_RECORD'});}
     else if(sub==='targets')print({targets:DELIVERY_TARGETS,note:'a prepared PR is PR_READY, never MERGED'});
     else if(sub==='branch'){const r=await needRun();print({branch:branchFor(r.run_id,args['task-id']||null)});}
-    else if(sub==='push-check'){const r=await needRun();print(checkPushTarget(args.branch||branchFor(r.run_id),{approvals:(r.approvals||[]).map(a=>a.approval)}));}
+    else if(sub==='push-check'){const r=await needRun();print(checkPushTarget(args.branch||branchFor(r.run_id),{approvals:activeCapabilities(r)}));}
     else if(sub==='drift')print(baseDrift(projectRoot,{base:args.base||'main',recordedBaseRevision:args.revision||null}));
     else if(sub==='group'){const r=await needRun();print(groupTaskBranches(listTasks(projectRoot,r.run_id),{allowInterfaceGrouping:truthy(args['allow-interface-grouping'])}));}
     else if(sub==='record'){
@@ -30,7 +31,7 @@ export const commands={
         stacked:args.stacked?readJson(path.resolve(args.stacked)):[],
         ciEvidence:loadCiEvidence(projectRoot,run.run_id),
         mergeCommit:args['merge-commit']||null,
-        approvals:(run.approvals||[]).map(a=>a.approval)
+        approvals:activeCapabilities(run)
       });
       print(out);if(out.status!=='READY')process.exitCode=1;
     }

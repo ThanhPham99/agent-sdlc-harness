@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 339,
-  "passes": 339,
+  "checks": 340,
+  "passes": 340,
   "failures": 0,
   "results": [
     {
@@ -1247,6 +1247,10 @@
     },
     {
       "name": "a6-delivery/protected-branch-push-is-denied-by-default",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/a-revoked-or-expired-approval-no-longer-authorizes-a-protected-push",
       "status": "PASS"
     },
     {

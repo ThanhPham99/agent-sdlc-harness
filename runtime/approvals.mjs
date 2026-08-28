@@ -52,6 +52,21 @@ export function findValidApproval(run,capability){
   return candidates.at(-1);
 }
 
+/**
+ * The capabilities this run currently has authority for.
+ *
+ * Three callers built their own list with `(run.approvals||[]).map(a=>a.approval)`
+ * -- every record ever written, revoked and expired ones included. So
+ * `approval revoke` had no effect on the delivery push gate or the DESIGN
+ * human-approval gate, and a lapsed grant kept authorizing indefinitely.
+ * findValidApproval already encoded the rule; this is it applied to the whole
+ * set, so a gate cannot accidentally ask the weaker question.
+ */
+export function activeCapabilities(run){
+  const caps=new Set((run?.approvals||[]).map(a=>a.capability||a.approval).filter(Boolean));
+  return [...caps].filter(c=>findValidApproval(run,c));
+}
+
 export function approvalStatus(a){
   if(a.revoked_at)return 'REVOKED';
   if(a.expires_at&&a.expires_at<=now())return 'EXPIRED';

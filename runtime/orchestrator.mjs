@@ -4,7 +4,7 @@ import {emit,saveRun,loadTaskGraph,listTasks} from './store.mjs';
 import {validateDesignDecision,evaluateDesignGate,getDesignDiscoveryPolicy} from './design-discovery.mjs';
 import {validateTaskPlan,planGateEvidence} from './plan-validator.mjs';
 import {materializeTaskGraph,taskProgress} from './task-engine.mjs';
-import {findValidApproval} from './approvals.mjs';
+import {findValidApproval,activeCapabilities} from './approvals.mjs';
 import {evaluateGate} from './gates.mjs';
 import {attachRun} from './features.mjs';
 
@@ -110,7 +110,7 @@ export function recordDesignDecision(root,projectRoot,run,decision,{artifactRef=
     mode:decision?.mode??null,
     evidence:validation.gate_evidence,
     humanApprovalRequired,
-    approvals:approvals??(run.approvals||[]).map(a=>a.approval)
+    approvals:approvals??activeCapabilities(run)
   });
   const derived=getDesignDiscoveryPolicy().gate.derived_evidence;
   if(!validation.valid||!gate.valid){

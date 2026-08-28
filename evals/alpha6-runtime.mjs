@@ -19,6 +19,7 @@ import {openIntelligence,findSymbol,findReferences,findTestsForSymbol,findModule
 import {buildTraceabilityGraph,loadTraceabilityGraph,validateTraceabilityGraph,computeTraceCoverage,computeInvalidationClosure,applyInvalidation,invalidationHistory,nodeId,DELTA_CLASSES} from '../runtime/traceability.mjs';
 import {recordDelivery,baseDrift,checkPushTarget,branchFor,groupTaskBranches,isProtectedBranch} from '../runtime/git-delivery.mjs';
 import {recordCiEvidence,ciEvidenceCurrent,loadCiEvidence} from '../runtime/ci-evidence.mjs';
+import {recordApproval,revokeApproval,activeCapabilities} from '../runtime/approvals.mjs';
 import {resumeFromCheckpoint,taskCheckpoint,startTask,captureTaskDiff} from '../runtime/task-runner.mjs';
 import {governTask,governorReport,taskComplexity,getGovernancePolicy} from '../runtime/governor.mjs';
 import {buildRegressionCandidate,validateRegressionCandidate,toEvalCase,sanitizeText,sanitizePath,LEARNING_SOURCES} from '../runtime/learning.mjs';
@@ -621,6 +622,33 @@ export function runAlpha6Suite(root){
       if(approved.decision!=='APPROVAL_RECORDED')fail(JSON.stringify(approved));
       const feature=checkPushTarget(branchFor(run.run_id,'TASK-001'));
       if(feature.decision!=='ALLOW')fail(JSON.stringify(feature));
+    });
+
+    t('a-revoked-or-expired-approval-no-longer-authorizes-a-protected-push',()=>{
+      // The delivery commands mapped every approval record to its capability
+      // string with no validity filter, so `approval revoke` had no effect on
+      // the push gate and an expired grant kept authorizing. findValidApproval
+      // already knew both were dead; this path just never asked it.
+      const pushRun=newRun(root,projectRoot,{objective:'ship',route:route(root,'Ship a release')});
+      const hour=()=>new Date(Date.now()+3600e3).toISOString();
+      const caps=()=>activeCapabilities(pushRun);
+
+      if(checkPushTarget('main',{approvals:caps()}).decision!=='DENY')fail('denied by default no longer holds');
+
+      recordApproval(root,projectRoot,pushRun,{capability:'git.push_protected',
+        authority:'USER_INTERACTIVE',actor:'operator',expiresAt:hour()});
+      if(checkPushTarget('main',{approvals:caps()}).decision!=='APPROVAL_RECORDED')
+        fail('a live approval stopped authorizing');
+
+      revokeApproval(root,projectRoot,pushRun,'git.push_protected',{reason:'withdrawn'});
+      const afterRevoke=checkPushTarget('main',{approvals:caps()});
+      if(afterRevoke.decision!=='DENY')fail(`revoked approval still authorized: ${JSON.stringify(afterRevoke)}`);
+
+      pushRun.approvals=[];
+      recordApproval(root,projectRoot,pushRun,{capability:'git.push_protected',
+        authority:'USER_INTERACTIVE',actor:'operator',expiresAt:new Date(Date.now()-1000).toISOString()});
+      const afterExpiry=checkPushTarget('main',{approvals:caps()});
+      if(afterExpiry.decision!=='DENY')fail(`expired approval still authorized: ${JSON.stringify(afterExpiry)}`);
     });
 
     t('protection-survives-the-spellings-a-ref-actually-arrives-in',()=>{
