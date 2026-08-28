@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 342,
-  "passes": 342,
+  "checks": 343,
+  "passes": 343,
   "failures": 0,
   "results": [
     {
@@ -1283,6 +1283,10 @@
     },
     {
       "name": "a6-delivery/ci-evidence-on-another-revision-does-not-vouch-for-this-one",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/ci-evidence-bound-to-no-revision-does-not-vouch-for-anything",
       "status": "PASS"
     },
     {

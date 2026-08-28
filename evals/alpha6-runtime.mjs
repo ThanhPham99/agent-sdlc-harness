@@ -717,6 +717,25 @@ export function runAlpha6Suite(root){
       if(!out.problems.includes('CI_EVIDENCE_REVISION_MISMATCH'))fail(JSON.stringify(out.problems));
     });
 
+    t('ci-evidence-bound-to-no-revision-does-not-vouch-for-anything',()=>{
+      // ciEvidenceCurrent already calls this EVIDENCE_NOT_REVISION_BOUND, but
+      // only `ci status` -- a reporting command -- asks it. recordDelivery, the
+      // gate that actually decides READY, compared revisions itself and skipped
+      // the comparison entirely when the record carried none. A record with no
+      // revision is weaker than one on an older revision, which this module
+      // already refuses. It is reachable: recordCiEvidence falls back to
+      // gitSha(), which is null when git cannot answer.
+      const freshRoot=makeRichFixture();
+      const other=runToImplement(root,freshRoot);
+      const unbound={schema:'agent-sdlc/ci-evidence/v1',run_id:other.run.run_id,
+        provider:'github',revision:null,checks:[{name:'unit',required:true,status:'PASS'}],
+        required_checks:1,status:'PASS'};
+      const out=recordDelivery(freshRoot,other.run,{target:'PR_READY',base:'master',ciEvidence:unbound});
+      if(out.status!=='BLOCKED')fail(`revision-less CI evidence produced ${out.status}: ${JSON.stringify(out.problems)}`);
+      if(!out.problems.includes('CI_EVIDENCE_NOT_REVISION_BOUND'))fail(JSON.stringify(out.problems));
+      if(out.achieved_target)fail('a target was claimed on evidence bound to no revision');
+    });
+
     t('missing-ci-evidence-blocks-delivery',()=>{
       const freshRoot=makeRichFixture();
       const other=runToImplement(root,freshRoot);

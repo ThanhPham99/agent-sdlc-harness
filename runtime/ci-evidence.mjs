@@ -61,17 +61,31 @@ export function loadCiEvidence(projectRoot,runId){
   return fs.existsSync(p)?readJson(p):null;
 }
 
-/** Is the recorded CI evidence still about the current revision? */
-export function ciEvidenceCurrent(projectRoot,runId,{revision=null}={}){
-  const rec=loadCiEvidence(projectRoot,runId);
-  const head=revision||gitSha(projectRoot);
-  if(!rec)return {current:false,reason:'NO_CI_EVIDENCE',status:'UNKNOWN',head};
-  if(!rec.revision)return {current:false,reason:'EVIDENCE_NOT_REVISION_BOUND',status:rec.status,head};
+/**
+ * Whether one CI record is about `head`. Pure, and the only place the rule
+ * lives.
+ *
+ * git-delivery.mjs used to compare revisions itself, and its comparison was
+ * guarded on the record having a revision at all -- so a record carrying none
+ * skipped the check and delivery came back READY with no problems recorded.
+ * A result bound to no revision is weaker than one bound to an older revision,
+ * which this module already refuses; the gate has to ask the same question the
+ * reporting command does.
+ */
+export function ciEvidenceState(rec,head){
+  if(!rec)return {current:false,reason:'NO_CI_EVIDENCE',status:'UNKNOWN'};
+  if(!rec.revision)return {current:false,reason:'EVIDENCE_NOT_REVISION_BOUND',status:rec.status};
   if(rec.revision!==head){
     return {current:false,reason:'REVISION_CHANGED',status:rec.status,
-      evidence_revision:rec.revision,head,action:'RERUN_CI_ON_CURRENT_REVISION'};
+      evidence_revision:rec.revision,action:'RERUN_CI_ON_CURRENT_REVISION'};
   }
   return {current:true,reason:null,status:rec.status,revision:rec.revision};
+}
+
+/** Is the recorded CI evidence still about the current revision? */
+export function ciEvidenceCurrent(projectRoot,runId,{revision=null}={}){
+  const head=revision||gitSha(projectRoot);
+  return {...ciEvidenceState(loadCiEvidence(projectRoot,runId),head),head};
 }
 
 /** History of CI records for a run, oldest first. */
