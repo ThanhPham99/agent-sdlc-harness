@@ -43,11 +43,55 @@ function projectCommand(cfg,key,args){
   return tmpl.map(x=>String(x).replaceAll('{selector}',selector));
 }
 function sensitivePath(root,rel){const sec=readJson(path.join(root,'policies','security-policy.json'));const p=String(rel||'').replaceAll('\\','/');return (sec.sensitive_read_patterns||[]).some(g=>{const re='^'+g.replace(/[.+^${}()|[\]\\]/g,'\\$&').replaceAll('**','.*').replaceAll('*','[^/]*')+'$';return new RegExp(re).test(p);});}
-function secretScan(projectRoot){
-  const pattern='(AKIA[0-9A-Z]{16}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|api[_-]?key\\s*[:=]|secret\\s*[:=]|token\\s*[:=])';
-  const r=spawnSync('git',['grep','-l','-E',pattern],{cwd:projectRoot,encoding:'utf8',timeout:120000,maxBuffer:4*1024*1024});
-  if(r.status===1)return {status:'PASS',exit_code:0,summary:'No tracked files matched the built-in secret patterns.',truncated:false,raw:''};
-  if(r.status===0){const files=(r.stdout||'').split('\n').filter(Boolean).slice(0,200);return {status:'FAIL',exit_code:1,summary:`Potential secret patterns detected in tracked files (values redacted):\n${files.join('\n')}`,truncated:false,raw:''};}
+/** Repo-relative path globs -> a matcher. Same glob dialect as sensitivePath. */
+function pathAllowed(globs,rel){
+  const p=String(rel||'').replaceAll('\\','/');
+  return (globs||[]).some(g=>{
+    const re='^'+g.replace(/[.+^${}()|[\]\\]/g,'\\$&').replaceAll('**','.*').replaceAll('*','[^/]*')+'$';
+    return new RegExp(re).test(p);
+  });
+}
+
+// A finding has to be a credential-shaped VALUE. The previous pattern matched a
+// name followed by punctuation, so on this very repository it reported four
+// files and all four were false positives -- `const token={input_tokens:0,...}`
+// among them. A scanner that cries wolf teaches an operator to assert past it,
+// which is worse than one that stays quiet. Patterns and the fixture allowlist
+// now live in policies/security-policy.json so a project can own both.
+function secretScan(root,projectRoot){
+  const cfg=readJson(path.join(root,'policies','security-policy.json')).secret_scan||{};
+  const patterns=(cfg.patterns||[]).map(p=>p.regex).filter(Boolean);
+  if(!patterns.length){
+    return {status:'ERROR',reason:'NO_SECRET_PATTERNS_CONFIGURED',exit_code:null,
+      summary:'policies/security-policy.json declares no secret_scan.patterns; refusing to report a clean scan.',truncated:false,raw:''};
+  }
+  const argv=['git','grep','-l','-E',`(${patterns.join('|')})`];
+  const launch=resolveLaunch(argv);
+  if(launch.status!=='OK'){
+    return {status:'ERROR',reason:launch.reason,exit_code:null,
+      summary:`${launch.reason}: cannot launch ${argv.join(' ')}`,truncated:false,raw:''};
+  }
+  const r=spawnSync(launch.bin,launch.args,{cwd:projectRoot,encoding:'utf8',timeout:120000,maxBuffer:4*1024*1024,...launch.spawnOptions});
+  // `git grep -l` exits 1 when nothing matched, which is the clean outcome, so
+  // describeSpawn's FAIL/PASS split does not apply -- only its ERROR class does.
+  const d=describeSpawn(r);
+  if(d.status==='ERROR'){
+    return {status:'ERROR',reason:d.reason,exit_code:null,
+      summary:`${d.reason}: ${argv.join(' ')}${d.signal?` (killed by ${d.signal})`:''}`,truncated:false,raw:''};
+  }
+  if(r.status===1)return {status:'PASS',exit_code:0,summary:'No tracked files matched the configured secret patterns.',truncated:false,raw:''};
+  if(r.status===0){
+    const all=(r.stdout||'').split('\n').filter(Boolean);
+    const files=all.filter(f=>!pathAllowed(cfg.allowlist_paths,f)).slice(0,200);
+    const skipped=all.length-files.length;
+    if(!files.length){
+      return {status:'PASS',exit_code:0,
+        summary:`No findings outside the configured allowlist (${skipped} allowlisted path(s) matched).`,truncated:false,raw:''};
+    }
+    const note=skipped?`\n(${skipped} further match(es) are allowlisted in policies/security-policy.json)`:'';
+    return {status:'FAIL',exit_code:1,
+      summary:`Potential secret patterns detected in tracked files (values redacted):\n${files.join('\n')}${note}`,truncated:false,raw:''};
+  }
   return {status:'FAIL',exit_code:r.status??1,summary:(r.stderr||'secret scan failed').slice(0,24000),truncated:false,raw:''};
 }
 function sanitizeWebQuery(root,query){
@@ -96,7 +140,7 @@ export function invokeTool(root,projectRoot,run,tool,args={}){
   else if(tool==='repo.search'){const argv=['git','grep','-n','--',''+(args.pattern||'')]; if(args.path)argv.push('--',args.path); result=exec(argv,projectRoot,timeout,maxBytes);if(result.exit_code===1){result={...result,status:'PASS',exit_code:0,summary:'No matches.',raw:''};}}
   else if(tool==='repo.diff')result=exec(['git','diff','--no-ext-diff',...(args.cached?['--cached']:[])],projectRoot,timeout,maxBytes);
   else if(tool==='git.status')result=exec(['git','status','--short'],projectRoot,timeout,maxBytes);
-  else if(tool==='security.secret_scan')result=secretScan(projectRoot);
+  else if(tool==='security.secret_scan')result=secretScan(root,projectRoot);
   else if(tool==='web.search'){
     const query=String(args.query||args.pattern||'');
     const sanitized=sanitizeWebQuery(root,query);

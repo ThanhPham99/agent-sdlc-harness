@@ -120,14 +120,18 @@ That PASS was recorded as `targeted_verification_pass` and satisfied the VERIFY 
 defeats the "evidence, not assertion" invariant. Fix: reject an empty/unsubstituted `{selector}`
 before spawning; reject a PASS with no captured output; make the CLI fail on unknown flags.
 
-## F12 (Medium) Built-in secret scan is unsatisfiable in this repository
+## F12 (Medium) Built-in secret scan cries wolf on ordinary code and its own fixtures
 `security.secret_scan` (runtime/tools.mjs:14) has no allowlist and its pattern
 `token\s*[:=]` matches ordinary code. Current result: FAIL on
   runtime/telemetry.mjs:74   `const token={input_tokens:0,...}`
   evals/alpha6-runtime.mjs   the scanner's own leak fixtures (AKIA..., api_key = "sk-...")
   evals/run-deterministic.mjs the scanner's own test fixtures
-All three are false positives, so `no_new_high_security_findings` can never be produced here and
-this spike's VERIFY gate is legitimately BLOCKED. Fix: require a value-shaped match
+All three are false positives. This does not block the VERIFY gate: `no_new_high_security_findings`
+is absent from `evidence_authority` in `policies/stage-policy.json`, and `guardEvidenceAuthority`
+(`runtime/orchestrator.mjs:25-34`) throws only for tokens whose authority is `'runtime'`, so the
+token is operator-assertable regardless of what the scanner reports. The harm is signal quality,
+not gating: a scanner that fires on `const token={` and on its own fixtures trains an operator to
+assert past it, which is worse than a scanner that stays quiet. Fix: require a value-shaped match
 (`(token|secret|api[_-]?key)\s*[:=]\s*['"][A-Za-z0-9_\-]{16,}`), and support a project allowlist
 of path globs + pattern IDs.
 

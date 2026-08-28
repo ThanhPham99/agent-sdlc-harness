@@ -15,6 +15,19 @@
     "irreversible_action"
   ],
   "secret_policy": "no ambient production credentials; prefer short-lived scoped credentials",
+  "secret_scan": {
+    "note": "A finding must be a credential-shaped VALUE, not a name followed by punctuation. Regexes are POSIX ERE: they are handed to `git grep -E`, where \\s is not portable.",
+    "patterns": [
+      {"id": "AWS_ACCESS_KEY_ID", "regex": "AKIA[0-9A-Z]{16}"},
+      {"id": "PRIVATE_KEY_BLOCK", "regex": "BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY"},
+      {"id": "ASSIGNED_CREDENTIAL", "regex": "(api[_-]?key|secret|token|password|passwd)[\"']?[[:space:]]*[:=][[:space:]]*[\"']?[A-Za-z0-9_./+-]{8,}"}
+    ],
+    "allowlist_paths": [
+      "evals/**",
+      "docs/superpowers/specs/**",
+      "docs/superpowers/plans/**"
+    ]
+  },
   "protected_paths": [
     ".github/workflows/**",
     ".agent-sdlc/policies/**",

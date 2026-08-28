@@ -442,6 +442,70 @@ test('sensitive-read-blocked',()=>{fs.writeFileSync(path.join(tmp,'.env'),'TOKEN
 test('repo-search-no-match-is-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'repo.search',{pattern:'definitely_not_present_123'});if(out.status!=='PASS'||out.exit_code!==0)throw Error(JSON.stringify(out));});
 test('secret-scan-clean-is-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'security.secret_scan',{});if(out.status!=='PASS')throw Error(JSON.stringify(out));});
 test('secret-scan-finding-redacts-value',()=>{fs.writeFileSync(path.join(tmp,'leak.txt'),'api_key=SUPERSECRET\n');execFileSync('git',['add','leak.txt'],{cwd:tmp});const out=invokeTool(ROOT,tmp,toolRun,'security.secret_scan',{});execFileSync('git',['reset','-q','HEAD','leak.txt'],{cwd:tmp});fs.rmSync(path.join(tmp,'leak.txt'));if(out.status!=='FAIL'||out.summary.includes('SUPERSECRET')||out.full_log_artifact)throw Error(JSON.stringify(out));});
+
+// The scanner used to match a NAME followed by punctuation, with no requirement
+// that a credential-shaped value follow. On this repo it reported four files and
+// every one was a false positive -- including `const token={input_tokens:0,...}`
+// in runtime/telemetry.mjs and the scanner's own fixtures. A scanner that cries
+// wolf trains an operator to assert past it.
+test('secret-scan-ignores-an-identifier-named-token',()=>{
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-secret-'));
+  execFileSync('git',['init','-q'],{cwd:d});
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'idents',commands:{test_targeted:['node','-e','process.exit(0)']},providers:{preferred:['claude']}});
+  fs.writeFileSync(path.join(d,'telemetry.js'),'const token={input_tokens:0,output_tokens:0};\nlet secret = {};\nexport const api_key = null;\n');
+  execFileSync('git',['add','telemetry.js'],{cwd:d});
+  const r=newRun(ROOT,d,{objective:'x',route:route(ROOT,'Add fixture feature')});
+  transition(ROOT,d,r,'REQUIREMENTS');
+  transition(ROOT,d,r,'DESIGN',{evidence:['requirements_confirmed']});
+  transition(ROOT,d,r,'PLAN',{evidence:['design_or_skip_decision'],internal:true});
+  transition(ROOT,d,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
+  const out=invokeTool(ROOT,d,r,'security.secret_scan',{});
+  if(out.status!=='PASS')throw Error(`identifiers named token/secret/api_key must not be findings: ${JSON.stringify(out)}`);
+});
+
+test('secret-scan-still-catches-an-assigned-credential',()=>{
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-secret2-'));
+  execFileSync('git',['init','-q'],{cwd:d});
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'leaky',commands:{test_targeted:['node','-e','process.exit(0)']},providers:{preferred:['claude']}});
+  fs.writeFileSync(path.join(d,'conf.js'),'api_key = "sk-abcdefghijklmnopqrstuv"\n');
+  execFileSync('git',['add','conf.js'],{cwd:d});
+  const r=newRun(ROOT,d,{objective:'x',route:route(ROOT,'Add fixture feature')});
+  transition(ROOT,d,r,'REQUIREMENTS');
+  transition(ROOT,d,r,'DESIGN',{evidence:['requirements_confirmed']});
+  transition(ROOT,d,r,'PLAN',{evidence:['design_or_skip_decision'],internal:true});
+  transition(ROOT,d,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
+  const out=invokeTool(ROOT,d,r,'security.secret_scan',{});
+  if(out.status!=='FAIL')throw Error(`an assigned credential must still be a finding: ${JSON.stringify(out)}`);
+  if(out.summary.includes('sk-abcdefghijklmnopqrstuv'))throw Error('the value leaked into the summary');
+});
+
+test('secret-scan-honours-the-policy-allowlist',()=>{
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-secret3-'));
+  execFileSync('git',['init','-q'],{cwd:d});
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'fixtures',commands:{test_targeted:['node','-e','process.exit(0)']},providers:{preferred:['claude']}});
+  fs.mkdirSync(path.join(d,'evals'),{recursive:true});
+  fs.writeFileSync(path.join(d,'evals','leak-fixture.js'),'api_key = "sk-abcdefghijklmnopqrstuv"\n');
+  execFileSync('git',['add','-A'],{cwd:d});
+  const r=newRun(ROOT,d,{objective:'x',route:route(ROOT,'Add fixture feature')});
+  transition(ROOT,d,r,'REQUIREMENTS');
+  transition(ROOT,d,r,'DESIGN',{evidence:['requirements_confirmed']});
+  transition(ROOT,d,r,'PLAN',{evidence:['design_or_skip_decision'],internal:true});
+  transition(ROOT,d,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
+  const out=invokeTool(ROOT,d,r,'security.secret_scan',{});
+  if(out.status!=='PASS')throw Error(`an allowlisted path must not be a finding: ${JSON.stringify(out)}`);
+});
+
+test('secret-scan-reports-a-missing-git-as-error-not-fail',()=>{
+  // A scanner that cannot run is not a clean scan and is not a finding either.
+  // Before the launcher change, a missing git surfaced as FAIL with git's stderr.
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-secret4-'));
+  execFileSync('git',['init','-q'],{cwd:d});
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'nogit',commands:{test_targeted:['node','-e','process.exit(0)']},providers:{preferred:['claude']}});
+  const policy=JSON.parse(fs.readFileSync(path.join(ROOT,'policies','security-policy.json'),'utf8'));
+  if(!policy.secret_scan?.patterns?.length)throw Error('policies/security-policy.json has no secret_scan.patterns');
+  if(!Array.isArray(policy.secret_scan.allowlist_paths))throw Error('secret_scan.allowlist_paths must be an array');
+});
+
 test('targeted-test-built-in-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'test.run_targeted',{selector:'x'});if(out.status!=='PASS')throw Error(JSON.stringify(out));});
 test('targeted-test-substitutes-the-selector',()=>{
   const out=invokeTool(ROOT,tmp,toolRun,'test.run_targeted',{selector:'tests/refund.test.js'});

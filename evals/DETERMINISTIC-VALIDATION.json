@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 307,
-  "passes": 307,
+  "checks": 311,
+  "passes": 311,
   "failures": 0,
   "results": [
     {
@@ -287,6 +287,22 @@
     },
     {
       "name": "secret-scan-finding-redacts-value",
+      "status": "PASS"
+    },
+    {
+      "name": "secret-scan-ignores-an-identifier-named-token",
+      "status": "PASS"
+    },
+    {
+      "name": "secret-scan-still-catches-an-assigned-credential",
+      "status": "PASS"
+    },
+    {
+      "name": "secret-scan-honours-the-policy-allowlist",
+      "status": "PASS"
+    },
+    {
+      "name": "secret-scan-reports-a-missing-git-as-error-not-fail",
       "status": "PASS"
     },
     {
