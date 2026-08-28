@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 338,
-  "passes": 338,
+  "checks": 339,
+  "passes": 339,
   "failures": 0,
   "results": [
     {
@@ -1247,6 +1247,10 @@
     },
     {
       "name": "a6-delivery/protected-branch-push-is-denied-by-default",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/protection-survives-the-spellings-a-ref-actually-arrives-in",
       "status": "PASS"
     },
     {

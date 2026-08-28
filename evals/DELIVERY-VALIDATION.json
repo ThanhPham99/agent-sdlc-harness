@@ -22,12 +22,16 @@
     "stacked dependency order must be explicit",
     "interface-changing and migration work each get their own bounded branch"
   ],
-  "checks": 9,
-  "passes": 9,
+  "checks": 10,
+  "passes": 10,
   "failures": 0,
   "results": [
     {
       "name": "protected-branch-push-is-denied-by-default",
+      "status": "PASS"
+    },
+    {
+      "name": "protection-survives-the-spellings-a-ref-actually-arrives-in",
       "status": "PASS"
     },
     {

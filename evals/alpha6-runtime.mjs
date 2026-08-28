@@ -623,6 +623,26 @@ export function runAlpha6Suite(root){
       if(feature.decision!=='ALLOW')fail(JSON.stringify(feature));
     });
 
+    t('protection-survives-the-spellings-a-ref-actually-arrives-in',()=>{
+      // The patterns were anchored on the bare branch name, so a default-deny
+      // gate allowed the two spellings an agent writes most naturally --
+      // `git push origin main` and a rev-parsed `refs/heads/main` -- plus any
+      // difference of case. --branch is caller-supplied and unvalidated, so
+      // each of these reached ALLOW on a branch the module calls protected.
+      const protectedRefs=['origin/main','origin/master','upstream/develop','refs/heads/main',
+        'refs/remotes/origin/master','Main','MASTER','Production','main/','  main  '];
+      for(const b of protectedRefs){
+        if(!isProtectedBranch(b))fail(`${JSON.stringify(b)} not treated as protected`);
+        if(checkPushTarget(b,{approvals:[]}).decision!=='DENY')fail(`${JSON.stringify(b)} was not denied`);
+        if(checkPushTarget(b,{approvals:['git.push_protected']}).decision!=='APPROVAL_RECORDED')
+          fail(`${JSON.stringify(b)} ignored a recorded approval`);
+      }
+      // Over-protecting costs an approval; under-protecting pushes to
+      // production. But ordinary work must still flow without one.
+      for(const b of ['agent-sdlc/run_1/task-001','feature/main-menu','mainline-docs','my-main','release-notes'])
+        if(isProtectedBranch(b))fail(`${b} was wrongly treated as protected`);
+    });
+
     t('ci-evidence-is-revision-bound',()=>{
       const rec=recordCiEvidence(projectRoot,run,{revision:head(),provider:'github',workflow:'ci',
         checks:[{name:'unit',status:'PASS'},{name:'lint',status:'PASS',required:false}]});

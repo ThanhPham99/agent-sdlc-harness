@@ -25,7 +25,32 @@ export function branchFor(runId,taskId=null){
 }
 
 const PROTECTED=[/^main$/,/^master$/,/^release\/.+/,/^prod(uction)?$/,/^develop$/];
-export function isProtectedBranch(name){return PROTECTED.some(p=>p.test(String(name||'')));}
+
+/**
+ * The spellings one branch actually arrives in, all reduced to the bare name.
+ *
+ * The patterns are anchored, and `--branch` is caller-supplied and unvalidated,
+ * so a default-deny gate was allowing exactly the forms an agent writes by
+ * habit: `git push origin main` gives `origin/main`, a rev-parse gives
+ * `refs/heads/main`, and neither matched `^main$`. Case differences slipped
+ * through the same way.
+ *
+ * One leading segment is dropped, not all of them: that turns `origin/main`
+ * into `main` while leaving `a/b/c/main` alone, and `release/1.2` is still
+ * matched by the full form. `feature/main` does end up protected, which costs
+ * an operator approval on an oddly named branch -- the failure in the other
+ * direction is an unapproved push to production.
+ */
+function refSpellings(name){
+  const base=String(name||'').trim().replace(/\\/g,'/').replace(/\/+$/,'').toLowerCase()
+    .replace(/^refs\/(?:heads|remotes)\//,'');
+  const withoutRemote=base.includes('/')?base.slice(base.indexOf('/')+1):null;
+  return withoutRemote?[base,withoutRemote]:[base];
+}
+export function isProtectedBranch(name){
+  const forms=refSpellings(name);
+  return PROTECTED.some(p=>forms.some(f=>p.test(f)));
+}
 
 /**
  * Push authorization. Protected branches are denied by default and no policy
