@@ -2,8 +2,8 @@
   "schema": "agent-sdlc/normalize-validation/v1",
   "unzip_available": true,
   "pdftotext_available": true,
-  "checks": 19,
-  "passes": 19,
+  "checks": 22,
+  "passes": 22,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -45,6 +45,18 @@
     },
     {
       "name": "character-reference-outside-unicode-is-left-as-text",
+      "status": "PASS"
+    },
+    {
+      "name": "a-docx-cannot-spend-an-unbounded-extraction-budget-across-many-parts",
+      "status": "PASS"
+    },
+    {
+      "name": "an-xlsx-cannot-spend-an-unbounded-extraction-budget-across-many-sheets",
+      "status": "PASS"
+    },
+    {
+      "name": "a-document-inside-the-budget-is-not-marked-truncated",
       "status": "PASS"
     },
     {

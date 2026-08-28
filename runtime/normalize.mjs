@@ -13,6 +13,38 @@ const IMAGE_EXTS=new Set(['.png','.jpg','.jpeg','.webp','.gif','.bmp','.tif','.t
 // dropped rather than trusted.
 export const MAX_COLUMNS=16384;
 
+// Total extracted text per document, across every part the container declares.
+//
+// unzip's maxBuffer bounds one entry; nothing bounded a document. A .docx may
+// declare any number of word/headerN.xml parts and a .xlsx any number of
+// sheets, and the parser extracted all of them -- so a small archive of highly
+// compressible parts expanded without limit, and normalizeInput's maxBytes (a
+// limit on the archive, not on what it unpacks to) said nothing about it. Same
+// shape as MAX_COLUMNS above: a dimension the format leaves open that the
+// parser has to close.
+//
+// Reaching the budget is not a parse failure. What was extracted before the
+// limit is still the requirement someone needs, so it is returned -- with a
+// reason saying it was cut short, so a caller never mistakes a truncated
+// document for a whole one.
+export const MAX_EXTRACTED_BYTES=8*1024*1024;
+
+/** Accumulates parts until the budget is spent, then reports that it stopped. */
+function budget(limit=MAX_EXTRACTED_BYTES){
+  let used=0,exceeded=false;
+  return {
+    /** true when `text` fitted and was counted; false once the budget is spent. */
+    add(text){
+      if(exceeded)return false;
+      const size=Buffer.byteLength(text);
+      if(used+size>limit){exceeded=true;return false;}
+      used+=size;
+      return true;
+    },
+    get exceeded(){return exceeded;}
+  };
+}
+
 /**
  * A character reference outside the Unicode range is left as literal text.
  * `String.fromCodePoint` throws on it, and a malformed document must produce a
@@ -72,10 +104,20 @@ function docxText(file){
   if(!commandExists('unzip')) return {status:'PENDING',reason:'UNZIP_NOT_AVAILABLE',text:''};
   const entries=unzipList(file);
   const parts=[];
+  const room=budget();
+  // document.xml leads the list, so the body claims the budget before any
+  // number of header/footer parts can consume it.
   const ordered=['word/document.xml',...entries.filter(x=>/^word\/(header|footer)\d+\.xml$/.test(x)).sort(),...entries.filter(x=>/^word\/(footnotes|endnotes|comments)\.xml$/.test(x)).sort()];
-  for(const e of ordered){if(entries.includes(e)){const t=stripXml(unzipEntry(file,e));if(t)parts.push(`## ${e}\n\n${t}`);}}
+  for(const e of ordered){
+    if(!entries.includes(e))continue;
+    const t=stripXml(unzipEntry(file,e));
+    if(!t)continue;
+    const section=`## ${e}\n\n${t}`;
+    if(!room.add(section))break;
+    parts.push(section);
+  }
   if(!parts.length)return {status:'PENDING',reason:'DOCX_TEXT_NOT_FOUND',text:''};
-  return {status:'NORMALIZED',text:parts.join('\n\n')};
+  return {status:'NORMALIZED',reason:room.exceeded?'EXTRACTION_BUDGET_EXCEEDED':null,text:parts.join('\n\n')};
 }
 function sharedStrings(xml){
   if(!xml)return [];
@@ -101,15 +143,16 @@ function xlsxText(file){
   const sheets=[];for(const m of workbook.matchAll(/<sheet\b[^>]*name="([^"]+)"[^>]*(?:r:id|id)="([^"]+)"[^>]*\/?\s*>/g)){let target=relMap.get(m[2]);if(target){target=target.replace(/^\//,'');if(!target.startsWith('xl/'))target='xl/'+target.replace(/^\.\//,'');sheets.push({name:decodeXml(m[1]),entry:target});}}
   if(!sheets.length){for(const entry of entries.filter(e=>/^xl\/worksheets\/sheet\d+\.xml$/.test(e)).sort())sheets.push({name:path.basename(entry,'.xml'),entry});}
   const sections=[];
-  for(const s of sheets){if(!entries.includes(s.entry))continue;const xml=unzipEntry(file,s.entry);const rows=[];
+  const room=budget();
+  for(const s of sheets){if(!entries.includes(s.entry))continue;if(room.exceeded)break;const xml=unzipEntry(file,s.entry);const rows=[];
     for(const rm of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)){const cells=[];for(const cm of rm[1].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>/g)){const attrs=cm[1],body=cm[2];const ref=(attrs.match(/\br="([^"]+)"/)||[])[1]||'';const type=(attrs.match(/\bt="([^"]+)"/)||[])[1]||'';let val='';const vm=body.match(/<v\b[^>]*>([\s\S]*?)<\/v>/);const im=body.match(/<is\b[^>]*>([\s\S]*?)<\/is>/);if(type==='s'&&vm)val=strings[Number(vm[1])]??'';else if(type==='inlineStr'&&im)val=[...im[1].matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(x=>decodeXml(x[1])).join('');else if(vm)val=decodeXml(vm[1]);const idx=colIndex(ref);if(idx<0)continue;while(cells.length<idx)cells.push('');cells[idx]=String(val).replace(/\|/g,'\\|').replace(/\r?\n/g,' ');}
       if(cells.some(x=>x!==''))rows.push(cells);
     }
     // reduce, not Math.max(...spread): a wide sheet would overflow the stack.
-    if(rows.length){const width=rows.reduce((w,r)=>Math.max(w,r.length),0);const norm=rows.map(r=>Array.from({length:width},(_,i)=>r[i]??''));const header=norm[0];const lines=[`## Sheet: ${s.name}`,'',`| ${header.join(' | ')} |`,`| ${header.map(()=> '---').join(' | ')} |`,...norm.slice(1).map(r=>`| ${r.join(' | ')} |`)];sections.push(lines.join('\n'));}
+    if(rows.length){const width=rows.reduce((w,r)=>Math.max(w,r.length),0);const norm=rows.map(r=>Array.from({length:width},(_,i)=>r[i]??''));const header=norm[0];const lines=[`## Sheet: ${s.name}`,'',`| ${header.join(' | ')} |`,`| ${header.map(()=> '---').join(' | ')} |`,...norm.slice(1).map(r=>`| ${r.join(' | ')} |`)];const section=lines.join('\n');if(!room.add(section))break;sections.push(section);}
   }
   if(!sections.length)return {status:'PENDING',reason:'XLSX_TEXT_NOT_FOUND',text:''};
-  return {status:'NORMALIZED',text:sections.join('\n\n')};
+  return {status:'NORMALIZED',reason:room.exceeded?'EXTRACTION_BUDGET_EXCEEDED':null,text:sections.join('\n\n')};
 }
 function pdfText(file){
   if(!commandExists('pdftotext'))return {status:'PENDING',reason:'PDFTOTEXT_NOT_AVAILABLE',text:''};

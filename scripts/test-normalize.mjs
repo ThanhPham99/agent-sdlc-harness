@@ -16,7 +16,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {zipDir} from './archive.mjs';
-import {normalizeInput} from '../runtime/normalize.mjs';
+import {normalizeInput,MAX_EXTRACTED_BYTES} from '../runtime/normalize.mjs';
 import {createSuite} from './lib/suite.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
@@ -125,6 +125,42 @@ test('character-reference-outside-unicode-is-left-as-text',()=>{
   }
   const valid=normalizeInput(docx('<w:p><w:t>&#65;&#x42;</w:t></w:p>'));
   if(!valid.markdown.includes('AB'))throw new Error('valid references stopped decoding');
+});
+
+test('a-docx-cannot-spend-an-unbounded-extraction-budget-across-many-parts',()=>{
+  if(!HAS_UNZIP)return 'SKIP';
+  // The per-entry cap (unzip maxBuffer) bounds one part, not a document. A
+  // container is free to declare hundreds of header/footer parts, and the
+  // parser extracted every one of them: the input size limit says nothing
+  // about what the archive expands to. Same class as MAX_COLUMNS -- a
+  // dimension the format leaves open and the parser has to close.
+  const parts={'word/document.xml':'<w:p><w:t>Body</w:t></w:p>'};
+  const filler='<w:p><w:t>'+'z'.repeat(40*1024)+'</w:t></w:p>';
+  for(let i=1;i<=400;i++)parts[`word/header${i}.xml`]=filler;
+  const out=normalizeInput(ooxml('.docx',parts));
+  // Whatever it returns, it must be bounded and it must say so rather than
+  // quietly handing back a 16 MB requirement document.
+  const bytes=Buffer.byteLength(out.markdown);
+  if(bytes>MAX_EXTRACTED_BYTES+64*1024)throw new Error(`extracted ${bytes} bytes from a small archive`);
+  if(!out.markdown.includes('Body'))throw new Error('the real body was dropped');
+  if(out.reason!=='EXTRACTION_BUDGET_EXCEEDED')throw new Error(`truncation not reported: ${JSON.stringify({status:out.status,reason:out.reason})}`);
+});
+
+test('an-xlsx-cannot-spend-an-unbounded-extraction-budget-across-many-sheets',()=>{
+  if(!HAS_UNZIP)return 'SKIP';
+  const parts={};
+  const rows=Array.from({length:150},(_,i)=>`<row>${inlineCell(`A${i+1}`,'y'.repeat(400))}</row>`).join('');
+  for(let i=1;i<=200;i++)parts[`xl/worksheets/sheet${i}.xml`]=`<worksheet><sheetData>${rows}</sheetData></worksheet>`;
+  const out=normalizeInput(ooxml('.xlsx',parts));
+  const bytes=Buffer.byteLength(out.markdown);
+  if(bytes>MAX_EXTRACTED_BYTES+64*1024)throw new Error(`extracted ${bytes} bytes from a small archive`);
+  if(out.reason!=='EXTRACTION_BUDGET_EXCEEDED')throw new Error(`truncation not reported: ${JSON.stringify({status:out.status,reason:out.reason})}`);
+});
+
+test('a-document-inside-the-budget-is-not-marked-truncated',()=>{
+  if(!HAS_UNZIP)return 'SKIP';
+  const out=normalizeInput(docx('<w:p><w:t>small enough</w:t></w:p>'));
+  if(out.status!=='NORMALIZED'||out.reason)throw new Error(JSON.stringify({status:out.status,reason:out.reason}));
 });
 
 // --- xlsx ------------------------------------------------------------------
