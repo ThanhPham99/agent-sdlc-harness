@@ -19,13 +19,45 @@ function foldDiacritics(s){
   }
   return out;
 }
-function normalize(s){return foldDiacritics(stripEmbeddedData(s)).toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();}
+// The -ate/-ation family (investigate/investigation, evaluate/evaluation, ...)
+// forms its noun regularly, so folding this one suffix pair lets "a security
+// investigation" reach the "investigate" keyword without a general stemmer
+// that would risk unrelated false matches elsewhere in the keyword table.
+function foldVerbNounFamily(s){return s.split(' ').map(w=>w.length>6&&w.endsWith('ation')?w.slice(0,-5)+'ate':w).join(' ');}
+function normalize(s){return foldVerbNounFamily(foldDiacritics(stripEmbeddedData(s)).toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim());}
 function keywordMatch(text,keyword){const t=` ${normalize(text)} `;const k=normalize(keyword);return k? t.includes(` ${k} `):false;}
+const keywordWords=k=>normalize(k).split(' ').filter(Boolean).length;
+// STRICT rules outrank everything else on a tie, since misreading a
+// security/incident/db-migration objective as something lower-scrutiny is the
+// worse mistake. Below that, "investigate" intent outranks a same-weight
+// "change" hit, because an assessment verb usually governs the whole request
+// ("investigate optimization opportunities" is a spike about optimization, not
+// an optimization change) -- this is what let first-match-wins pick whichever
+// rule happened to sit earlier in config/router-rules.json.
+const rulePriority=r=>r.profile==='STRICT'?2:(r.intent==='investigate'?1.5:1);
+const intentOf=r=>r.intent||'change';
 
 export function route(root,objective,explicitWorkflow=null,explicitProfile=null){
   const wf=readJson(path.join(root,'config','workflows.json')).workflows;
   if(explicitWorkflow){if(!wf[explicitWorkflow])throw new Error(`unknown workflow: ${explicitWorkflow}`);return {workflow:explicitWorkflow,profile:explicitProfile||wf[explicitWorkflow].default_profile,overlays:wf[explicitWorkflow].required_overlays||[],reason_codes:['EXPLICIT_WORKFLOW'],risk_flags:[]};}
   const rules=readJson(path.join(root,'config','router-rules.json'));
-  for(const r of rules.rules){const hits=r.keywords.filter(k=>keywordMatch(objective,k));if(hits.length)return {workflow:r.workflow,profile:explicitProfile||r.profile,overlays:r.overlays||[],reason_codes:hits.map(x=>`KEYWORD:${x}`),risk_flags:r.profile==='STRICT'?['HIGH_RISK_ROUTE']:[]};}
-  return {...rules.default,profile:explicitProfile||rules.default.profile,reason_codes:['DEFAULT_NEW_FEATURE'],risk_flags:[]};
+  const candidates=rules.rules.map((rule,idx)=>{
+    const hits=rule.keywords.filter(k=>keywordMatch(objective,k));
+    const score=hits.reduce((sum,k)=>sum+keywordWords(k)*rulePriority(rule),0);
+    return {rule,idx,hits,score};
+  }).filter(c=>c.hits.length>0);
+  if(!candidates.length)return {...rules.default,profile:explicitProfile||rules.default.profile,reason_codes:['DEFAULT_NEW_FEATURE'],risk_flags:[]};
+  // Stable score-desc order; a genuine tie prefers STRICT, then declaration
+  // order, so the outcome is deterministic rather than array-position luck.
+  candidates.sort((a,b)=>b.score-a.score||(a.rule.profile==='STRICT'?0:1)-(b.rule.profile==='STRICT'?0:1)||a.idx-b.idx);
+  const [top,second]=candidates;
+  const risk_flags=[];
+  if(top.rule.profile==='STRICT')risk_flags.push('HIGH_RISK_ROUTE');
+  // Every match is reported, not just the winner's, so a human or the
+  // orchestrator can see the competing interpretation that was scored down.
+  const reason_codes=candidates.flatMap(c=>c.hits.map(h=>`KEYWORD:${h}`));
+  if(second&&(second.score===top.score||intentOf(second.rule)!==intentOf(top.rule)||second.score>=top.score*0.5)){
+    risk_flags.push('AMBIGUOUS_ROUTE');
+  }
+  return {workflow:top.rule.workflow,profile:explicitProfile||top.rule.profile,overlays:top.rule.overlays||[],reason_codes,risk_flags};
 }

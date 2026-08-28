@@ -8,7 +8,7 @@ Baseline: `npm run check` exit 0 (all 25 offline suites green). Coverage 90.9% v
 This spec is consumed by three plans, one per subsystem:
 
 - `plans/2026-08-27-execution-path-correctness.md` — F1, F9, F10, F11 (+ dead per-tool config)
-- `plans/2026-08-27-router-scoring.md` — F2 (not yet written)
+- `plans/2026-08-27-router-scoring.md` — F2
 - `plans/2026-08-27-gate-hygiene.md` — F3-F8, F12-F14 (not yet written)
 
 ---

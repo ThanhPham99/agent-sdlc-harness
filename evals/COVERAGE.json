@@ -19,9 +19,9 @@
     "scripts/validate-cli-surface.mjs"
   ],
   "measured": "v8-block-bytes",
-  "overall_percent": 90.9,
-  "covered_bytes": 364490,
-  "total_bytes": 400931,
+  "overall_percent": 91,
+  "covered_bytes": 366547,
+  "total_bytes": 403005,
   "modules": [
     {
       "file": "runtime/commands/activation.mjs",
@@ -350,8 +350,8 @@
     {
       "file": "runtime/router.mjs",
       "percent": 99.2,
-      "covered_bytes": 2261,
-      "total_bytes": 2279
+      "covered_bytes": 4318,
+      "total_bytes": 4353
     },
     {
       "file": "runtime/gates.mjs",

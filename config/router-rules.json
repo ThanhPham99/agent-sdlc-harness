@@ -246,7 +246,8 @@
       ],
       "workflow": "technical-spike",
       "profile": "FAST",
-      "overlays": []
+      "overlays": [],
+      "intent": "investigate"
     },
     {
       "keywords": [

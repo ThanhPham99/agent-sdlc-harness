@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 315,
-  "passes": 315,
+  "checks": 319,
+  "passes": 319,
   "failures": 0,
   "results": [
     {
@@ -87,6 +87,22 @@
     },
     {
       "name": "router-ignores-untrusted-quoted-tool-keywords",
+      "status": "PASS"
+    },
+    {
+      "name": "router-mixed-intent-favours-the-assessment-verb",
+      "status": "PASS"
+    },
+    {
+      "name": "router-ation-noun-folds-to-the-ate-verb-keyword",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reason-codes-list-every-matching-rule-not-just-the-winner",
+      "status": "PASS"
+    },
+    {
+      "name": "router-tied-score-prefers-strict-profile",
       "status": "PASS"
     },
     {
