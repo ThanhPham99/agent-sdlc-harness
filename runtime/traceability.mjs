@@ -313,7 +313,13 @@ export function applyInvalidation(projectRoot,graph,closure,{reason='upstream ch
     affected:closure.affected.map(a=>({id:a.id,kind:a.kind,depth:a.depth,path:a.path})),
     preserved_count:closure.preserved_count,
     earliest_outer_gate:closure.earliest_outer_gate,
-    graph_sha256:sha256(JSON.stringify(graph.nodes.map(n=>[n.id,n.valid]))),
+    // Sorted by id: the anchor identifies the graph's state, not the order the
+    // walk happened to discover it in. Part of that order comes from
+    // listArtifacts() -> fs.readdirSync(), which Node does not promise to sort
+    // -- NTFS returns names in B-tree order, ext4 with dir_index returns hash
+    // order -- so an unsorted anchor is a different number on the Linux runner
+    // than on a Windows workstation for the very same state.
+    graph_sha256:sha256(JSON.stringify(graph.nodes.map(n=>[n.id,n.valid]).sort((a,b)=>a[0].localeCompare(b[0])))),
     time:now()
   };
   saveTraceabilityGraph(projectRoot,graph);

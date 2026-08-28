@@ -168,4 +168,9 @@ export function getTaskContextManifest(projectRoot,runId,taskId){
   return fs.existsSync(p)?readJson(p):null;
 }
 
-export function listArtifacts(projectRoot){const d=path.join(stateDir(projectRoot),'artifacts','meta');if(!fs.existsSync(d))return [];return fs.readdirSync(d).filter(x=>x.endsWith('.json')).map(x=>readJson(path.join(d,x)));}
+// Sorted, like listTasks and listWorkspaces above: readdir order is the
+// filesystem's business (NTFS gives names in B-tree order, ext4 with dir_index
+// gives hash order) and it reached a content hash through the traceability
+// graph. Meta filenames are content hashes, so sorting by name is stable and
+// carries no meaning of its own.
+export function listArtifacts(projectRoot){const d=path.join(stateDir(projectRoot),'artifacts','meta');if(!fs.existsSync(d))return [];return fs.readdirSync(d).filter(x=>x.endsWith('.json')).sort().map(x=>readJson(path.join(d,x)));}

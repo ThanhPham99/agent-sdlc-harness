@@ -486,6 +486,35 @@ export function runAlpha6Suite(root){
       if(!record.affected.every(a=>a.path?.length))fail('record lacks graph paths');
     });
 
+    t('graph_sha256-identifies-the-graph-state-not-the-order-nodes-happened-to-be-built-in',()=>{
+      // The anchor is over graph.nodes in build order, and part of that order
+      // comes from listArtifacts() -> fs.readdirSync(), which Node does not
+      // promise to sort. NTFS returns names in B-tree order so this reproduces
+      // as stable on Windows; ext4 with dir_index returns hash order, so the
+      // same logical state can hash differently on the Linux CI runner than it
+      // does here. Every other list* in store.mjs sorts for exactly this
+      // reason. Hash the state, not the walk.
+      const a=fresh();
+      const closure=computeInvalidationClosure(a,nodeId('ACCEPTANCE_CRITERION','AC-001'),'BEHAVIOR_CHANGE');
+      const first=applyInvalidation(projectRoot,a,closure,{reason:'ordering probe'});
+
+      const b=fresh();
+      // Same graph, nodes discovered in the opposite order.
+      b.nodes.reverse();
+      const closureB=computeInvalidationClosure(b,nodeId('ACCEPTANCE_CRITERION','AC-001'),'BEHAVIOR_CHANGE');
+      const second=applyInvalidation(projectRoot,b,closureB,{reason:'ordering probe'});
+
+      if(first.graph_sha256!==second.graph_sha256)
+        fail(`node order changed the anchor: ${first.graph_sha256} != ${second.graph_sha256}`);
+
+      // It must still be a real anchor: a different validity state hashes differently.
+      const c=fresh();
+      c.nodes[0].valid=false;
+      const closureC=computeInvalidationClosure(c,nodeId('ACCEPTANCE_CRITERION','AC-001'),'BEHAVIOR_CHANGE');
+      const third=applyInvalidation(projectRoot,c,closureC,{reason:'ordering probe'});
+      if(third.graph_sha256===first.graph_sha256)fail('the anchor no longer distinguishes graph state');
+    });
+
     t('invalidation-reason-and-path-are-replayable',()=>{
       const history=invalidationHistory(projectRoot,run.run_id);
       if(!history.length)fail('no invalidation history recorded');
