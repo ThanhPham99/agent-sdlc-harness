@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 337,
-  "passes": 337,
+  "checks": 338,
+  "passes": 338,
   "failures": 0,
   "results": [
     {
@@ -911,6 +911,10 @@
     },
     {
       "name": "task-scheduler/scope-overlap-is-prefix-aware",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler/the-plan-gate-and-the-scheduler-share-one-overlap-predicate",
       "status": "PASS"
     },
     {

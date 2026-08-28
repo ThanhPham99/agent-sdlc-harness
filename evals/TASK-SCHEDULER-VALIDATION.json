@@ -87,8 +87,8 @@
   "shared_primitives": "runtime/parallel.mjs and runtime/task-scheduler.mjs share scopeConflicts/benefit predicates; there is one policy model",
   "decision_artifact": "agent-sdlc/task-schedule-decision/v1",
   "no_silent_caps": "every non-dispatched ready task is reported in `deferred` or `excluded` with a reason",
-  "checks": 13,
-  "passes": 13,
+  "checks": 14,
+  "passes": 14,
   "failures": 0,
   "results": [
     {
@@ -141,6 +141,10 @@
     },
     {
       "name": "scope-overlap-is-prefix-aware",
+      "status": "PASS"
+    },
+    {
+      "name": "the-plan-gate-and-the-scheduler-share-one-overlap-predicate",
       "status": "PASS"
     }
   ],

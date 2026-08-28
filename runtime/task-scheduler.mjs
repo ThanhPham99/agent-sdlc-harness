@@ -12,23 +12,13 @@ import {listTasks,loadTaskGraph,emitTaskEvent} from './store.mjs';
 import {dependencyState} from './task-engine.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
-const norm=p=>String(p||'').replace(/\\/g,'/').replace(/^\.\//,'').replace(/\/+$/,'');
 
-/** Two scope entries overlap when either is a path prefix of the other. */
-export function scopeOverlap(a,b){
-  const x=norm(a),y=norm(b);
-  if(!x||!y)return false;
-  if(x===y)return true;
-  const stem=s=>s.split(/[*?]/)[0].replace(/\/+$/,'');
-  const sx=stem(x),sy=stem(y);
-  if(!sx||!sy)return true;
-  return sx===sy||sx.startsWith(sy+'/')||sy.startsWith(sx+'/');
-}
-export function scopeConflicts(a,b){
-  const out=[];
-  for(const x of arr(a))for(const y of arr(b))if(scopeOverlap(x,y))out.push([x,y]);
-  return out;
-}
+// The predicate itself lives in ./scope.mjs so the PLAN gate can share it
+// without importing this module (which would close a cycle through
+// task-engine.mjs). Re-exported here because this is where callers already
+// import it from.
+export {scopeOverlap,scopeConflicts} from './scope.mjs';
+import {scopeConflicts} from './scope.mjs';
 
 /** A task whose boundary must not interleave with anything else. */
 export function mustSerialize(policy,task){

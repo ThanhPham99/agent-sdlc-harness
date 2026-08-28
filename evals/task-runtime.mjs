@@ -14,7 +14,9 @@ import {initProject,listTasks,loadTask,saveTask,loadTaskGraph,putArtifact,listTa
 import {route} from '../runtime/router.mjs';
 import {newRun,transition,recordDesignDecision,recordTaskPlan,materializeRunTasks,recordImplementationComplete} from '../runtime/orchestrator.mjs';
 import {materializeTaskGraph,refreshReadiness,transitionTask,evaluateTransition,dependencyState,taskProgress,requireTask} from '../runtime/task-engine.mjs';
-import {scheduleTasks,readySet,scopeConflicts,mustSerialize} from '../runtime/task-scheduler.mjs';
+import {scheduleTasks,readySet,scopeConflicts,mustSerialize,scopeOverlap as schedulerOverlap} from '../runtime/task-scheduler.mjs';
+import {scopeOverlap as sharedOverlap} from '../runtime/scope.mjs';
+import {computeScopeConflicts} from '../runtime/plan-validator.mjs';
 import {buildTaskContext,renderTaskPrompt,EXCLUDED_BY_DEFAULT} from '../runtime/task-context.mjs';
 import {createTaskWorkspace,cleanupTaskWorkspace,checkWriterIsolation,listTaskWorkspaces,scrubbedEnv,workspaceDiff,getTaskWorkspace} from '../runtime/workspace.mjs';
 import {verifyTask,scopeAudit,verificationStrategy,plannedCommands} from '../runtime/task-verification.mjs';
@@ -469,6 +471,42 @@ export function runTaskRuntimeSuite(root){
       if(!scopeConflicts(['src/auth/'],['src/auth/reset.js']).length)fail('directory prefix missed');
       if(scopeConflicts(['src/auth/a.js'],['src/auth/b.js']).length)fail('siblings reported as overlapping');
       if(!scopeConflicts(['src/*'],['src/auth/a.js']).length)fail('glob stem missed');
+      // `src/auth` must NOT collide with `src/authentication`: the prefix test
+      // is at directory boundaries, and a raw startsWith would serialize two
+      // tasks that share nothing.
+      if(scopeConflicts(['src/auth'],['src/authentication/x.js']).length)fail('non-boundary prefix reported as overlapping');
+    });
+
+    t('the-plan-gate-and-the-scheduler-share-one-overlap-predicate',()=>{
+      // The PLAN gate decides whether parallel candidates may coexist; the
+      // scheduler decides whether they may be dispatched together. They carried
+      // separate copies of the predicate, outside the "one policy model" claim
+      // in scripts/validate-task-engine.mjs, so a fix to one would have let a
+      // plan be accepted and then refused at dispatch, or the reverse.
+      if(schedulerOverlap!==sharedOverlap)fail('the scheduler no longer re-exports the shared predicate');
+      // And the gate's verdict must agree with the scheduler's on the corpus,
+      // which is what catches a copy reintroduced inside plan-validator.
+      const pairs=[
+        ['src/auth/','src/auth/reset.js',true],
+        ['src/auth/a.js','src/auth/b.js',false],
+        ['src/*','src/auth/a.js',true],
+        ['src/auth','src/authentication/x.js',false],
+        ['*','anything/at/all.js',true],
+        ['./src/a.js','src/a.js',true]
+      ];
+      for(const [a,b,expected] of pairs){
+        const plan={
+          schema:'agent-sdlc/task-plan/v1',plan_id:'PLAN-1',run_id:'RUN-1',
+          tasks:[
+            {task_id:'TASK-1',parallel_candidate:true,write_scope:[a],interface_scope:[]},
+            {task_id:'TASK-2',parallel_candidate:true,write_scope:[b],interface_scope:[]}
+          ]
+        };
+        const gate=computeScopeConflicts(plan).some(c=>c.kind==='WRITE_SCOPE');
+        const sched=scopeConflicts([a],[b]).length>0;
+        if(gate!==sched)fail(`gate ${gate} vs scheduler ${sched} for ${a} | ${b}`);
+        if(sched!==expected)fail(`${a} | ${b} -> ${sched}, expected ${expected}`);
+      }
     });
   }
 
