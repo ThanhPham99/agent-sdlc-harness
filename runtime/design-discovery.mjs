@@ -7,6 +7,7 @@
 // - a HUMAN-approval design decision cannot reach PLAN on model prose alone.
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 
 const HERE=path.dirname(fileURLToPath(import.meta.url));
@@ -149,6 +150,42 @@ export function evaluateDesignGate({mode=null,evidence=[],humanApprovalRequired=
     missing,
     derived_evidence:missing.length===0?[gate.derived_evidence]:[]
   };
+}
+
+/**
+ * `design mode` emits a mode SELECTION (agent-sdlc/design-discovery-decision/v1);
+ * `validateDesignDecision` requires the DECISION content itself
+ * (agent-sdlc/design-decision/v1), which no amount of re-shaping the selection
+ * can produce -- FULL mode needs real options and tradeoffs no deterministic
+ * code can invent. This bridges the gap the other way: given a selection, it
+ * emits a correctly-shaped decision draft for that mode, so the artifact the
+ * DESIGN gate requires is filled in rather than hand-built from validate's
+ * error codes one field at a time. SKIP is genuinely valid immediately (the
+ * selection's own reason codes are a real answer to "why skip"); COMPACT
+ * needs no content validateDesignDecision checks for; FULL gets a correctly
+ * shaped skeleton with TODO placeholders that still need real judgment.
+ */
+export function scaffoldDesignDecision(selection,{objective='',decisionId=null}={}){
+  const draft={
+    schema:'agent-sdlc/design-decision/v1',
+    decision_id:decisionId||`design_${crypto.randomUUID()}`,
+    objective:objective||'TODO: the requirement or objective this decision serves',
+    mode:selection.mode,
+    requirements:[],design_decisions:[],
+    decision:null,options:[],recommended_option:null,rejected_alternatives:[],
+    skip_reason:null,
+    affected_interfaces:[],affected_data:[],verification_obligations:[],
+    approval:{required:selection.human_approval_required,status:selection.human_approval_required?'PENDING':'NOT_REQUIRED'}
+  };
+  if(selection.mode==='SKIP'){
+    draft.skip_reason=`Design discovery selected SKIP (${selection.reason_codes.join('; ')})`;
+  }else if(selection.mode==='FULL'){
+    const n=getDesignDiscoveryPolicy().options.min_options_full_mode;
+    draft.decision='TODO: state the chosen approach in one or two sentences';
+    draft.options=Array.from({length:n},(_,i)=>({id:`OPTION-${String.fromCharCode(65+i)}`,summary:'TODO',benefits:['TODO'],tradeoffs:['TODO']}));
+    draft.recommended_option=draft.options[0].id;
+  }
+  return draft;
 }
 
 /**

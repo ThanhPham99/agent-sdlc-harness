@@ -1,0 +1,30 @@
+{
+  "schema": "agent-sdlc/design-decision/v1",
+  "decision_id": "DESIGN-001",
+  "objective": "TODO: the requirement or objective this decision serves",
+  "mode": "FULL",
+  "requirements": [],
+  "design_decisions": [],
+  "decision": "TODO: state the chosen approach in one or two sentences",
+  "options": [
+    {
+      "id": "OPTION-A",
+      "summary": "TODO",
+      "benefits": ["TODO"],
+      "tradeoffs": ["TODO"]
+    },
+    {
+      "id": "OPTION-B",
+      "summary": "TODO",
+      "benefits": ["TODO"],
+      "tradeoffs": ["TODO"]
+    }
+  ],
+  "recommended_option": "OPTION-A",
+  "rejected_alternatives": [],
+  "skip_reason": null,
+  "affected_interfaces": [],
+  "affected_data": [],
+  "verification_obligations": [],
+  "approval": {"required": false, "status": "NOT_REQUIRED"}
+}

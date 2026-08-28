@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 319,
-  "passes": 319,
+  "checks": 322,
+  "passes": 322,
   "failures": 0,
   "results": [
     {
@@ -615,6 +615,18 @@
     },
     {
       "name": "design-decision-validator-adversarial-cases",
+      "status": "PASS"
+    },
+    {
+      "name": "design-scaffold-skip-mode-is-immediately-valid",
+      "status": "PASS"
+    },
+    {
+      "name": "design-scaffold-compact-mode-is-immediately-valid",
+      "status": "PASS"
+    },
+    {
+      "name": "design-scaffold-full-mode-is-correctly-shaped-but-still-needs-content",
       "status": "PASS"
     },
     {

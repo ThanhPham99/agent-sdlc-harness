@@ -7,7 +7,7 @@ import {execFileSync,spawnSync} from 'node:child_process';
 import {route} from '../runtime/router.mjs';
 import {initProject} from '../runtime/store.mjs';
 import {newRun,transition,nextState,recordDesignDecision,recordTaskPlan} from '../runtime/orchestrator.mjs';
-import {selectDesignDiscoveryMode,validateDesignDecision,getDesignDiscoveryPolicy,requiredGateEvidence} from '../runtime/design-discovery.mjs';
+import {selectDesignDiscoveryMode,validateDesignDecision,getDesignDiscoveryPolicy,requiredGateEvidence,scaffoldDesignDecision} from '../runtime/design-discovery.mjs';
 import {validateTaskPlan,computeTaskGraph,findCycles,computeReadySets,computeCoverage,planGateEvidence} from '../runtime/plan-validator.mjs';
 import {runTaskRuntimeSuite} from './task-runtime.mjs';
 import {runAlpha6Suite} from './alpha6-runtime.mjs';
@@ -1040,6 +1040,41 @@ test('design-decision-validator-adversarial-cases',()=>{
     if(v.valid!==c.expected.valid)throw Error(`${c.id}: valid=${v.valid} errors=${v.errors.join(',')}`);
     if(c.expected.error&&!v.errors.includes(c.expected.error))throw Error(`${c.id}: missing ${c.expected.error} in ${v.errors.join(',')}`);
   }
+});
+// F13: `design mode` emits agent-sdlc/design-discovery-decision/v1; `design
+// validate` requires agent-sdlc/design-decision/v1 plus decision_id/objective/
+// skip_reason -- the two commands did not compose, so the artifact the DESIGN
+// gate requires had to be hand-authored from validate's error codes.
+// scaffoldDesignDecision bridges them: a SKIP/COMPACT selection scaffolds to
+// an immediately valid draft, and FULL scaffolds to a correctly-shaped draft
+// that still needs real option content and approval.
+test('design-scaffold-skip-mode-is-immediately-valid',()=>{
+  const selection=selectDesignDiscoveryMode({profile:'FAST',objective:'Update README documentation'});
+  if(selection.mode!=='SKIP')throw Error(`fixture assumption broke: ${selection.mode}`);
+  const draft=scaffoldDesignDecision(selection,{objective:'Update README documentation'});
+  const v=validateDesignDecision(draft);
+  if(!v.valid)throw Error(JSON.stringify(v));
+  if(!draft.skip_reason)throw Error('SKIP draft has no skip_reason');
+});
+test('design-scaffold-compact-mode-is-immediately-valid',()=>{
+  const selection=selectDesignDiscoveryMode({profile:'STANDARD',objective:'Add refund capability'});
+  if(selection.mode!=='COMPACT')throw Error(`fixture assumption broke: ${selection.mode}`);
+  const draft=scaffoldDesignDecision(selection,{objective:'Add refund capability'});
+  const v=validateDesignDecision(draft);
+  if(!v.valid)throw Error(JSON.stringify(v));
+});
+test('design-scaffold-full-mode-is-correctly-shaped-but-still-needs-content',()=>{
+  const selection=selectDesignDiscoveryMode({profile:'STRICT',objective:'database schema migration with backfill'});
+  if(selection.mode!=='FULL')throw Error(`fixture assumption broke: ${selection.mode}`);
+  const draft=scaffoldDesignDecision(selection,{objective:'database schema migration with backfill'});
+  const v=validateDesignDecision(draft);
+  // Shape is right: enough options, ids line up, a recommended option, a
+  // decision statement -- none of the structural errors validate() checks for.
+  if(v.errors.some(e=>e.startsWith('FULL_MODE_WITHOUT_OPTIONS')||e.startsWith('MISSING_RECOMMENDED_OPTION')||e.startsWith('MISSING_DECISION_STATEMENT')||e.startsWith('OPTION_MISSING')))throw Error(JSON.stringify(v));
+  if(draft.options.length<getDesignDiscoveryPolicy().options.min_options_full_mode)throw Error(JSON.stringify(draft.options));
+  // Content is still a human's job: real judgment (and, here, real approval)
+  // is what's left, not shape.
+  if(!selection.human_approval_required||!v.errors.includes('APPROVAL_REQUIRED_NOT_APPROVED'))throw Error(JSON.stringify(v));
 });
 test('design-mode-evidence-tokens-are-policy-canonical',()=>{
   for(const m of ['SKIP','COMPACT','FULL']){

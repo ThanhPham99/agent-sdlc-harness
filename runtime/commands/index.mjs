@@ -64,7 +64,7 @@ export const COMMANDS={
   "replay-export":{group:"artifacts"},
   "replay-validate":{group:"artifacts"},
   activation:{group:"activation",subcommands:["status","print-bootstrap","policy","cost","enable","disable","classify","events","record","doctor","codex-bootstrap","install","uninstall"]},
-  design:{group:"design",subcommands:["mode","policy","validate","record"]},
+  design:{group:"design",subcommands:["mode","policy","validate","scaffold","record"]},
   plan:{group:"design",subcommands:["validate","graph","record"]},
   task:{group:"task",subcommands:["list","show","graph","events","progress","state-machine","materialize","migrate","refresh","ready","schedule","transition","context","context-show","start","capture","verify","review","advance","checkpoint","usage-add","usage","metrics","workspaces","workspace-clean","failure-policy","classify","replay","fallback","resume","implementation-complete"]},
   repo:{group:"repo",subcommands:["index","status","capability","symbol","references","tests","module","dependents","interfaces","entities","events","recent","surface"]},

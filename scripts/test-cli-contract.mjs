@@ -73,6 +73,15 @@ test('doctor-reports-version-and-project-state',()=>{
   if(!out.version||!out.node)throw new Error(JSON.stringify(out));
   if(!Array.isArray(out.providers)||!out.providers.length)throw new Error('no provider report');
 });
+// F3: dev-link drift ("host loads an older cached version than the working
+// tree") used to surface only when a plugin developer remembered to run
+// `node scripts/dev-link.mjs` by hand. `doctor` is what already gets run to
+// sanity-check the environment, so the same check runs there too.
+test('doctor-reports-dev-link-drift-status',()=>{
+  const out=json(['doctor']);
+  if(!out.dev_link||typeof out.dev_link.host_record_present!=='boolean')throw new Error(JSON.stringify(out.dev_link));
+  if(!Array.isArray(out.dev_link.plugins))throw new Error(JSON.stringify(out.dev_link));
+});
 test('route-is-deterministic-across-processes',()=>{
   const a=json(['route','--objective','database schema migration with backfill']);
   const b=json(['route','--objective','database schema migration with backfill']);
@@ -681,7 +690,7 @@ for(const args of [
   ['delivery','status'],['delivery','branch'],['delivery','push-check'],['delivery','drift'],['delivery','group'],
   ['ci','history'],['govern','report'],
   ['activation','status'],['activation','doctor'],['activation','classify'],
-  ['plan','graph','--file',PLAN_FILE(ENGINE[1])],['design','mode'],['feature','active']
+  ['plan','graph','--file',PLAN_FILE(ENGINE[1])],['design','mode'],['design','scaffold'],['feature','active']
 ]){
   // Named from the command and subcommand only. Folding the whole argv in put a
   // temp path and a run id into one case name, so that row changed on every run

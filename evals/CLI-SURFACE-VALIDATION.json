@@ -95,8 +95,8 @@
     },
     {
       "command": "design",
-      "implemented": 4,
-      "declared": 4,
+      "implemented": 5,
+      "declared": 5,
       "missing": [],
       "phantom": []
     },

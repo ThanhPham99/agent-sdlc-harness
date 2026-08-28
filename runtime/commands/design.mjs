@@ -26,6 +26,19 @@ export const commands={
     }
     else if(sub==='policy')print(getDesignDiscoveryPolicy());
     else if(sub==='validate')print(validateDesignDecision(loadFile()));
+    else if(sub==='scaffold'){
+      const {scaffoldDesignDecision}=await import('../design-discovery.mjs');
+      const run=args['run-id']?await needRun():null;
+      const objective=args.objective||run?.objective||args._.slice(2).join(' ');
+      const selection=selectDesignDiscoveryMode({
+        profile:args.profile||run?.profile||'STANDARD',
+        objective,
+        declaredSignals:args.signals?String(args.signals).split(',').map(s=>s.trim()).filter(Boolean):[],
+        designAlreadyApproved:truthy(args.approved)
+      });
+      const draft=scaffoldDesignDecision(selection,{objective});
+      print({schema:'agent-sdlc/design-decision-scaffold/v1',selection,draft,validation:validateDesignDecision(draft)});
+    }
     else if(sub==='record'){
       const run=await needRun();const decision=loadFile();
       let artifact=null;

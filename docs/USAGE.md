@@ -130,11 +130,14 @@ Two gates are machine-checked. Their evidence cannot be supplied through `transi
 ```bash
 ./bin/agent-sdlc design mode     --run-id <id>
 ./bin/agent-sdlc design policy
+./bin/agent-sdlc design scaffold --run-id <id>
 ./bin/agent-sdlc design validate --file design-decision.json
 ./bin/agent-sdlc design record   --run-id <id> --file design-decision.json
 ```
 
 `design mode` returns `SKIP` / `COMPACT` / `FULL` with reason codes, the escalation and de-escalation signals that fired, and whether human approval is required. Declare a signal the objective text does not express with `--signals ARCHITECTURE_BOUNDARY,...` rather than overriding the answer by hand.
+
+`design mode`'s output (`agent-sdlc/design-discovery-decision/v1`) is a mode *selection*, not the decision content `design validate`/`design record` require (`agent-sdlc/design-decision/v1`) — the two do not compose directly. `design scaffold` runs the same selection and prints a correctly-shaped draft for that mode alongside it: a `SKIP` or `COMPACT` draft is immediately valid (the selection's own reason codes are the real answer to "why skip"); a `FULL` draft has the right number of `options` with `TODO` placeholders and needs real judgment (and, if `human_approval_required`, real approval) before it validates. Save `.draft` to a file, edit it, then pass it to `design validate`/`design record`. A starting shape also lives at `templates/design-decision.json`.
 
 `design record` validates the `agent-sdlc/design-decision/v1` artifact, stores it, and writes the DESIGN gate evidence only on success.
 

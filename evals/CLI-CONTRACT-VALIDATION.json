@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/cli-contract-validation/v1",
-  "checks": 115,
-  "passes": 111,
+  "checks": 117,
+  "passes": 113,
   "failures": 0,
   "skipped": 4,
   "results": [
@@ -11,6 +11,10 @@
     },
     {
       "name": "doctor-reports-version-and-project-state",
+      "status": "PASS"
+    },
+    {
+      "name": "doctor-reports-dev-link-drift-status",
       "status": "PASS"
     },
     {
@@ -435,6 +439,10 @@
     },
     {
       "name": "read-surface-design-mode",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-design-scaffold",
       "status": "PASS"
     },
     {
