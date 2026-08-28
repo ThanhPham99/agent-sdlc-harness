@@ -1,0 +1,616 @@
+{
+  "schema": "agent-sdlc/syntax-validation/v1",
+  "version": "3.0.0-alpha6",
+  "checked": "node --check (parse only, not executed)",
+  "checks": 121,
+  "passes": 121,
+  "failures": 0,
+  "results": [
+    {
+      "file": "adapters/hooks/antigravity-preinvocation.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "adapters/hooks/claude-session-start.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "adapters/hooks/pretool-guard.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "adapters/hooks/statusline.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "adapters/hooks/test-output-guard.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "evals/alpha6-runtime.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "evals/fake-host-cli.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "evals/provider-conformance/preflight.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "evals/run-deterministic.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "evals/task-runtime.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "hooks/antigravity-preinvocation.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "hooks/claude-session-start.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "hooks/pretool-guard.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "hooks/statusline.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "hooks/test-output-guard.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/activation.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/approvals.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/ci-evidence.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/cli.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/codex-bootstrap.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/activation.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/artifacts.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/delivery.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/design.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/feature.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/index.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/project.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/provider.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/repo.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/run.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/task.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/tools.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/compat.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/config.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/context.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/cost.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/design-discovery.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/dev-link.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/evidence.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/features.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/gates.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/git-delivery.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/governor.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/handoff.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/init.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/launcher.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/learning.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/mcp-server.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/model-router.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/normalize.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/orchestrator.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/parallel.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/plan-validator.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/policy.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/procedures.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/project-knowledge.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/provider.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/replay.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/repo-index.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/repo-intelligence.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/requirement-update.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/router.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/store.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/symbol-graph.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/task-context.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/task-engine.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/task-migration.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/task-recovery.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/task-review.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/task-runner.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/task-scheduler.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/task-verification.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/telemetry.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/tools.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/traceability.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/util.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/workspace.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/archive.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/audit.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/build-dist.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/codex-bootstrap.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/coverage-report.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/dev-link.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/gen-activation-assets.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/host-preflight.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/lib/suite.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/package-release.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/promote-regression-case.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/qualification-bundle.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/qualification-lib.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/qualify-all-live.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/qualify-host.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/qualify-release.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-antigravity-bootstrap-hook.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-auto-bootstrap.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-claude-bootstrap-hook.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-cli-contract.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-codex-bootstrap.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-compat.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-dev-link.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-github-installers.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-mcp.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-normalize.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-project-detection.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-provider.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-qualification-harness.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-qualification-transport.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-statusline.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/validate-alpha6.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/validate-ci-coverage.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/validate-cli-surface.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/validate-gates.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/validate-github-install.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/validate-guard.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/validate-registry.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/validate-root-sync.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/validate-syntax.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/validate-task-engine.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/validate-test-output-guard.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/validate-versions.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/verify-dist.mjs",
+      "status": "PASS",
+      "error": null
+    }
+  ],
+  "status": "PASS"
+}

@@ -6,6 +6,11 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# A superseded push's run was burning a 2-job matrix plus a Windows runner to
+# completion for no reason once a newer push existed for the same ref.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   # Full offline gate. node 18 is the floor declared by package.json engines and
   # docs/INSTALLATION.md, so it is tested rather than assumed.
@@ -84,6 +89,7 @@ jobs:
             evals/COVERAGE.json
             evals/CLI-CONTRACT-VALIDATION.json
             evals/CLI-SURFACE-VALIDATION.json
+            evals/SYNTAX-VALIDATION.json
             evals/NORMALIZE-VALIDATION.json
             evals/PROVIDER-VALIDATION.json
             evals/COMPAT-VALIDATION.json

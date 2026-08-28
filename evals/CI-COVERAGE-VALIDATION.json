@@ -3,8 +3,8 @@
   "version": "3.0.0-alpha6",
   "workflow": ".github/workflows/ci.yml",
   "check_script": "check",
-  "checks": 30,
-  "passes": 30,
+  "checks": 31,
+  "passes": 31,
   "failures": 0,
   "suites": [
     {
@@ -57,6 +57,12 @@
     },
     {
       "script": "test:cli-surface",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:syntax",
       "status": "PASS",
       "gated_via": "test:integrity",
       "problems": []
