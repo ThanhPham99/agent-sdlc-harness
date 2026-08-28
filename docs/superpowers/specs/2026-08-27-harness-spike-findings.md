@@ -9,7 +9,7 @@ This spec is consumed by three plans, one per subsystem:
 
 - `plans/2026-08-27-execution-path-correctness.md` — F1, F9, F10, F11 (+ dead per-tool config)
 - `plans/2026-08-27-router-scoring.md` — F2
-- `plans/2026-08-27-gate-hygiene.md` — F3-F8, F12-F14 (not yet written)
+- `plans/2026-08-27-gate-hygiene.md` — F3-F8, F13-F14 (F12 ended up resolved by gate-signal-correctness.md instead, alongside F15)
 
 ---
 
