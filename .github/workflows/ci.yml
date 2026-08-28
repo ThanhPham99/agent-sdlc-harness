@@ -87,6 +87,7 @@ jobs:
             evals/CLI-CONTRACT-VALIDATION.json
             evals/CLI-SURFACE-VALIDATION.json
             evals/SYNTAX-VALIDATION.json
+            evals/REPORT-HYGIENE-VALIDATION.json
             evals/NORMALIZE-VALIDATION.json
             evals/PROVIDER-VALIDATION.json
             evals/COMPAT-VALIDATION.json

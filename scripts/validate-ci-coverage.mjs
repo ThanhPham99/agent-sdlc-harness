@@ -49,7 +49,12 @@ const ALTERNATE_JOB={'test:coverage':'coverage-floor'};
 
 // Suites CI is allowed to skip, with the reason. Live host qualification needs
 // provider credentials and runs from live-qualification.yml instead.
-const EXEMPT={};
+// F14: restore-tracked-reports' whole purpose is local git-tree hygiene after
+// `npm run check` -- CI's checkout is discarded after the job and the freshly
+// written reports are what CI uploads as artifacts, so it is a deliberate
+// no-op there (checked via `process.env.CI`, which GitHub Actions always
+// sets) rather than a suite CI is expected to run at all.
+const EXEMPT={'restore-tracked-reports':'local git-tree hygiene only; a documented no-op in CI'};
 
 const CHECK_SCRIPT='check';
 
@@ -108,7 +113,9 @@ if(!rows.length)rows.push({script:CHECK_SCRIPT,status:'FAIL',problems:[`no suite
  */
 // A script running in its own parallel job has no sequential relationship to
 // FULL_GATE_JOB's steps to check -- parallel jobs have no relative order.
-const chain=children(CHECK_SCRIPT).filter(s=>!ALTERNATE_JOB[s]);
+// An EXEMPT script is never run by CI at all, so it has no position in
+// ciSequence to check order against either.
+const chain=children(CHECK_SCRIPT).filter(s=>!ALTERNATE_JOB[s]&&!EXEMPT[s]);
 const orderProblems=[];
 let cursor=-1,previous=null;
 for(const script of chain){

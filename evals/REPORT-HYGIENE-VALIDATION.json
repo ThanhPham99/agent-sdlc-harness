@@ -1,0 +1,37 @@
+{
+  "schema": "agent-sdlc/report-hygiene-validation/v1",
+  "checks": 7,
+  "passes": 7,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "default-restores-a-modified-tracked-report",
+      "status": "PASS"
+    },
+    {
+      "name": "nothing-to-restore-when-the-report-was-not-touched",
+      "status": "PASS"
+    },
+    {
+      "name": "update-flag-keeps-the-fresh-report",
+      "status": "PASS"
+    },
+    {
+      "name": "keep-reports-env-var-keeps-the-fresh-report",
+      "status": "PASS"
+    },
+    {
+      "name": "ci-env-var-keeps-the-fresh-report",
+      "status": "PASS"
+    },
+    {
+      "name": "an-untracked-report-is-left-alone",
+      "status": "PASS"
+    },
+    {
+      "name": "a-staged-modification-is-also-restored",
+      "status": "PASS"
+    }
+  ]
+}

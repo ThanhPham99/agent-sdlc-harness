@@ -68,7 +68,9 @@ const NOT_MEASURED={
   'scripts/validate-guard.mjs':'runs the host guard in adapters/, outside runtime/',
   'scripts/validate-test-output-guard.mjs':'runs the host guard in adapters/, outside runtime/',
   'scripts/test-statusline.mjs':'exercises the opt-in statusline script in adapters/, outside runtime/',
-  'scripts/validate-syntax.mjs':'parses each .mjs file with `node --check`; never imports or executes runtime/'
+  'scripts/validate-syntax.mjs':'parses each .mjs file with `node --check`; never imports or executes runtime/',
+  'scripts/restore-tracked-reports.mjs':'local git-tree hygiene (git status/checkout on evals/); never enters runtime/',
+  'scripts/test-restore-tracked-reports.mjs':'exercises restore-tracked-reports.mjs against a throwaway git fixture; never enters runtime/'
 };
 
 /** Every suite the `check` chain runs, expanded through its npm-script aliases. */

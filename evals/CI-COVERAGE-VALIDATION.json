@@ -3,8 +3,8 @@
   "version": "3.0.0-alpha6",
   "workflow": ".github/workflows/ci.yml",
   "check_script": "check",
-  "checks": 31,
-  "passes": 31,
+  "checks": 33,
+  "passes": 32,
   "failures": 0,
   "suites": [
     {
@@ -63,6 +63,12 @@
     },
     {
       "script": "test:syntax",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:report-hygiene",
       "status": "PASS",
       "gated_via": "test:integrity",
       "problems": []
@@ -191,6 +197,12 @@
       "script": "verify:dist",
       "status": "PASS",
       "gated_via": "verify:dist",
+      "problems": []
+    },
+    {
+      "script": "restore-tracked-reports",
+      "status": "EXEMPT",
+      "reason": "local git-tree hygiene only; a documented no-op in CI",
       "problems": []
     }
   ],
