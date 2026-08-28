@@ -29,8 +29,8 @@
     "blocking_finding_blocks_done": true,
     "independence": "recorded truthfully; an achieved claim contradicting its mode is rejected, and an unachieved claim requires a recorded limitation"
   },
-  "checks": 16,
-  "passes": 16,
+  "checks": 20,
+  "passes": 20,
   "failures": 0,
   "results": [
     {
@@ -95,6 +95,22 @@
     },
     {
       "name": "scope-audit-treats-declared-directories-as-covering",
+      "status": "PASS"
+    },
+    {
+      "name": "planned-commands-splices-the-task-targeted-tests",
+      "status": "PASS"
+    },
+    {
+      "name": "planned-commands-refuses-a-selector-template-with-no-targeted-tests",
+      "status": "PASS"
+    },
+    {
+      "name": "planned-commands-leaves-a-selectorless-template-alone",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification-reports-an-unstartable-command-as-error",
       "status": "PASS"
     }
   ],

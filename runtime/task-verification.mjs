@@ -13,6 +13,7 @@ import {spawnSync} from 'node:child_process';
 import {now,readJson,truncateUtf8} from './util.mjs';
 import {putArtifact,emitTaskEvent,saveTask} from './store.mjs';
 import {workspaceDiff,getTaskWorkspace} from './workspace.mjs';
+import {resolveLaunch,describeSpawn} from './launcher.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 const norm=p=>String(p||'').replace(/\\/g,'/').replace(/^\.\//,'').replace(/\/+$/,'');
@@ -30,18 +31,46 @@ export function verificationStrategy(task,{escalate=false}={}){
   return 'TARGETED';
 }
 
+/**
+ * `{selector}` is spliced, not joined: one argv element per targeted test, so a
+ * runner receives N paths rather than one argument containing spaces. A template
+ * that asks for a selector when the task declares no targeted tests is marked
+ * `unsatisfied_selector` rather than run with the placeholder or quietly
+ * dropped -- a task must not reach DONE because its verification was skipped.
+ */
+function substituteSelector(command,selectors){
+  if(!command.some(x=>String(x).includes('{selector}')))return {command,unsatisfied_selector:false};
+  if(!selectors.length)return {command,unsatisfied_selector:true};
+  const out=[];
+  for(const el of command){
+    const s=String(el);
+    if(s==='{selector}'){out.push(...selectors);continue;}
+    if(s.includes('{selector}')){out.push(...selectors.map(v=>s.replaceAll('{selector}',v)));continue;}
+    out.push(s);
+  }
+  return {command:out,unsatisfied_selector:false};
+}
+
 /** Which project commands a strategy runs, in order. */
-export function plannedCommands(projectRoot,task,strategy){
+export function plannedCommands(projectRoot,task,strategy,{root=null}={}){
   const cfg=readJson(path.join(projectRoot,'.agent-sdlc','project.json'),{});
   const out=[];
-  const targeted=arr(cfg.commands?.test_targeted);
-  const full=arr(cfg.commands?.test_full);
-  const build=arr(cfg.commands?.build);
-  if(targeted.length)out.push({kind:'test_targeted',command:targeted});
-  if(strategy!=='TARGETED'&&build.length)out.push({kind:'build',command:build});
-  if(strategy==='BROAD_SUITE'&&full.length)out.push({kind:'test_full',command:full});
+  const selectors=arr(task.verification?.targeted_tests).map(String);
+  const push=(kind,command)=>{
+    if(!command.length)return;
+    out.push({kind,...substituteSelector(command,selectors)});
+  };
+  push('test_targeted',arr(cfg.commands?.test_targeted));
+  if(strategy!=='TARGETED')push('build',arr(cfg.commands?.build));
+  if(strategy==='BROAD_SUITE')push('test_full',arr(cfg.commands?.test_full));
   if((task.risk?.security==='HIGH'||arr(task.scope?.interfaces).length)&&strategy!=='TARGETED'){
-    out.push({kind:'security_secret_scan',command:['git','grep','-l','-E','(AKIA[0-9A-Z]{16}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY)']});
+    // Patterns come from the same policy the tool gateway's scanner reads, so
+    // the two cannot drift apart. This path stays narrow on purpose: it is a
+    // per-task check, not the repository-wide scan.
+    const declared=root?(readJson(path.join(root,'policies','security-policy.json'),{}).secret_scan?.patterns||[]):[];
+    const regexes=declared.map(p=>p.regex).filter(Boolean);
+    const pattern=regexes.length?`(${regexes.join('|')})`:'(AKIA[0-9A-Z]{16}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY)';
+    out.push({kind:'security_secret_scan',command:['git','grep','-l','-E',pattern],unsatisfied_selector:false});
   }
   return out;
 }
@@ -72,14 +101,38 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
   const cwd=ws?.root||projectRoot;
   const diff=ws?workspaceDiff(projectRoot,ws):{base_revision:task.base_revision,changed_paths:[],diff_hash:task.diff_hash,diff_available:false};
   const strategy=verificationStrategy(task,{escalate});
-  const planned=commands||plannedCommands(projectRoot,task,strategy);
+  const planned=commands||plannedCommands(projectRoot,task,strategy,{root});
   const executed=[];
   let allPassed=true;
 
   for(const c of planned){
     if(dryRun){executed.push({...c,exit_code:null,duration_ms:0,log_ref:null,summary:'DRY_RUN'});continue;}
+    // A template that wanted a selector the task never declared: refused, not
+    // run with the placeholder and not silently dropped.
+    if(c.unsatisfied_selector){
+      allPassed=false;
+      executed.push({kind:c.kind,command:c.command,exit_code:null,reason:'SELECTOR_REQUIRED_BUT_TASK_DECLARES_NO_TARGETED_TESTS',duration_ms:0,log_ref:null,summary:null});
+      continue;
+    }
     const start=Date.now();
-    const r=spawnSync(c.command[0],c.command.slice(1),{cwd,encoding:'utf8',timeout:timeoutMs,maxBuffer:20*1024*1024});
+    // Same resolution the tool gateway uses: `npm` is npm.cmd on Windows, and a
+    // command that never started is not a test that failed.
+    const launch=resolveLaunch(c.command);
+    if(launch.status!=='OK'){
+      allPassed=false;
+      executed.push({kind:c.kind,command:c.command,exit_code:null,reason:launch.reason,duration_ms:Date.now()-start,log_ref:null,
+        summary:`${launch.reason}: cannot launch ${c.command.join(' ')}`});
+      continue;
+    }
+    const r=spawnSync(launch.bin,launch.args,{cwd,encoding:'utf8',timeout:timeoutMs,maxBuffer:20*1024*1024,...launch.spawnOptions});
+    const spawned=describeSpawn(r);
+    if(spawned.status==='ERROR'){
+      allPassed=false;
+      const detail=(r.stdout||'')+(r.stderr||'');
+      executed.push({kind:c.kind,command:c.command,exit_code:null,reason:spawned.reason,duration_ms:Date.now()-start,log_ref:null,
+        summary:`${spawned.reason}: ${c.command.join(' ')}${spawned.signal?` (killed by ${spawned.signal})`:''}${detail?`\n${truncateUtf8(detail,4000).text}`:''}`});
+      continue;
+    }
     const raw=(r.stdout||'')+(r.stderr||'');
     // `git grep -l` exits 1 when nothing matched, which is the clean outcome.
     const exit=c.kind==='security_secret_scan'?(r.status===1?0:(r.status===0?1:r.status??1)):(r.status??1);

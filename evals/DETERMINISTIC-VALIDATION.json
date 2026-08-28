@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 311,
-  "passes": 311,
+  "checks": 315,
+  "passes": 315,
   "failures": 0,
   "results": [
     {
@@ -923,6 +923,22 @@
     },
     {
       "name": "task-verification_review/scope-audit-treats-declared-directories-as-covering",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/planned-commands-splices-the-task-targeted-tests",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/planned-commands-refuses-a-selector-template-with-no-targeted-tests",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/planned-commands-leaves-a-selectorless-template-alone",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/task-verification-reports-an-unstartable-command-as-error",
       "status": "PASS"
     },
     {

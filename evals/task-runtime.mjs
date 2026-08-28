@@ -17,7 +17,7 @@ import {materializeTaskGraph,refreshReadiness,transitionTask,evaluateTransition,
 import {scheduleTasks,readySet,scopeConflicts,mustSerialize} from '../runtime/task-scheduler.mjs';
 import {buildTaskContext,renderTaskPrompt,EXCLUDED_BY_DEFAULT} from '../runtime/task-context.mjs';
 import {createTaskWorkspace,cleanupTaskWorkspace,checkWriterIsolation,listTaskWorkspaces,scrubbedEnv,workspaceDiff,getTaskWorkspace} from '../runtime/workspace.mjs';
-import {verifyTask,scopeAudit,verificationStrategy} from '../runtime/task-verification.mjs';
+import {verifyTask,scopeAudit,verificationStrategy,plannedCommands} from '../runtime/task-verification.mjs';
 import {validateSpecComplianceReview,validateCodeQualityReview,recordTaskReview} from '../runtime/task-review.mjs';
 import {classifyTaskFailure,planRecovery,applyRecovery,evidenceFingerprint,hasNewEvidence,outerEscalation} from '../runtime/task-recovery.mjs';
 import {startTask,advanceTask,captureTaskDiff,taskCheckpoint,recordTaskUsage,resumeFromCheckpoint} from '../runtime/task-runner.mjs';
@@ -28,7 +28,7 @@ import {taskMetrics} from '../runtime/telemetry.mjs';
 const gitq=(cwd,...a)=>execFileSync('git',a,{cwd,stdio:'ignore'});
 
 /** A throwaway git project with deterministic, always-passing commands. */
-export function makeFixture({failingTests=false}={}){
+export function makeFixture({failingTests=false,commands=null}={}){
   const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-taskrt-'));
   gitq(d,'init','-q');
   fs.mkdirSync(path.join(d,'src','auth'),{recursive:true});
@@ -40,7 +40,7 @@ export function makeFixture({failingTests=false}={}){
   execFileSync('git',['-c','user.email=a@b.c','-c','user.name=t','commit','-qm','init'],{cwd:d,stdio:'ignore'});
   initProject(d,{
     schema:'agent-sdlc/project/v1',project:'task-fixture',
-    commands:{
+    commands:commands||{
       test_targeted:['node','-e',failingTests?'process.exit(1)':'process.exit(0)'],
       test_full:['node','-e','process.exit(0)'],
       build:['node','-e','process.exit(0)']
@@ -762,6 +762,63 @@ export function runTaskRuntimeSuite(root){
       if(b.respected)fail('an out-of-scope path was accepted');
       const c=scopeAudit({scope:{write:['src/'],forbidden:['src/auth/']}},['src/auth/token-store.js']);
       if(c.respected)fail('a forbidden path was accepted because a parent was allowed');
+    });
+
+    // F15: this module reads the same project command config the tool gateway
+    // does and used to hand it straight to spawnSync -- so `npm` was ENOENT on
+    // Windows, that ENOENT read as "the tests failed", and the literal string
+    // "{selector}" reached the test runner.
+    const SELECTOR_CMDS={
+      test_targeted:['node','-e','if(!process.argv[1])process.exit(3);console.log("ran "+process.argv.slice(1).join(","));','{selector}'],
+      test_full:['node','-e','process.exit(0)'],
+      build:['node','-e','process.exit(0)']
+    };
+
+    t('planned-commands-splices-the-task-targeted-tests',()=>{
+      const projectRoot=makeFixture({commands:SELECTOR_CMDS});
+      const task={task_id:'TASK-001',verification:{targeted_tests:['tests/a.test.js','tests/b.test.js']}};
+      const cmds=plannedCommands(projectRoot,task,'TARGETED',{root});
+      const targeted=cmds.find(c=>c.kind==='test_targeted');
+      if(!targeted)fail('no test_targeted command planned');
+      if(targeted.command.some(x=>String(x).includes('{selector}')))fail(`placeholder survived: ${JSON.stringify(targeted.command)}`);
+      if(!targeted.command.includes('tests/a.test.js')||!targeted.command.includes('tests/b.test.js'))fail(JSON.stringify(targeted.command));
+      if(targeted.unsatisfied_selector)fail('a task with targeted_tests must not be marked unsatisfied');
+    });
+
+    t('planned-commands-refuses-a-selector-template-with-no-targeted-tests',()=>{
+      const projectRoot=makeFixture({commands:SELECTOR_CMDS});
+      const cmds=plannedCommands(projectRoot,{task_id:'TASK-002',verification:{targeted_tests:[]}},'TARGETED',{root});
+      const targeted=cmds.find(c=>c.kind==='test_targeted');
+      if(!targeted)fail('the command must still be planned, so the refusal is visible');
+      if(targeted.unsatisfied_selector!==true)fail('must be marked unsatisfied rather than silently skipped');
+    });
+
+    t('planned-commands-leaves-a-selectorless-template-alone',()=>{
+      const projectRoot=makeFixture({commands:SELECTOR_CMDS});
+      const cmds=plannedCommands(projectRoot,{task_id:'TASK-003',verification:{targeted_tests:[]}},'BROAD_SUITE',{root});
+      const full=cmds.find(c=>c.kind==='test_full');
+      if(!full)fail('no test_full command planned');
+      if(full.unsatisfied_selector)fail('test_full has no {selector} and must not be marked unsatisfied');
+    });
+
+    t('task-verification-reports-an-unstartable-command-as-error',()=>{
+      // Not "the tests failed". The previous behaviour was exit_code 1 with an
+      // empty summary and no artifact, indistinguishable from a real failure.
+      const projectRoot=makeFixture({commands:{
+        test_targeted:['definitely-not-a-real-binary-9f3','{selector}'],
+        test_full:['node','-e','process.exit(0)'],
+        build:['node','-e','process.exit(0)']
+      }});
+      const {run}=runAtImplement(root,projectRoot);
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/token-store.js','export const store=new Map();\n// touched\n');
+      const out=advanceTask(root,projectRoot,run,'TASK-001');
+      if(out.advanced)fail('advanced despite a command that never started');
+      const executed=(out.verification?.commands||[]).find(e=>e.kind==='test_targeted');
+      if(!executed)fail(`no test_targeted entry recorded: ${JSON.stringify(out.verification?.commands)}`);
+      if(executed.reason!=='TOOL_NOT_EXECUTABLE')fail(`expected TOOL_NOT_EXECUTABLE, got ${JSON.stringify(executed)}`);
+      if(executed.exit_code!==null)fail(JSON.stringify(executed));
+      if(out.verification?.status==='PASS')fail('an unstartable command must not verify a task');
     });
   }
 
