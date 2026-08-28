@@ -38,7 +38,7 @@
   - `resolveLaunch(argv, {env, platform}) -> {status, reason, bin, args, via, spawnOptions, detail}` — `status` is `'OK'` or `'UNLAUNCHABLE'`. On `'OK'`, `bin` and `args` are what to hand `spawnSync` and `spawnOptions` is an object to spread into its options. On `'UNLAUNCHABLE'`, `reason` is `'EMPTY_ARGV'`, `'TOOL_NOT_EXECUTABLE'` or `'ARGUMENT_NOT_SHELL_SAFE'` and `detail` names the offending argument. `via` is `'node'`, `'cmd'` or `'direct'`.
   - `describeSpawn(result) -> {status, reason, exit_code, signal}` — `status` is `'PASS'`, `'FAIL'` or `'ERROR'`; `reason` is `null` for PASS/FAIL and `'TOOL_NOT_EXECUTABLE'`, `'TIMEOUT'` or `'SPAWN_<CODE>'` for ERROR.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add the import at the top of `scripts/test-provider.mjs`, next to the existing `../runtime/provider.mjs` import:
 
@@ -142,12 +142,12 @@ test('describe-spawn-real-exit-codes-are-verdicts',()=>{
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `node scripts/test-provider.mjs`
 Expected: the process fails before any case runs, with `Cannot find module ... runtime/launcher.mjs`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `runtime/launcher.mjs`:
 
@@ -242,12 +242,12 @@ export function describeSpawn(result){
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `node scripts/test-provider.mjs`
 Expected: `"results": "all-pass"`, `failures: 0`, and `checks` up by 12 from before.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runtime/launcher.mjs scripts/test-provider.mjs evals/PROVIDER-VALIDATION.json
@@ -266,7 +266,7 @@ git commit -m "feat(launcher): one shared spawn resolver and spawn-result reader
 - Consumes: `resolveLaunch` from Task 1.
 - Produces: no new exported names. `probeBin`, `probe`, `capabilities`, `buildInvocation` and `runHost` keep their current signatures and behaviour; they only gain Windows shim support.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to the launcher section of `scripts/test-provider.mjs`:
 
@@ -308,12 +308,12 @@ test('provider-script-host-still-runs-under-node',()=>{
 });
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `node scripts/test-provider.mjs`
 Expected: on Windows, `provider-probes-a-windows-shim-host` FAILs with `shim host was not probed`. On POSIX that case passes trivially — the `.cmd` branch is unreachable there — but `provider-script-host-still-runs-under-node` must pass on both platforms; it is the regression fence for the behaviour this task must not break.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Add to the imports at the top of `runtime/provider.mjs`:
 
@@ -352,7 +352,7 @@ function spawnHost(spawn,bin,args,opts){
 }
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `node scripts/test-provider.mjs`
 Expected: `"results": "all-pass"`.
@@ -362,7 +362,7 @@ Then confirm nothing else regressed, because `runHost` and `doctor` share this p
 Run: `node runtime/cli.mjs doctor`
 Expected: JSON where the `providers` array still reports the hosts installed on this machine with a non-null `version` — on the development machine, `claude` and `antigravity` available, `codex` not.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runtime/provider.mjs scripts/test-provider.mjs evals/PROVIDER-VALIDATION.json
@@ -382,7 +382,7 @@ git commit -m "fix(provider): resolve host binaries through the shared launcher"
 - Consumes: `resolveLaunch` and `describeSpawn` from Task 1.
 - Produces: `invokeTool` results gain a `reason` field (`null` unless `status==='ERROR'`) and a third `status` value, `'ERROR'`, alongside the existing `'PASS'`, `'FAIL'`, `'DENY'` and `'APPROVAL_REQUIRED'`. Task 4 relies on `exec` already returning `status:'ERROR'` for an unlaunchable argv.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `evals/run-deterministic.mjs`, immediately after the existing `test('targeted-test-built-in-pass',...)` line:
 
@@ -452,12 +452,12 @@ test('gateway-real-failure-keeps-its-log',()=>{
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `node evals/run-deterministic.mjs`
 Expected: FAIL rows for `gateway-missing-binary-is-error-not-fail` (`expected ERROR, got {"status":"FAIL"...}`) and `gateway-timeout-is-error-not-fail`. `gateway-real-failure-keeps-its-log` should already pass — it fences the behaviour that must survive.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Add to the imports at the top of `runtime/tools.mjs`:
 
@@ -525,7 +525,7 @@ with:
 
 The built-in branches (`input.normalize`, `repo.read`, `web.search`, …) build their own `result` objects without a `reason` key; `result.reason??null` is why none of them needs an edit.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `node evals/run-deterministic.mjs`
 Expected: `"results": "all-pass"`.
@@ -533,7 +533,7 @@ Expected: `"results": "all-pass"`.
 Run: `node scripts/test-mcp.mjs`
 Expected: `"results": "all-pass"` — `agent_sdlc_tool_run` returns this document over MCP, so the added field must not break the transport contract.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runtime/tools.mjs evals/run-deterministic.mjs evals/DETERMINISTIC-VALIDATION.json
@@ -554,7 +554,7 @@ git commit -m "fix(tools): report an unstartable or killed command as ERROR, not
 - Consumes: the `status:'ERROR'` contract from Task 3.
 - Produces: `projectCommand` throws `Error` with message `project command <key> requires a selector; none was provided` when the template contains `{selector}` and the selector is missing or blank. `tool-run` accepts `--selector <value>` and `--timeout-ms <n>` as sugar for the same keys inside `--args`; an explicit `--args` value wins on conflict.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 First change the shared fixture in `evals/run-deterministic.mjs` so the selector reaches the child at all. Replace the `commands:` object inside `fixture()`:
 
@@ -633,7 +633,7 @@ test('tool-run-reads-the-selector-flag-and-refuses-an-empty-one',()=>{
 });
 ```
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `node evals/run-deterministic.mjs`
 Expected: FAIL on `targeted-test-refuses-an-empty-selector` with `selector {} accepted: null`. `targeted-test-substitutes-the-selector` passes once the fixture is changed.
@@ -641,7 +641,7 @@ Expected: FAIL on `targeted-test-refuses-an-empty-selector` with `selector {} ac
 Run: `node scripts/test-cli-contract.mjs`
 Expected: FAIL on `tool-run-reads-the-selector-flag-and-refuses-an-empty-one` with `--selector was dropped: ""` — the flag is ignored, so the child receives an empty selector and prints nothing.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 In `runtime/tools.mjs`, replace `projectCommand()`:
 
@@ -686,7 +686,7 @@ with:
     print(invokeTool(ROOT,projectRoot,run,tool,a));
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `node evals/run-deterministic.mjs`
 Expected: `"results": "all-pass"`.
@@ -700,7 +700,7 @@ Expected: `"results": "all-pass"`.
 Run: `node scripts/validate-alpha6.mjs`
 Expected: `"results": "all-pass"` — this and the task-engine suite drive `test.run_targeted` through the task engine and would break if the selector guard fired on a legitimate call.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runtime/tools.mjs runtime/commands/tools.mjs evals/run-deterministic.mjs scripts/test-cli-contract.mjs evals/DETERMINISTIC-VALIDATION.json evals/CLI-CONTRACT-VALIDATION.json
@@ -719,7 +719,7 @@ git commit -m "fix(tools): refuse an unsubstituted selector and read --selector 
 - Consumes: the `status:'ERROR'`/`reason:'TIMEOUT'` contract from Task 3.
 - Produces: no new names. `invokeTool` reads `default_timeout_ms` and `max_return_bytes` from the tool's entry in `config/tools.json` (an object keyed by tool name), still falling back to 120000 and 24000.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `evals/run-deterministic.mjs`, near the other gateway cases:
 
@@ -768,14 +768,14 @@ test('gateway-caller-timeout-still-wins-when-larger',()=>{
 });
 ```
 
-- [ ] **Step 2: Run the tests and prove the wiring is not a coincidence**
+- [x] **Step 2: Run the tests and prove the wiring is not a coincidence**
 
 Run: `node evals/run-deterministic.mjs`
 Expected: both new cases pass today, because the hardcoded constants happen to equal the declared ones. That is not evidence, so prove the config is unread before changing code: set `max_return_bytes` for `test.run_targeted` in `config/tools.json` to `500`, re-run, and confirm `gateway-honours-per-tool-return-limit` FAILs on its `fixture assumption changed` guard while the 24000-byte truncation behaviour is unchanged.
 
 Then: `git checkout -- config/tools.json`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 In `runtime/tools.mjs`, inside `invokeTool`, replace:
 
@@ -796,14 +796,14 @@ const maxBytes=spec.max_return_bytes||24000;const timeout=spec.default_timeout_m
 
 `readJson` is already imported in `runtime/tools.mjs` — `sensitivePath` and `sanitizeWebQuery` use it — so no import change is needed.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `node evals/run-deterministic.mjs`
 Expected: `"results": "all-pass"`.
 
 Now prove the wiring is real: set `max_return_bytes` for `test.run_targeted` to `500` in `config/tools.json`, run `node evals/run-deterministic.mjs`, and confirm `gateway-honours-per-tool-return-limit` FAILs on its `fixture assumption changed` guard — the registry is being read. Restore with `git checkout -- config/tools.json` and re-run to `all-pass`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runtime/tools.mjs evals/run-deterministic.mjs evals/DETERMINISTIC-VALIDATION.json
@@ -825,7 +825,7 @@ git commit -m "fix(tools): read the per-tool timeout and return limit from the r
 - Consumes: nothing from earlier tasks.
 - Produces: two new entry points that exec `runtime/cli.mjs` with the same argv and propagate the same exit code as `bin/agent-sdlc`. No JavaScript API.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `scripts/validate-cli-surface.mjs`, immediately before the `const report={` assembly:
 
@@ -853,12 +853,12 @@ if(ps1Body&&!/\$args/.test(ps1Body))problems.push('bin/agent-sdlc.ps1 does not f
 if(ps1Body&&!/LASTEXITCODE/.test(ps1Body))problems.push('bin/agent-sdlc.ps1 does not propagate the exit code');
 ```
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 Run: `node scripts/validate-cli-surface.mjs`
 Expected: exit 1, with `problems` naming `bin/agent-sdlc.cmd is missing` and `bin/agent-sdlc.ps1 is missing`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 Create `bin/agent-sdlc.cmd`:
 
@@ -933,7 +933,7 @@ it. `node runtime/cli.mjs <command>` works everywhere and is what all three
 shims exec.
 ```
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `node scripts/validate-cli-surface.mjs`
 Expected: `"status": "PASS"`, `problems: []`.
@@ -960,7 +960,7 @@ Expected: exit 0.
 Run: `npm run verify:dist`
 Expected: exit 0, now driving the packaged `.cmd` on Windows.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add bin/agent-sdlc.cmd bin/agent-sdlc.ps1 scripts/validate-cli-surface.mjs scripts/verify-dist.mjs docs/USAGE.md docs/INSTALLATION.md evals/CLI-SURFACE-VALIDATION.json
@@ -979,7 +979,7 @@ git commit -m "feat(bin): ship cmd.exe and PowerShell entry points and verify al
 - Consumes: everything from Tasks 1-6.
 - Produces: a green `npm run check` at a coverage floor no lower than 90.
 
-- [ ] **Step 1: Restore the local config the spike changed**
+- [x] **Step 1: Restore the local config the spike changed**
 
 The spike that produced this plan's spec edited `.agent-sdlc/project.json` to work around the ENOENT that Task 3 now fixes properly. Put it back so the fix is verified against the real generated config:
 
@@ -990,7 +990,7 @@ node -e "console.log(JSON.parse(require('fs').readFileSync('.agent-sdlc/project.
 
 Expected: `npm test -- {selector}`.
 
-- [ ] **Step 2: Prove the Windows launcher fix against that config**
+- [x] **Step 2: Prove the Windows launcher fix against that config**
 
 Start a throwaway run and drive the gateway through it:
 
@@ -1001,14 +1001,14 @@ node runtime/cli.mjs tool-run --run-id <the run_id printed above> --tool test.ru
 
 Expected: `"status": "PASS"` with the validator's JSON in `summary` — on Windows, via `cmd.exe` and `npm.cmd`. Before this plan the same command returned `{"status":"FAIL","exit_code":1,"summary":""}`.
 
-- [ ] **Step 3: Run the whole gate**
+- [x] **Step 3: Run the whole gate**
 
 Run: `npm run check`
 Expected: exit 0. Every suite prints `"results": "all-pass"` or `"status": "PASS"`.
 
 This plan adds no new npm script, so a `test:ci-coverage` failure would mean unrelated drift. If it fails, read the reported script name and add a step for it to the `offline-validation` job of `.github/workflows/ci.yml`, in the position the `check` chain implies.
 
-- [ ] **Step 4: Check whether coverage moved, and ratchet it**
+- [x] **Step 4: Check whether coverage moved, and ratchet it**
 
 Run: `node scripts/coverage-report.mjs`
 Expected: `"status": "PASS"`. Confirm `runtime/launcher.mjs` appears in the `modules` array of `evals/COVERAGE.json` and that `never_loaded` is still `[]`. It is measured with no change to `scripts/coverage-report.mjs`, because `scripts/test-provider.mjs` is already in that file's `ENTRIES` list.
@@ -1019,7 +1019,7 @@ Run: `node scripts/coverage-report.mjs --update`
 
 Then confirm `evals/COVERAGE-FLOOR.json` `overall_percent` is the new measured value and `never_loaded` is still `[]`.
 
-- [ ] **Step 5: Re-run the gate and commit**
+- [x] **Step 5: Re-run the gate and commit**
 
 Run: `npm run check`
 Expected: exit 0.
