@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Close the remaining Medium/Low findings from the harness spike that are cheap to fix outright: a plugin-cache-drift warning that reaches an operator without them asking, a coverage floor that can no longer average away a weak agent-facing layer, a syntax gate over the 10% of bytes no suite executes, superseded CI runs that stop burning a Windows runner, a `design mode`/`design validate` pair that finally composes, and a `.agent-sdlc` that can finally be pruned instead of only growing. Two findings (F4 and half of F5) are assessed and explicitly deferred rather than rushed — each because the fix, done properly, is a larger and riskier change than its severity justifies; see "What this plan deliberately does not do."
+**Goal:** Close the remaining Medium/Low findings from the harness spike that are cheap to fix outright: a plugin-cache-drift warning that reaches an operator without them asking, a coverage floor that can no longer average away a weak agent-facing layer, a syntax gate over the 10% of bytes no suite executes, superseded CI runs that stop burning a Windows runner, a `design mode`/`design validate` pair that finally composes, a `.agent-sdlc` that can finally be pruned instead of only growing, and a CI-coverage validator that can no longer be satisfied by a suite hiding in the wrong job. One finding (F4) is assessed and explicitly deferred rather than rushed — the fix, done properly, is a larger and riskier change than its severity justifies; see "What this plan deliberately does not do."
 
-**Architecture:** Six independent, additive changes, none of which touch the execution path, the secret scanner, the router, or the task-verification launcher settled by the other three plans. `runtime/dev-link.mjs` is a new module carrying the read-only half of what `scripts/dev-link.mjs` already did, moved so `doctor` — which ships in the distributed package, unlike `scripts/` — can reuse it. `scripts/coverage-report.mjs` gains a second, narrower floor keyed by path prefix, computed the same way as the existing global one. `scripts/validate-syntax.mjs` is a new suite, wired into `test:integrity` (which both CI jobs already run) rather than into `ci.yml` directly. `.github/workflows/ci.yml` gains a `concurrency` block. `runtime/design-discovery.mjs` gains one new pure function, `scaffoldDesignDecision`, and `design.mjs` gains the `scaffold` subcommand that calls it. `runtime/retention.mjs` is a new module with a pure `planGc`/mutating `applyGc` split, mirroring `dev-link.mjs`'s own status/apply split, exposed as `gc status`/`gc apply`.
+**Architecture:** Seven independent, additive changes, none of which touch the execution path, the secret scanner, the router, or the task-verification launcher settled by the other three plans. `runtime/dev-link.mjs` is a new module carrying the read-only half of what `scripts/dev-link.mjs` already did, moved so `doctor` — which ships in the distributed package, unlike `scripts/` — can reuse it. `scripts/coverage-report.mjs` gains a second, narrower floor keyed by path prefix, computed the same way as the existing global one. `scripts/validate-syntax.mjs` is a new suite, wired into `test:integrity` (which both CI jobs already run) rather than into `ci.yml` directly. `.github/workflows/ci.yml` gains a `concurrency` block. `runtime/design-discovery.mjs` gains one new pure function, `scaffoldDesignDecision`, and `design.mjs` gains the `scaffold` subcommand that calls it. `runtime/retention.mjs` is a new module with a pure `planGc`/mutating `applyGc` split, mirroring `dev-link.mjs`'s own status/apply split, exposed as `gc status`/`gc apply`. `scripts/lib/ci-workflow.mjs` is a new shared lib carrying `validate-ci-coverage.mjs`'s job-parsing so it can be unit-tested without running the whole validator as a side effect of import.
 
 **Tech Stack:** Node.js ESM (`.mjs`), zero runtime dependencies. Hand-rolled `test()` suites; `scripts/lib/suite.mjs` where the existing file already uses it.
 
-**Spec:** `docs/superpowers/specs/2026-08-27-harness-spike-findings.md`, findings F3, F5, F6, F7, F8, F13. (F4 and F5's second half are addressed in "What this plan deliberately does not do" rather than fixed here.)
+**Spec:** `docs/superpowers/specs/2026-08-27-harness-spike-findings.md`, findings F3, F5 (both halves), F6, F7, F8, F13. (F4 is addressed in "What this plan deliberately does not do" rather than fixed here.)
 
 ## Global Constraints
 
@@ -16,7 +16,7 @@
 - Zero runtime dependencies.
 - `scripts/` is excluded from every distributed package (`scripts/build-dist.mjs`'s `common` list has no `scripts` entry). Code that `runtime/commands/*.mjs` imports must live under `runtime/`, `protocol/`, `config/`, `policies/`, `prompts/`, `workflows/`, `roles/`, `templates/`, `overlays/`, or `docs/` — never under `scripts/` — or a real installed plugin crashes the first time the importing command runs.
 - Every offline suite reachable from `npm run check` must be classified in exactly one of `scripts/coverage-report.mjs`'s `ENTRIES` (it runs suite bodies against `runtime/` and its coverage counts) or `NOT_MEASURED` (it does not); the script enforces this and exits 1 on an unclassified suite.
-- Every offline suite reachable from `npm run check` must also be run by `.github/workflows/ci.yml`; `scripts/validate-ci-coverage.mjs` enforces membership **and** order, but only textually — it does not distinguish which job a step runs in (this is F5's second half, deferred below).
+- Every offline suite reachable from `npm run check` must also be run by `.github/workflows/ci.yml`'s `offline-validation` job specifically (the designated full gate; `windows-validation` is a documented subset); `scripts/validate-ci-coverage.mjs` enforces membership **and** order within that job.
 - `evals/COVERAGE-FLOOR.json` is a ratchet: `overall_percent: 90` and any `path_floors` entry must never be lowered by this plan.
 - `npm run check` rewrites tracked report files under `evals/`; commit those with the task that caused them.
 - Do not touch `runtime/launcher.mjs`, `runtime/tools.mjs`'s `secretScan`, `runtime/router.mjs`, or `runtime/task-verification.mjs` — settled by the execution-path-correctness, gate-signal-correctness, and router-scoring plans.
@@ -339,7 +339,51 @@ git commit -m "feat(project): gc status/apply for .agent-sdlc retention (F7)"
 
 ---
 
-### Task 7: Full gate
+### Task 7: Make `validate-ci-coverage.mjs` job-aware, not job-blind (F5, second half)
+
+**Files:**
+- Create: `scripts/lib/ci-workflow.mjs`
+- Modify: `scripts/validate-ci-coverage.mjs`
+- Test: `evals/run-deterministic.mjs`
+
+**Interfaces:**
+- Consumes: nothing from another task.
+- Produces: `jobBlock(workflowText,jobName)` and `jobScriptSequence(workflowText,jobName)`, pure functions taking workflow text as a parameter rather than reading the file themselves — needed so a unit test can hand them a small synthetic workflow instead of mutating the real `ci.yml`.
+
+Originally deferred here as "a rewrite of a validator three other plans depend on." Re-examined: the actual `ci.yml` already has every `check`-chain suite present in `offline-validation` alone — `windows-validation` is a genuine, already-documented *subset* ("Windows is a supported development and host platform... The POSIX installer and bootstrap-hook suites stay on the ubuntu job"), never a second complete gate. That meant the fix was not "parse the whole job/step structure" (invasive) but "scope the existing membership/order check to the one job that's actually meant to be complete" (mechanical) — a much smaller change than first assessed, and one that changes zero suites' pass/fail outcome against the real file.
+
+- [x] **Step 1: Extract job-scoping into a lib, not inline**
+
+`scripts/validate-ci-coverage.mjs` is a standalone script whose whole body runs on load and ends in `process.exit(...)` — importing it anywhere to reuse a function would run the entire validator (and exit the importing process) as a side effect. `jobBlock`/`jobScriptSequence` live in `scripts/lib/ci-workflow.mjs` instead (no distribution-boundary concern here: neither file ships, both are dev/CI-only), and `validate-ci-coverage.mjs` imports them like any other consumer would.
+
+- [x] **Step 2: Scope membership and order to one designated job**
+
+Added `FULL_GATE_JOB='offline-validation'` (a fact about this specific workflow, not something a CLI flag should be able to redirect) and replaced the old whole-file `ci.includes(...)` substring check — which was looser than the order-check's own line-based regex, so a suite name mentioned only in a comment would have satisfied membership — with `ciSequence=jobScriptSequence(ci,FULL_GATE_JOB)`, used identically by both `invoked()` and the order-check loop.
+
+- [x] **Step 3: Prove the fix against the real file, then restore it exactly**
+
+Backed up `.github/workflows/ci.yml`, scripted a move of the `test:activation` step out of `offline-validation` into `windows-validation` only, ran the validator: the new code correctly reported `test:auto-bootstrap`/`test:antigravity-bootstrap`/`test:codex-bootstrap` (test:activation's children) as unreachable — the exact scenario F5 describes, which the old blob-scanning code would have passed. Restored the file from the backup and diffed it to confirm an exact match before continuing. Repeated with an order violation (moved `test:qualification-harness` before `build` inside `offline-validation`) to confirm order-checking still fires correctly within the scoped job; restored again.
+
+- [x] **Step 4: Lock it in with a unit test, since the script itself resists testing**
+
+Added four cases to `evals/run-deterministic.mjs` against a small synthetic two-job workflow string (not the real `ci.yml`): a job's block stops at the next top-level job; a script present only in one job does not leak into another job's sequence (the literal F5 scenario, at the unit level); order within a job is preserved; an unknown job name throws rather than silently returning nothing.
+
+- [x] **Step 5: Run the full gate**
+
+Run: `node scripts/validate-ci-coverage.mjs && node evals/run-deterministic.mjs && node scripts/validate-syntax.mjs`
+
+Expected and observed: `validate-ci-coverage.mjs` unchanged at `31/31 all-gated` against the real file (the refactor changes zero real outcomes); `run-deterministic.mjs` up to `333` checks (was `329`); syntax gate up to `123` files (the new lib file).
+
+- [x] **Step 6: Commit**
+
+```bash
+git add scripts/validate-ci-coverage.mjs scripts/lib/ci-workflow.mjs evals/run-deterministic.mjs evals/DETERMINISTIC-VALIDATION.json evals/SYNTAX-VALIDATION.json
+git commit -m "fix(ci): validate-ci-coverage.mjs is now job-aware, not job-blind (F5)"
+```
+
+---
+
+### Task 8: Full gate
 
 **Files:** report files under `evals/` only.
 
@@ -367,6 +411,5 @@ git commit -m "chore(evals): record the reports for the gate-hygiene fixes"
 ## What this plan deliberately does not do
 
 - **Does not fix F4** (`npm run check` runs each of 16 subject suites once individually, then `test:coverage` re-runs all 16 again under `NODE_V8_COVERAGE` — the longest segment of the run). Both fixes the finding names are architecturally invasive: running everything once under a shared coverage env means restructuring how `check`'s chain invokes suites, which `scripts/validate-ci-coverage.mjs` currently reasons about by regex-parsing `package.json`'s `npm run X && npm run Y` script bodies — a JS orchestrator in place of that chain would need that validator rewritten too. Splitting coverage into a parallel CI job does not reduce total suite executions, only CI wall-clock, and today coverage actually runs *three* times (ubuntu×2 node versions + Windows) because `evals/COVERAGE-FLOOR.json`'s own note explains ubuntu and Windows measure different numbers (SKIPped cases differ), so consolidating risks silently losing a platform-specific `never_loaded` regression signal. This is real, load-bearing coupling built by two other merged plans; a Medium-severity CI-speed finding does not justify restructuring it without dedicated design attention.
-- **Does not fix F5's second half** (`scripts/validate-ci-coverage.mjs` is job-blind: it checks that a suite is invoked *somewhere* in `ci.yml`'s text, not which job). Making it job-aware means parsing the workflow's job/step structure instead of scanning the whole file as one blob — a rewrite of a validator three other plans depend on for their own correctness guarantees. The failure mode it would catch (a suite present only in `windows-validation` satisfying a gate meant for `offline-validation`) has not actually happened; it is a latent risk, not an active one.
 - **Does not fix F14** (`npm run check` rewrites tracked report JSONs, leaving the worktree dirty). The execution-path-correctness and gate-signal-correctness plans' own Global Constraints already treat this as intentional: *"`npm run check` rewrites tracked report files under `evals/`. Commit those with the task that caused them."* Every task in this plan follows that same convention. Changing it now (gitignoring reports, or requiring `--update`) would be a process reversal affecting three merged plans' worth of established practice, not a Low-severity DX fix.
 - **Does not touch F1, F2, F9-F12, F15** — settled by the execution-path-correctness, router-scoring, and gate-signal-correctness plans.
