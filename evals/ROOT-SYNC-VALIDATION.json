@@ -3,6 +3,7 @@
   "version": "3.0.0-alpha6",
   "checks": 9,
   "passes": 9,
+  "fixed": 0,
   "failures": 0,
   "mirrors": [
     {

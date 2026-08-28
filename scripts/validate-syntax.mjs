@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
+import {writeReport} from './lib/report-io.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
@@ -46,6 +47,6 @@ const report={
   results,
   status:failures.length?'FAIL':'PASS'
 };
-fs.writeFileSync(path.join(ROOT,'evals','SYNTAX-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
+writeReport(path.join(ROOT,'evals','SYNTAX-VALIDATION.json'),report);
 console.log(JSON.stringify({...report,results:failures.length?failures:'all-pass'},null,2));
 process.exit(failures.length?1:0);

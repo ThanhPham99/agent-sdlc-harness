@@ -3,8 +3,8 @@
   "version": "3.0.0-alpha6",
   "workflow": ".github/workflows/ci.yml",
   "check_script": "check",
-  "checks": 33,
-  "passes": 32,
+  "checks": 34,
+  "passes": 33,
   "failures": 0,
   "suites": [
     {
@@ -27,6 +27,12 @@
     },
     {
       "script": "test:root-sync",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:root-sync-suite",
       "status": "PASS",
       "gated_via": "test:integrity",
       "problems": []
@@ -116,36 +122,6 @@
       "problems": []
     },
     {
-      "script": "build",
-      "status": "PASS",
-      "gated_via": "build",
-      "problems": []
-    },
-    {
-      "script": "validate:github",
-      "status": "PASS",
-      "gated_via": "validate:github",
-      "problems": []
-    },
-    {
-      "script": "test:github-installers",
-      "status": "PASS",
-      "gated_via": "test:github-installers",
-      "problems": []
-    },
-    {
-      "script": "test:qualification-harness",
-      "status": "PASS",
-      "gated_via": "test:qualification-harness",
-      "problems": []
-    },
-    {
-      "script": "test:qualification-transport",
-      "status": "PASS",
-      "gated_via": "test:qualification-transport",
-      "problems": []
-    },
-    {
       "script": "test:cli-contract",
       "status": "PASS",
       "gated_via": "test:cli-contract",
@@ -188,15 +164,45 @@
       "problems": []
     },
     {
-      "script": "test:coverage",
+      "script": "build",
       "status": "PASS",
-      "gated_via": "test:coverage",
+      "gated_via": "build",
+      "problems": []
+    },
+    {
+      "script": "validate:github",
+      "status": "PASS",
+      "gated_via": "validate:github",
+      "problems": []
+    },
+    {
+      "script": "test:github-installers",
+      "status": "PASS",
+      "gated_via": "test:github-installers",
+      "problems": []
+    },
+    {
+      "script": "test:qualification-harness",
+      "status": "PASS",
+      "gated_via": "test:qualification-harness",
+      "problems": []
+    },
+    {
+      "script": "test:qualification-transport",
+      "status": "PASS",
+      "gated_via": "test:qualification-transport",
       "problems": []
     },
     {
       "script": "verify:dist",
       "status": "PASS",
       "gated_via": "verify:dist",
+      "problems": []
+    },
+    {
+      "script": "test:coverage",
+      "status": "PASS",
+      "gated_via": "test:coverage",
       "problems": []
     },
     {

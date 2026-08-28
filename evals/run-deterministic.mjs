@@ -37,6 +37,7 @@ import {legacyReachableSkillIds} from '../runtime/context.mjs';
 import {createFeature,loadFeature,updateFeature,listFeatures,createPhase,loadPhase,updatePhase,listPhases,attachRun,resolveActiveFeature,resolveActivePhase,resolveFeatureBinding} from '../runtime/features.mjs';
 import {planGc,applyGc} from '../runtime/retention.mjs';
 import {jobBlock,jobScriptSequence} from '../scripts/lib/ci-workflow.mjs';
+import {writeReport} from '../scripts/lib/report-io.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
@@ -215,13 +216,22 @@ test('legacy-guard-ignores-scratch-dirs-and-its-own-report',()=>{
   const report=path.join(ROOT,reportRel);
   if(!fs.existsSync(report))throw Error(`${reportRel} should exist by the time this case runs`);
   const needle='.'+'ai-workflow';
-  fs.writeFileSync(report,JSON.stringify({poisoned:`a prior failure mentioned ${needle} here`},null,2));
+  // The poison goes INTO the real report, and the real report goes back
+  // afterwards. This case briefly rewrites a tracked file in the shared
+  // checkout, and `npm run check` now runs the suites in a stage concurrently:
+  // validate-versions.mjs reads every evals/*.json for its version stamp, so a
+  // replacement document without one made that gate silently check 59 files
+  // instead of 60, depending on timing. Adding a key keeps the document a valid,
+  // version-carrying report for the whole window; restoring the original bytes
+  // (rather than leaving a stub for the suite tail) also means a crash later in
+  // the suite cannot leave a stub committed.
+  const original=fs.readFileSync(report,'utf8');
+  fs.writeFileSync(report,JSON.stringify({...JSON.parse(original),poisoned:`a prior failure mentioned ${needle} here`},null,2));
   try{
     const offenders=legacyReferenceOffenders();
     if(offenders.includes(reportRel))throw Error('the guard read its own report back in');
   }finally{
-    // Leave the report where the suite's own tail will rewrite it.
-    fs.writeFileSync(report,JSON.stringify({schema:'agent-sdlc/deterministic-validation/v1',note:'rewritten by the suite tail'},null,2));
+    fs.writeFileSync(report,original);
   }
 });
 
@@ -1523,5 +1533,5 @@ for(const [prefix,suite] of [['task',runTaskRuntimeSuite(ROOT)],['a6',runAlpha6S
 }
 
 const report={schema:'agent-sdlc/deterministic-validation/v1',version:manifest.version,checks:rows.length,passes:pass,failures:fail,results:rows};
-fs.writeFileSync(path.join(ROOT,'evals','DETERMINISTIC-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
+writeReport(path.join(ROOT,'evals','DETERMINISTIC-VALIDATION.json'),report);
 console.log(JSON.stringify(report,null,2));process.exit(fail?1:0);

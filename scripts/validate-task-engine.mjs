@@ -10,11 +10,12 @@ import {TASK_STATUSES,getTaskStateMachine} from '../runtime/task-engine.mjs';
 import {FAILURE_CLASSES,getTaskFailurePolicy} from '../runtime/task-recovery.mjs';
 import {WORKSPACE_MODES} from '../runtime/workspace.mjs';
 import {EXCLUDED_BY_DEFAULT} from '../runtime/task-context.mjs';
+import {writeReport} from './lib/report-io.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const rj=p=>JSON.parse(fs.readFileSync(path.join(ROOT,p),'utf8'));
 const VERSION=rj('agent-sdlc.manifest.json').version;
-const out=(file,obj)=>fs.writeFileSync(path.join(ROOT,'evals',file),JSON.stringify(obj,null,2)+'\n');
+const out=(file,obj)=>writeReport(path.join(ROOT,'evals',file),obj);
 
 const suite=runTaskRuntimeSuite(ROOT);
 const byGroup=Object.fromEntries(suite.groups.map(g=>[g.group,g]));

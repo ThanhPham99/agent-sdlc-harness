@@ -19,6 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {writeReport} from './lib/report-io.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const rj=p=>JSON.parse(fs.readFileSync(path.join(ROOT,p),'utf8'));
@@ -105,6 +106,6 @@ const report={
   problems,
   status:problems.length?'FAIL':'PASS'
 };
-fs.writeFileSync(path.join(ROOT,'evals','REGISTRY-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
+writeReport(path.join(ROOT,'evals','REGISTRY-VALIDATION.json'),report);
 console.log(JSON.stringify(report,null,2));
 process.exit(problems.length?1:0);

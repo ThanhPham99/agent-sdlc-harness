@@ -6,13 +6,14 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {selectDesignDiscoveryMode,validateDesignDecision,getDesignDiscoveryPolicy,requiredGateEvidence} from '../runtime/design-discovery.mjs';
 import {validateTaskPlan,computeTaskGraph,findCycles,computeReadySets,planGateEvidence,PLAN_QUALITY_DEFAULTS} from '../runtime/plan-validator.mjs';
+import {writeReport} from './lib/report-io.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const rj=p=>JSON.parse(fs.readFileSync(path.join(ROOT,p),'utf8'));
 const VERSION=rj('agent-sdlc.manifest.json').version;
 const stagePolicy=rj('policies/stage-policy.json');
 const skills=rj('config/skills.json');
-const out=(file,obj)=>fs.writeFileSync(path.join(ROOT,'evals',file),JSON.stringify(obj,null,2)+'\n');
+const out=(file,obj)=>writeReport(path.join(ROOT,'evals',file),obj);
 
 // --- design discovery -------------------------------------------------------
 const ddPolicy=getDesignDiscoveryPolicy();

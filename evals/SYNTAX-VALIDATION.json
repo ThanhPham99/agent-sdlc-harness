@@ -2,8 +2,8 @@
   "schema": "agent-sdlc/syntax-validation/v1",
   "version": "3.0.0-alpha6",
   "checked": "node --check (parse only, not executed)",
-  "checks": 125,
-  "passes": 125,
+  "checks": 129,
+  "passes": 129,
   "failures": 0,
   "results": [
     {
@@ -437,7 +437,17 @@
       "error": null
     },
     {
+      "file": "scripts/lib/check-plan.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "scripts/lib/ci-workflow.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/lib/report-io.mjs",
       "status": "PASS",
       "error": null
     },
@@ -483,6 +493,11 @@
     },
     {
       "file": "scripts/restore-tracked-reports.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/run-check.mjs",
       "status": "PASS",
       "error": null
     },
@@ -558,6 +573,11 @@
     },
     {
       "file": "scripts/test-restore-tracked-reports.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-root-sync.mjs",
       "status": "PASS",
       "error": null
     },

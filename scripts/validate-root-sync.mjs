@@ -8,13 +8,23 @@
 // files existed.
 //
 // This asserts the copies are identical, so drift fails CI instead of shipping.
-// The adapter file is the source of truth; the fix is always to re-copy.
+// The adapter file is the source of truth, and re-copying is mechanical, so it
+// is a flag rather than instructions: `npm run sync:root` (--fix) rewrites every
+// stale root copy from its source. The copies stay tracked files -- the repo
+// checkout doubles as an Antigravity plugin root, so they have to exist in git
+// and cannot be produced at install time.
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
+import {writeReport} from './lib/report-io.mjs';
 
-const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+// AGENT_SDLC_ROOT_SYNC_ROOT points this at a throwaway fixture tree instead of
+// the real checkout: --fix overwrites tracked files for real, so it is tested
+// against a synthetic root, not the developer's own. Same pattern as
+// AGENT_SDLC_REPORT_ROOT in scripts/restore-tracked-reports.mjs.
+const ROOT=process.env.AGENT_SDLC_ROOT_SYNC_ROOT||path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const FIX=process.argv.includes('--fix');
 const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
 
 // source (authoritative) -> root install surface (copy)
@@ -43,21 +53,38 @@ const rows=MIRRORS.map(([src,dst])=>{
   const problems=[];
   if(!a)problems.push(`missing source ${src}`);
   if(!b)problems.push(`missing root copy ${dst}`);
-  if(a&&b&&a!==b)problems.push(`root copy is stale; re-run: cp ${src} ${dst}`);
+  if(a&&b&&a!==b)problems.push('root copy is stale; re-run: npm run sync:root');
   return {source:src,root_copy:dst,status:problems.length?'FAIL':'PASS',
     source_sha256:a?a.slice(0,16):null,root_sha256:b?b.slice(0,16):null,problems};
 });
 
+// --fix rewrites the stale copies from their sources instead of only naming
+// them. Raw bytes, not the normalized text used for hashing: how the file is
+// checked out is git's business (.gitattributes), not this script's.
+if(FIX){
+  for(const row of rows){
+    if(row.status!=='FAIL')continue;
+    if(row.problems.some(p=>p.startsWith('missing source')))continue;
+    fs.mkdirSync(path.dirname(path.join(ROOT,row.root_copy)),{recursive:true});
+    fs.copyFileSync(path.join(ROOT,row.source),path.join(ROOT,row.root_copy));
+    row.status='FIXED';
+    row.root_sha256=hash(row.root_copy).slice(0,16);
+    row.problems=[];
+  }
+}
+
+const fixed=rows.filter(r=>r.status==='FIXED');
 const failures=rows.filter(r=>r.status==='FAIL');
 const report={
   schema:'agent-sdlc/root-sync-validation/v1',
   version:VERSION,
   checks:rows.length,
-  passes:rows.length-failures.length,
+  passes:rows.length-failures.length-fixed.length,
+  fixed:fixed.length,
   failures:failures.length,
   mirrors:rows,
   status:failures.length?'FAIL':'PASS'
 };
-fs.writeFileSync(path.join(ROOT,'evals','ROOT-SYNC-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
-console.log(JSON.stringify({...report,mirrors:failures.length?failures:'all-in-sync'},null,2));
+writeReport(path.join(ROOT,'evals','ROOT-SYNC-VALIDATION.json'),report);
+console.log(JSON.stringify({...report,mirrors:failures.length||fixed.length?[...failures,...fixed]:'all-in-sync'},null,2));
 process.exit(failures.length?1:0);

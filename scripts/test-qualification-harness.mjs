@@ -7,6 +7,7 @@ import {
   ROOT,VERSION,HOSTS,packageDigest,corpusDigest,qualificationSubjectDigest,hostPreflight,
   extractStructured,extractUsage
 } from './qualification-lib.mjs';
+import {writeReport} from './lib/report-io.mjs';
 
 let pass=0,fail=0;const rows=[];
 function test(name,fn){try{fn();pass++;rows.push({name,status:'PASS'});}catch(e){fail++;rows.push({name,status:'FAIL',error:e.message});}}
@@ -38,4 +39,4 @@ test('promotion-rejects-stale-evidence',()=>{const m=Object.fromEntries(HOSTS.ma
 test('promotion-preserves-pending-as-exit-2',()=>{const m=Object.fromEntries(HOSTS.map(h=>[h,evidence(h)]));m.antigravity=evidence('antigravity','PENDING');m.antigravity.semantic_summary={PASS:0,FAIL:0,SKIP:84,BLOCKED:0};m.antigravity.repository_e2e_summary={PASS:0,FAIL:0,SKIP:8,BLOCKED:0};const r=runAggregate(m,'pending');if(r.code!==2||fs.existsSync(r.approval))throw Error(`code=${r.code}`);const d=JSON.parse(fs.readFileSync(r.out,'utf8'));if(d.status!=='LIVE_HOST_PENDING')throw Error(JSON.stringify(d));});
 
 fs.rmSync(tmp,{recursive:true,force:true});
-const report={schema:'agent-sdlc/qualification-harness-regression/v1',version:VERSION,checks:rows.length,passes:pass,failures:fail,results:rows};fs.mkdirSync(path.join(ROOT,'evals'),{recursive:true});fs.writeFileSync(path.join(ROOT,'evals','QUALIFICATION-HARNESS-REGRESSION.json'),JSON.stringify(report,null,2)+'\n');console.log(JSON.stringify(report,null,2));process.exit(fail?1:0);
+const report={schema:'agent-sdlc/qualification-harness-regression/v1',version:VERSION,checks:rows.length,passes:pass,failures:fail,results:rows};fs.mkdirSync(path.join(ROOT,'evals'),{recursive:true});writeReport(path.join(ROOT,'evals','QUALIFICATION-HARNESS-REGRESSION.json'),report);console.log(JSON.stringify(report,null,2));process.exit(fail?1:0);
