@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Close every remaining Medium/Low finding from the harness spike: a plugin-cache-drift warning that reaches an operator without them asking, a coverage floor that can no longer average away a weak agent-facing layer, a syntax gate over the 10% of bytes no suite executes, superseded CI runs that stop burning a Windows runner, a `design mode`/`design validate` pair that finally composes, a `.agent-sdlc` that can finally be pruned instead of only growing, a CI-coverage validator that can no longer be satisfied by a suite hiding in the wrong job, and coverage measurement moved off the critical path of the job it used to double. Every finding is fixed; see "What this plan deliberately does not do" for the one partial exception (F4's local-dev half, as opposed to its CI-wall-clock half, which this plan does fix).
+**Goal:** Close every remaining Medium/Low finding from the harness spike: a plugin-cache-drift warning that reaches an operator without them asking, a coverage floor that can no longer average away a weak agent-facing layer, a syntax gate over the 10% of bytes no suite executes, superseded CI runs that stop burning a Windows runner, a `design mode`/`design validate` pair that finally composes, a `.agent-sdlc` that can finally be pruned instead of only growing, a CI-coverage validator that can no longer be satisfied by a suite hiding in the wrong job, coverage measurement moved off the critical path of the job it used to double, and `npm run check` leaving nothing behind to review when nothing meaningful changed. Every finding is fixed; see "What this plan deliberately does not do" for the one partial exception (F4's local-dev half, as opposed to its CI-wall-clock half, which this plan does fix).
 
-**Architecture:** Eight independent, additive changes, none of which touch the execution path, the secret scanner, the router, or the task-verification launcher settled by the other three plans. `runtime/dev-link.mjs` is a new module carrying the read-only half of what `scripts/dev-link.mjs` already did, moved so `doctor` — which ships in the distributed package, unlike `scripts/` — can reuse it. `scripts/coverage-report.mjs` gains a second, narrower floor keyed by path prefix, computed the same way as the existing global one. `scripts/validate-syntax.mjs` is a new suite, wired into `test:integrity` (which both CI jobs already run) rather than into `ci.yml` directly. `.github/workflows/ci.yml` gains a `concurrency` block and a new `coverage-floor` job. `runtime/design-discovery.mjs` gains one new pure function, `scaffoldDesignDecision`, and `design.mjs` gains the `scaffold` subcommand that calls it. `runtime/retention.mjs` is a new module with a pure `planGc`/mutating `applyGc` split, mirroring `dev-link.mjs`'s own status/apply split, exposed as `gc status`/`gc apply`. `scripts/lib/ci-workflow.mjs` is a new shared lib carrying `validate-ci-coverage.mjs`'s job-parsing so it can be unit-tested without running the whole validator as a side effect of import; that validator also gains an explicit `ALTERNATE_JOB` map for the one suite (`test:coverage`) deliberately relocated to its own job.
+**Architecture:** Nine independent, additive changes, none of which touch the execution path, the secret scanner, the router, or the task-verification launcher settled by the other three plans. `runtime/dev-link.mjs` is a new module carrying the read-only half of what `scripts/dev-link.mjs` already did, moved so `doctor` — which ships in the distributed package, unlike `scripts/` — can reuse it. `scripts/coverage-report.mjs` gains a second, narrower floor keyed by path prefix, computed the same way as the existing global one. `scripts/validate-syntax.mjs` is a new suite, wired into `test:integrity` (which both CI jobs already run) rather than into `ci.yml` directly. `.github/workflows/ci.yml` gains a `concurrency` block and a new `coverage-floor` job. `runtime/design-discovery.mjs` gains one new pure function, `scaffoldDesignDecision`, and `design.mjs` gains the `scaffold` subcommand that calls it. `runtime/retention.mjs` is a new module with a pure `planGc`/mutating `applyGc` split, mirroring `dev-link.mjs`'s own status/apply split, exposed as `gc status`/`gc apply`. `scripts/lib/ci-workflow.mjs` is a new shared lib carrying `validate-ci-coverage.mjs`'s job-parsing so it can be unit-tested without running the whole validator as a side effect of import; that validator also gains an explicit `ALTERNATE_JOB` map for the one suite (`test:coverage`) deliberately relocated to its own job, and an `EXEMPT` entry (its first) for `restore-tracked-reports`, the new last step of `check` that reverts a tracked report `git status` shows as dirty back to its committed content unless told to keep it.
 
 **Tech Stack:** Node.js ESM (`.mjs`), zero runtime dependencies. Hand-rolled `test()` suites; `scripts/lib/suite.mjs` where the existing file already uses it.
 
-**Spec:** `docs/superpowers/specs/2026-08-27-harness-spike-findings.md`, findings F3, F4, F5 (both halves), F6, F7, F8, F13 — every finding this spec assigns to gate-hygiene.
+**Spec:** `docs/superpowers/specs/2026-08-27-harness-spike-findings.md`, findings F3, F4, F5 (both halves), F6, F7, F8, F13, F14 — every finding this spec assigns to gate-hygiene.
 
 ## Global Constraints
 
@@ -422,7 +422,58 @@ git commit -m "fix(ci): move coverage measurement to its own parallel job (F4)"
 
 ---
 
-### Task 9: Full gate
+### Task 9: Restore tracked reports after `npm run check`, unless told to keep them (F14)
+
+**Files:**
+- Create: `scripts/restore-tracked-reports.mjs`
+- Create: `scripts/test-restore-tracked-reports.mjs`
+- Modify: `scripts/validate-ci-coverage.mjs` — `EXEMPT`, and the order-check filter
+- Modify: `scripts/coverage-report.mjs` — `NOT_MEASURED`
+- Modify: `package.json` — new `restore-tracked-reports` / `test:report-hygiene` scripts, appended to `check` / `test:integrity`
+- Modify: `.github/workflows/ci.yml` — upload the new report
+
+**Interfaces:**
+- Consumes: nothing from another task.
+- Produces: `AGENT_SDLC_REPORT_ROOT` env var (test-only override of which repo the script operates on) and `AGENT_SDLC_KEEP_REPORTS` (operator-facing: keep this run's fresh reports instead of restoring).
+
+Originally deferred as reversing a convention three merged plans depend on (*"`npm run check` rewrites tracked report files under `evals/`. Commit those with the task that caused them."*). Re-scoped on reconsideration to the exact form of "commit them only via an explicit `--update`" the finding itself suggested: every suite still writes its report unconditionally (console output stays live, and any future intra-chain reader still sees fresh content); a new step running last **restores** the tracked copy of anything that changed, unless told to keep it. The convention the other plans depended on — reports get regenerated and reviewed before being committed — is unchanged; what changes is that a `check` run with no intended report change now leaves nothing to review.
+
+- [x] **Step 1: Write the restore step**
+
+`scripts/restore-tracked-reports.mjs`: unless `--update` is on the command line, `AGENT_SDLC_KEEP_REPORTS` is truthy, or `process.env.CI` is set (GitHub Actions always sets it), it runs `git status --porcelain -- evals/*.json` (a git-native pathspec glob, not shell expansion), filters to entries with `M` in either status column (tracked-and-modified, in the index or the worktree or both), and restores each with `git checkout HEAD -- <path>` — **`HEAD --`, not bare `--`**: the bare form restores the worktree from the index, so an already-`git add`ed report would have kept its staged content instead of reverting to what's committed. An untracked report (`??`) is left alone; there is nothing to restore it to, and `git checkout` on a path git has never seen errors instead of no-op-ing.
+
+- [x] **Step 2: Establish why `npm run check -- --update` does not work**
+
+Built a throwaway package.json with a 2-step chain and confirmed empirically: `npm run chain -- --update` appends the extra arg to the whole composed shell command text, landing it on the LAST command as `npm run b --update` with no `--` separator for that specific nested invocation — npm's own CLI parsing then silently expands it to `--update-notifier` (a real npm flag) and it never reaches the script's `process.argv`. Hardcoding `-- --update` directly in a script's OWN text (not appended dynamically at invoke time) works correctly — but building a `check:update` variant that way would require duplicating `check`'s entire ~20-item chain text. Chose `AGENT_SDLC_KEEP_REPORTS=1 npm run check` instead: no ambiguity, no duplication, and documented per-shell (`set AGENT_SDLC_KEEP_REPORTS=1 && npm run check` on cmd.exe).
+
+- [x] **Step 3: Wire it in without introducing an intermediate aggregate**
+
+The obvious refactor — wrap `check`'s ~20-item chain in a new `check:core` script, then define `check` as `npm run check:core && npm run restore-tracked-reports` — was tried and rejected: `validate-ci-coverage.mjs`'s order-check walks only `children(CHECK_SCRIPT)` (`check`'s *direct* children), which today works only because every direct child either **is** a leaf suite or **is** an aggregate CI happens to invoke as one single step (`test:integrity`, `test:activation`). A `check:core` wrapper has no CI step of its own, so it would never be found in `ciSequence` and the entire order-check would go silent for every item — not caught by any existing test, since nothing previously needed the order-check's `chain` to include something CI never runs as its own step. Kept `check` flat instead: `restore-tracked-reports` is appended directly to the existing chain text, and `EXEMPT` (previously empty) gained an entry for it, mirroring `test:coverage`'s `ALTERNATE_JOB` treatment from Task 8. The order-check's `chain` filter now also excludes `EXEMPT` scripts, not just `ALTERNATE_JOB` ones — needed since this is the first time `EXEMPT` has held anything.
+
+- [x] **Step 4: Verify against the real repository**
+
+Dirtied `evals/DETERMINISTIC-VALIDATION.json` by hand; `node scripts/restore-tracked-reports.mjs` reported `RESTORED` and `git status` confirmed it was reverted to the committed content. Repeated for `--update` and `AGENT_SDLC_KEEP_REPORTS=1` (both correctly kept the dirty content) and for an untracked new report file (left alone, not deleted).
+
+- [x] **Step 5: Lock it in with a fixture-based suite**
+
+The script runs real `git checkout`, so `scripts/test-restore-tracked-reports.mjs` exercises it against a throwaway git repository via `AGENT_SDLC_REPORT_ROOT`, never this repository's own working tree. Building the fixture surfaced two real bugs before they shipped: (1) the test helper's own env-forwarding leaked whatever `AGENT_SDLC_KEEP_REPORTS`/`CI` the *outer* process happened to have set (this suite is itself run by `npm run check`, which can be invoked with `AGENT_SDLC_KEEP_REPORTS=1`) into every child invocation, defeating the cases that specifically test the "no override" default — fixed by explicitly clearing both in the test helper; (2) the bare-`--` vs `HEAD --` checkout distinction from Step 1, caught by the "a staged modification is also restored" case. 7 cases: default restores a dirty tracked report; nothing to restore when untouched; `--update` keeps it; the env var keeps it; `CI` keeps it; an untracked report is left alone; a staged modification is restored too (not just worktree-only changes).
+
+- [x] **Step 6: Run the full gate twice**
+
+Run: `AGENT_SDLC_KEEP_REPORTS=1 npm run check` — exit 0, reports for this task's own changes kept for review/commit.
+
+Run: `npm run check` again (plain, no override) — exit 0, and **`git status` came back completely empty** — the actual acceptance criterion for this finding, on the real chain, not a synthetic proxy.
+
+- [x] **Step 7: Commit**
+
+```bash
+git add scripts/restore-tracked-reports.mjs scripts/test-restore-tracked-reports.mjs scripts/validate-ci-coverage.mjs scripts/coverage-report.mjs package.json .github/workflows/ci.yml evals/CI-COVERAGE-VALIDATION.json evals/SYNTAX-VALIDATION.json evals/REPORT-HYGIENE-VALIDATION.json
+git commit -m "fix(evals): restore tracked reports after npm run check, unless told to keep them (F14)"
+```
+
+---
+
+### Task 10: Full gate
 
 **Files:** report files under `evals/` only.
 
@@ -450,5 +501,4 @@ git commit -m "chore(evals): record the reports for the gate-hygiene fixes"
 ## What this plan deliberately does not do
 
 - **Does not fully fix F4's local-dev half.** `npm run check`'s script body is unchanged, so a developer running it locally still executes each subject suite once for pass/fail and `test:coverage` re-runs all 16 again under `NODE_V8_COVERAGE` in the same process. Only CI's wall-clock cost is fixed (Task 8), by moving that redundant re-run to its own parallel job. Eliminating the local double-execution too would mean sharing one `NODE_V8_COVERAGE` across the whole `check` chain, which requires replacing its `&&`-chain shape with a JS orchestrator — the exact rewrite `scripts/validate-ci-coverage.mjs`'s regex-based script parsing depends on not happening. Not attempted here.
-- **Does not fix F14** (`npm run check` rewrites tracked report JSONs, leaving the worktree dirty). The execution-path-correctness and gate-signal-correctness plans' own Global Constraints already treat this as intentional: *"`npm run check` rewrites tracked report files under `evals/`. Commit those with the task that caused them."* Every task in this plan follows that same convention. Changing it now (gitignoring reports, or requiring `--update`) would be a process reversal affecting three merged plans' worth of established practice, not a Low-severity DX fix.
 - **Does not touch F1, F2, F9-F12, F15** — settled by the execution-path-correctness, router-scoring, and gate-signal-correctness plans.
