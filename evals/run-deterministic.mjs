@@ -17,7 +17,7 @@ import {putArtifact,getArtifact,loadRun,saveRun,emit} from '../runtime/store.mjs
 import {validateReplay} from '../runtime/replay.mjs';
 import {normalizeText,sha256} from '../runtime/util.mjs';
 import {probe,capabilities} from '../runtime/provider.mjs';
-import {invokeTool} from '../runtime/tools.mjs';
+import {invokeTool,sanitizeWebQuery} from '../runtime/tools.mjs';
 import {zipDir,unzipTo} from '../scripts/archive.mjs';
 import {routeModel} from '../runtime/model-router.mjs';
 import {addUsage,reportUsage} from '../runtime/cost.mjs';
@@ -743,6 +743,47 @@ test('web-search-honours-registry-return-limit-not-hardcoded-24000',()=>{
   const out=invokeTool(ROOT,tmp,researchRun,'web.search',{query:'Redis cluster cache architecture',results});
   if(!out.truncated)throw Error('payload should exceed the declared limit');
   if(Buffer.byteLength(out.summary)>declared)throw Error(`summary is ${Buffer.byteLength(out.summary)} bytes, expected <= declared ${declared}`);
+});
+// A pattern the policy author wrote in a dialect JS does not speak used to be
+// swallowed by a bare `catch{}`: the rule stopped enforcing and nothing said
+// so. The `(?i)` stripping right above proves non-JS syntax is expected in
+// this file, so this is the likely shape of an operator edit, not a
+// hypothetical. An unenforceable rule is not a satisfied rule.
+test('an-uncompilable-blocked-query-pattern-refuses-the-query-instead-of-ignoring-the-rule',()=>{
+  const fixture=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-webpolicy-'));
+  fs.mkdirSync(path.join(fixture,'policies'),{recursive:true});
+  const write=pats=>fs.writeFileSync(path.join(fixture,'policies','security-policy.json'),
+    JSON.stringify({web_search_policy:{blocked_query_patterns:pats,blocked_host_patterns:[]}}));
+
+  // Named-group syntax from Python/Go: `(?i)` is stripped, `(?P<k>...)` throws.
+  write(['(?i)(?P<k>api[_-]?key)\s*=']);
+  const broken=sanitizeWebQuery(fixture,'search with api_key=SECRET123');
+  if(broken.ok)throw Error('a query ran unchecked because the policy pattern would not compile');
+  if(!/could not be compiled/.test(broken.reason))throw Error(`unexpected reason: ${broken.reason}`);
+  if(!broken.reason.includes('(?P<k>'))throw Error(`the reason must name the offending pattern: ${broken.reason}`);
+
+  // A broken pattern refuses every query, including innocuous ones -- the rule
+  // is unevaluable, and which query it was asked about does not change that.
+  if(sanitizeWebQuery(fixture,'Redis cluster cache architecture').ok)
+    throw Error('a broken policy left the gate open for other queries');
+
+  // With patterns that do compile, both directions still behave.
+  write(['(?i)api[_-]?key\s*=']);
+  if(sanitizeWebQuery(fixture,'search with api_key=SECRET123').ok)throw Error('a matching query was allowed');
+  if(!sanitizeWebQuery(fixture,'Redis cluster cache architecture').ok)throw Error('a clean query was refused');
+});
+
+// Every pattern this repo ships has to compile, so the refusal above can never
+// be triggered by our own policy file.
+test('every-shipped-blocked-query-pattern-compiles',()=>{
+  const sec=JSON.parse(fs.readFileSync(path.join(ROOT,'policies','security-policy.json'),'utf8'));
+  const pats=sec.web_search_policy?.blocked_query_patterns||[];
+  if(!pats.length)throw Error('no blocked_query_patterns to check');
+  for(const pat of pats){
+    const clean=pat.startsWith('(?i)')?pat.slice(4):pat;
+    try{new RegExp(clean,pat.startsWith('(?i)')?'i':'');}
+    catch(e){throw Error(`shipped pattern ${pat} does not compile: ${e.message}`);}
+  }
 });
 test('web-fetch-valid-url-pass',()=>{const out=invokeTool(ROOT,tmp,researchRun,'web.fetch_url',{url:'https://docs.example.com/api/v1'});if(out.status!=='PASS'||out.exit_code!==0||!out.summary.includes('DOCUMENTATION_CONTENT'))throw Error(JSON.stringify(out));});
 test('web-fetch-blocked-host-fails',()=>{const out=invokeTool(ROOT,tmp,researchRun,'web.fetch_url',{url:'http://localhost:8080/admin'});if(out.status!=='FAIL'||out.exit_code!==1||!out.summary.includes('blocked by security policy'))throw Error(JSON.stringify(out));});

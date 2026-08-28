@@ -134,14 +134,26 @@ function secretScan(root,projectRoot){
   }
   return {status:'FAIL',exit_code:r.status??1,summary:(r.stderr||'secret scan failed').slice(0,24000),truncated:false,raw:''};
 }
-function sanitizeWebQuery(root,query){
+export function sanitizeWebQuery(root,query){
   const sec=readJson(path.join(root,'policies','security-policy.json'));
   const wsp=sec.web_search_policy||{};
   const blocked=wsp.blocked_query_patterns||[];
   for(const pat of blocked){
     const cleanPat=pat.startsWith('(?i)')?pat.slice(4):pat;
     const flags=pat.startsWith('(?i)')?'i':'';
-    try{if(new RegExp(cleanPat,flags).test(query))return {ok:false,reason:`Query violates security policy pattern: ${pat}`,query};}catch{}
+    let re;
+    // A rule that cannot be evaluated is not a rule that passed. This used to
+    // be a bare `catch{}`: a pattern JS refuses to compile stopped enforcing
+    // and nothing anywhere said so. The `(?i)` stripping one line up exists
+    // because this file is authored in a dialect JS does not fully speak, so
+    // the next thing an operator borrows from it -- `(?P<name>...)`, a
+    // possessive quantifier -- is the likely edit, not a hypothetical.
+    try{re=new RegExp(cleanPat,flags);}
+    catch(e){
+      return {ok:false,query,
+        reason:`Security policy pattern ${pat} could not be compiled (${e.message}); refusing the query rather than searching with that rule unenforced`};
+    }
+    if(re.test(query))return {ok:false,reason:`Query violates security policy pattern: ${pat}`,query};
   }
   return {ok:true,query};
 }
