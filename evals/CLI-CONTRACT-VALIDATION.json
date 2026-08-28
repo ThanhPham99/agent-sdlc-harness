@@ -1,9 +1,9 @@
 {
   "schema": "agent-sdlc/cli-contract-validation/v1",
   "checks": 115,
-  "passes": 115,
+  "passes": 111,
   "failures": 0,
-  "skipped": 0,
+  "skipped": 4,
   "results": [
     {
       "name": "init-creates-project-state",
@@ -451,19 +451,19 @@
     },
     {
       "name": "cmd-shim-prints-json-and-exits-0",
-      "status": "PASS"
+      "status": "SKIP"
     },
     {
       "name": "cmd-shim-propagates-a-non-zero-exit-code",
-      "status": "PASS"
+      "status": "SKIP"
     },
     {
       "name": "ps1-shim-prints-json-and-exits-0",
-      "status": "PASS"
+      "status": "SKIP"
     },
     {
       "name": "ps1-shim-propagates-a-non-zero-exit-code",
-      "status": "PASS"
+      "status": "SKIP"
     }
   ]
 }

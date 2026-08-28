@@ -19,9 +19,9 @@
     "scripts/validate-cli-surface.mjs"
   ],
   "measured": "v8-block-bytes",
-  "overall_percent": 91.1,
-  "covered_bytes": 360623,
-  "total_bytes": 395835,
+  "overall_percent": 90.9,
+  "covered_bytes": 364490,
+  "total_bytes": 400931,
   "modules": [
     {
       "file": "runtime/commands/activation.mjs",
@@ -72,6 +72,12 @@
       "total_bytes": 3341
     },
     {
+      "file": "runtime/tools.mjs",
+      "percent": 84.9,
+      "covered_bytes": 10661,
+      "total_bytes": 12550
+    },
+    {
       "file": "runtime/ci-evidence.mjs",
       "percent": 85.2,
       "covered_bytes": 2875,
@@ -88,6 +94,12 @@
       "percent": 86.4,
       "covered_bytes": 8096,
       "total_bytes": 9365
+    },
+    {
+      "file": "runtime/task-verification.mjs",
+      "percent": 86.7,
+      "covered_bytes": 8972,
+      "total_bytes": 10353
     },
     {
       "file": "runtime/workspace.mjs",
@@ -114,24 +126,6 @@
       "total_bytes": 9308
     },
     {
-      "file": "runtime/task-verification.mjs",
-      "percent": 88.4,
-      "covered_bytes": 6637,
-      "total_bytes": 7505
-    },
-    {
-      "file": "runtime/tools.mjs",
-      "percent": 89.4,
-      "covered_bytes": 9215,
-      "total_bytes": 10302
-    },
-    {
-      "file": "runtime/normalize.mjs",
-      "percent": 89.8,
-      "covered_bytes": 8728,
-      "total_bytes": 9721
-    },
-    {
       "file": "runtime/util.mjs",
       "percent": 90.1,
       "covered_bytes": 3792,
@@ -154,6 +148,12 @@
       "percent": 90.9,
       "covered_bytes": 13758,
       "total_bytes": 15138
+    },
+    {
+      "file": "runtime/normalize.mjs",
+      "percent": 91.1,
+      "covered_bytes": 8855,
+      "total_bytes": 9721
     },
     {
       "file": "runtime/cost.mjs",
@@ -258,16 +258,16 @@
       "total_bytes": 1645
     },
     {
-      "file": "runtime/launcher.mjs",
-      "percent": 95.3,
-      "covered_bytes": 5076,
-      "total_bytes": 5328
-    },
-    {
       "file": "runtime/plan-validator.mjs",
       "percent": 95.5,
       "covered_bytes": 12959,
       "total_bytes": 13575
+    },
+    {
+      "file": "runtime/launcher.mjs",
+      "percent": 95.7,
+      "covered_bytes": 5098,
+      "total_bytes": 5328
     },
     {
       "file": "runtime/learning.mjs",
@@ -318,6 +318,12 @@
       "total_bytes": 1628
     },
     {
+      "file": "runtime/provider.mjs",
+      "percent": 98.3,
+      "covered_bytes": 8947,
+      "total_bytes": 9101
+    },
+    {
       "file": "runtime/commands/provider.mjs",
       "percent": 98.7,
       "covered_bytes": 2430,
@@ -340,12 +346,6 @@
       "percent": 99,
       "covered_bytes": 4651,
       "total_bytes": 4697
-    },
-    {
-      "file": "runtime/provider.mjs",
-      "percent": 99,
-      "covered_bytes": 9010,
-      "total_bytes": 9101
     },
     {
       "file": "runtime/router.mjs",
