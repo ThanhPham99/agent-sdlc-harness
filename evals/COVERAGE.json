@@ -20,8 +20,8 @@
   ],
   "measured": "v8-block-bytes",
   "overall_percent": 91,
-  "covered_bytes": 373186,
-  "total_bytes": 409974,
+  "covered_bytes": 381714,
+  "total_bytes": 419468,
   "modules": [
     {
       "file": "runtime/commands/activation.mjs",
@@ -124,6 +124,12 @@
       "percent": 89.9,
       "covered_bytes": 10233,
       "total_bytes": 11378
+    },
+    {
+      "file": "runtime/retention.mjs",
+      "percent": 89.9,
+      "covered_bytes": 7900,
+      "total_bytes": 8785
     },
     {
       "file": "runtime/util.mjs",
@@ -234,6 +240,12 @@
       "total_bytes": 9633
     },
     {
+      "file": "runtime/commands/project.mjs",
+      "percent": 93.8,
+      "covered_bytes": 3854,
+      "total_bytes": 4110
+    },
+    {
       "file": "runtime/handoff.mjs",
       "percent": 94.1,
       "covered_bytes": 997,
@@ -250,12 +262,6 @@
       "percent": 94.6,
       "covered_bytes": 1556,
       "total_bytes": 1645
-    },
-    {
-      "file": "runtime/commands/project.mjs",
-      "percent": 94.9,
-      "covered_bytes": 3281,
-      "total_bytes": 3456
     },
     {
       "file": "runtime/plan-validator.mjs",
@@ -344,8 +350,8 @@
     {
       "file": "runtime/commands/index.mjs",
       "percent": 99,
-      "covered_bytes": 5571,
-      "total_bytes": 5626
+      "covered_bytes": 5626,
+      "total_bytes": 5681
     },
     {
       "file": "runtime/compat.mjs",
@@ -406,9 +412,9 @@
   },
   "path_coverage": {
     "runtime/commands/": {
-      "percent": 82.3,
-      "covered": 47238,
-      "total": 57415
+      "percent": 82.4,
+      "covered": 47866,
+      "total": 58124
     }
   },
   "optional_tools": {

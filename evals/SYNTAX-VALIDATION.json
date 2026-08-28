@@ -2,8 +2,8 @@
   "schema": "agent-sdlc/syntax-validation/v1",
   "version": "3.0.0-alpha6",
   "checked": "node --check (parse only, not executed)",
-  "checks": 121,
-  "passes": 121,
+  "checks": 122,
+  "passes": 122,
   "failures": 0,
   "results": [
     {
@@ -308,6 +308,11 @@
     },
     {
       "file": "runtime/requirement-update.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/retention.mjs",
       "status": "PASS",
       "error": null
     },
