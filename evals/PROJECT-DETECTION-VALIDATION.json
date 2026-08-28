@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/project-detection-validation/v1",
-  "checks": 22,
-  "passes": 22,
+  "checks": 23,
+  "passes": 23,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -83,6 +83,10 @@
     },
     {
       "name": "an-unreadable-config-layer-is-skipped-and-named",
+      "status": "PASS"
+    },
+    {
+      "name": "the-global-layer-is-read-from-AGENT_SDLC_HOME-and-the-project-layer-wins",
       "status": "PASS"
     },
     {

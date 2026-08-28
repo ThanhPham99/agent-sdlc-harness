@@ -1,6 +1,6 @@
-import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
+import {globalConfigPath} from './util.mjs';
 
 function merge(a,b){if(Array.isArray(b)||b===null||typeof b!=='object')return b;const out={...(a&&typeof a==='object'&&!Array.isArray(a)?a:{})};for(const [k,v] of Object.entries(b))out[k]=merge(out[k],v);return out;}
 
@@ -23,7 +23,7 @@ function layer(name,p,layers,effective){
 
 export function resolveConfig(projectRoot,overrides={}){
   const layers=[];let effective={};
-  effective=layer('global',path.join(os.homedir(),'.agent-sdlc','config.json'),layers,effective);
+  effective=layer('global',globalConfigPath(),layers,effective);
   effective=layer('project',path.join(projectRoot,'.agent-sdlc','project.json'),layers,effective);
   const env={};if(process.env.AGENT_SDLC_PROVIDER)env.default_provider=process.env.AGENT_SDLC_PROVIDER;if(process.env.AGENT_SDLC_PROFILE)env.risk_profile=process.env.AGENT_SDLC_PROFILE;
   if(Object.keys(env).length){layers.push({name:'environment',keys:Object.keys(env)});effective=merge(effective,env);}

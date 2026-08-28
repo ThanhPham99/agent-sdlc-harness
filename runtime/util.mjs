@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
@@ -32,6 +33,20 @@ export const appendJsonl=(p,v)=>{ensureDir(path.dirname(p));fs.appendFileSync(p,
 // fileURLToPath is required for Windows: URL.pathname yields "/D:/..." which
 // path.resolve then re-anchors to the current drive ("D:\D:\...").
 export function rootFrom(importMetaUrl){return path.resolve(path.dirname(fileURLToPath(importMetaUrl)),'..');}
+// The home directory the global config layer lives under, and the one override
+// point for it.
+//
+// `os.homedir()` alone is not testable and not relocatable: it reads $HOME on
+// POSIX but %USERPROFILE% on Windows, so a suite that pinned $HOME to a temp
+// directory still wrote the developer's real ~/.agent-sdlc/config.json on
+// Windows -- turning `activation enable --global` coverage into a machine-wide
+// side effect. The sibling host paths already had an override each
+// (AGENT_SDLC_CLAUDE_HOME, CODEX_HOME); this is the harness's own.
+export function userHome(){
+  const override=process.env.AGENT_SDLC_HOME;
+  return override&&override.trim()?path.resolve(override):os.homedir();
+}
+export function globalConfigPath(){return path.join(userHome(),'.agent-sdlc','config.json');}
 export function findProjectRoot(start=process.cwd()){let p=path.resolve(start); while(true){if(fs.existsSync(path.join(p,'.agent-sdlc','project.json')))return p; const parent=path.dirname(p); if(parent===p)return path.resolve(start); p=parent;}}
 export function git(args,cwd){const r=spawnSync('git',args,{cwd,encoding:'utf8'});return {code:r.status??1,stdout:r.stdout||'',stderr:r.stderr||''};}
 export function gitSha(cwd){const r=git(['rev-parse','HEAD'],cwd);return r.code===0?r.stdout.trim():null;}

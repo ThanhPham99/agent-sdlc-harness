@@ -6,8 +6,7 @@
 // handler that needs it, so a single command loads only its own dependencies.
 import fs from 'node:fs';
 import path from 'node:path';
-import os from 'node:os';
-import {readJson,writeJson,appendJsonl} from '../util.mjs';
+import {readJson,writeJson,appendJsonl,globalConfigPath} from '../util.mjs';
 
 export const commands={
   activation:async ctx=>{
@@ -20,7 +19,7 @@ export const commands={
     const cfg=()=>resolveConfig(projectRoot).effective;
     const codexState=host=>host==='codex'?codexBootstrap.status({home:args['codex-home']||null,version}):null;
     const setEnabled=(value)=>{
-      const target=args.global?path.join(os.homedir(),'.agent-sdlc','config.json'):path.join(projectRoot,'.agent-sdlc','project.json');
+      const target=args.global?globalConfigPath():path.join(projectRoot,'.agent-sdlc','project.json');
       const current=fs.existsSync(target)?readJson(target):{};
       current.auto_activation={...(current.auto_activation||{}),enabled:value};
       writeJson(target,current);

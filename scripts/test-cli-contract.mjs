@@ -32,6 +32,12 @@ function fixture(){
   return d;
 }
 const PROJECT=fixture();
+// Every command resolves the global config layer, so without this the whole
+// suite reads whatever ~/.agent-sdlc/config.json the developer or runner
+// happens to have -- the results were machine-dependent, and the --global
+// branch wrote there for real. One empty fake home for the suite; the tests
+// that care about the layer point AGENT_SDLC_HOME somewhere of their own.
+const SUITE_HOME=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-suite-home-'));
 
 /** Run the CLI the way an agent does and return {status, stdout, stderr}.
  *  `env` overlays the child environment; the provider commands use it to pin a
@@ -39,7 +45,7 @@ const PROJECT=fixture();
 function raw(args,cwd=PROJECT,env=null){
   const r=spawnSync(process.execPath,[CLI,...args,'--project',cwd],
     {cwd,encoding:'utf8',timeout:120000,maxBuffer:32*1024*1024,
-     ...(env?{env:{...process.env,...env}}:{})});
+     env:{...process.env,AGENT_SDLC_HOME:SUITE_HOME,...(env||{})}});
   return {status:r.status,stdout:r.stdout||'',stderr:r.stderr||''};
 }
 /** Expect success and JSON on stdout. */
@@ -751,10 +757,12 @@ test('activation-enable-and-disable-toggle-project-config',()=>{
 });
 
 test('activation-enable-global-scope-writes-under-the-given-home',()=>{
-  // os.homedir() reads $HOME on POSIX, so pinning it keeps this off the real
-  // developer/CI home directory while still exercising the --global branch.
+  // AGENT_SDLC_HOME, not $HOME: os.homedir() reads $HOME on POSIX but
+  // %USERPROFILE% on Windows, so pinning $HOME left this branch writing the real
+  // developer/CI ~/.agent-sdlc/config.json on the Windows leg. The harness owns
+  // an explicit override so the fake home holds on every platform.
   const fakeHome=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-home-'));
-  const out=json(['activation','enable','--global'],PROJECT,{HOME:fakeHome});
+  const out=json(['activation','enable','--global'],PROJECT,{AGENT_SDLC_HOME:fakeHome});
   if(out.scope!=='global')throw new Error(JSON.stringify(out));
   if(!out.config_file.startsWith(fakeHome))throw new Error(`config file escaped the fake home: ${out.config_file}`);
   if(!fs.existsSync(out.config_file))throw new Error('global config file not written');

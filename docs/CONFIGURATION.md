@@ -3,7 +3,7 @@
 Configuration is resolved in deterministic precedence order:
 
 1. built-in policies and registries shipped with the harness;
-2. global user config at `~/.agent-sdlc/config.json`;
+2. global user config at `~/.agent-sdlc/config.json` — set `AGENT_SDLC_HOME` to resolve that `~` somewhere else (a sandbox, a test fixture, an XDG-style layout). It is the single override for the global layer on every platform, including Windows, where `$HOME` is not what a home directory resolves from;
 3. project config at `.agent-sdlc/project.json`;
 4. environment overrides supported by the runtime/provider adapter;
 5. explicit CLI arguments.

@@ -148,6 +148,29 @@ test('an-unreadable-config-layer-is-skipped-and-named',()=>{
     assert(out.status===0,`${cmd[0]} exited ${out.status}: ${(out.stderr||'').slice(0,160)}`);
   }
 });
+test('the-global-layer-is-read-from-AGENT_SDLC_HOME-and-the-project-layer-wins',()=>{
+  // The global layer had no test at all: it resolved through a bare
+  // os.homedir(), so exercising it meant writing the real developer/CI home.
+  const d=repo({});
+  cli(['init'],d);
+  const home=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-global-'));
+  fs.mkdirSync(path.join(home,'.agent-sdlc'),{recursive:true});
+  fs.writeFileSync(path.join(home,'.agent-sdlc','config.json'),
+    JSON.stringify({risk_profile:'STRICT',telemetry:{sink:'from-global'}}));
+  const previous=process.env.AGENT_SDLC_HOME;
+  process.env.AGENT_SDLC_HOME=home;
+  try{
+    const c=resolveConfig(d);
+    const global=c.layers.find(l=>l.name==='global');
+    assert(global?.path.startsWith(home),JSON.stringify(global));
+    // Only where the project says nothing: `init` writes risk_profile, so the
+    // project layer must still win over the global one.
+    assert(c.effective.telemetry?.sink==='from-global',JSON.stringify(c.effective.telemetry));
+    assert(c.effective.risk_profile==='STANDARD',JSON.stringify(c.effective.risk_profile));
+  }finally{
+    if(previous===undefined)delete process.env.AGENT_SDLC_HOME;else process.env.AGENT_SDLC_HOME=previous;
+  }
+});
 test('environment-variables-form-their-own-layer',()=>{
   const d=repo({});
   cli(['init'],d);
