@@ -23,16 +23,26 @@ export const commands={
     const {resolveConfig}=await import('../config.mjs');
     const {activationStatus}=await import('../activation.mjs');
     const codexBootstrap=await import('../codex-bootstrap.mjs');
+    const {driftStatus}=await import('../dev-link.mjs');
     const proj=fs.existsSync(path.join(projectRoot,'.agent-sdlc','project.json'))?'READY':'NOT_INITIALIZED';
+    const version=readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version;
+    // Claude Code loads this plugin from its own cache directory, not from
+    // ROOT directly. A cache left behind after a `git pull` here loads a
+    // stale version silently -- this session once ran alpha4 skill bodies
+    // against an alpha6 tree without anything saying so. `doctor` is the
+    // thing an operator already runs to sanity-check the environment, so the
+    // same drift check that `dev:status` reports on request runs here too.
+    const dev_link=driftStatus(ROOT,version);
     print({
-      version:readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version,
+      version,
       node:process.version,
       project:proj,
       providers:['claude','codex','antigravity'].map(h=>capabilities(h,probe(h))),
       auto_activation:['claude','codex','antigravity'].map(h=>{
         const s=activationStatus({host:h,config:resolveConfig(projectRoot).effective,codexManagedBootstrap:h==='codex'?codexBootstrap.status({}):null});
         return {host:h,enabled:s.enabled,delivery_mode:s.delivery_mode,activation_class:s.activation_class,rough_tokens:s.rough_tokens};
-      })
+      }),
+      dev_link:{host_record_present:dev_link.host_record_present,plugins:dev_link.plugins,...(dev_link.hint?{hint:dev_link.hint}:{})}
     });
   },
   'config-show':async ctx=>{

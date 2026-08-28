@@ -15,43 +15,22 @@
 //   node scripts/dev-link.mjs             status only (default, read-only)
 //   node scripts/dev-link.mjs --apply     link the cache entry to this tree
 //   node scripts/dev-link.mjs --revert    restore the cached directory
+//
+// The read-only status check lives in runtime/dev-link.mjs, not here, so
+// `doctor` -- which ships in the distributed package, unlike this scripts/
+// tree -- can report the same drift without a plugin developer remembering to
+// run this script by hand.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {installedRecords,linkKind,linkTarget,sameTree,describeRecord,driftStatus,BACKUP_SUFFIX} from '../runtime/dev-link.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const PLUGIN='agent-sdlc-harness';
-const BACKUP_SUFFIX='.pre-dev-link';
 const argv=process.argv.slice(2);
 const mode=argv.includes('--revert')?'revert':argv.includes('--apply')?'apply':'status';
 
 const repoVersion=fs.readFileSync(path.join(ROOT,'VERSION'),'utf8').trim();
-
-function hostHome(){
-  // CLAUDE_CONFIG_DIR is the documented override; fall back to ~/.claude.
-  const explicit=process.env.AGENT_SDLC_CLAUDE_HOME||process.env.CLAUDE_CONFIG_DIR;
-  return explicit?path.resolve(explicit):path.join(os.homedir(),'.claude');
-}
-
-/** Records the host holds for this plugin, whatever marketplace installed it. */
-function installedRecords(){
-  const p=path.join(hostHome(),'plugins','installed_plugins.json');
-  if(!fs.existsSync(p))return {path:p,present:false,records:[]};
-  const doc=JSON.parse(fs.readFileSync(p,'utf8'));
-  const records=[];
-  for(const [key,entries] of Object.entries(doc.plugins||{})){
-    if(!key.startsWith(`${PLUGIN}@`))continue;
-    for(const e of entries||[])records.push({key,...e});
-  }
-  return {path:p,present:true,records};
-}
-
-const linkKind=p=>{
-  try{return fs.lstatSync(p).isSymbolicLink()?'link':'directory';}catch{return 'missing';}
-};
-const linkTarget=p=>{try{return fs.readlinkSync(p);}catch{return null;}};
-const sameTree=(a,b)=>!!a&&!!b&&path.resolve(a).toLowerCase()===path.resolve(b).toLowerCase();
+const describe=record=>describeRecord(record,{root:ROOT,repoVersion});
 
 /** The cache path we are allowed to touch, or a reason we are not. */
 function guard(installPath){
@@ -63,27 +42,6 @@ function guard(installPath){
     return `refusing to modify ${installPath}: that is this working tree`;
   }
   return null;
-}
-
-function describe(record){
-  const installPath=record.installPath;
-  const kind=linkKind(installPath);
-  const target=kind==='link'?linkTarget(installPath):null;
-  const linkedHere=sameTree(target,ROOT);
-  let loadedVersion=null;
-  try{loadedVersion=fs.readFileSync(path.join(installPath,'VERSION'),'utf8').trim();}catch{}
-  return {
-    key:record.key,
-    install_path:installPath,
-    recorded_version:record.version??null,
-    loaded_version:loadedVersion,
-    repo_version:repoVersion,
-    entry:kind,
-    link_target:target,
-    linked_to_this_tree:linkedHere,
-    backup_present:fs.existsSync(installPath+BACKUP_SUFFIX),
-    drift:linkedHere?null:(loadedVersion===repoVersion?null:`host loads ${loadedVersion??'unknown'}, working tree is ${repoVersion}`)
-  };
 }
 
 function apply(record){
@@ -123,22 +81,29 @@ function revert(record){
   return {action:'UNLINKED',note:'no backup existed; reinstall the plugin to restore a cached copy'};
 }
 
-const {path:recordPath,present,records}=installedRecords();
-const report={
-  schema:'agent-sdlc/dev-link/v1',
-  mode,
-  repo_root:ROOT,
-  repo_version:repoVersion,
-  host_record:recordPath,
-  host_record_present:present,
-  plugins:records.map(r=>({...describe(r),...(mode==='apply'?{result:apply(r)}:mode==='revert'?{result:revert(r)}:{})}))
-};
-if(!records.length){
-  report.note=present
-    ?`no ${PLUGIN} install recorded for this host; install it once, then re-run with --apply`
-    :`no host record at ${recordPath}; set CLAUDE_CONFIG_DIR if the host config lives elsewhere`;
+function main(){
+  if(mode==='status'){
+    console.log(JSON.stringify(driftStatus(ROOT,repoVersion),null,2));
+    process.exit(0);
+  }
+  const {path:recordPath,present,records}=installedRecords();
+  const report={
+    schema:'agent-sdlc/dev-link/v1',
+    mode,
+    repo_root:ROOT,
+    repo_version:repoVersion,
+    host_record:recordPath,
+    host_record_present:present,
+    plugins:records.map(r=>({...describe(r),result:mode==='apply'?apply(r):revert(r)}))
+  };
+  if(!records.length){
+    report.note=present
+      ?`no agent-sdlc-harness install recorded for this host; install it once, then re-run with --apply`
+      :`no host record at ${recordPath}; set CLAUDE_CONFIG_DIR if the host config lives elsewhere`;
+  }
+  console.log(JSON.stringify(report,null,2));
+  const refused=report.plugins.some(p=>p.result?.action==='REFUSED');
+  process.exit(refused?1:0);
 }
-if(mode==='status'&&records.some(r=>describe(r).drift))report.hint='run: npm run dev:link';
-console.log(JSON.stringify(report,null,2));
-const refused=report.plugins.some(p=>p.result?.action==='REFUSED');
-process.exit(refused?1:0);
+
+main();
