@@ -319,7 +319,11 @@ export function applyInvalidation(projectRoot,graph,closure,{reason='upstream ch
     // -- NTFS returns names in B-tree order, ext4 with dir_index returns hash
     // order -- so an unsorted anchor is a different number on the Linux runner
     // than on a Windows workstation for the very same state.
-    graph_sha256:sha256(JSON.stringify(graph.nodes.map(n=>[n.id,n.valid]).sort((a,b)=>a[0].localeCompare(b[0])))),
+    //
+    // By code point, NOT localeCompare: collation honours the default locale
+    // and changes again in a Node built --without-intl, which would trade the
+    // filesystem dependency for an ICU one. The two disagree on plain ASCII.
+    graph_sha256:sha256(JSON.stringify(graph.nodes.map(n=>[n.id,n.valid]).sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0))),
     time:now()
   };
   saveTraceabilityGraph(projectRoot,graph);

@@ -515,6 +515,31 @@ export function runAlpha6Suite(root){
       if(third.graph_sha256===first.graph_sha256)fail('the anchor no longer distinguishes graph state');
     });
 
+    t('the-anchor-orders-node-ids-by-code-point-not-by-locale',()=>{
+      // Sorting the entries fixed the readdir dependency but localeCompare
+      // swapped it for an ICU one: it honours the default locale and degrades
+      // to a different order in a Node built --without-intl. The two disagree
+      // on plain ASCII ids -- localeCompare puts `_x` first and interleaves
+      // case, code-point order does neither -- so a hash sorted that way is
+      // still not the same number on two machines.
+      const g=fresh();
+      g.nodes.push({id:'_underscore',kind:'EVIDENCE',label:'_',status:null,ref:null,sha256:null,revision:null,valid:true,invalidated_by:null});
+      g.nodes.push({id:'Zeta',kind:'EVIDENCE',label:'Z',status:null,ref:null,sha256:null,revision:null,valid:true,invalidated_by:null});
+      g.nodes.push({id:'requirement-lower',kind:'EVIDENCE',label:'r',status:null,ref:null,sha256:null,revision:null,valid:true,invalidated_by:null});
+
+      const closure=computeInvalidationClosure(g,nodeId('ACCEPTANCE_CRITERION','AC-001'),'BEHAVIOR_CHANGE');
+      const record=applyInvalidation(projectRoot,g,closure,{reason:'collation probe'});
+
+      const entries=g.nodes.map(n=>[n.id,n.valid]);
+      const byCodePoint=[...entries].sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
+      const byLocale=[...entries].sort((a,b)=>a[0].localeCompare(b[0]));
+      if(JSON.stringify(byCodePoint)===JSON.stringify(byLocale))
+        fail('fixture no longer discriminates: the two collations agree on these ids');
+
+      if(record.graph_sha256!==sha256(JSON.stringify(byCodePoint)))
+        fail('the anchor is not code-point ordered');
+    });
+
     t('invalidation-reason-and-path-are-replayable',()=>{
       const history=invalidationHistory(projectRoot,run.run_id);
       if(!history.length)fail('no invalidation history recorded');
