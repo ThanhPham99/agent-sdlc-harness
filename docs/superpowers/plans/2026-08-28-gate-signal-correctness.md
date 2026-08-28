@@ -39,7 +39,7 @@ Two defects, both found while merging the previous branch into master:
 1. `skipDirs` is `new Set(['.git','node_modules','dist','.agent-sdlc'])`. It omits `.claude`, which is where this repo's own harness-native worktree tool creates worktrees (`.claude/worktrees/<name>`). A worktree inside the checkout therefore makes the guard walk a full second copy of the repo and fail with every allowlisted file reported under a `.claude/worktrees/...` prefix. Observed verbatim: `active .ai-workflow reference(s) outside the legacy allowlist: .claude/worktrees/exec-path-correctness/docs/MIGRATION.md, ...`. `release` and `.superpowers` are missing for the same reason — both are gitignored scratch that can hold copies.
 2. The guard writes its own failure message, naming the needle, into `evals/DETERMINISTIC-VALIDATION.json`, and `evals/` is walked with `.json` matching `textFile`. So one failure poisons the next run: the second run fails with `active .ai-workflow reference(s) outside the legacy allowlist: evals/DETERMINISTIC-VALIDATION.json` — a different, self-inflicted reason. Observed verbatim, and it cost a false "merged result is red" verdict until `git checkout -- evals/` cleared it.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add this case immediately after the existing `no-active-ai-workflow-references-outside-the-legacy-allowlist` case in `evals/run-deterministic.mjs`:
 
@@ -75,12 +75,12 @@ test('legacy-guard-ignores-scratch-dirs-and-its-own-report',()=>{
 
 That case calls `legacyReferenceOffenders()`, which does not exist yet — the guard's walk is currently inline. Step 3 extracts it.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `node evals/run-deterministic.mjs`
 Expected: FAIL on `legacy-guard-ignores-scratch-dirs-and-its-own-report` with `skipDirs is missing .claude` (the assertion runs before the `legacyReferenceOffenders` call, so that is the message you see first).
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 In `evals/run-deterministic.mjs`, replace the guard case with an extracted walk plus the case that uses it. Find the existing case, which begins:
 
@@ -138,7 +138,7 @@ test('no-active-ai-workflow-references-outside-the-legacy-allowlist',()=>{
 
 Read the existing case before replacing it and preserve its allowlist entries and their comments exactly — the list above reproduces what is there today, but if the file has drifted, the file wins and you carry its entries over rather than the ones written here.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `node evals/run-deterministic.mjs`
 Expected: `"results": "all-pass"`, checks up by 1.
@@ -154,7 +154,7 @@ git branch -D guard-probe
 
 Expected: `all-pass` with the worktree present. Before this task the same sequence fails with offenders reported under `.claude/worktrees/guard-probe/...`. Record the actual output of both the passing run and, if you want the red evidence, a run with the walk's `.claude` entry temporarily removed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add evals/run-deterministic.mjs evals/DETERMINISTIC-VALIDATION.json
@@ -194,7 +194,7 @@ Note `[[:space:]]` rather than `\s`: this string is handed to `git grep -E`, whi
 
 ALSO correct the spec. F12 currently claims the false positives make `no_new_high_security_findings` impossible to produce and therefore block the VERIFY gate. That is wrong: `no_new_high_security_findings` is absent from `evidence_authority` in `policies/stage-policy.json`, and `guardEvidenceAuthority` (`runtime/orchestrator.mjs:25-34`) throws only when a token's authority is `'runtime'`, so the token is operator-assertable. The finding is real but its severity is Medium, not blocking: a scanner that fires on `const token={` and on its own fixtures trains an operator to assert past it, which is worse than a scanner that stays quiet.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `evals/run-deterministic.mjs`, next to the existing `secret-scan-clean-is-pass` and `secret-scan-finding-redacts-value` cases:
 
@@ -265,12 +265,12 @@ test('secret-scan-reports-a-missing-git-as-error-not-fail',()=>{
 
 Note the last case asserts the policy block exists rather than shadowing `git`; shadowing PATH inside a shared suite process is the mistake a previous task in this repo already made and had to undo.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `node evals/run-deterministic.mjs`
 Expected: FAIL on `secret-scan-ignores-an-identifier-named-token` (the old pattern matches `const token={`), on `secret-scan-honours-the-policy-allowlist` (no allowlist exists), and on `secret-scan-reports-a-missing-git-as-error-not-fail` (no policy block). `secret-scan-still-catches-an-assigned-credential` should already pass — it fences the behaviour that must survive.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 First add the policy block. In `policies/security-policy.json`, add a `secret_scan` key beside the existing `secret_policy` string (leave `secret_policy` exactly as it is — it is prose and other readers may depend on it):
 
@@ -365,7 +365,7 @@ Confirm `resolveLaunch` and `describeSpawn` are already imported at the top of `
 
 Finally correct the spec. In `docs/superpowers/specs/2026-08-27-harness-spike-findings.md`, find the F12 finding and replace its severity claim. It currently asserts the false positives make `no_new_high_security_findings` unproducible and this spike's VERIFY gate blocked. Replace that claim with the truth: `no_new_high_security_findings` is absent from `evidence_authority` in `policies/stage-policy.json`, and `guardEvidenceAuthority` (`runtime/orchestrator.mjs:25-34`) throws only for tokens whose authority is `'runtime'`, so the token is operator-assertable and the scanner gates nothing on its own. Restate the severity as Medium and the harm as signal quality: a scanner that fires on `const token={` and on its own fixtures trains an operator to assert past it. Keep the finding's file/line evidence and its Fix line; wrap any version literal in backticks.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `node evals/run-deterministic.mjs`
 Expected: `"results": "all-pass"`.
@@ -391,7 +391,7 @@ Expected: `"results": "all-pass"` — `agent_sdlc_tool_run` returns this documen
 Run: `node scripts/validate-versions.mjs`
 Expected: `"status": "PASS"` — the spec edit must not introduce a bare version literal.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add policies/security-policy.json runtime/tools.mjs docs/superpowers/specs/2026-08-27-harness-spike-findings.md evals/run-deterministic.mjs evals/DETERMINISTIC-VALIDATION.json
@@ -420,7 +420,7 @@ The selector source here is the task's own `task.verification.targeted_tests` ar
 
 A task whose `test_targeted` template needs a selector but which declares no `targeted_tests` must NOT silently skip its targeted verification: that is how a task reaches DONE without having run anything. It is recorded as an unexecuted command with a reason, which fails the verification record.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 The cases go in `evals/task-runtime.mjs`, not in `scripts/validate-task-engine.mjs` — the latter is a report aggregator that calls `runTaskRuntimeSuite(root)` and writes evidence files; the cases live in the suite. Add them inside the existing `verification_review` block, the one that opens `{ const t=group('verification_review');`. That block's idiom is `t('name',()=>{ … if(bad)fail('message'); })` — there is no `assert`; `fail(m)` throws. Available fixtures in that file: `makeFixture(opts)`, `runAtImplement(root,projectRoot)`, `startTask`, `writeInWorkspace`, `advanceTask`, `requireTask`.
 
@@ -511,12 +511,12 @@ Then add these cases:
 
 The fourth case relies on the fixture's `TASK-001` declaring `verification.targeted_tests` — the file's `TASK()` factory already sets `verification:{targeted_tests:['tests/auth/token-store.test.js'],…}`, so the selector is satisfied and the failure under test is the launch, not the selector. Confirm that before running, and if the factory has drifted, pass the targeted test explicitly rather than changing the factory.
 
-- [ ] **Step 2: Run the tests to verify they fail**
+- [x] **Step 2: Run the tests to verify they fail**
 
 Run: `node scripts/validate-task-engine.mjs`
 Expected: `planned-commands-splices-the-task-targeted-tests` FAILs with `placeholder survived: ["npm","test","--","{selector}"]`, and `planned-commands-refuses-a-selector-template-with-no-targeted-tests` FAILs because nothing sets the flag. On Windows `task-verification-reports-an-unstartable-command-as-error` FAILs reporting `exit_code:1` with no `reason`.
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 In `runtime/task-verification.mjs`, add to the imports at the top:
 
@@ -640,7 +640,7 @@ The rest of the loop — the `security_secret_scan` exit remapping, the truncati
 
 The runner calls `plannedCommands` somewhere above this loop; find that call and pass the root through so the secret-scan patterns resolve — grep for `plannedCommands(` in `runtime/task-verification.mjs` and in `runtime/` generally, and update every call site to pass `{root}` where a root is in scope. If a call site has no root available, leave it as `plannedCommands(projectRoot,task,strategy)` — the default keeps the narrow built-in pattern, which is the documented fallback.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Run: `node scripts/validate-task-engine.mjs`
 Expected: `"results": "all-pass"`.
@@ -660,7 +660,7 @@ node -e "const{plannedCommands}=await import('./runtime/task-verification.mjs');
 
 Expected: the `test_targeted` command with `{selector}` replaced by `scripts/validate-cli-surface.mjs` and no placeholder anywhere. Record the actual output. If that inline `node -e` form fights the shell, write the two lines to a temporary `.mjs` file under the SDD workspace, run it, and delete it.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runtime/task-verification.mjs scripts/validate-task-engine.mjs evals/TASK-ENGINE-VALIDATION.json
@@ -678,19 +678,19 @@ git commit -m "fix(task-verification): route the second execution path through t
 - Consumes: everything from Tasks 1-3.
 - Produces: a green `npm run check` with the floor unchanged at 90.
 
-- [ ] **Step 1: Run the whole gate**
+- [x] **Step 1: Run the whole gate**
 
 Run: `npm run check`
 Expected: exit 0. This is a chain of about 25 suites and the coverage step re-runs 16 of them under `NODE_V8_COVERAGE`, so expect many minutes. Do not kill it early.
 
-- [ ] **Step 2: Confirm the coverage floor is untouched**
+- [x] **Step 2: Confirm the coverage floor is untouched**
 
 Run: `node scripts/coverage-report.mjs`
 Expected: `"status": "PASS"`. Read `overall_percent` and record it.
 
 Do NOT run `--update`. The floor stays at 90 by decision: the last measurement above it was taken on Windows, and CI also measures on ubuntu where several cases record SKIP. Confirm `evals/COVERAGE-FLOOR.json` still reads `overall_percent: 90` with `never_loaded: []`.
 
-- [ ] **Step 3: Commit the reports**
+- [x] **Step 3: Commit the reports**
 
 ```bash
 git add evals/
