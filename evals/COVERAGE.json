@@ -20,8 +20,8 @@
   ],
   "measured": "v8-block-bytes",
   "overall_percent": 91,
-  "covered_bytes": 366547,
-  "total_bytes": 403005,
+  "covered_bytes": 373186,
+  "total_bytes": 409974,
   "modules": [
     {
       "file": "runtime/commands/activation.mjs",
@@ -121,9 +121,9 @@
     },
     {
       "file": "runtime/design-discovery.mjs",
-      "percent": 88.3,
-      "covered_bytes": 8222,
-      "total_bytes": 9308
+      "percent": 89.9,
+      "covered_bytes": 10233,
+      "total_bytes": 11378
     },
     {
       "file": "runtime/util.mjs",
@@ -210,6 +210,12 @@
       "total_bytes": 6657
     },
     {
+      "file": "runtime/commands/design.mjs",
+      "percent": 93,
+      "covered_bytes": 4257,
+      "total_bytes": 4576
+    },
+    {
       "file": "runtime/features.mjs",
       "percent": 93.2,
       "covered_bytes": 7777,
@@ -240,22 +246,16 @@
       "total_bytes": 12871
     },
     {
-      "file": "runtime/commands/project.mjs",
-      "percent": 94.4,
-      "covered_bytes": 2592,
-      "total_bytes": 2746
-    },
-    {
-      "file": "runtime/commands/design.mjs",
-      "percent": 94.5,
-      "covered_bytes": 3638,
-      "total_bytes": 3848
-    },
-    {
       "file": "runtime/project-knowledge.mjs",
       "percent": 94.6,
       "covered_bytes": 1556,
       "total_bytes": 1645
+    },
+    {
+      "file": "runtime/commands/project.mjs",
+      "percent": 94.9,
+      "covered_bytes": 3281,
+      "total_bytes": 3456
     },
     {
       "file": "runtime/plan-validator.mjs",
@@ -268,6 +268,12 @@
       "percent": 95.7,
       "covered_bytes": 5098,
       "total_bytes": 5328
+    },
+    {
+      "file": "runtime/dev-link.mjs",
+      "percent": 95.9,
+      "covered_bytes": 3309,
+      "total_bytes": 3450
     },
     {
       "file": "runtime/learning.mjs",
@@ -338,8 +344,8 @@
     {
       "file": "runtime/commands/index.mjs",
       "percent": 99,
-      "covered_bytes": 5560,
-      "total_bytes": 5615
+      "covered_bytes": 5571,
+      "total_bytes": 5626
     },
     {
       "file": "runtime/compat.mjs",
@@ -393,7 +399,17 @@
   "never_loaded": [],
   "floor": {
     "overall_percent": 90,
-    "never_loaded": []
+    "never_loaded": [],
+    "path_floors": {
+      "runtime/commands/": 82
+    }
+  },
+  "path_coverage": {
+    "runtime/commands/": {
+      "percent": 82.3,
+      "covered": 47238,
+      "total": 57415
+    }
   },
   "optional_tools": {
     "unzip": true,

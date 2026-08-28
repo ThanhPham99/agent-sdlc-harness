@@ -67,7 +67,8 @@ const NOT_MEASURED={
   'scripts/validate-ci-coverage.mjs':'checks the CI step list; never enters runtime/',
   'scripts/validate-guard.mjs':'runs the host guard in adapters/, outside runtime/',
   'scripts/validate-test-output-guard.mjs':'runs the host guard in adapters/, outside runtime/',
-  'scripts/test-statusline.mjs':'exercises the opt-in statusline script in adapters/, outside runtime/'
+  'scripts/test-statusline.mjs':'exercises the opt-in statusline script in adapters/, outside runtime/',
+  'scripts/validate-syntax.mjs':'parses each .mjs file with `node --check`; never imports or executes runtime/'
 };
 
 /** Every suite the `check` chain runs, expanded through its npm-script aliases. */
@@ -178,6 +179,20 @@ const missingTools=Object.entries(optionalTools).filter(([,present])=>!present).
 const floor=fs.existsSync(FLOOR_FILE)?JSON.parse(fs.readFileSync(FLOOR_FILE,'utf8')):null;
 const problems=[];
 const advisory=[];
+
+// The global floor is an average, so a well-covered module can hide a weak
+// one: runtime/commands/* -- the surface skills instruct the model to call --
+// sat at 70.9-75.2% per file while the 90% global floor was untouched. A
+// per-path floor makes that specific layer's regression visible on its own,
+// not just averaged away.
+function pathAggregate(prefix){
+  const matched=modules.filter(m=>m.file.startsWith(prefix));
+  const totals=matched.reduce((a,m)=>({covered:a.covered+m.covered_bytes,total:a.total+m.total_bytes}),{covered:0,total:0});
+  return {percent:pct(totals),...totals};
+}
+const pathFloors=floor?.path_floors||{};
+const pathReport=Object.fromEntries(Object.keys(pathFloors).map(prefix=>[prefix,pathAggregate(prefix)]));
+
 if(floor&&!update&&missingTools.length){
   if(overall<floor.overall_percent)advisory.push(`overall runtime coverage is ${overall}% against a floor of ${floor.overall_percent}%, but ${missingTools.join(' and ')} ${missingTools.length>1?'are':'is'} not installed here, so suites that need ${missingTools.length>1?'them':'it'} skipped; not treated as a regression`);
 }
@@ -187,6 +202,10 @@ else if(floor&&!update){
   // even when the overall percentage still clears the floor.
   const regressed=modules.filter(m=>m.never_loaded&&!(floor.never_loaded||[]).includes(m.file));
   for(const m of regressed)problems.push(`${m.file} is no longer executed by any coverage subject`);
+  for(const [prefix,need] of Object.entries(pathFloors)){
+    const got=pathReport[prefix].percent;
+    if(got<need)problems.push(`${prefix} coverage fell to ${got}% (floor ${need}%)`);
+  }
 }
 
 const report={
@@ -198,7 +217,8 @@ const report={
   total_bytes:totals.total,
   modules,
   never_loaded:modules.filter(m=>m.never_loaded).map(m=>m.file),
-  floor:floor?{overall_percent:floor.overall_percent,never_loaded:floor.never_loaded||[]}:null,
+  floor:floor?{overall_percent:floor.overall_percent,never_loaded:floor.never_loaded||[],path_floors:pathFloors}:null,
+  path_coverage:pathReport,
   optional_tools:optionalTools,
   problems,
   ...(advisory.length?{advisory}:{}),
@@ -210,7 +230,8 @@ if(update){
     schema:'agent-sdlc/coverage-floor/v1',
     note:'Ratchet, not a target. Raise it with scripts/coverage-report.mjs --update when coverage improves; a drop fails CI.',
     overall_percent:Math.floor(overall),
-    never_loaded:report.never_loaded
+    never_loaded:report.never_loaded,
+    path_floors:Object.fromEntries(Object.keys(pathFloors).map(prefix=>[prefix,Math.floor(pathReport[prefix].percent)]))
   },null,2)+'\n');
 }
 console.log(JSON.stringify({...report,modules:modules.slice(0,12)},null,2));
