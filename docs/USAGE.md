@@ -42,6 +42,23 @@ A `new-feature` run started before any project knowledge exists (no `system-cont
 INTAKE/REQUIREMENTS instead of guessing at architecture it was never shown; it drops out again once
 all four exist. Check the current status directly with `./bin/agent-sdlc knowledge status`.
 
+Runs, their event logs, task records and content-addressed artifacts under `.agent-sdlc/` only
+grow. `gc status` (the default; read-only) reports which runs are eligible for removal — terminal
+(reached their workflow's last stage), not suspended, older than `--older-than-days` (default `30`),
+and not still referenced by a feature phase's `run_ids` — plus which artifacts no surviving run,
+task or handoff references any more:
+
+```bash
+./bin/agent-sdlc gc status
+./bin/agent-sdlc gc status --older-than-days 60
+./bin/agent-sdlc gc status --run-id <id>    # a specific run, still only if it is terminal
+./bin/agent-sdlc gc apply                   # deletes exactly what the preceding status reported
+```
+
+`gc apply` re-checks each run is still terminal immediately before deleting it, in case something
+changed between `status` and `apply`; a run that no longer qualifies is left alone and reported,
+not force-removed.
+
 ## 2. Normalize source material before model reasoning
 
 ```bash

@@ -286,7 +286,7 @@ test('unknown-workflow-is-a-structured-error',()=>{
   if(!/unknown workflow/.test(err.error))throw new Error(err.error);
 });
 test('unknown-subcommands-are-structured-errors',()=>{
-  for(const args of [['task','nope'],['repo','nope'],['trace','nope'],['ci','nope'],['govern','nope'],['learn','nope'],['design','nope'],['plan','nope'],['delivery','nope'],['activation','nope'],['requirement-update','nope'],['feature','nope']]){
+  for(const args of [['task','nope'],['repo','nope'],['trace','nope'],['ci','nope'],['govern','nope'],['learn','nope'],['design','nope'],['plan','nope'],['delivery','nope'],['activation','nope'],['requirement-update','nope'],['feature','nope'],['gc','nope']]){
     const err=failure([...args,...R]);
     if(!/unknown .* subcommand/.test(err.error))throw new Error(`${args.join(' ')}: ${err.error}`);
   }
@@ -690,7 +690,7 @@ for(const args of [
   ['delivery','status'],['delivery','branch'],['delivery','push-check'],['delivery','drift'],['delivery','group'],
   ['ci','history'],['govern','report'],
   ['activation','status'],['activation','doctor'],['activation','classify'],
-  ['plan','graph','--file',PLAN_FILE(ENGINE[1])],['design','mode'],['design','scaffold'],['feature','active']
+  ['plan','graph','--file',PLAN_FILE(ENGINE[1])],['design','mode'],['design','scaffold'],['feature','active'],['gc','status']
 ]){
   // Named from the command and subcommand only. Folding the whole argv in put a
   // temp path and a run id into one case name, so that row changed on every run

@@ -66,5 +66,18 @@ export const commands={
     const {getProjectKnowledgeStatus}=await import('../project-knowledge.mjs');
     if(sub==='status')print(getProjectKnowledgeStatus(projectRoot));
     else throw new Error(`unknown knowledge subcommand ${sub}`);
+  },
+  gc:async ctx=>{
+    const {args,projectRoot,print}=ctx;
+    const sub=args._[1]||'status';
+    const {planGc,applyGc}=await import('../retention.mjs');
+    // Never based on age alone from the CLI either: `--run-id` still requires
+    // the run to be terminal, planGc just skips the age check for it.
+    const olderThanDays=args['older-than-days']!==undefined?Number(args['older-than-days']):30;
+    const runId=args['run-id']||null;
+    const plan=planGc(projectRoot,{olderThanDays,runId});
+    if(sub==='status')print(plan);
+    else if(sub==='apply')print(applyGc(projectRoot,plan));
+    else throw new Error(`unknown gc subcommand ${sub}`);
   }
 };

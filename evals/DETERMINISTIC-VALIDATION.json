@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 322,
-  "passes": 322,
+  "checks": 329,
+  "passes": 329,
   "failures": 0,
   "results": [
     {
@@ -743,6 +743,34 @@
     },
     {
       "name": "run-completion-and-feature-completion-are-tracked-independently",
+      "status": "PASS"
+    },
+    {
+      "name": "gc-plan-skips-a-non-terminal-run-regardless-of-age",
+      "status": "PASS"
+    },
+    {
+      "name": "gc-plan-skips-a-terminal-run-younger-than-the-cutoff",
+      "status": "PASS"
+    },
+    {
+      "name": "gc-plan-selects-an-old-terminal-run-and-reports-its-paths",
+      "status": "PASS"
+    },
+    {
+      "name": "gc-plan-orphans-only-the-artifact-no-surviving-run-references",
+      "status": "PASS"
+    },
+    {
+      "name": "gc-plan-skips-a-run-a-feature-phase-still-references",
+      "status": "PASS"
+    },
+    {
+      "name": "gc-apply-removes-exactly-what-the-plan-named-and-leaves-other-runs-alone",
+      "status": "PASS"
+    },
+    {
+      "name": "gc-apply-refuses-a-run-that-stopped-being-terminal-since-the-plan-was-made",
       "status": "PASS"
     },
     {

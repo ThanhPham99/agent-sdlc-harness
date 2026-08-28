@@ -17,6 +17,7 @@
     "fallback",
     "feature",
     "gate",
+    "gc",
     "govern",
     "handoff-get",
     "handoff-list",
@@ -49,7 +50,7 @@
     "usage-add",
     "usage-report"
   ],
-  "command_count": 46,
+  "command_count": 47,
   "groups": [
     "project",
     "run",
@@ -109,6 +110,13 @@
     },
     {
       "command": "gate",
+      "implemented": 2,
+      "declared": 2,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "gc",
       "implemented": 2,
       "declared": 2,
       "missing": [],

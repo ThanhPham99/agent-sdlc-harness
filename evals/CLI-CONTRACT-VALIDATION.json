@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/cli-contract-validation/v1",
-  "checks": 117,
-  "passes": 113,
+  "checks": 118,
+  "passes": 114,
   "failures": 0,
   "skipped": 4,
   "results": [
@@ -447,6 +447,10 @@
     },
     {
       "name": "read-surface-feature-active",
+      "status": "PASS"
+    },
+    {
+      "name": "read-surface-gc-status",
       "status": "PASS"
     },
     {

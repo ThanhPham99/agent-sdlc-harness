@@ -35,6 +35,7 @@ import {getProjectKnowledgeStatus} from '../runtime/project-knowledge.mjs';
 import {resolveProcedures,validateProcedureRegistry,auditProcedureCoverage} from '../runtime/procedures.mjs';
 import {legacyReachableSkillIds} from '../runtime/context.mjs';
 import {createFeature,loadFeature,updateFeature,listFeatures,createPhase,loadPhase,updatePhase,listPhases,attachRun,resolveActiveFeature,resolveActivePhase,resolveFeatureBinding} from '../runtime/features.mjs';
+import {planGc,applyGc} from '../runtime/retention.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
@@ -1342,6 +1343,120 @@ test('run-completion-and-feature-completion-are-tracked-independently',()=>{
   const completed=updatePhase(tmp,f.feature_id,p.phase_id,{status:'COMPLETE',completed_at:new Date().toISOString()});
   if(completed.status!=='COMPLETE')throw Error(JSON.stringify(completed));
   if(loadFeature(tmp,f.feature_id).status!=='ACTIVE')throw Error('completing a phase explicitly still should not auto-complete the feature');
+});
+
+// ---------------------------------------------------------------------------
+// F7: retention/gc for .agent-sdlc. A dedicated fixture per case, not the
+// shared `tmp` above -- gc's mark-and-sweep scans every run in the project,
+// and `tmp` has accumulated hundreds of runs by this point in the suite.
+// ---------------------------------------------------------------------------
+function gcFixture(){
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-gc-'));
+  execFileSync('git',['init','-q'],{cwd:d});
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'gc-fixture',commands:{},providers:{preferred:['claude']}});
+  return d;
+}
+/** Force a run to its own terminal stage and to a given age, bypassing
+ * saveRun (which always stamps updated_at=now()) so the fixture can pretend
+ * to be old without transitioning through every stage for real. */
+function closeAndAge(projectRoot,run,ageDays){
+  const p=path.join(projectRoot,'.agent-sdlc','runs',`${run.run_id}.json`);
+  const disk=JSON.parse(fs.readFileSync(p,'utf8'));
+  disk.state=disk.stages.at(-1);
+  disk.suspended_from=null;
+  disk.updated_at=new Date(Date.now()-ageDays*24*60*60*1000).toISOString();
+  fs.writeFileSync(p,JSON.stringify(disk,null,2));
+}
+
+test('gc-plan-skips-a-non-terminal-run-regardless-of-age',()=>{
+  const d=gcFixture();
+  const r=newRun(ROOT,d,{objective:'still open',route:route(ROOT,'Add refund capability')});
+  // Old, but never left INTAKE -- this case wants NOT_TERMINAL specifically,
+  // not TOO_RECENT.
+  const p=path.join(d,'.agent-sdlc','runs',`${r.run_id}.json`);
+  const disk=JSON.parse(fs.readFileSync(p,'utf8'));
+  disk.updated_at=new Date(Date.now()-40*24*60*60*1000).toISOString();
+  fs.writeFileSync(p,JSON.stringify(disk,null,2));
+  const plan=planGc(d,{olderThanDays:30});
+  if(plan.eligible_runs.length)throw Error(JSON.stringify(plan.eligible_runs));
+  if(!plan.skipped_runs.some(s=>s.run_id===r.run_id&&s.reason==='NOT_TERMINAL'))throw Error(JSON.stringify(plan.skipped_runs));
+});
+
+test('gc-plan-skips-a-terminal-run-younger-than-the-cutoff',()=>{
+  const d=gcFixture();
+  const r=newRun(ROOT,d,{objective:'just closed',route:route(ROOT,'Add refund capability')});
+  closeAndAge(d,r,1);
+  const plan=planGc(d,{olderThanDays:30});
+  if(plan.eligible_runs.length)throw Error(JSON.stringify(plan.eligible_runs));
+  if(!plan.skipped_runs.some(s=>s.run_id===r.run_id&&s.reason==='TOO_RECENT'))throw Error(JSON.stringify(plan.skipped_runs));
+});
+
+test('gc-plan-selects-an-old-terminal-run-and-reports-its-paths',()=>{
+  const d=gcFixture();
+  const r=newRun(ROOT,d,{objective:'long done',route:route(ROOT,'Add refund capability')});
+  closeAndAge(d,r,40);
+  const plan=planGc(d,{olderThanDays:30});
+  const e=plan.eligible_runs.find(x=>x.run_id===r.run_id);
+  if(!e)throw Error(JSON.stringify(plan));
+  if(!e.paths.some(p=>p===`.agent-sdlc/runs/${r.run_id}.json`))throw Error(JSON.stringify(e.paths));
+  if(plan.dry_run!==true)throw Error('planGc must never mutate disk');
+  if(!fs.existsSync(path.join(d,'.agent-sdlc','runs',`${r.run_id}.json`)))throw Error('planGc deleted something');
+});
+
+test('gc-plan-orphans-only-the-artifact-no-surviving-run-references',()=>{
+  const d=gcFixture();
+  const kept=newRun(ROOT,d,{objective:'stays open',route:route(ROOT,'Add refund capability')});
+  const pruned=newRun(ROOT,d,{objective:'goes away',route:route(ROOT,'Add refund capability')});
+  const keptArtifact=putArtifact(d,{kind:'note',content:'referenced by the surviving run',runId:kept.run_id,stage:kept.state});
+  kept.artifacts=[keptArtifact.artifact_id];saveRun(d,kept);
+  const orphanArtifact=putArtifact(d,{kind:'note',content:'referenced only by the pruned run',runId:pruned.run_id,stage:pruned.state});
+  pruned.artifacts=[orphanArtifact.artifact_id];saveRun(d,pruned);
+  closeAndAge(d,pruned,40);
+  const plan=planGc(d,{olderThanDays:30});
+  const orphanIds=plan.orphaned_artifacts.map(o=>o.artifact_id);
+  if(!orphanIds.includes(orphanArtifact.artifact_id))throw Error(JSON.stringify(plan.orphaned_artifacts));
+  if(orphanIds.includes(keptArtifact.artifact_id))throw Error('an artifact a surviving run references was marked orphaned');
+});
+
+test('gc-plan-skips-a-run-a-feature-phase-still-references',()=>{
+  const d=gcFixture();
+  const f=createFeature(d,{title:'gc exclusion check'});
+  const p=createPhase(d,f.feature_id);
+  const r=newRun(ROOT,d,{objective:'bound and old',route:route(ROOT,'Add refund capability'),featureId:f.feature_id,phaseId:p.phase_id});
+  closeAndAge(d,r,40);
+  const plan=planGc(d,{olderThanDays:30});
+  if(plan.eligible_runs.length)throw Error(JSON.stringify(plan.eligible_runs));
+  if(!plan.skipped_runs.some(s=>s.run_id===r.run_id&&s.reason==='REFERENCED_BY_FEATURE_PHASE'))throw Error(JSON.stringify(plan.skipped_runs));
+});
+
+test('gc-apply-removes-exactly-what-the-plan-named-and-leaves-other-runs-alone',()=>{
+  const d=gcFixture();
+  const stays=newRun(ROOT,d,{objective:'unaffected',route:route(ROOT,'Add refund capability')});
+  const goes=newRun(ROOT,d,{objective:'pruned',route:route(ROOT,'Add refund capability')});
+  closeAndAge(d,goes,40);
+  const plan=planGc(d,{olderThanDays:30});
+  const result=applyGc(d,plan);
+  if(!result.removed_runs.includes(goes.run_id))throw Error(JSON.stringify(result));
+  if(fs.existsSync(path.join(d,'.agent-sdlc','runs',`${goes.run_id}.json`)))throw Error('run.json survived apply');
+  if(!fs.existsSync(path.join(d,'.agent-sdlc','runs',`${stays.run_id}.json`)))throw Error('an unrelated run was deleted');
+});
+
+test('gc-apply-refuses-a-run-that-stopped-being-terminal-since-the-plan-was-made',()=>{
+  // Defensive re-check: state can change between `gc status` and `gc apply`.
+  const d=gcFixture();
+  const r=newRun(ROOT,d,{objective:'reopened after planning',route:route(ROOT,'Add refund capability')});
+  closeAndAge(d,r,40);
+  const plan=planGc(d,{olderThanDays:30});
+  if(!plan.eligible_runs.some(e=>e.run_id===r.run_id))throw Error('fixture assumption broke: run was not eligible');
+  // Something (a resume, a bug) makes the run non-terminal again before apply runs.
+  const p=path.join(d,'.agent-sdlc','runs',`${r.run_id}.json`);
+  const disk=JSON.parse(fs.readFileSync(p,'utf8'));
+  disk.state='PLAN';
+  fs.writeFileSync(p,JSON.stringify(disk,null,2));
+  const result=applyGc(d,plan);
+  if(result.removed_runs.includes(r.run_id))throw Error('a run that became non-terminal was still removed');
+  if(!result.errors.some(e=>e.run_id===r.run_id&&e.error==='NO_LONGER_TERMINAL_SKIPPED'))throw Error(JSON.stringify(result.errors));
+  if(!fs.existsSync(p))throw Error('the reopened run was deleted anyway');
 });
 
 // ---------------------------------------------------------------------------

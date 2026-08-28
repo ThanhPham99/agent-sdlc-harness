@@ -76,7 +76,8 @@ export const COMMANDS={
   govern:{group:"delivery",subcommands:["policy","report","complexity","task"]},
   fallback:{group:"provider"},
   learn:{group:"delivery",subcommands:["sources","candidate"]},
-  doctor:{group:"project"}
+  doctor:{group:"project"},
+  gc:{group:"project",subcommands:["status","apply"]}
 };
 
 export const COMMAND_NAMES=Object.keys(COMMANDS);
