@@ -43,7 +43,12 @@
     ".aws/**",
     ".ssh/**",
     ".npmrc",
-    ".pypirc"
+    ".pypirc",
+    ".git/config",
+    ".git/credentials",
+    ".git-credentials",
+    ".netrc",
+    "_netrc"
   ],
   "web_search_policy": {
     "sanitize_queries": true,

@@ -487,6 +487,62 @@ transition(ROOT,tmp,toolRun,'PLAN',{evidence:['design_or_skip_decision'],interna
 transition(ROOT,tmp,toolRun,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
 test('repo-read-path-traversal-blocked',()=>{let ok=false;try{invokeTool(ROOT,tmp,toolRun,'repo.read',{path:'../etc/passwd'});}catch(e){ok=/escapes project root/.test(e.message);}if(!ok)throw Error('path traversal accepted');});
 test('sensitive-read-blocked',()=>{fs.writeFileSync(path.join(tmp,'.env'),'TOKEN=x\n');let ok=false;try{invokeTool(ROOT,tmp,toolRun,'repo.read',{path:'.env'});}catch(e){ok=/sensitive path blocked/.test(e.message);}fs.rmSync(path.join(tmp,'.env'));if(!ok)throw Error('sensitive read accepted');});
+test('git-credential-files-are-sensitive-reads',()=>{
+  // .env, *.pem and .ssh/** were covered; the credential file that is present
+  // in EVERY repository was not. `git remote add origin
+  // https://user:ghp_...@github.com/x` writes the token into .git/config, and
+  // `git config credential.helper store` writes .git-credentials beside it --
+  // so repo.read could put a live token into the model's context on any repo
+  // cloned over HTTPS, without the operator doing anything unusual.
+  for(const rel of ['.git/config','.git-credentials','.netrc']){
+    const abs=path.join(tmp,rel);
+    fs.mkdirSync(path.dirname(abs),{recursive:true});
+    const existed=fs.existsSync(abs);
+    const original=existed?fs.readFileSync(abs):null;
+    fs.writeFileSync(abs,'[remote "origin"]\n\turl = https://u:ghp_TOKEN@github.com/x/y.git\n');
+    let blocked=false;
+    try{invokeTool(ROOT,tmp,toolRun,'repo.read',{path:rel});}catch(e){blocked=/sensitive path blocked/.test(e.message);}
+    if(existed)fs.writeFileSync(abs,original);else fs.rmSync(abs,{force:true});
+    if(!blocked)throw Error(`${rel} was readable; a token in it reaches the model`);
+  }
+});
+test('sensitive-read-patterns-match-below-the-repository-root',()=>{
+  // `**` compiled to `.[^/]*` -- the `*`->`[^/]*` pass rewrote the `*` that the
+  // `**`->`.*` pass had just produced -- so `.ssh/**` covered one level and no
+  // deeper. And every pattern was anchored at the root, so `.env` meant only
+  // the top-level one. A monorepo's services/api/.env, or a key in certs/,
+  // read straight through the guard built to stop exactly that.
+  const cases=['.ssh/keys/deploy_key','.aws/cli/cache/credentials.json','services/api/.env','certs/server.pem'];
+  const created=[];
+  for(const rel of cases){
+    const abs=path.join(tmp,rel);
+    fs.mkdirSync(path.dirname(abs),{recursive:true});
+    fs.writeFileSync(abs,'SECRET=x\n');
+    created.push(abs);
+  }
+  const readable=[];
+  try{
+    for(const rel of cases){
+      try{invokeTool(ROOT,tmp,toolRun,'repo.read',{path:rel});readable.push(rel);}
+      catch(e){if(!/sensitive path blocked/.test(e.message))throw e;}
+    }
+  }finally{
+    for(const abs of created)try{fs.rmSync(abs,{force:true});}catch{}
+  }
+  if(readable.length)throw Error(`readable despite the guard: ${JSON.stringify(readable)}`);
+});
+test('sensitive-read-patterns-do-not-block-ordinary-source',()=>{
+  // The guard's own doctrine: a false positive is worse than a miss, because
+  // it is what makes an operator switch the guard off.
+  for(const rel of ['README.md','src.js','config/settings.json','docs/env.md','keychain.js']){
+    const abs=path.join(tmp,rel);
+    fs.mkdirSync(path.dirname(abs),{recursive:true});
+    fs.writeFileSync(abs,'ordinary\n');
+    try{invokeTool(ROOT,tmp,toolRun,'repo.read',{path:rel});}
+    catch(e){throw Error(`${rel} was blocked as sensitive: ${e.message}`);}
+    finally{try{fs.rmSync(abs,{force:true});}catch{}}
+  }
+});
 test('repo-search-no-match-is-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'repo.search',{pattern:'definitely_not_present_123'});if(out.status!=='PASS'||out.exit_code!==0)throw Error(JSON.stringify(out));});
 test('secret-scan-clean-is-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'security.secret_scan',{});if(out.status!=='PASS')throw Error(JSON.stringify(out));});
 test('secret-scan-finding-redacts-value',()=>{fs.writeFileSync(path.join(tmp,'leak.txt'),'api_key=SUPERSECRET\n');execFileSync('git',['add','leak.txt'],{cwd:tmp});const out=invokeTool(ROOT,tmp,toolRun,'security.secret_scan',{});execFileSync('git',['reset','-q','HEAD','leak.txt'],{cwd:tmp});fs.rmSync(path.join(tmp,'leak.txt'));if(out.status!=='FAIL'||out.summary.includes('SUPERSECRET')||out.full_log_artifact)throw Error(JSON.stringify(out));});

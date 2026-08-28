@@ -42,14 +42,54 @@ function projectCommand(cfg,key,args){
   }
   return tmpl.map(x=>String(x).replaceAll('{selector}',selector));
 }
-function sensitivePath(root,rel){const sec=readJson(path.join(root,'policies','security-policy.json'));const p=String(rel||'').replaceAll('\\','/');return (sec.sensitive_read_patterns||[]).some(g=>{const re='^'+g.replace(/[.+^${}()|[\]\\]/g,'\\$&').replaceAll('**','.*').replaceAll('*','[^/]*')+'$';return new RegExp(re).test(p);});}
-/** Repo-relative path globs -> a matcher. Same glob dialect as sensitivePath. */
+/**
+ * One repo-relative path glob -> a RegExp. `**` spans directories, `*` does not.
+ *
+ * The two substitutions have to be independent. Replacing `**` with `.*` and
+ * then `*` with `[^/]*` rewrote the `*` the first pass had just produced, so
+ * every `**` compiled to `.[^/]*` and matched a single segment: `.ssh/**`
+ * covered `.ssh/id_rsa` and not `.ssh/keys/deploy_key`, and `evals/**`
+ * allowlisted `evals/x.json` and not `evals/guard/cases.json`. Splitting on
+ * `**` keeps each pass to its own text.
+ */
+function globToRegExp(glob){
+  const escaped=String(glob).replace(/[.+^${}()|[\]\\]/g,'\\$&');
+  return new RegExp('^'+escaped.split('**').map(s=>s.replaceAll('*','[^/]*')).join('.*')+'$');
+}
+/** The path, then every suffix of it that begins at a directory boundary. */
+function pathSuffixes(p){
+  const parts=p.split('/');
+  return parts.map((_,i)=>parts.slice(i).join('/'));
+}
+/**
+ * A credential file is sensitive wherever it sits.
+ *
+ * Matching only the full repo-relative path anchored every pattern at the root:
+ * `.env` meant the top-level one alone, so a monorepo's services/api/.env and a
+ * key in certs/ read straight through the guard built to stop exactly that.
+ * Each pattern is tested against the path and against every suffix starting at
+ * a segment boundary, so the policy list stays a plain list of credential file
+ * names instead of needing a globstar-prefixed twin per entry -- a twin the
+ * next person to add a pattern would forget.
+ */
+function sensitivePath(root,rel){
+  const sec=readJson(path.join(root,'policies','security-policy.json'));
+  const candidates=pathSuffixes(String(rel||'').replaceAll('\\','/'));
+  return (sec.sensitive_read_patterns||[]).some(g=>{
+    const re=globToRegExp(g);
+    return candidates.some(c=>re.test(c));
+  });
+}
+/**
+ * Repo-relative path globs -> a matcher, anchored at the repository root.
+ *
+ * Deliberately NOT suffix-matched the way sensitivePath is: this backs an
+ * allowlist (secret-scan findings that are expected), and a pattern that
+ * matched at any depth would suppress findings its author never named.
+ */
 function pathAllowed(globs,rel){
   const p=String(rel||'').replaceAll('\\','/');
-  return (globs||[]).some(g=>{
-    const re='^'+g.replace(/[.+^${}()|[\]\\]/g,'\\$&').replaceAll('**','.*').replaceAll('*','[^/]*')+'$';
-    return new RegExp(re).test(p);
-  });
+  return (globs||[]).some(g=>globToRegExp(g).test(p));
 }
 
 // A finding has to be a credential-shaped VALUE. The previous pattern matched a

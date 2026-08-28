@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 334,
-  "passes": 334,
+  "checks": 337,
+  "passes": 337,
   "failures": 0,
   "results": [
     {
@@ -291,6 +291,18 @@
     },
     {
       "name": "sensitive-read-blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "git-credential-files-are-sensitive-reads",
+      "status": "PASS"
+    },
+    {
+      "name": "sensitive-read-patterns-match-below-the-repository-root",
+      "status": "PASS"
+    },
+    {
+      "name": "sensitive-read-patterns-do-not-block-ordinary-source",
       "status": "PASS"
     },
     {
