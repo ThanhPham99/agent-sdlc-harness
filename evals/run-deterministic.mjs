@@ -36,6 +36,7 @@ import {resolveProcedures,validateProcedureRegistry,auditProcedureCoverage} from
 import {legacyReachableSkillIds} from '../runtime/context.mjs';
 import {createFeature,loadFeature,updateFeature,listFeatures,createPhase,loadPhase,updatePhase,listPhases,attachRun,resolveActiveFeature,resolveActivePhase,resolveFeatureBinding} from '../runtime/features.mjs';
 import {planGc,applyGc} from '../runtime/retention.mjs';
+import {jobBlock,jobScriptSequence} from '../scripts/lib/ci-workflow.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
@@ -1457,6 +1458,53 @@ test('gc-apply-refuses-a-run-that-stopped-being-terminal-since-the-plan-was-made
   if(result.removed_runs.includes(r.run_id))throw Error('a run that became non-terminal was still removed');
   if(!result.errors.some(e=>e.run_id===r.run_id&&e.error==='NO_LONGER_TERMINAL_SKIPPED'))throw Error(JSON.stringify(result.errors));
   if(!fs.existsSync(p))throw Error('the reopened run was deleted anyway');
+});
+
+// F5: scripts/validate-ci-coverage.mjs used to scan the whole ci.yml file as
+// one blob, so a suite present only in windows-validation -- a documented
+// SUBSET of the full gate, not a second complete one -- could satisfy
+// membership meant for the complete chain. jobScriptSequence scopes the read
+// to one named job; these cases prove that scoping actually isolates jobs
+// rather than exercising it only by hand against the real workflow file.
+const SYNTHETIC_WORKFLOW=[
+  'jobs:',
+  '  offline-validation:',
+  '    steps:',
+  '      - name: a',
+  '        run: npm run test:a',
+  '      - name: b',
+  '        run: npm run test:b',
+  '  windows-validation:',
+  '    steps:',
+  '      - name: a',
+  '        run: npm run test:a',
+  '      - name: c',
+  '        run: npm run test:c'
+].join('\n');
+
+test('job-block-stops-at-the-next-top-level-job',()=>{
+  const block=jobBlock(SYNTHETIC_WORKFLOW,'offline-validation').join('\n');
+  if(block.includes('test:c'))throw Error('offline-validation block leaked into windows-validation');
+  if(!block.includes('test:a')||!block.includes('test:b'))throw Error(block);
+});
+
+test('job-script-sequence-does-not-see-a-script-only-in-a-different-job',()=>{
+  // This is the exact F5 scenario: test:c only exists in windows-validation.
+  const offline=jobScriptSequence(SYNTHETIC_WORKFLOW,'offline-validation');
+  if(offline.includes('test:c'))throw Error(`windows-only script leaked into offline-validation's sequence: ${JSON.stringify(offline)}`);
+  if(!offline.includes('test:a')||!offline.includes('test:b'))throw Error(JSON.stringify(offline));
+  const windows=jobScriptSequence(SYNTHETIC_WORKFLOW,'windows-validation');
+  if(!windows.includes('test:c'))throw Error('windows-validation should see its own step');
+});
+
+test('job-script-sequence-preserves-order-within-the-job',()=>{
+  if(jobScriptSequence(SYNTHETIC_WORKFLOW,'offline-validation').join(',')!=='test:a,test:b')throw Error('order was not preserved');
+});
+
+test('job-block-throws-on-an-unknown-job-name',()=>{
+  let ok=false;
+  try{jobBlock(SYNTHETIC_WORKFLOW,'does-not-exist');}catch(e){ok=/no top-level job named/.test(e.message);}
+  if(!ok)throw Error('an unknown job name should fail loudly, not return an empty/wrong block silently');
 });
 
 // ---------------------------------------------------------------------------

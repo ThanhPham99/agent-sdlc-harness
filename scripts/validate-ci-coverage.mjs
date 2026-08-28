@@ -14,12 +14,23 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {jobScriptSequence} from './lib/ci-workflow.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const pkg=JSON.parse(fs.readFileSync(path.join(ROOT,'package.json'),'utf8'));
 const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
 const WORKFLOW='.github/workflows/ci.yml';
 const ci=fs.readFileSync(path.join(ROOT,WORKFLOW),'utf8');
+
+// F5: this used to scan the whole file as one blob, so a suite present only
+// in windows-validation -- an intentional, documented SUBSET of the full gate
+// for platform-sensitive suites, not a second complete gate -- could satisfy
+// membership meant for the complete chain. offline-validation is the job that
+// runs every suite `check` reaches; it is the one this validator holds to the
+// full chain. Not configurable from outside this file: which job is "the full
+// gate" is a fact about this specific workflow, not something a suite
+// argument should be able to redirect.
+const FULL_GATE_JOB='offline-validation';
 
 // Suites CI is allowed to skip, with the reason. Live host qualification needs
 // provider credentials and runs from live-qualification.yml instead.
@@ -36,10 +47,14 @@ function children(name){
   return out;
 }
 
-/** true when CI runs this exact script. */
-const invoked=name=>name==='test'
-  ? ci.includes('npm test')||ci.includes('npm run test ')
-  : ci.includes(`npm run ${name}`);
+// One extraction, shared by membership and order: a `run:` line naming a
+// script, in the order it appears within the full-gate job only. Membership
+// used to substring-match the whole file (so a mention inside a comment would
+// have satisfied it too); this is now exactly what order-checking already used.
+const ciSequence=jobScriptSequence(ci,FULL_GATE_JOB);
+
+/** true when the full-gate job runs this exact script. */
+const invoked=name=>ciSequence.includes(name);
 
 /**
  * Leaf suites reachable from `check`, each with the ancestor chain that could
@@ -56,7 +71,7 @@ function leaves(name,chain=[],seen=new Set()){
 const rows=leaves(CHECK_SCRIPT).map(({script,covered_by})=>{
   if(EXEMPT[script])return {script,status:'EXEMPT',reason:EXEMPT[script],problems:[]};
   const via=covered_by.filter(n=>n!==CHECK_SCRIPT).find(invoked)||null;
-  const problems=via?[]:[`\`npm run ${script}\` is reachable from \`npm run ${CHECK_SCRIPT}\` but ${WORKFLOW} never runs it (directly or via ${covered_by.filter(n=>n!==script&&n!==CHECK_SCRIPT).join(', ')||'an aggregate'})`];
+  const problems=via?[]:[`\`npm run ${script}\` is reachable from \`npm run ${CHECK_SCRIPT}\` but ${WORKFLOW}'s \`${FULL_GATE_JOB}\` job never runs it (directly or via ${covered_by.filter(n=>n!==script&&n!==CHECK_SCRIPT).join(', ')||'an aggregate'}) -- another job running it does not count`];
   return {script,status:problems.length?'FAIL':'PASS',gated_via:via,problems};
 });
 
@@ -70,8 +85,6 @@ if(!rows.length)rows.push({script:CHECK_SCRIPT,status:'FAIL',problems:[`no suite
  * The chain encodes real dependencies; CI must respect them.
  */
 const chain=children(CHECK_SCRIPT);
-const invocation=/^\s*run:\s*npm (?:run )?([a-z0-9:-]+)/;
-const ciSequence=ci.split('\n').map(l=>l.match(invocation)).filter(Boolean).map(m=>m[1]);
 const orderProblems=[];
 let cursor=-1,previous=null;
 for(const script of chain){
@@ -79,7 +92,7 @@ for(const script of chain){
   if(at<0){
     // Membership is reported per suite above; only order is judged here.
     if(ciSequence.includes(script)){
-      orderProblems.push(`\`${script}\` runs before \`${previous}\` in ${WORKFLOW} but after it in \`${CHECK_SCRIPT}\``);
+      orderProblems.push(`\`${script}\` runs before \`${previous}\` in ${WORKFLOW}'s \`${FULL_GATE_JOB}\` job but after it in \`${CHECK_SCRIPT}\``);
     }
     continue;
   }

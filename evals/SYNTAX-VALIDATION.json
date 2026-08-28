@@ -2,8 +2,8 @@
   "schema": "agent-sdlc/syntax-validation/v1",
   "version": "3.0.0-alpha6",
   "checked": "node --check (parse only, not executed)",
-  "checks": 122,
-  "passes": 122,
+  "checks": 123,
+  "passes": 123,
   "failures": 0,
   "results": [
     {
@@ -433,6 +433,11 @@
     },
     {
       "file": "scripts/host-preflight.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/lib/ci-workflow.mjs",
       "status": "PASS",
       "error": null
     },
