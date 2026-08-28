@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Close the remaining Medium/Low findings from the harness spike that are cheap to fix outright: a plugin-cache-drift warning that reaches an operator without them asking, a coverage floor that can no longer average away a weak agent-facing layer, a syntax gate over the 10% of bytes no suite executes, superseded CI runs that stop burning a Windows runner, and a `design mode`/`design validate` pair that finally composes. Three findings (F4, F7, and half of F5) are assessed and explicitly deferred rather than rushed — each because the fix, done properly, is a larger and riskier change than its severity justifies; see "What this plan deliberately does not do."
+**Goal:** Close the remaining Medium/Low findings from the harness spike that are cheap to fix outright: a plugin-cache-drift warning that reaches an operator without them asking, a coverage floor that can no longer average away a weak agent-facing layer, a syntax gate over the 10% of bytes no suite executes, superseded CI runs that stop burning a Windows runner, a `design mode`/`design validate` pair that finally composes, and a `.agent-sdlc` that can finally be pruned instead of only growing. Two findings (F4 and half of F5) are assessed and explicitly deferred rather than rushed — each because the fix, done properly, is a larger and riskier change than its severity justifies; see "What this plan deliberately does not do."
 
-**Architecture:** Five independent, additive changes, none of which touch the execution path, the secret scanner, the router, or the task-verification launcher settled by the other three plans. `runtime/dev-link.mjs` is a new module carrying the read-only half of what `scripts/dev-link.mjs` already did, moved so `doctor` — which ships in the distributed package, unlike `scripts/` — can reuse it. `scripts/coverage-report.mjs` gains a second, narrower floor keyed by path prefix, computed the same way as the existing global one. `scripts/validate-syntax.mjs` is a new suite, wired into `test:integrity` (which both CI jobs already run) rather than into `ci.yml` directly. `.github/workflows/ci.yml` gains a `concurrency` block. `runtime/design-discovery.mjs` gains one new pure function, `scaffoldDesignDecision`, and `design.mjs` gains the `scaffold` subcommand that calls it.
+**Architecture:** Six independent, additive changes, none of which touch the execution path, the secret scanner, the router, or the task-verification launcher settled by the other three plans. `runtime/dev-link.mjs` is a new module carrying the read-only half of what `scripts/dev-link.mjs` already did, moved so `doctor` — which ships in the distributed package, unlike `scripts/` — can reuse it. `scripts/coverage-report.mjs` gains a second, narrower floor keyed by path prefix, computed the same way as the existing global one. `scripts/validate-syntax.mjs` is a new suite, wired into `test:integrity` (which both CI jobs already run) rather than into `ci.yml` directly. `.github/workflows/ci.yml` gains a `concurrency` block. `runtime/design-discovery.mjs` gains one new pure function, `scaffoldDesignDecision`, and `design.mjs` gains the `scaffold` subcommand that calls it. `runtime/retention.mjs` is a new module with a pure `planGc`/mutating `applyGc` split, mirroring `dev-link.mjs`'s own status/apply split, exposed as `gc status`/`gc apply`.
 
 **Tech Stack:** Node.js ESM (`.mjs`), zero runtime dependencies. Hand-rolled `test()` suites; `scripts/lib/suite.mjs` where the existing file already uses it.
 
-**Spec:** `docs/superpowers/specs/2026-08-27-harness-spike-findings.md`, findings F3, F5, F6, F8, F13. (F4, F7, and F5's second half are addressed in "What this plan deliberately does not do" rather than fixed here.)
+**Spec:** `docs/superpowers/specs/2026-08-27-harness-spike-findings.md`, findings F3, F5, F6, F7, F8, F13. (F4 and F5's second half are addressed in "What this plan deliberately does not do" rather than fixed here.)
 
 ## Global Constraints
 
@@ -284,7 +284,62 @@ git commit -m "feat(design): design scaffold bridges design mode and design vali
 
 ---
 
-### Task 6: Full gate
+### Task 6: `gc status`/`gc apply` for `.agent-sdlc` (F7)
+
+**Files:**
+- Create: `runtime/retention.mjs`
+- Modify: `runtime/commands/project.mjs` — the `gc` handler
+- Modify: `runtime/commands/index.mjs` — register `gc`'s subcommands
+- Modify: `docs/USAGE.md`
+- Test: `evals/run-deterministic.mjs`, `scripts/test-cli-contract.mjs`
+
+**Interfaces:**
+- Consumes: nothing from another task.
+- Produces: `planGc(projectRoot,{olderThanDays,runId}) -> plan` (pure, read-only) and `applyGc(projectRoot,plan) -> result` (the only function in this module that touches disk).
+
+Originally deferred here as "a new feature needing its own design decision." That design decision, made explicit rather than left open-ended:
+
+- A run is eligible only when **terminal** (`state === stages.at(-1)`), **not suspended**, and **older than `--older-than-days`** (default `30`) — age alone is never sufficient, so an abandoned-but-still-open run is never touched regardless of how old it looks.
+- A run still listed in any feature phase's `run_ids` is excluded even if otherwise eligible. Nothing in the codebase actually dereferences that list today (checked: no `loadRun` call anywhere reads it back), but the traceability this harness is built around treats it as history a human might expect `feature show` to eventually surface, and `gc` is not the place to make that call silently.
+- Artifacts are content-addressed and the object store (`'.agent-sdlc/artifacts'`) is shared across every run, so a pruned run's own `artifacts` list is not sufficient to know an object is safe to delete — two runs can produce byte-identical content and land on the same hash (`putArtifact` always overwrites `artifacts/meta/<hash>.json`, so that file's `run_id` field only ever reflects the *last* writer, not every reference). Safe deletion requires a real mark-and-sweep: an artifact is orphaned only when **no surviving run's `.artifacts`, no surviving task's `.evidence_refs`/`.review_refs`, and no surviving handoff's `.artifact_refs`** still names it.
+- Two-phase, mirroring `dev-link.mjs`'s status/apply split: `gc status` (default) is pure and read-only; `gc apply` performs exactly what the plan named, and re-verifies each run is still terminal immediately before deleting it, in case something changed between the two calls.
+
+- [x] **Step 1: Write `runtime/retention.mjs`**
+
+`planGc` walks every run under `.agent-sdlc/runs/`, classifies each as eligible or skipped (`NOT_TERMINAL`, `TOO_RECENT`, `REFERENCED_BY_FEATURE_PHASE`, or `NOT_FOUND` for an explicit `--run-id` that doesn't exist), computes the on-disk paths and byte size each eligible run owns (`runs/<id>.json`, `events/<id>.jsonl`, `tasks/<id>/`, `task-events/<id>.jsonl`, `task-context/<id>/`, `task-evidence/<id>/`, `cost/<id>.jsonl`), then does the mark-and-sweep over `artifacts/meta/*.json` against every *surviving* run/task/handoff's reference fields. `applyGc` takes exactly that plan, re-reads each named run fresh, skips (with `NO_LONGER_TERMINAL_SKIPPED`) any that changed state since the plan was made, and only then deletes.
+
+- [x] **Step 2: Wire the CLI**
+
+`gc:{group:"project",subcommands:["status","apply"]}` in `runtime/commands/index.mjs`; the handler in `runtime/commands/project.mjs` reads `--older-than-days` (default `30`) and `--run-id`, builds the plan, and either prints it (`status`) or prints `applyGc`'s result (`apply`).
+
+- [x] **Step 3: Verify by hand against a real fixture**
+
+Built a throwaway project (`init`, `start`), backdated one run's `updated_at` 40 days and forced its `state` to its workflow's last stage (bypassing `saveRun`, which always stamps `updated_at=now()`), attached an artifact to it, and ran the sequence: `gc status` correctly listed it eligible with the artifact orphaned; `gc apply` removed exactly `runs/<id>.json`, `events/<id>.jsonl`, and the orphaned artifact's object+meta, leaving a second, still-`INTAKE` run in the same project untouched. Repeated with the run instead attached to a feature phase (`run_ids` populated by hand, mirroring `attachRun`'s effect) and confirmed `gc status` reported `REFERENCED_BY_FEATURE_PHASE` and left it alone.
+
+- [x] **Step 4: Cover it with automated cases**
+
+Added 8 cases to `evals/run-deterministic.mjs`, each against a dedicated `fs.mkdtempSync` fixture rather than the suite's shared `tmp` (which has hundreds of accumulated runs by that point, and `gc`'s mark-and-sweep scans every run in a project): a non-terminal run is skipped regardless of age; a terminal run younger than the cutoff is skipped; an old terminal run is selected with correct paths and `planGc` never mutates disk; an artifact referenced only by a pruned run is orphaned while one a surviving run references is not; a run a feature phase still lists is skipped; `apply` removes exactly what was planned and leaves an unrelated run alone; and `apply` refuses (rather than force-removing) a run that stopped being terminal since the plan was made. Added `['gc','status']` to `scripts/test-cli-contract.mjs`'s read-surface sweep and `['gc','nope']` to its unknown-subcommand sweep.
+
+- [x] **Step 5: Run the full gate**
+
+Run: `node evals/run-deterministic.mjs && node scripts/test-cli-contract.mjs && node scripts/validate-cli-surface.mjs && node scripts/validate-syntax.mjs`
+
+Expected and observed: all pass. `run-deterministic.mjs` up to `329` checks (was `322`); `test-cli-contract.mjs` up to `118` (was `116`); CLI surface `"subcommand_groups": "all-documented"`.
+
+- [x] **Step 6: Document it**
+
+`docs/USAGE.md`'s section 1 gained the `gc status`/`gc apply` commands and the eligibility rules above.
+
+- [x] **Step 7: Commit**
+
+```bash
+git add runtime/retention.mjs runtime/commands/project.mjs runtime/commands/index.mjs docs/USAGE.md evals/run-deterministic.mjs evals/DETERMINISTIC-VALIDATION.json scripts/test-cli-contract.mjs evals/CLI-CONTRACT-VALIDATION.json evals/CLI-SURFACE-VALIDATION.json
+git commit -m "feat(project): gc status/apply for .agent-sdlc retention (F7)"
+```
+
+---
+
+### Task 7: Full gate
 
 **Files:** report files under `evals/` only.
 
@@ -312,7 +367,6 @@ git commit -m "chore(evals): record the reports for the gate-hygiene fixes"
 ## What this plan deliberately does not do
 
 - **Does not fix F4** (`npm run check` runs each of 16 subject suites once individually, then `test:coverage` re-runs all 16 again under `NODE_V8_COVERAGE` — the longest segment of the run). Both fixes the finding names are architecturally invasive: running everything once under a shared coverage env means restructuring how `check`'s chain invokes suites, which `scripts/validate-ci-coverage.mjs` currently reasons about by regex-parsing `package.json`'s `npm run X && npm run Y` script bodies — a JS orchestrator in place of that chain would need that validator rewritten too. Splitting coverage into a parallel CI job does not reduce total suite executions, only CI wall-clock, and today coverage actually runs *three* times (ubuntu×2 node versions + Windows) because `evals/COVERAGE-FLOOR.json`'s own note explains ubuntu and Windows measure different numbers (SKIPped cases differ), so consolidating risks silently losing a platform-specific `never_loaded` regression signal. This is real, load-bearing coupling built by two other merged plans; a Medium-severity CI-speed finding does not justify restructuring it without dedicated design attention.
-- **Does not fix F7** (no `prune`/`gc` for `.agent-sdlc`). This is a new CLI feature, not a fix to broken behavior — it needs its own design decision (age-based? explicit ack before deleting run history that might be audit-relevant? which of runs/events/tasks/artifacts is prunable and under what default). Low severity, "cheap now, unbounded later," no reported operator pain yet. Scoping it properly is a task-sized effort of its own.
 - **Does not fix F5's second half** (`scripts/validate-ci-coverage.mjs` is job-blind: it checks that a suite is invoked *somewhere* in `ci.yml`'s text, not which job). Making it job-aware means parsing the workflow's job/step structure instead of scanning the whole file as one blob — a rewrite of a validator three other plans depend on for their own correctness guarantees. The failure mode it would catch (a suite present only in `windows-validation` satisfying a gate meant for `offline-validation`) has not actually happened; it is a latent risk, not an active one.
 - **Does not fix F14** (`npm run check` rewrites tracked report JSONs, leaving the worktree dirty). The execution-path-correctness and gate-signal-correctness plans' own Global Constraints already treat this as intentional: *"`npm run check` rewrites tracked report files under `evals/`. Commit those with the task that caused them."* Every task in this plan follows that same convention. Changing it now (gitignoring reports, or requiring `--update`) would be a process reversal affecting three merged plans' worth of established practice, not a Low-severity DX fix.
 - **Does not touch F1, F2, F9-F12, F15** — settled by the execution-path-correctness, router-scoring, and gate-signal-correctness plans.
