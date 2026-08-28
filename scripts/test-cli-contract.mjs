@@ -727,6 +727,253 @@ test('required-flags-are-guarded-across-every-command-group',()=>{
   }
 });
 
+// --- command-handler branches the sweeps above never reach ------------------
+// The read-only sweeps and the task-lifecycle walk exercise most of
+// runtime/commands/, but they skip anything that mutates state on its own
+// (activation enable/disable/record, delivery/ci/govern/learn's write paths,
+// normalize, task migrate/transition/workspace-clean/implementation-complete)
+// or that only differs from an already-covered call by an optional flag
+// (gate explain's default stage, context's explicit --artifacts/--symbols,
+// task usage's --task-id form, task context's --prompt form). Each case below
+// targets one such branch, reusing runToImplement/ENGINE/R where a case does
+// not need a fresh run of its own.
+
+test('activation-enable-and-disable-toggle-project-config',()=>{
+  const enabled=json(['activation','enable']);
+  if(enabled.status!=='ENABLED'||enabled.scope!=='project')throw new Error(JSON.stringify(enabled));
+  if(!fs.existsSync(enabled.config_file))throw new Error('project config file not written');
+  const cfg=JSON.parse(fs.readFileSync(enabled.config_file,'utf8'));
+  if(cfg.auto_activation?.enabled!==true)throw new Error(JSON.stringify(cfg));
+  const disabled=json(['activation','disable']);
+  if(disabled.status!=='DISABLED'||disabled.scope!=='project')throw new Error(JSON.stringify(disabled));
+  const cfg2=JSON.parse(fs.readFileSync(disabled.config_file,'utf8'));
+  if(cfg2.auto_activation?.enabled!==false)throw new Error(JSON.stringify(cfg2));
+});
+
+test('activation-enable-global-scope-writes-under-the-given-home',()=>{
+  // os.homedir() reads $HOME on POSIX, so pinning it keeps this off the real
+  // developer/CI home directory while still exercising the --global branch.
+  const fakeHome=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-home-'));
+  const out=json(['activation','enable','--global'],PROJECT,{HOME:fakeHome});
+  if(out.scope!=='global')throw new Error(JSON.stringify(out));
+  if(!out.config_file.startsWith(fakeHome))throw new Error(`config file escaped the fake home: ${out.config_file}`);
+  if(!fs.existsSync(out.config_file))throw new Error('global config file not written');
+});
+
+test('activation-record-dry-run-then-a-real-write-to-the-activation-log',()=>{
+  const dry=json(['activation','record','--event','activation.bootstrap_delivered','--host','claude','--dry-run']);
+  if(dry.status!=='DRY_RUN')throw new Error(JSON.stringify(dry));
+  const real=json(['activation','record','--event','activation.bootstrap_delivered','--host','claude','--reason','coverage-case']);
+  if(real.status!=='RECORDED')throw new Error(JSON.stringify(real));
+  if(!fs.existsSync(real.log))throw new Error('activation.jsonl not written');
+  if(!fs.readFileSync(real.log,'utf8').includes('activation.bootstrap_delivered'))throw new Error('event missing from the log');
+});
+
+test('activation-codex-bootstrap-install-and-uninstall-round-trip',()=>{
+  const home=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-codex-home-'));
+  const installed=json(['activation','codex-bootstrap','install','--codex-home',home]);
+  if(installed.status!=='INSTALLED')throw new Error(JSON.stringify(installed));
+  const status=json(['activation','codex-bootstrap','status','--codex-home',home]);
+  if(!status.installed)throw new Error(JSON.stringify(status));
+  const uninstalled=json(['activation','codex-bootstrap','uninstall','--codex-home',home]);
+  if(uninstalled.status!=='REMOVED')throw new Error(JSON.stringify(uninstalled));
+});
+
+test('ci-status-with-no-evidence-reports-not-current-and-exits-nonzero',()=>{
+  const at=runToImplement('Add refund CI-status-with-no-evidence check');
+  const r=raw(['ci','status',...at]);
+  if(r.status!==1)throw new Error(`exit ${r.status}`);
+  const doc=JSON.parse(r.stdout);
+  if(doc.current!==false)throw new Error(JSON.stringify(doc));
+});
+
+test('delivery-record-without-ci-evidence-is-blocked-and-exits-nonzero',()=>{
+  const at=runToImplement('Add refund delivery-record-without-evidence check');
+  const r=raw(['delivery','record',...at]);
+  if(r.status!==1)throw new Error(`exit ${r.status}`);
+  const doc=JSON.parse(r.stdout);
+  if(doc.status!=='BLOCKED')throw new Error(JSON.stringify(doc));
+  if(!doc.problems.includes('NO_CI_EVIDENCE'))throw new Error(JSON.stringify(doc.problems));
+});
+
+test('ci-record-and-delivery-record-reach-ready-together',()=>{
+  const at=runToImplement('Add refund CI-and-delivery-ready check');
+  const ciFile=path.join(PROJECT,`ci-${at[1]}.json`);
+  fs.writeFileSync(ciFile,JSON.stringify({checks:[{name:'unit',status:'PASS'}]}));
+  const rec=json(['ci','record',...at,'--file',ciFile,'--provider','github','--workflow','ci.yml']);
+  if(rec.status!=='PASS')throw new Error(JSON.stringify(rec));
+  const cs=json(['ci','status',...at]);
+  if(cs.current!==true)throw new Error(JSON.stringify(cs));
+  const show=json(['ci','show',...at]);
+  if(show.status!=='PASS')throw new Error(JSON.stringify(show));
+  const delivered=json(['delivery','record',...at]);
+  if(delivered.status!=='READY')throw new Error(JSON.stringify(delivered));
+});
+
+test('govern-complexity-and-govern-task-report-for-a-real-task',()=>{
+  const at=runToImplement('Add refund governance report check');
+  json(['task','refresh',...at]);
+  const complexity=json(['govern','complexity',...at,'--task-id','TASK-001']);
+  if(typeof complexity!=='object'||complexity===null)throw new Error('no complexity document');
+  const withFlags=json(['govern','task',...at,'--task-id','TASK-001',
+    '--context-estimate','1000','--context-budget','5000','--remaining-model-calls','10',
+    '--cache-available','--no-deterministic-tool']);
+  if(typeof withFlags!=='object'||withFlags===null)throw new Error('no govern document (flags set)');
+  const defaults=json(['govern','task',...at,'--task-id','TASK-001']);
+  if(typeof defaults!=='object'||defaults===null)throw new Error('no govern document (defaults)');
+});
+
+test('learn-candidate-valid-and-invalid-round-trip',()=>{
+  const valid=json(['learn','candidate','--source','VERIFICATION_FAILURE',
+    '--title','flaky refund test','--observed','test failed intermittently',
+    '--expected','test passes deterministically']);
+  if(!valid.validation.valid)throw new Error(JSON.stringify(valid.validation));
+  if(!valid.eval_case?.id)throw new Error('no eval case emitted');
+  const r=raw(['learn','candidate','--source','VERIFICATION_FAILURE','--observed','x','--expected','y']);
+  if(r.status!==1)throw new Error(`exit ${r.status}`);
+  const doc=JSON.parse(r.stdout);
+  if(doc.validation.valid)throw new Error('a candidate with no title should have failed validation');
+  if(!doc.validation.errors.includes('MISSING_TITLE'))throw new Error(JSON.stringify(doc.validation));
+});
+
+test('normalize-a-text-file-creates-an-artifact-and-writes-output',()=>{
+  const r=json(['start','--objective','Add refund normalization check']);
+  const at=['--run-id',r.run_id];
+  const input=path.join(PROJECT,'requirement-input.md');
+  fs.writeFileSync(input,'# Refund policy\nRefunds must be idempotent.\n');
+  const outFile=path.join(PROJECT,'normalized-output.md');
+  const n=json(['normalize','--file',input,'--output',outFile,...at]);
+  if(n.status!=='NORMALIZED')throw new Error(JSON.stringify(n));
+  if(!n.artifact?.artifact_id)throw new Error('no artifact created for a run-bound normalize');
+  if(!fs.existsSync(outFile))throw new Error('--output file was not written');
+  if(!json(['status',...at]).artifacts.includes(n.artifact.artifact_id))throw new Error('normalized artifact not attached to the run');
+});
+
+test('artifact-put-without-a-run-id-still-succeeds',()=>{
+  const a=json(['artifact-put','--kind','note','--content','no run attached']);
+  if(!a.artifact_id)throw new Error(JSON.stringify(a));
+  if(!json(['artifact-list']).some(x=>x.artifact_id===a.artifact_id))throw new Error('artifact not listed');
+});
+
+test('handoff-list-without-a-run-id-lists-every-handoff',()=>{
+  // 'handoff-put-get-list-round-trip' earlier in this file already recorded one.
+  const all=json(['handoff-list']);
+  if(!Array.isArray(all)||!all.length)throw new Error('expected at least one handoff across all runs');
+});
+
+test('approval-revoke-requires-a-capability-and-an-active-approval',()=>{
+  const r=json(['start','--objective','Add refund approval-revoke check']);
+  const at=['--run-id',r.run_id];
+  const missingFlag=failure(['approval','revoke',...at]);
+  if(missingFlag.error!=='--capability required')throw new Error(missingFlag.error);
+  // Granting requires an interactive terminal (see the runToImplement-adjacent
+  // note above), so there is no way to reach an active approval from a spawned
+  // process; the only reachable branch here is the underlying refusal.
+  const noActive=failure(['approval','revoke',...at,'--capability','deploy.production']);
+  if(!/no active approval/.test(noActive.error))throw new Error(noActive.error);
+});
+
+test('gate-and-approval-unknown-subcommands-are-structured-errors',()=>{
+  const r=json(['start','--objective','Add refund unknown-subcommand check']);
+  const at=['--run-id',r.run_id];
+  const g=failure(['gate','nope',...at]);
+  if(!/unknown gate subcommand/.test(g.error))throw new Error(g.error);
+  const a=failure(['approval','nope',...at]);
+  if(!/unknown approval subcommand/.test(a.error))throw new Error(a.error);
+});
+
+test('gate-explain-defaults-to-the-runs-current-stage',()=>{
+  const r=json(['start','--objective','Add refund gate-explain-default check']);
+  const at=['--run-id',r.run_id];
+  const g=json(['gate','explain',...at]); // no --stage: falls back to run.state (INTAKE)
+  if(g.decision!=='PASS')throw new Error(JSON.stringify(g)); // INTAKE has no requirements
+});
+
+test('context-honors-explicit-artifacts-and-symbols-flags',()=>{
+  const a=json(['artifact-put',...R,'--kind','note','--content','explicit artifact ref']);
+  const c=json(['context',...R,'--artifacts',a.artifact_id,'--symbols','charge']);
+  if(typeof c!=='object'||c===null)throw new Error('no context document');
+});
+
+test('parallel-plan-reads-tasks-from-a-file',()=>{
+  const file=path.join(PROJECT,'parallel-tasks.json');
+  fs.writeFileSync(file,JSON.stringify([]));
+  const out=json(['parallel-plan','--file',file]);
+  if(typeof out!=='object'||out===null)throw new Error('no parallel-plan document');
+});
+
+test('task-usage-add-and-per-task-usage-report',()=>{
+  json(['task','usage-add',...ENGINE,'--task-id','TASK-001','--provider','claude','--model','opus','--input','10','--output','5']);
+  const usage=json(['task','usage',...ENGINE,'--task-id','TASK-001']); // the --task-id branch, distinct from the run-wide report already swept above
+  if(typeof usage!=='object'||usage===null)throw new Error('no per-task usage document');
+});
+
+test('task-context-prompt-mode-returns-text-not-json',()=>{
+  const r=raw(['task','context',...ENGINE,'--task-id','TASK-001','--prompt']);
+  if(r.status!==0)throw new Error(`exit ${r.status}`);
+  if(r.stdout.trim().startsWith('{'))throw new Error('prompt mode printed JSON');
+});
+
+test('task-migrate-reports-skipped-when-tasks-are-already-materialized',()=>{
+  const out=json(['task','migrate',...ENGINE]);
+  if(out.status!=='SKIPPED')throw new Error(JSON.stringify(out));
+});
+
+test('task-transition-dry-run-then-suspends-a-running-task-to-blocked',()=>{
+  const at=runToImplement('Add refund task-transition check');
+  const T=['--task-id','TASK-001'];
+  json(['task','refresh',...at]);
+  json(['task','start',...at,...T]);
+  const dry=json(['task','transition',...at,...T,'--to','BLOCKED','--dry-run']);
+  if(!dry.allowed)throw new Error(JSON.stringify(dry));
+  if(json(['task','show',...at,...T]).status!=='RUNNING')throw new Error('a dry-run transition moved the task');
+  const real=json(['task','transition',...at,...T,'--to','BLOCKED','--reason','manual suspend']);
+  if(real.status!=='BLOCKED')throw new Error(JSON.stringify(real));
+  if(json(['task','show',...at,...T]).status!=='BLOCKED')throw new Error('the transition did not persist');
+});
+
+test('task-workspace-clean-refuses-without-evidence-then-force-cleans',()=>{
+  const at=runToImplement('Add refund workspace-clean check');
+  const T=['--task-id','TASK-001'];
+  json(['task','refresh',...at]);
+  json(['task','start',...at,...T]);
+  const refused=json(['task','workspace-clean',...at,...T]);
+  if(refused.status!=='REFUSED_EVIDENCE_NOT_PERSISTED')throw new Error(JSON.stringify(refused));
+  const cleaned=json(['task','workspace-clean',...at,...T,'--force']);
+  if(cleaned.status!=='CLEANED')throw new Error(JSON.stringify(cleaned));
+});
+
+test('route-and-start-accept-a-positional-objective-not-just-the-flag',()=>{
+  const viaFlag=json(['route','--objective','positional objective parity check']);
+  const viaPositional=json(['route','positional','objective','parity','check']);
+  if(JSON.stringify(viaFlag)!==JSON.stringify(viaPositional))throw new Error('positional objective produced a different route');
+  const started=json(['start','a','positional','start','objective']);
+  if(started.objective!=='a positional start objective')throw new Error(JSON.stringify(started));
+});
+
+test('start-without-any-objective-is-a-structured-error',()=>{
+  const err=failure(['start']);
+  if(!/objective required/.test(err.error))throw new Error(err.error);
+});
+
+test('gate-and-approval-default-to-their-status-subcommand-when-none-is-given',()=>{
+  const r=json(['start','--objective','Add refund gate-and-approval-default check']);
+  const at=['--run-id',r.run_id];
+  const g=json(['gate',...at]); // no subcommand at all: args._[1] is undefined, falls back to 'status'
+  if(g.decision!=='PASS')throw new Error(JSON.stringify(g));
+  const a=json(['approval',...at]);
+  if(!Array.isArray(a)||a.length!==0)throw new Error(JSON.stringify(a));
+});
+
+test('task-implementation-complete-reports-unfinished-tasks',()=>{
+  const at=runToImplement('Add refund implementation-complete check');
+  const r=raw(['task','implementation-complete',...at]);
+  if(r.status!==1)throw new Error(`exit ${r.status}`);
+  const doc=JSON.parse(r.stdout);
+  if(doc.recorded!==false)throw new Error(JSON.stringify(doc));
+  if(!doc.problems.some(p=>p.startsWith('TASKS_NOT_DONE')))throw new Error(JSON.stringify(doc.problems));
+});
+
 // --- shim execution: bin/agent-sdlc.cmd and bin/agent-sdlc.ps1 on Windows ---
 // scripts/verify-dist.mjs drives the packaged .cmd, and only on win32.
 // scripts/validate-cli-surface.mjs asserts both shims' source text forwards

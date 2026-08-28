@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/cli-contract-validation/v1",
-  "checks": 118,
-  "passes": 114,
+  "checks": 144,
+  "passes": 140,
   "failures": 0,
   "skipped": 4,
   "results": [
@@ -459,6 +459,110 @@
     },
     {
       "name": "required-flags-are-guarded-across-every-command-group",
+      "status": "PASS"
+    },
+    {
+      "name": "activation-enable-and-disable-toggle-project-config",
+      "status": "PASS"
+    },
+    {
+      "name": "activation-enable-global-scope-writes-under-the-given-home",
+      "status": "PASS"
+    },
+    {
+      "name": "activation-record-dry-run-then-a-real-write-to-the-activation-log",
+      "status": "PASS"
+    },
+    {
+      "name": "activation-codex-bootstrap-install-and-uninstall-round-trip",
+      "status": "PASS"
+    },
+    {
+      "name": "ci-status-with-no-evidence-reports-not-current-and-exits-nonzero",
+      "status": "PASS"
+    },
+    {
+      "name": "delivery-record-without-ci-evidence-is-blocked-and-exits-nonzero",
+      "status": "PASS"
+    },
+    {
+      "name": "ci-record-and-delivery-record-reach-ready-together",
+      "status": "PASS"
+    },
+    {
+      "name": "govern-complexity-and-govern-task-report-for-a-real-task",
+      "status": "PASS"
+    },
+    {
+      "name": "learn-candidate-valid-and-invalid-round-trip",
+      "status": "PASS"
+    },
+    {
+      "name": "normalize-a-text-file-creates-an-artifact-and-writes-output",
+      "status": "PASS"
+    },
+    {
+      "name": "artifact-put-without-a-run-id-still-succeeds",
+      "status": "PASS"
+    },
+    {
+      "name": "handoff-list-without-a-run-id-lists-every-handoff",
+      "status": "PASS"
+    },
+    {
+      "name": "approval-revoke-requires-a-capability-and-an-active-approval",
+      "status": "PASS"
+    },
+    {
+      "name": "gate-and-approval-unknown-subcommands-are-structured-errors",
+      "status": "PASS"
+    },
+    {
+      "name": "gate-explain-defaults-to-the-runs-current-stage",
+      "status": "PASS"
+    },
+    {
+      "name": "context-honors-explicit-artifacts-and-symbols-flags",
+      "status": "PASS"
+    },
+    {
+      "name": "parallel-plan-reads-tasks-from-a-file",
+      "status": "PASS"
+    },
+    {
+      "name": "task-usage-add-and-per-task-usage-report",
+      "status": "PASS"
+    },
+    {
+      "name": "task-context-prompt-mode-returns-text-not-json",
+      "status": "PASS"
+    },
+    {
+      "name": "task-migrate-reports-skipped-when-tasks-are-already-materialized",
+      "status": "PASS"
+    },
+    {
+      "name": "task-transition-dry-run-then-suspends-a-running-task-to-blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "task-workspace-clean-refuses-without-evidence-then-force-cleans",
+      "status": "PASS"
+    },
+    {
+      "name": "route-and-start-accept-a-positional-objective-not-just-the-flag",
+      "status": "PASS"
+    },
+    {
+      "name": "start-without-any-objective-is-a-structured-error",
+      "status": "PASS"
+    },
+    {
+      "name": "gate-and-approval-default-to-their-status-subcommand-when-none-is-given",
+      "status": "PASS"
+    },
+    {
+      "name": "task-implementation-complete-reports-unfinished-tasks",
       "status": "PASS"
     },
     {
