@@ -1,6 +1,6 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import {appendJsonl,now,readJson} from './util.mjs';
+import {appendJsonl,now} from './util.mjs';
 import {stateDir} from './store.mjs';
 
 const FIELDS=['input_tokens','cached_input_tokens','output_tokens','reasoning_tokens','wall_ms'];

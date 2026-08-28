@@ -73,7 +73,6 @@ function underSystemRoot(token){
 // Wrappers that prefix a real command without changing what it does.
 const WRAPPER=/^(?:sudo|doas|su|env|nohup|time|timeout|command|builtin|exec|xargs|cmd|cmd\.exe|powershell|powershell\.exe|pwsh|bash|sh|zsh|\/c|\/k|-c|-command|-noprofile|-executionpolicy|bypass|unrestricted|-file|--)$/i;
 
-const flagLetters=tok=>/^-[^-]/.test(tok)?tok.slice(1):'';
 const hasFlag=(flags,short,long)=>flags.some(f=>
   (long&&new RegExp(`^--${long}$`,'i').test(f))||
   (short&&new RegExp(`^-[^-]*${short}[^-]*$`).test(f))||
