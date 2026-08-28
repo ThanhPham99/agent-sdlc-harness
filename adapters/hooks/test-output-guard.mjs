@@ -45,10 +45,23 @@ const LOG_DUMP=/\bcat\s+[^|>\n]*\.log\b|\bdocker\s+logs\b(?!.*--tail)|\bkubectl\
 if(!VERBOSE_PRODUCER.test(norm)&&!LOG_DUMP.test(norm))process.exit(0);
 
 // Anything that already looks bounded: piped into a filtering tool, a
-// quiet/reporter/line-limiting flag, or redirected to a file to read back
-// selectively instead of straight into the conversation.
-const ALREADY_BOUNDED=/\|\s*(?:grep|egrep|fgrep|awk|sed|head|tail|jq|wc|less|more|cut)\b|--reporter[= ]?(?:dot|min|line|tap|silent)\b|--silent\b|--quiet\b|(?:^|\s)-q(?:\s|$)|--tail[= ]?\d+|--lines[= ]?\d+|-n\s*\d+|--bail\b|>\s*[\w./-]+\.(?:log|txt|out|json)(?:\s|$)/i;
-if(ALREADY_BOUNDED.test(norm))process.exit(0);
+// quiet/reporter/line-limiting flag, or redirected away from the conversation.
+//
+// The redirect clause used to be `>\s*[\w./-]+\.(log|txt|out|json)`, which
+// demanded a literal path in four extensions. That denied every ordinary way
+// of writing one -- `> "$LOG/run.log"`, `> ~/logs/run.log`, `> C:\tmp\run.log`,
+// `> /tmp/go-out`, `> report.md` -- and, worst of all, `> /dev/null`, which
+// sends nothing to the conversation at all. The denial message tells the
+// caller to redirect to a file; the rule then refused the redirect. That is
+// the failure this guard's own header calls the expensive one, because it is
+// what teaches someone to switch the hook off.
+//
+// What matters is only that stdout goes somewhere other than the transcript,
+// so the target is any token. `(?!&)` is what keeps `2>&1` out: merging stderr
+// into stdout is not a redirect away, and that case stays denied.
+const REDIRECTED=/>>?\s*(?!&)[^\s|;&<>]+/;
+const ALREADY_BOUNDED=/\|\s*(?:grep|egrep|fgrep|awk|sed|head|tail|tee|jq|wc|less|more|cut)\b|--reporter[= ]?(?:dot|min|line|tap|silent)\b|--silent\b|--quiet\b|(?:^|\s)-q(?:\s|$)|--tail[= ]?\d+|--lines[= ]?\d+|-n\s*\d+|--bail\b/i;
+if(ALREADY_BOUNDED.test(norm)||REDIRECTED.test(norm))process.exit(0);
 
 console.log(JSON.stringify({hookSpecificOutput:{
   hookEventName:'PreToolUse',

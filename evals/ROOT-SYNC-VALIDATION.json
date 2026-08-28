@@ -18,8 +18,8 @@
       "source": "adapters/hooks/test-output-guard.mjs",
       "root_copy": "hooks/test-output-guard.mjs",
       "status": "PASS",
-      "source_sha256": "d9ad54730624d14a",
-      "root_sha256": "d9ad54730624d14a",
+      "source_sha256": "19c09a12513cd6a4",
+      "root_sha256": "19c09a12513cd6a4",
       "problems": []
     },
     {

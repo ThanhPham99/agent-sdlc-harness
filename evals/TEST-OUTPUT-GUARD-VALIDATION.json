@@ -2,12 +2,12 @@
   "schema": "agent-sdlc/test-output-guard-validation/v1",
   "version": "3.0.0-alpha6",
   "guard": "adapters/hooks/test-output-guard.mjs",
-  "checks": 22,
-  "passes": 22,
+  "checks": 31,
+  "passes": 31,
   "failures": 0,
   "by_expectation": {
-    "deny": 8,
-    "allow": 12
+    "deny": 9,
+    "allow": 20
   },
   "false_positives": 0,
   "missed_verbose_output": 0,
@@ -228,6 +228,96 @@
       "actual": null,
       "failure_class": null,
       "reason": null
+    },
+    {
+      "case_id": "allow-redirect-to-a-variable-path",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npm test > \"$SP/det.log\" 2>&1",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-redirect-to-a-braced-variable-path",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npm test > \"${TMPDIR}/run.log\" 2>&1",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-redirect-to-a-home-relative-path",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npm test > ~/logs/run.log",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-redirect-to-dev-null",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npm test > /dev/null 2>&1",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-redirect-to-an-extensionless-path",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "go test ./... > /tmp/go-out",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-redirect-to-an-unlisted-extension",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npm test > report.md",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-piped-into-tee",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npm test | tee run.log",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "allow-redirect-to-a-windows-path",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npm test > C:\\temp\\run.log",
+      "expected": null,
+      "actual": null,
+      "failure_class": null,
+      "reason": null
+    },
+    {
+      "case_id": "deny-stderr-merge-is-not-a-redirect",
+      "status": "PASS",
+      "tool": "Bash",
+      "command": "npm test 2>&1",
+      "expected": "deny",
+      "actual": "deny",
+      "failure_class": null,
+      "reason": "Agent SDLC token-hygiene guard: this command’s raw output is usually too large to be worth reading in full, and most of it will not be relevant. Re-run it bounded, for example pipe test output through grep -A 5 -E \"(FAIL|ERROR|error:)\" | head -120, use the runner’s quiet/reporter flag, or bound a log dump with --tail N / tail -n N. If the full output is genuinely needed, redirect it to a file first and read back only the part that matters."
     }
   ],
   "status": "PASS"
