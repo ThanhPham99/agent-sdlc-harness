@@ -862,6 +862,51 @@ export function runTaskRuntimeSuite(root){
       if(failing.allowed)fail('a failing verification was accepted');
     });
 
+    t('a-verification-record-with-no-scope-audit-does-not-satisfy-the-scope-gate',()=>{
+      // `scope_respected` is required on QUALITY_REVIEW -> DONE, and the check
+      // was `if(scope && scope.respected===false)`. `scope` is optional in
+      // TaskVerification.schema.json, and `task transition --verification
+      // <file>` reads the record from a caller-supplied path -- so a
+      // schema-valid record that simply omits the scope block skipped the gate
+      // entirely and the task reached DONE with no scope proof at all. Absence
+      // of a violation report is not a report of no violation.
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot);
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/token-store.js','export const store=new Map();\n');
+      let task=requireTask(projectRoot,run.run_id,'TASK-001');
+      captureTaskDiff(projectRoot,run,task);
+      task=requireTask(projectRoot,run.run_id,'TASK-001');
+      task.status='QUALITY_REVIEW';
+      saveTask(projectRoot,task);
+
+      const cur=requireTask(projectRoot,run.run_id,'TASK-001');
+      const base={
+        qualityReview:{verdict:'ACCEPTED',findings:[]},
+        verification:{status:'PASS',attempt:cur.attempt}
+      };
+      const noScope=evaluateTransition(root,cur,'DONE',base);
+      if(noScope.allowed)fail('a verification with no scope audit satisfied scope_respected');
+      if(!noScope.problems.includes('NO_SCOPE_EVIDENCE'))
+        fail(`unexpected problems: ${JSON.stringify(noScope.problems)}`);
+
+      // A scope block that reports out-of-scope paths but never says so in
+      // `respected` is the same evasion one field down.
+      const halfScope=evaluateTransition(root,cur,'DONE',
+        {...base,verification:{...base.verification,scope:{out_of_scope_paths:['src/notify/x.js']}}});
+      if(halfScope.allowed)fail('a scope block with no boolean verdict satisfied the gate');
+
+      // The gate still reports a real violation, and still opens for a clean audit.
+      const violated=evaluateTransition(root,cur,'DONE',
+        {...base,verification:{...base.verification,scope:{respected:false,out_of_scope_paths:['src/notify/x.js']}}});
+      if(violated.allowed)fail('a scope violation was accepted');
+      if(!violated.problems.some(p=>p.startsWith('SCOPE_VIOLATION:')))
+        fail(`unexpected problems: ${JSON.stringify(violated.problems)}`);
+      const clean=evaluateTransition(root,cur,'DONE',
+        {...base,verification:{...base.verification,scope:{respected:true,out_of_scope_paths:[]}}});
+      if(!clean.allowed)fail(`a clean scope audit was refused: ${JSON.stringify(clean.problems)}`);
+    });
+
     t('scope-audit-treats-declared-directories-as-covering',()=>{
       const a=scopeAudit({scope:{write:['src/auth/']}},['src/auth/token-store.js']);
       if(!a.respected)fail(JSON.stringify(a));

@@ -247,8 +247,16 @@ export function evaluateTransition(root,task,to,{tasks=[],verification=null,spec
     }
   }
   if(need.has('scope_respected')){
+    // The audit has to be present, not merely un-damning. `scope` is optional
+    // in TaskVerification.schema.json and `task transition --verification
+    // <file>` reads the record from a caller-supplied path, so a schema-valid
+    // record that omits the block used to skip this gate entirely and reach
+    // DONE with no scope proof. verifyTask() computes scopeAudit() on every
+    // path it takes, dry runs included, so nothing that actually verifies is
+    // affected -- only records that never audited.
     const scope=verification?.scope;
-    if(scope&&scope.respected===false)problems.push(`SCOPE_VIOLATION:${arr(scope.out_of_scope_paths).join(',')}`);
+    if(!scope||typeof scope.respected!=='boolean')problems.push('NO_SCOPE_EVIDENCE');
+    else if(scope.respected===false)problems.push(`SCOPE_VIOLATION:${arr(scope.out_of_scope_paths).join(',')}`);
   }
   if(need.has('new_evidence')&&!newEvidence)problems.push('RETRY_WITHOUT_NEW_EVIDENCE');
   if(need.has('retry_budget')){
