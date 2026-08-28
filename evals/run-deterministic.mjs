@@ -115,7 +115,9 @@ test('parallelism-bounded',()=>{const p=JSON.parse(fs.readFileSync(path.join(ROO
 // No active skill/procedure may depend on the legacy .ai-workflow namespace --
 // only historical documentation, migration/compat code, and legacy-format
 // reference fixtures may name it.
-test('no-active-ai-workflow-references-outside-the-legacy-allowlist',()=>{
+// Extracted so a second case can call the same walk. The walk is the thing
+// under test in both.
+function legacyReferenceOffenders(){
   const allowlist=new Set([
     'docs/MIGRATION.md',
     'runtime/compat.mjs',
@@ -124,10 +126,19 @@ test('no-active-ai-workflow-references-outside-the-legacy-allowlist',()=>{
     'templates/knowledge-index.yaml',
     'templates/workflow-meta.yaml',
     'scripts/test-compat.mjs', // fixture: creates a fake legacy dir to test detection
-    'evals/run-deterministic.mjs' // this guard names the legacy path itself
+    'evals/run-deterministic.mjs', // this guard names the legacy path itself
+    'docs/superpowers/plans/2026-08-28-gate-signal-correctness.md' // historical plan quoting this guard's own message
   ]);
   const needle='.'+'ai-workflow';
-  const skipDirs=new Set(['.git','node_modules','dist','.agent-sdlc']);
+  // Gitignored scratch that can hold a whole second copy of the repo. `.claude`
+  // is where this repo's own worktree tooling puts worktrees, so a worktree
+  // inside the checkout used to make this guard report every allowlisted file
+  // again under a .claude/worktrees/... prefix.
+  const skipDirs=new Set(['.git','node_modules','dist','.agent-sdlc','.claude','release','.superpowers']);
+  // The guard writes its own failure message -- which names the needle -- into
+  // this report, and `evals/` is walked. Reading it back made one red run turn
+  // the next run red for a different, self-inflicted reason.
+  const selfReports=new Set(['evals/DETERMINISTIC-VALIDATION.json']);
   const textFile=/\.(md|mjs|js|json|yaml|yml)$/;
   const offenders=[];
   (function walk(dir){
@@ -136,11 +147,44 @@ test('no-active-ai-workflow-references-outside-the-legacy-allowlist',()=>{
       if(!textFile.test(entry.name))continue;
       const full=path.join(dir,entry.name);
       const rel=path.relative(ROOT,full).split(path.sep).join('/');
-      if(allowlist.has(rel))continue;
+      if(allowlist.has(rel)||selfReports.has(rel))continue;
       if(fs.readFileSync(full,'utf8').includes(needle))offenders.push(rel);
     }
   })(ROOT);
+  return offenders;
+}
+
+test('no-active-ai-workflow-references-outside-the-legacy-allowlist',()=>{
+  const offenders=legacyReferenceOffenders();
   if(offenders.length)throw Error(`active .ai-workflow reference(s) outside the legacy allowlist: ${offenders.join(', ')}`);
+});
+
+// The guard above walks the working tree. Two things it must not trip over:
+// a worktree created inside the checkout (this repo's own tooling puts them in
+// .claude/worktrees/), and the report file the guard itself writes -- a failure
+// message names the needle, so one red run used to make the next run red for a
+// different, self-inflicted reason.
+test('legacy-guard-ignores-scratch-dirs-and-its-own-report',()=>{
+  const src=fs.readFileSync(path.join(ROOT,'evals','run-deterministic.mjs'),'utf8');
+  const m=src.match(/const skipDirs=new Set\(\[([^\]]*)\]\)/);
+  if(!m)throw Error('could not find the guard skipDirs literal');
+  const skipped=m[1].split(',').map(s=>s.trim().replace(/^'|'$/g,'')).filter(Boolean);
+  for(const required of ['.git','node_modules','dist','.agent-sdlc','.claude','release','.superpowers']){
+    if(!skipped.includes(required))throw Error(`skipDirs is missing ${required}: ${JSON.stringify(skipped)}`);
+  }
+  // And the guard must not read its own report back in.
+  const reportRel='evals/DETERMINISTIC-VALIDATION.json';
+  const report=path.join(ROOT,reportRel);
+  if(!fs.existsSync(report))throw Error(`${reportRel} should exist by the time this case runs`);
+  const needle='.'+'ai-workflow';
+  fs.writeFileSync(report,JSON.stringify({poisoned:`a prior failure mentioned ${needle} here`},null,2));
+  try{
+    const offenders=legacyReferenceOffenders();
+    if(offenders.includes(reportRel))throw Error('the guard read its own report back in');
+  }finally{
+    // Leave the report where the suite's own tail will rewrite it.
+    fs.writeFileSync(report,JSON.stringify({schema:'agent-sdlc/deterministic-validation/v1',note:'rewritten by the suite tail'},null,2));
+  }
 });
 
 // State, gates and recovery

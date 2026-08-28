@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 306,
-  "passes": 306,
+  "checks": 307,
+  "passes": 307,
   "failures": 0,
   "results": [
     {
@@ -123,6 +123,10 @@
     },
     {
       "name": "no-active-ai-workflow-references-outside-the-legacy-allowlist",
+      "status": "PASS"
+    },
+    {
+      "name": "legacy-guard-ignores-scratch-dirs-and-its-own-report",
       "status": "PASS"
     },
     {
