@@ -32,6 +32,21 @@ const ci=fs.readFileSync(path.join(ROOT,WORKFLOW),'utf8');
 // argument should be able to redirect.
 const FULL_GATE_JOB='offline-validation';
 
+// F4: `check`'s subject suites ran once for pass/fail inside offline-validation
+// and test:coverage then re-ran all 16 of them again under NODE_V8_COVERAGE --
+// the longest segment of the run, on every CI leg that measured it. Nothing
+// downstream (verify:dist, package:release) reads evals/COVERAGE.json, and
+// none of coverage-report.mjs's own subject suites need a built package, so
+// test:coverage moved to its own job (`coverage-floor`) that starts alongside
+// offline-validation instead of running at its tail -- wall-clock drops by
+// roughly the coverage step's own duration instead of adding it serially.
+// A suite named here is checked for membership/order against THAT job
+// instead of FULL_GATE_JOB. This is a deliberate, explicit relocation of one
+// suite to its own dedicated job -- not a general escape hatch -- so it does
+// not reopen the job-blindness F5 fixed: a suite with no entry here still
+// must run inside FULL_GATE_JOB specifically.
+const ALTERNATE_JOB={'test:coverage':'coverage-floor'};
+
 // Suites CI is allowed to skip, with the reason. Live host qualification needs
 // provider credentials and runs from live-qualification.yml instead.
 const EXEMPT={};
@@ -48,13 +63,19 @@ function children(name){
 }
 
 // One extraction, shared by membership and order: a `run:` line naming a
-// script, in the order it appears within the full-gate job only. Membership
-// used to substring-match the whole file (so a mention inside a comment would
-// have satisfied it too); this is now exactly what order-checking already used.
-const ciSequence=jobScriptSequence(ci,FULL_GATE_JOB);
+// script, in the order it appears within its job. Membership used to
+// substring-match the whole file (so a mention inside a comment would have
+// satisfied it too); this is now exactly what order-checking already used.
+// Cached per job since a suite can name a different job than the default.
+const jobSequenceCache=new Map();
+function sequenceFor(jobName){
+  if(!jobSequenceCache.has(jobName))jobSequenceCache.set(jobName,jobScriptSequence(ci,jobName));
+  return jobSequenceCache.get(jobName);
+}
+const ciSequence=sequenceFor(FULL_GATE_JOB);
 
-/** true when the full-gate job runs this exact script. */
-const invoked=name=>ciSequence.includes(name);
+/** true when the job this script is meant to run in actually runs it. */
+const invoked=name=>sequenceFor(ALTERNATE_JOB[name]||FULL_GATE_JOB).includes(name);
 
 /**
  * Leaf suites reachable from `check`, each with the ancestor chain that could
@@ -71,7 +92,8 @@ function leaves(name,chain=[],seen=new Set()){
 const rows=leaves(CHECK_SCRIPT).map(({script,covered_by})=>{
   if(EXEMPT[script])return {script,status:'EXEMPT',reason:EXEMPT[script],problems:[]};
   const via=covered_by.filter(n=>n!==CHECK_SCRIPT).find(invoked)||null;
-  const problems=via?[]:[`\`npm run ${script}\` is reachable from \`npm run ${CHECK_SCRIPT}\` but ${WORKFLOW}'s \`${FULL_GATE_JOB}\` job never runs it (directly or via ${covered_by.filter(n=>n!==script&&n!==CHECK_SCRIPT).join(', ')||'an aggregate'}) -- another job running it does not count`];
+  const job=ALTERNATE_JOB[script]||FULL_GATE_JOB;
+  const problems=via?[]:[`\`npm run ${script}\` is reachable from \`npm run ${CHECK_SCRIPT}\` but ${WORKFLOW}'s \`${job}\` job never runs it (directly or via ${covered_by.filter(n=>n!==script&&n!==CHECK_SCRIPT).join(', ')||'an aggregate'}) -- another job running it does not count`];
   return {script,status:problems.length?'FAIL':'PASS',gated_via:via,problems};
 });
 
@@ -84,7 +106,9 @@ if(!rows.length)rows.push({script:CHECK_SCRIPT,status:'FAIL',problems:[`no suite
  * that did not exist yet and every case failed with PACKAGE_VALIDATION_FAILED.
  * The chain encodes real dependencies; CI must respect them.
  */
-const chain=children(CHECK_SCRIPT);
+// A script running in its own parallel job has no sequential relationship to
+// FULL_GATE_JOB's steps to check -- parallel jobs have no relative order.
+const chain=children(CHECK_SCRIPT).filter(s=>!ALTERNATE_JOB[s]);
 const orderProblems=[];
 let cursor=-1,previous=null;
 for(const script of chain){

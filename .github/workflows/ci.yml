@@ -65,8 +65,6 @@ jobs:
         run: npm run test:detection
       - name: Development link tooling
         run: npm run test:dev-link
-      - name: Runtime coverage floor
-        run: npm run test:coverage
       - name: Verify extracted distributions
         run: npm run verify:dist
       - name: Package release candidates
@@ -86,7 +84,6 @@ jobs:
             evals/GUARD-VALIDATION.json
             evals/CI-COVERAGE-VALIDATION.json
             evals/DEV-LINK-VALIDATION.json
-            evals/COVERAGE.json
             evals/CLI-CONTRACT-VALIDATION.json
             evals/CLI-SURFACE-VALIDATION.json
             evals/SYNTAX-VALIDATION.json
@@ -136,7 +133,40 @@ jobs:
         run: npm run test:detection
       - name: Development link tooling
         run: npm run test:dev-link
-      - name: Runtime coverage floor
-        run: npm run test:coverage
       - name: Verify extracted distributions
         run: npm run verify:dist
+
+  # test:coverage re-runs every offline-validation/windows-validation subject
+  # suite a second time under NODE_V8_COVERAGE (none of them need a built
+  # package, and nothing downstream reads evals/COVERAGE.json), so it ran in
+  # this same job it was measuring after those suites already ran once for
+  # pass/fail -- the longest segment of the run, on every leg that measured
+  # it. Its own dedicated job runs in parallel with both from the start
+  # instead of serially at the tail of either. One measurement per OS, not
+  # per Node version too: evals/COVERAGE-FLOOR.json's floor only distinguishes
+  # ubuntu from Windows (several cases SKIP on ubuntu), so a second ubuntu
+  # measurement under Node 18 added cost without a distinct signal.
+  # scripts/validate-ci-coverage.mjs checks this suite against this job by
+  # name (ALTERNATE_JOB), not against offline-validation.
+  coverage-floor:
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Runtime coverage floor
+        run: npm run test:coverage
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-sdlc-coverage-${{ matrix.os }}-${{ github.sha }}
+          path: evals/COVERAGE.json
+          if-no-files-found: warn
+          retention-days: 14
