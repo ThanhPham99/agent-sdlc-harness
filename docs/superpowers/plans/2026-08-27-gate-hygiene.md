@@ -2,13 +2,13 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Close the remaining Medium/Low findings from the harness spike that are cheap to fix outright: a plugin-cache-drift warning that reaches an operator without them asking, a coverage floor that can no longer average away a weak agent-facing layer, a syntax gate over the 10% of bytes no suite executes, superseded CI runs that stop burning a Windows runner, a `design mode`/`design validate` pair that finally composes, a `.agent-sdlc` that can finally be pruned instead of only growing, and a CI-coverage validator that can no longer be satisfied by a suite hiding in the wrong job. One finding (F4) is assessed and explicitly deferred rather than rushed — the fix, done properly, is a larger and riskier change than its severity justifies; see "What this plan deliberately does not do."
+**Goal:** Close every remaining Medium/Low finding from the harness spike: a plugin-cache-drift warning that reaches an operator without them asking, a coverage floor that can no longer average away a weak agent-facing layer, a syntax gate over the 10% of bytes no suite executes, superseded CI runs that stop burning a Windows runner, a `design mode`/`design validate` pair that finally composes, a `.agent-sdlc` that can finally be pruned instead of only growing, a CI-coverage validator that can no longer be satisfied by a suite hiding in the wrong job, and coverage measurement moved off the critical path of the job it used to double. Every finding is fixed; see "What this plan deliberately does not do" for the one partial exception (F4's local-dev half, as opposed to its CI-wall-clock half, which this plan does fix).
 
-**Architecture:** Seven independent, additive changes, none of which touch the execution path, the secret scanner, the router, or the task-verification launcher settled by the other three plans. `runtime/dev-link.mjs` is a new module carrying the read-only half of what `scripts/dev-link.mjs` already did, moved so `doctor` — which ships in the distributed package, unlike `scripts/` — can reuse it. `scripts/coverage-report.mjs` gains a second, narrower floor keyed by path prefix, computed the same way as the existing global one. `scripts/validate-syntax.mjs` is a new suite, wired into `test:integrity` (which both CI jobs already run) rather than into `ci.yml` directly. `.github/workflows/ci.yml` gains a `concurrency` block. `runtime/design-discovery.mjs` gains one new pure function, `scaffoldDesignDecision`, and `design.mjs` gains the `scaffold` subcommand that calls it. `runtime/retention.mjs` is a new module with a pure `planGc`/mutating `applyGc` split, mirroring `dev-link.mjs`'s own status/apply split, exposed as `gc status`/`gc apply`. `scripts/lib/ci-workflow.mjs` is a new shared lib carrying `validate-ci-coverage.mjs`'s job-parsing so it can be unit-tested without running the whole validator as a side effect of import.
+**Architecture:** Eight independent, additive changes, none of which touch the execution path, the secret scanner, the router, or the task-verification launcher settled by the other three plans. `runtime/dev-link.mjs` is a new module carrying the read-only half of what `scripts/dev-link.mjs` already did, moved so `doctor` — which ships in the distributed package, unlike `scripts/` — can reuse it. `scripts/coverage-report.mjs` gains a second, narrower floor keyed by path prefix, computed the same way as the existing global one. `scripts/validate-syntax.mjs` is a new suite, wired into `test:integrity` (which both CI jobs already run) rather than into `ci.yml` directly. `.github/workflows/ci.yml` gains a `concurrency` block and a new `coverage-floor` job. `runtime/design-discovery.mjs` gains one new pure function, `scaffoldDesignDecision`, and `design.mjs` gains the `scaffold` subcommand that calls it. `runtime/retention.mjs` is a new module with a pure `planGc`/mutating `applyGc` split, mirroring `dev-link.mjs`'s own status/apply split, exposed as `gc status`/`gc apply`. `scripts/lib/ci-workflow.mjs` is a new shared lib carrying `validate-ci-coverage.mjs`'s job-parsing so it can be unit-tested without running the whole validator as a side effect of import; that validator also gains an explicit `ALTERNATE_JOB` map for the one suite (`test:coverage`) deliberately relocated to its own job.
 
 **Tech Stack:** Node.js ESM (`.mjs`), zero runtime dependencies. Hand-rolled `test()` suites; `scripts/lib/suite.mjs` where the existing file already uses it.
 
-**Spec:** `docs/superpowers/specs/2026-08-27-harness-spike-findings.md`, findings F3, F5 (both halves), F6, F7, F8, F13. (F4 is addressed in "What this plan deliberately does not do" rather than fixed here.)
+**Spec:** `docs/superpowers/specs/2026-08-27-harness-spike-findings.md`, findings F3, F4, F5 (both halves), F6, F7, F8, F13 — every finding this spec assigns to gate-hygiene.
 
 ## Global Constraints
 
@@ -383,7 +383,46 @@ git commit -m "fix(ci): validate-ci-coverage.mjs is now job-aware, not job-blind
 
 ---
 
-### Task 8: Full gate
+### Task 8: Move coverage measurement to its own parallel job (F4)
+
+**Files:**
+- Modify: `.github/workflows/ci.yml`
+- Modify: `scripts/validate-ci-coverage.mjs`
+
+**Interfaces:**
+- Consumes: `jobScriptSequence` from `scripts/lib/ci-workflow.mjs` (Task 7).
+- Produces: `ALTERNATE_JOB`, a map from suite name to the job it must be checked against instead of `FULL_GATE_JOB`.
+
+Originally deferred as "restructuring how `check`'s chain invokes suites... a rewrite of a validator two other plans depend on." Re-examined: that invasive path (a JS orchestrator replacing the `&&` chain, needed to share one `NODE_V8_COVERAGE` env var across every suite so it measures on the *first* pass) is still true and still not worth it. But the finding's own second suggested fix — "split coverage into its own parallel CI job" — turned out tractable once actually checked against the real dependency graph: `grep` confirmed neither `verify-dist.mjs` nor `package-release.mjs` reads `evals/COVERAGE.json`, and none of `coverage-report.mjs`'s 16 subject suites are among the qualification suites that need a built package. Nothing requires `test:coverage` to run inside `offline-validation`/`windows-validation` at all, let alone at their tail.
+
+- [x] **Step 1: Relocate the step in `ci.yml`**
+
+Removed the "Runtime coverage floor" step from both `offline-validation` and `windows-validation`. Added a new `coverage-floor` job, matrixed over `os: [ubuntu-latest, windows-latest]`, running only checkout + setup-node + `npm run test:coverage` (+ an artifact upload). One measurement per OS, not per Node version too: `evals/COVERAGE-FLOOR.json`'s floor only ever distinguished ubuntu from Windows (SKIPped cases differ), so the previous Node-18 leg's separate coverage measurement added cost without a distinct signal — dropped. This job starts alongside the other two rather than waiting for them, since it has no dependency on their output.
+
+- [x] **Step 2: Teach the validator about a suite living in a named job on purpose**
+
+Added `ALTERNATE_JOB={'test:coverage':'coverage-floor'}` to `scripts/validate-ci-coverage.mjs`. `invoked()` now checks `sequenceFor(ALTERNATE_JOB[name]||FULL_GATE_JOB)` instead of always `FULL_GATE_JOB`, and the order-check's `chain` excludes any script with an alternate job (parallel jobs have no relative order to check). This is a deliberate, explicit, single-entry relocation — not a general escape hatch — so it does not reopen the job-blindness Task 7 just fixed: any suite with no entry here still must run inside `offline-validation` specifically.
+
+- [x] **Step 3: Prove it against the real file**
+
+Run: `node scripts/validate-ci-coverage.mjs` → `31/31 all-gated` with the new job in place. Then removed the `test:coverage` step from `coverage-floor` (simulating the regression this exists to catch), re-ran: correctly reported `` `npm run test:coverage` is reachable from `npm run check` but .github/workflows/ci.yml's `coverage-floor` job never runs it ``. Restored the file from a backup and diffed it to confirm an exact match before continuing.
+
+- [x] **Step 4: Run the full gate**
+
+Run: `npm run check`
+
+Expected and observed: exit 0. Local `npm run check` is unchanged — `package.json`'s `check` script still runs `test:coverage` in its usual position, so the local double-execution this finding also named is not eliminated, only CI's now-parallel wall-clock cost is. Coverage still measured `91%` (floor `90`) with `runtime/commands/` at `82.4%` (floor `82`).
+
+- [x] **Step 5: Commit**
+
+```bash
+git add .github/workflows/ci.yml scripts/validate-ci-coverage.mjs
+git commit -m "fix(ci): move coverage measurement to its own parallel job (F4)"
+```
+
+---
+
+### Task 9: Full gate
 
 **Files:** report files under `evals/` only.
 
@@ -410,6 +449,6 @@ git commit -m "chore(evals): record the reports for the gate-hygiene fixes"
 
 ## What this plan deliberately does not do
 
-- **Does not fix F4** (`npm run check` runs each of 16 subject suites once individually, then `test:coverage` re-runs all 16 again under `NODE_V8_COVERAGE` — the longest segment of the run). Both fixes the finding names are architecturally invasive: running everything once under a shared coverage env means restructuring how `check`'s chain invokes suites, which `scripts/validate-ci-coverage.mjs` currently reasons about by regex-parsing `package.json`'s `npm run X && npm run Y` script bodies — a JS orchestrator in place of that chain would need that validator rewritten too. Splitting coverage into a parallel CI job does not reduce total suite executions, only CI wall-clock, and today coverage actually runs *three* times (ubuntu×2 node versions + Windows) because `evals/COVERAGE-FLOOR.json`'s own note explains ubuntu and Windows measure different numbers (SKIPped cases differ), so consolidating risks silently losing a platform-specific `never_loaded` regression signal. This is real, load-bearing coupling built by two other merged plans; a Medium-severity CI-speed finding does not justify restructuring it without dedicated design attention.
+- **Does not fully fix F4's local-dev half.** `npm run check`'s script body is unchanged, so a developer running it locally still executes each subject suite once for pass/fail and `test:coverage` re-runs all 16 again under `NODE_V8_COVERAGE` in the same process. Only CI's wall-clock cost is fixed (Task 8), by moving that redundant re-run to its own parallel job. Eliminating the local double-execution too would mean sharing one `NODE_V8_COVERAGE` across the whole `check` chain, which requires replacing its `&&`-chain shape with a JS orchestrator — the exact rewrite `scripts/validate-ci-coverage.mjs`'s regex-based script parsing depends on not happening. Not attempted here.
 - **Does not fix F14** (`npm run check` rewrites tracked report JSONs, leaving the worktree dirty). The execution-path-correctness and gate-signal-correctness plans' own Global Constraints already treat this as intentional: *"`npm run check` rewrites tracked report files under `evals/`. Commit those with the task that caused them."* Every task in this plan follows that same convention. Changing it now (gitignoring reports, or requiring `--update`) would be a process reversal affecting three merged plans' worth of established practice, not a Low-severity DX fix.
 - **Does not touch F1, F2, F9-F12, F15** — settled by the execution-path-correctness, router-scoring, and gate-signal-correctness plans.
