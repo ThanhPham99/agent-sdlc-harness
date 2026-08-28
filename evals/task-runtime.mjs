@@ -793,6 +793,42 @@ export function runTaskRuntimeSuite(root){
       if(evidence.attempt!==fresh.attempt)fail(`attempt ${evidence.attempt} != ${fresh.attempt}`);
     });
 
+    t('a-failed-verification-does-not-satisfy-the-verification-gate',()=>{
+      // task.evidence_refs is appended for every verification run, passing or
+      // not (task-verification.mjs records the artifact before it branches on
+      // status). The gate accepted "this task has some evidence ref" as
+      // satisfaction whenever no verification object was passed in, so a task
+      // whose verification had FAILED could still be moved VERIFYING ->
+      // SPEC_REVIEW from the CLI, with no --force -- sending unverified work to
+      // review, past the one gate that exists to stop it.
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot);
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/token-store.js','export const store=new Map();\n');
+      let task=requireTask(projectRoot,run.run_id,'TASK-001');
+      captureTaskDiff(projectRoot,run,task);
+      task=transitionTask(root,projectRoot,requireTask(projectRoot,run.run_id,'TASK-001'),'VERIFYING',{reason:'diff captured'});
+
+      // A recorded verification that did not pass still leaves a ref behind.
+      task.evidence_refs=['artifact://sha256/'+'0'.repeat(64)];
+      saveTask(projectRoot,task);
+      const withoutObject=evaluateTransition(root,requireTask(projectRoot,run.run_id,'TASK-001'),'SPEC_REVIEW',{});
+      if(withoutObject.allowed)fail('a bare evidence ref satisfied the verification gate');
+      if(!withoutObject.problems.some(p=>p.startsWith('NO_VERIFICATION_EVIDENCE')))
+        fail(`unexpected problems: ${JSON.stringify(withoutObject.problems)}`);
+
+      // The gate still opens for a passing verification bound to this attempt,
+      // and still refuses one bound to a different one.
+      const cur=requireTask(projectRoot,run.run_id,'TASK-001');
+      const passing={status:'PASS',attempt:cur.attempt};
+      if(!evaluateTransition(root,cur,'SPEC_REVIEW',{verification:passing}).allowed)
+        fail('a passing verification for this attempt was refused');
+      const otherAttempt=evaluateTransition(root,cur,'SPEC_REVIEW',{verification:{status:'PASS',attempt:(cur.attempt||0)+1}});
+      if(otherAttempt.allowed)fail('verification from another attempt was accepted');
+      const failing=evaluateTransition(root,cur,'SPEC_REVIEW',{verification:{status:'FAIL',attempt:cur.attempt}});
+      if(failing.allowed)fail('a failing verification was accepted');
+    });
+
     t('scope-audit-treats-declared-directories-as-covering',()=>{
       const a=scopeAudit({scope:{write:['src/auth/']}},['src/auth/token-store.js']);
       if(!a.respected)fail(JSON.stringify(a));

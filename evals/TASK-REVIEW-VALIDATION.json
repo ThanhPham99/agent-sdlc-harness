@@ -29,8 +29,8 @@
     "blocking_finding_blocks_done": true,
     "independence": "recorded truthfully; an achieved claim contradicting its mode is rejected, and an unachieved claim requires a recorded limitation"
   },
-  "checks": 20,
-  "passes": 20,
+  "checks": 21,
+  "passes": 21,
   "failures": 0,
   "results": [
     {
@@ -91,6 +91,10 @@
     },
     {
       "name": "verification-evidence-is-bound-to-a-revision-and-diff",
+      "status": "PASS"
+    },
+    {
+      "name": "a-failed-verification-does-not-satisfy-the-verification-gate",
       "status": "PASS"
     },
     {

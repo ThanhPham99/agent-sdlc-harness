@@ -214,10 +214,21 @@ export function evaluateTransition(root,task,to,{tasks=[],verification=null,spec
   if(need.has('context_manifest')&&!(contextManifest||task.context_manifest_ref))problems.push('NO_TASK_CONTEXT_MANIFEST');
   if(need.has('diff_captured')&&!task.diff_hash)problems.push('NO_DIFF_CAPTURED');
   if(need.has('verification_evidence')){
+    // The verification record itself, never "this task has an evidence ref".
+    // task-verification.mjs appends a ref for every run it records, passing or
+    // not -- it stores the artifact before it branches on status -- so falling
+    // back to `evidence_refs.length` accepted a FAILED verification, and an
+    // older attempt's passing one, as satisfaction. A task could be moved
+    // VERIFYING -> SPEC_REVIEW on failed evidence with no --force, sending
+    // unverified work to review past the only gate meant to stop it.
+    //
+    // Nothing legitimate relied on the fallback: task-runner.mjs supplies the
+    // record on both edges that require it, and re-verifies rather than trust
+    // an earlier attempt when resuming mid-lifecycle.
     const v=verification||null;
-    if(!v&&!task.evidence_refs?.length)problems.push('NO_VERIFICATION_EVIDENCE');
-    else if(v&&v.status!=='PASS')problems.push(`VERIFICATION_NOT_PASSING:${v.status}`);
-    else if(v&&v.attempt!==task.attempt)problems.push(`VERIFICATION_ATTEMPT_MISMATCH:${v.attempt}!=${task.attempt}`);
+    if(!v)problems.push('NO_VERIFICATION_EVIDENCE');
+    else if(v.status!=='PASS')problems.push(`VERIFICATION_NOT_PASSING:${v.status}`);
+    else if(v.attempt!==task.attempt)problems.push(`VERIFICATION_ATTEMPT_MISMATCH:${v.attempt}!=${task.attempt}`);
   }
   if(need.has('spec_review_clean')){
     if(!specReview)problems.push('NO_SPEC_REVIEW');

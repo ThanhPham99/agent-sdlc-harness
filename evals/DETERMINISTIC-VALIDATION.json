@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 340,
-  "passes": 340,
+  "checks": 341,
+  "passes": 341,
   "failures": 0,
   "results": [
     {
@@ -1007,6 +1007,10 @@
     },
     {
       "name": "task-verification_review/verification-evidence-is-bound-to-a-revision-and-diff",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/a-failed-verification-does-not-satisfy-the-verification-gate",
       "status": "PASS"
     },
     {
