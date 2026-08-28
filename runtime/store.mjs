@@ -45,7 +45,61 @@ function nextSeq(p){
   return seq;
 }
 export function emit(projectRoot,run,event){const p=path.join(stateDir(projectRoot),'events',`${run.run_id}.jsonl`); const full={event_id:uuid('evt'),run_id:run.run_id,seq:nextSeq(p),time:now(),stage:run.state,provider:null,artifact_refs:[],usage:{},...event};appendJsonl(p,full);return full;}
-export function putArtifact(projectRoot,{kind,content,runId=null,stage=null,sourceRevision=null,filename=null}){const d=stateDir(projectRoot);const hash=sha256(content);const objectPath=path.join(d,'artifacts','objects',hash);if(!fs.existsSync(objectPath))fs.writeFileSync(objectPath,content);const meta={artifact_id:`artifact://sha256/${hash}`,kind,sha256:hash,path:objectPath,filename,created_at:now(),run_id:runId,stage,source_revision:sourceRevision};writeJson(path.join(d,'artifacts','meta',`${hash}.json`),meta);return meta;}
+/**
+ * Store content-addressed content and record who stored it.
+ *
+ * The object store is shared across runs and identical content is one object
+ * by design (artifact-content-addressed-dedup-id pins that). The metadata used
+ * to be rewritten wholesale on every put, so a second run storing the same
+ * bytes took the first run's artifact over: kind, stage, run_id and revision
+ * all became the newcomer's, and `listArtifacts().filter(m=>m.run_id===A)`
+ * returned nothing for a run that had stored it. retention.mjs already reasons
+ * about exactly this collision -- it marks from run references rather than
+ * metadata for that reason -- and input.normalize makes it ordinary rather
+ * than exotic, being deterministic enough that the same requirements file
+ * normalized in two runs is byte-identical.
+ *
+ * So the object keeps one identity and gains a binding per distinct storer.
+ * The top-level fields stay the FIRST binding, which is what every existing
+ * reader already assumes; the caller is handed its own binding back, which is
+ * what it asked about.
+ */
+export function putArtifact(projectRoot,{kind,content,runId=null,stage=null,sourceRevision=null,filename=null}){
+  const d=stateDir(projectRoot);
+  const hash=sha256(content);
+  const objectPath=path.join(d,'artifacts','objects',hash);
+  if(!fs.existsSync(objectPath))fs.writeFileSync(objectPath,content);
+  const metaPath=path.join(d,'artifacts','meta',`${hash}.json`);
+  const prior=fs.existsSync(metaPath)?readJson(metaPath):null;
+  const binding={run_id:runId,stage,kind,source_revision:sourceRevision,filename,created_at:now()};
+  const bindings=prior
+    ?(prior.bindings||[{run_id:prior.run_id??null,stage:prior.stage??null,kind:prior.kind,
+        source_revision:prior.source_revision??null,filename:prior.filename??null,created_at:prior.created_at}])
+    :[];
+  const known=bindings.some(b=>b.run_id===binding.run_id&&b.stage===binding.stage&&b.kind===binding.kind);
+  if(!known)bindings.push(binding);
+  const first=bindings[0];
+  const stored={
+    artifact_id:`artifact://sha256/${hash}`,
+    kind:first.kind,sha256:hash,path:objectPath,filename:first.filename,
+    created_at:prior?.created_at??binding.created_at,
+    run_id:first.run_id,stage:first.stage,source_revision:first.source_revision,
+    bindings
+  };
+  writeJson(metaPath,stored);
+  // The caller's view: the same object, described by the put it just made.
+  return {...stored,kind,filename,run_id:runId,stage,source_revision:sourceRevision};
+}
+/** Every artifact this run stored, from any binding -- not just the first. */
+export function artifactsForRun(projectRoot,runId){
+  return listArtifacts(projectRoot).filter(m=>artifactBindings(m).some(b=>b.run_id===runId));
+}
+/** Bindings for a meta record, including metas written before bindings existed. */
+export function artifactBindings(meta){
+  if(Array.isArray(meta?.bindings)&&meta.bindings.length)return meta.bindings;
+  return [{run_id:meta?.run_id??null,stage:meta?.stage??null,kind:meta?.kind??null,
+    source_revision:meta?.source_revision??null,filename:meta?.filename??null,created_at:meta?.created_at??null}];
+}
 export function getArtifact(projectRoot,ref){const hash=ref.replace('artifact://sha256/','');const d=stateDir(projectRoot);const meta=readJson(path.join(d,'artifacts','meta',`${hash}.json`));return {meta,content:fs.readFileSync(path.join(d,'artifacts','objects',hash),'utf8')};}
 // ---------------------------------------------------------------------------
 // Task runtime persistence (alpha5).

@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {now,readJson,sha256,writeJson} from './util.mjs';
-import {stateDir,listTasks,loadTaskGraph,listArtifacts} from './store.mjs';
+import {stateDir,listTasks,loadTaskGraph,artifactsForRun,artifactBindings} from './store.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -44,7 +44,9 @@ function emptyGraph(runId,revision){
 export function buildTraceabilityGraph(projectRoot,runId,{run=null,revision=null,designDecisions=[],documentation=[],release=null}={}){
   const taskGraph=loadTaskGraph(projectRoot,runId);
   const tasks=listTasks(projectRoot,runId);
-  const artifacts=listArtifacts(projectRoot).filter(a=>a.run_id===runId);
+  // By binding, not by the metadata's first owner: an artifact two runs
+  // stored identical bytes for belongs to both of them.
+  const artifacts=artifactsForRun(projectRoot,runId);
   const g=emptyGraph(runId,revision??taskGraph?.source_revision??null);
   const nodeIndex=new Map();
 
@@ -101,7 +103,7 @@ export function buildTraceabilityGraph(projectRoot,runId,{run=null,revision=null
       for(const p of arr(task.scope?.write))addEdge(tId,addNode('DATA_ENTITY',path.posix.basename(String(p))),'affects');
     }
     for(const a of artifactByKindTask('task-verification',task.task_id)){
-      const evId=addNode('EVIDENCE',a.artifact_id,{ref:a.artifact_id,sha256:a.sha256,revision:a.source_revision});
+      const evId=addNode('EVIDENCE',a.artifact_id,{ref:a.artifact_id,sha256:a.sha256,revision:artifactBindings(a).find(b=>b.run_id===runId)?.source_revision??a.source_revision});
       addEdge(evId,tId,'supports');
     }
   }

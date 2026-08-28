@@ -13,7 +13,7 @@ import {runTaskRuntimeSuite} from './task-runtime.mjs';
 import {runAlpha6Suite} from './alpha6-runtime.mjs';
 import {checkTool} from '../runtime/policy.mjs';
 import {buildContext,renderPrompt} from '../runtime/context.mjs';
-import {putArtifact,getArtifact,loadRun,saveRun,emit} from '../runtime/store.mjs';
+import {putArtifact,getArtifact,listArtifacts,artifactsForRun,loadRun,saveRun,emit} from '../runtime/store.mjs';
 import {validateReplay} from '../runtime/replay.mjs';
 import {normalizeText,sha256} from '../runtime/util.mjs';
 import {probe,capabilities} from '../runtime/provider.mjs';
@@ -476,6 +476,43 @@ test('event-seq-is-dense-and-monotonic',()=>{
 // Artifact memory / replay integrity
 test('artifact-roundtrip',()=>{const a=putArtifact(tmp,{kind:'spec',content:'hello',runId:run.run_id,stage:run.state});const b=getArtifact(tmp,a.artifact_id);if(b.content!=='hello')throw Error('mismatch');});
 test('artifact-content-addressed-dedup-id',()=>{const a=putArtifact(tmp,{kind:'spec',content:'same'});const b=putArtifact(tmp,{kind:'note',content:'same'});if(a.artifact_id!==b.artifact_id)throw Error('not content addressed');});
+// retention.mjs already reasons about this hazard in its own comment -- "two
+// runs can produce byte-identical content and collide on the same hash" -- and
+// marks from run references rather than artifact metadata because of it. The
+// metadata itself had no such defence: the second put rewrote the first's
+// run_id/kind/stage wholesale, so the earlier run stopped owning an artifact it
+// had stored. input.normalize makes this ordinary rather than exotic: it is
+// deterministic, so the same requirements file normalized in two runs is
+// byte-identical, and run one's normalized-requirement silently became run
+// two's.
+test('a-second-run-storing-identical-content-does-not-take-over-the-first-runs-artifact',()=>{
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-artifact-share-'));
+  initProject(d,{name:'x',language:'javascript',commands:{}});
+  const content='# Normalized Input\n\nSupport password reset.\n';
+  const first=putArtifact(d,{kind:'normalized-requirement',content,runId:'run_A',stage:'REQUIREMENTS',sourceRevision:'aaa'});
+  const second=putArtifact(d,{kind:'ci-log',content,runId:'run_B',stage:'DEPLOY',sourceRevision:'bbb'});
+  if(first.artifact_id!==second.artifact_id)throw Error('fixture no longer exercises the collision');
+
+  // Each caller is told about its own put, not the other run's.
+  if(first.run_id!=='run_A'||first.kind!=='normalized-requirement')throw Error(JSON.stringify(first));
+  if(second.run_id!=='run_B'||second.kind!=='ci-log')throw Error(JSON.stringify(second));
+
+  // And both bindings survive on disk, so neither run loses the artifact.
+  const listed=listArtifacts(d).filter(m=>m.sha256===first.sha256);
+  if(listed.length!==1)throw Error(`expected one object, got ${listed.length}`);
+  const owners=(listed[0].bindings||[]).map(b=>`${b.run_id}:${b.kind}`).sort();
+  if(owners.join(',')!=='run_A:normalized-requirement,run_B:ci-log')throw Error(JSON.stringify(listed[0]));
+
+  // The consumers that ask "which artifacts belong to this run" must see it
+  // from both sides; before the fix run_A saw zero.
+  if(!artifactsForRun(d,'run_A').some(m=>m.artifact_id===first.artifact_id))throw Error('run_A lost its artifact');
+  if(!artifactsForRun(d,'run_B').some(m=>m.artifact_id===first.artifact_id))throw Error('run_B lost its artifact');
+
+  // Re-storing the same content for the same run stays one binding, not two.
+  putArtifact(d,{kind:'normalized-requirement',content,runId:'run_A',stage:'REQUIREMENTS',sourceRevision:'aaa'});
+  const again=listArtifacts(d).find(m=>m.sha256===first.sha256);
+  if((again.bindings||[]).length!==2)throw Error(`bindings duplicated: ${JSON.stringify(again.bindings)}`);
+});
 test('replay-hash-validation',()=>{const events=[{a:1},{b:2}];const b={events,event_stream_sha256:sha256(events.map(JSON.stringify).join('\n'))};if(!validateReplay(b).valid)throw Error('invalid');});
 test('replay-tamper-detected',()=>{const b={events:[{a:1}],event_stream_sha256:sha256(JSON.stringify({a:2}))};if(validateReplay(b).valid)throw Error('tamper not detected');});
 
