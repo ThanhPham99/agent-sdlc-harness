@@ -16,7 +16,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
-import {spawnSync} from 'node:child_process';
+import {spawn,spawnSync} from 'node:child_process';
 import {planScripts} from './lib/check-plan.mjs';
 import {writeReport} from './lib/report-io.mjs';
 
@@ -108,14 +108,33 @@ if(unclassified.length){
 }
 
 const outDir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-cov-'));
-for(const entry of ENTRIES){
-  const run=spawnSync(process.execPath,[entry],{cwd:ROOT,encoding:'utf8',
-    env:{...process.env,NODE_V8_COVERAGE:outDir},maxBuffer:64*1024*1024});
-  if(run.status!==0){
-    console.error(`coverage subject failed (${entry} exited ${run.status}); fix the suite before measuring`);
-    process.exit(run.status||1);
-  }
+const concurrency=Math.max(1,Math.min(ENTRIES.length,os.availableParallelism?.()??os.cpus().length));
+
+function runEntry(entry){
+  return new Promise((resolve,reject)=>{
+    const child=spawn(process.execPath,[entry],{
+      cwd:ROOT,
+      env:{...process.env,NODE_V8_COVERAGE:outDir},
+      stdio:['ignore','pipe','pipe']
+    });
+    let err='';
+    child.stderr.on('data',d=>{err+=d;});
+    child.on('error',reject);
+    child.on('close',code=>{
+      if(code===0)resolve();
+      else reject(new Error(`coverage subject failed (${entry} exited ${code}); fix the suite before measuring\n${err}`));
+    });
+  });
 }
+
+let nextIdx=0;
+const workers=Array.from({length:concurrency},async()=>{
+  while(nextIdx<ENTRIES.length){
+    const i=nextIdx++;
+    await runEntry(ENTRIES[i]);
+  }
+});
+await Promise.all(workers);
 
 const files=fs.readdirSync(outDir).filter(f=>f.startsWith('coverage-')&&f.endsWith('.json'));
 if(!files.length){console.error(`no coverage output in ${outDir}`);process.exit(1);}

@@ -31,16 +31,9 @@ export const commands={
     else if(sub==='graph'){
       const run=await needRun();
       if(args.mermaid){
+        const {renderTaskDagMermaid}=await import('../task-scheduler.mjs');
         const tasks=listTasks(projectRoot,run.run_id);
-        const lines=['graph TD'];
-        for(const t of tasks){
-          const safeId=t.task_id.replace(/[^a-zA-Z0-9_]/g,'_');
-          lines.push(`  ${safeId}["${t.task_id} [${t.category}]<br/>${t.status}"]`);
-          for(const dep of (t.depends_on||[])){
-            lines.push(`  ${dep.replace(/[^a-zA-Z0-9_]/g,'_')} --> ${safeId}`);
-          }
-        }
-        print(lines.join('\n'));
+        print(renderTaskDagMermaid(tasks));
       } else {
         print(scheduleView(projectRoot,run.run_id));
       }

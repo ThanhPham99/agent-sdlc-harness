@@ -5,7 +5,7 @@ import {rootFrom} from './util.mjs';
 import {detectProject} from './init.mjs';
 import {initProject,loadRun,putArtifact,saveRun,emit,listTasks,listTaskEvents} from './store.mjs';
 import {requireTask,taskProgress} from './task-engine.mjs';
-import {readySet,scheduleTasks} from './task-scheduler.mjs';
+import {readySet,scheduleTasks,scheduleView,renderTaskDagMermaid} from './task-scheduler.mjs';
 import {buildTaskContext,renderTaskPrompt} from './task-context.mjs';
 import {route} from './router.mjs';
 import {newRun,transition,nextState} from './orchestrator.mjs';
@@ -46,7 +46,7 @@ const toolDefs=[
   {name:'agent_sdlc_artifact_put',description:'Store durable external memory as a content-addressed artifact and attach it to a run.',inputSchema:{type:'object',required:['run_id','kind','content'],properties:{project_root:{type:'string'},run_id:{type:'string'},kind:{type:'string'},content:{type:'string'}}}},
   {name:'agent_sdlc_model_route',description:'Choose deterministic vs model execution and the cheapest qualified model tier subject to risk floor.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},task:{type:'string'},provider:{type:'string'},require_structured:{type:'boolean'}}}},
   // Unified task operation for token-aware / compact hosts.
-  {name:'agent_sdlc_task',description:'Unified task operations: list, status, ready, schedule, context, or evidence.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id','op'],properties:{project_root:{type:'string'},run_id:{type:'string'},op:{type:'string',enum:['list','status','ready','schedule','context','evidence']},task_id:{type:'string'},outer_stage:{type:'string'},remaining_model_calls:{type:'number'},prompt:{type:'boolean'}}}},
+  {name:'agent_sdlc_task',description:'Unified task operations: list, status, ready, schedule, context, evidence, or graph.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id','op'],properties:{project_root:{type:'string'},run_id:{type:'string'},op:{type:'string',enum:['list','status','ready','schedule','context','evidence','graph']},task_id:{type:'string'},outer_stage:{type:'string'},remaining_model_calls:{type:'number'},prompt:{type:'boolean'},mermaid:{type:'boolean'}}}},
   // Granular task runtime tools for full profile and backward compatibility.
   {name:'agent_sdlc_task_list',description:'List the persistent task records for a run with status, category and dependencies.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'}}}},
   {name:'agent_sdlc_task_status',description:'Read one task record, or the whole run task progress when task_id is omitted.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},task_id:{type:'string'}}}},
@@ -107,6 +107,10 @@ function execute(name,a={}){
     if(a.op==='schedule')return execute('agent_sdlc_task_schedule',a);
     if(a.op==='context')return execute('agent_sdlc_task_context',a);
     if(a.op==='evidence')return execute('agent_sdlc_task_evidence',a);
+    if(a.op==='graph'){
+      const tasks=listTasks(projectRoot,run.run_id);
+      return a.mermaid?{mermaid:renderTaskDagMermaid(tasks)}:scheduleView(projectRoot,run.run_id);
+    }
     throw new Error(`unknown op "${a.op}" for agent_sdlc_task`);
   }
   if(name==='agent_sdlc_task_list')return listTasks(projectRoot,run.run_id).map(t=>({task_id:t.task_id,status:t.status,category:t.category,attempt:t.attempt,depends_on:t.depends_on,parallel_candidate:t.execution?.parallel_candidate===true}));

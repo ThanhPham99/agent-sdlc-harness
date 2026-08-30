@@ -192,3 +192,37 @@ export function scheduleView(projectRoot,runId){
   return {schema:'agent-sdlc/task-graph-view/v1',run_id:runId,graph,status,
     nodes:(graph?.nodes||[]).map(n=>({...n,status:status[n.task_id]??'MISSING'}))};
 }
+
+/** Render a Mermaid flowchart representing the Task DAG and current execution status. */
+export function renderTaskDagMermaid(tasks=[]){
+  if(!arr(tasks).length)return 'graph TD\n  Empty["(No Tasks)"]';
+  const lines=['graph TD'];
+  const statusStyles={
+    DONE:'fill:#2ecc71,stroke:#27ae60,stroke-width:2px,color:#fff',
+    IN_PROGRESS:'fill:#3498db,stroke:#2980b9,stroke-width:2px,color:#fff',
+    READY:'fill:#f1c40f,stroke:#f39c12,stroke-width:2px,color:#000',
+    BLOCKED:'fill:#e74c3c,stroke:#c0392b,stroke-width:2px,color:#fff',
+    FAILED:'fill:#e74c3c,stroke:#962d22,stroke-width:2px,color:#fff',
+    CLAIMED:'fill:#9b59b6,stroke:#8e44ad,stroke-width:2px,color:#fff',
+    VERIFYING:'fill:#1abc9c,stroke:#16a085,stroke-width:2px,color:#fff',
+    REVIEWING:'fill:#e67e22,stroke:#d35400,stroke-width:2px,color:#fff'
+  };
+
+  for(const t of tasks){
+    const id=t.task_id.replace(/[^a-zA-Z0-9_]/g,'_');
+    const label=`"${t.task_id}: ${String(t.title||'').replace(/"/g,'\'')} [${t.status}]"`;
+    lines.push(`  ${id}[${label}]`);
+    for(const dep of arr(t.dependencies)){
+      const depId=dep.replace(/[^a-zA-Z0-9_]/g,'_');
+      lines.push(`  ${depId} --> ${id}`);
+    }
+  }
+
+  for(const t of tasks){
+    const id=t.task_id.replace(/[^a-zA-Z0-9_]/g,'_');
+    const style=statusStyles[t.status]||'fill:#95a5a6,stroke:#7f8c8d,stroke-width:1px,color:#fff';
+    lines.push(`  style ${id} ${style}`);
+  }
+
+  return lines.join('\n');
+}

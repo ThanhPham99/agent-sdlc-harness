@@ -339,3 +339,34 @@ export function invalidationHistory(projectRoot,runId){
   if(!fs.existsSync(p))return [];
   return fs.readFileSync(p,'utf8').split('\n').filter(Boolean).map(l=>JSON.parse(l));
 }
+
+/** Render a Mermaid diagram representing the Traceability Graph. */
+export function renderTraceabilityMermaid(graph){
+  if(!graph||!arr(graph.nodes).length)return 'graph TD\n  Empty["(No Traceability Nodes)"]';
+  const lines=['graph LR'];
+  const kindShapes={
+    REQUIREMENT:(id,lbl)=>`${id}(["📋 ${lbl}"])`,
+    ACCEPTANCE_CRITERION:(id,lbl)=>`${id}{"🎯 ${lbl}"}`,
+    DESIGN_DECISION:(id,lbl)=>`${id}[/"📐 ${lbl}"/]`,
+    TASK:(id,lbl)=>`${id}["🔨 ${lbl}"]`,
+    TEST:(id,lbl)=>`${id}[("🧪 ${lbl}")]`,
+    EVIDENCE:(id,lbl)=>`${id}>"📦 ${lbl}"]`,
+    SYMBOL:(id,lbl)=>`${id}["🏷️ ${lbl}"]`,
+    INTERFACE:(id,lbl)=>`${id}{{"🔌 ${lbl}"}}`
+  };
+
+  for(const node of graph.nodes){
+    const safeId=node.id.replace(/[^a-zA-Z0-9_]/g,'_');
+    const cleanLabel=String(node.label||node.id).replace(/"/g,'\'').slice(0,60);
+    const renderer=kindShapes[node.kind]||((id,lbl)=>`${id}["${lbl}"]`);
+    lines.push(`  ${renderer(safeId,cleanLabel)}`);
+  }
+
+  for(const edge of arr(graph.edges)){
+    const fromId=edge.from.replace(/[^a-zA-Z0-9_]/g,'_');
+    const toId=edge.to.replace(/[^a-zA-Z0-9_]/g,'_');
+    lines.push(`  ${fromId} -->|${edge.kind}| ${toId}`);
+  }
+
+  return lines.join('\n');
+}
