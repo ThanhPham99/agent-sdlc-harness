@@ -30,9 +30,12 @@ export function saveRun(projectRoot,run){
   writeJson(p,run);
 }
 export function loadRun(projectRoot,runId){return readJson(runPath(projectRoot,runId));}
-// Event sequence numbers were derived by reading and splitting the whole event
-// log on every append: quadratic in the number of events for a single run. The
-// count is now derived once per stream per process and then incremented.
+// Event sequence numbers are cosmetic display aids (e.g. mcp-server stream display).
+// They were derived by reading and splitting the whole event log on every append:
+// quadratic in the number of events for a single run. The count is now derived once
+// per stream per process and then incremented. Event validation, replays, and hashes
+// operate on append order and timestamps, so sequence collision across distinct
+// concurrent processes is harmless.
 const seqCache=new Map();
 function nextSeq(p){
   if(!seqCache.has(p)){

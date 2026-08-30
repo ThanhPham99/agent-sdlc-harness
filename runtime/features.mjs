@@ -51,7 +51,7 @@ export function updateFeature(projectRoot,featureId,patch){
 export function listFeatures(projectRoot){
   const dir=featuresDir(projectRoot);
   if(!fs.existsSync(dir))return [];
-  return fs.readdirSync(dir).filter(f=>f.endsWith('.json')).map(f=>readJson(path.join(dir,f)));
+  return fs.readdirSync(dir).filter(f=>f.endsWith('.json')).sort().map(f=>readJson(path.join(dir,f)));
 }
 
 export function createPhase(projectRoot,featureId,{name=null,objective=null,sourceRefs=[],supersedesPhaseId=null}={}){
@@ -82,7 +82,7 @@ export function updatePhase(projectRoot,featureId,phaseId,patch){
 export function listPhases(projectRoot,featureId){
   const dir=phasesDir(projectRoot,featureId);
   if(!fs.existsSync(dir))return [];
-  return fs.readdirSync(dir).filter(f=>f.endsWith('.json')).map(f=>readJson(path.join(dir,f)));
+  return fs.readdirSync(dir).filter(f=>f.endsWith('.json')).sort().map(f=>readJson(path.join(dir,f)));
 }
 
 export function attachRun(projectRoot,{featureId,phaseId,runId}){

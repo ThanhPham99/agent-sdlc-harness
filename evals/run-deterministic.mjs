@@ -1534,6 +1534,26 @@ test('feature-and-phase-round-trip',()=>{
   if(!listFeatures(tmp).some(x=>x.feature_id===f.feature_id))throw Error('feature missing from listFeatures');
   if(!listPhases(tmp,f.feature_id).some(x=>x.phase_id===p.phase_id))throw Error('phase missing from listPhases');
 });
+test('feature-and-phase-listing-is-sorted-by-id',()=>{
+  const isolated=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-sorted-feat-'));
+  execFileSync('git',['init','-q'],{cwd:isolated});
+  const f1=createFeature(isolated,{title:'Feature 1'});
+  const f2=createFeature(isolated,{title:'Feature 2'});
+  const f3=createFeature(isolated,{title:'Feature 3'});
+  const listedFeatures=listFeatures(isolated).map(x=>x.feature_id);
+  const expectedFeatures=[f1.feature_id,f2.feature_id,f3.feature_id].sort();
+  if(JSON.stringify(listedFeatures)!==JSON.stringify(expectedFeatures)){
+    throw Error(`listFeatures order is not sorted by filename: got ${JSON.stringify(listedFeatures)}, expected ${JSON.stringify(expectedFeatures)}`);
+  }
+  const p1=createPhase(isolated,f1.feature_id,{name:'Phase 1'});
+  const p2=createPhase(isolated,f1.feature_id,{name:'Phase 2'});
+  const p3=createPhase(isolated,f1.feature_id,{name:'Phase 3'});
+  const listedPhases=listPhases(isolated,f1.feature_id).map(x=>x.phase_id);
+  const expectedPhases=[p1.phase_id,p2.phase_id,p3.phase_id].sort();
+  if(JSON.stringify(listedPhases)!==JSON.stringify(expectedPhases)){
+    throw Error(`listPhases order is not sorted by filename: got ${JSON.stringify(listedPhases)}, expected ${JSON.stringify(expectedPhases)}`);
+  }
+});
 test('feature-update-rejects-an-unknown-status',()=>{
   const f=createFeature(tmp,{title:'Status check'});
   let ok=false;try{updateFeature(tmp,f.feature_id,{status:'NOT_A_STATUS'});}catch(e){ok=/unknown feature status/.test(e.message);}

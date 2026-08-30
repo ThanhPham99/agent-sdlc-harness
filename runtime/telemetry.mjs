@@ -60,7 +60,7 @@ export function metrics(projectRoot){
   const runsDir=path.join(d,'runs');
   const eventDir=path.join(d,'events');
   const runs=fs.existsSync(runsDir)
-    ?fs.readdirSync(runsDir).filter(x=>x.endsWith('.json')).map(x=>JSON.parse(fs.readFileSync(path.join(runsDir,x),'utf8')))
+    ?fs.readdirSync(runsDir).filter(x=>x.endsWith('.json')).sort().map(x=>JSON.parse(fs.readFileSync(path.join(runsDir,x),'utf8')))
     :[];
   const states={};const workflows={};const eventTypes={};
   for(const r of runs){
