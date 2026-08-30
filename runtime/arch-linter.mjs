@@ -93,14 +93,107 @@ export function checkModuleBoundaries(graph, { rules = [] } = {}) {
 }
 
 /**
+ * Enforce strict hierarchy across architectural layers (e.g. ['domain', 'runtime', 'adapters', 'cli']).
+ * Rule: lower layers cannot import higher layers.
+ */
+export function enforceLayerConstraints(graph, { layerOrder = [] } = {}) {
+  if (!Array.isArray(layerOrder) || layerOrder.length === 0) {
+    return { violations: [], violation_count: 0 };
+  }
+
+  const violations = [];
+  const getLayer = (filePath) => {
+    const p = norm(filePath);
+    for (let i = 0; i < layerOrder.length; i++) {
+      const layer = layerOrder[i];
+      if (p.startsWith(`${layer}/`) || p.startsWith(`src/${layer}/`) || p === layer) {
+        return { name: layer, index: i };
+      }
+    }
+    return null;
+  };
+
+  for (const e of graph.edges) {
+    const fromLayer = getLayer(e.from);
+    const toLayer = getLayer(e.to);
+
+    if (fromLayer && toLayer && fromLayer.name !== toLayer.name) {
+      // Lower layer importing higher layer is forbidden
+      if (fromLayer.index < toLayer.index) {
+        violations.push({
+          type: 'LAYER_INVERSION',
+          from: e.from,
+          to: e.to,
+          from_layer: fromLayer.name,
+          to_layer: toLayer.name,
+          reason: `Layer inversion: Lower layer "${fromLayer.name}" cannot import higher layer "${toLayer.name}"`
+        });
+      }
+    }
+  }
+
+  return {
+    violations,
+    violation_count: violations.length
+  };
+}
+
+/**
+ * Check for forbidden dependency edges defined by rules.
+ */
+export function checkForbiddenImports(graph, { forbiddenRules = [] } = {}) {
+  if (!Array.isArray(forbiddenRules) || forbiddenRules.length === 0) {
+    return { violations: [], violation_count: 0 };
+  }
+
+  const violations = [];
+  for (const e of graph.edges) {
+    const fromNorm = norm(e.from);
+    const toNorm = norm(e.to);
+
+    for (const rule of forbiddenRules) {
+      const fromMatch = !rule.from || fromNorm.includes(rule.from);
+      const toMatch = !rule.to || toNorm.includes(rule.to);
+
+      if (fromMatch && toMatch) {
+        violations.push({
+          type: 'FORBIDDEN_IMPORT',
+          from: e.from,
+          to: e.to,
+          reason: rule.reason || `Import from "${e.from}" to "${e.to}" is strictly forbidden by policy`
+        });
+      }
+    }
+  }
+
+  return {
+    violations,
+    violation_count: violations.length
+  };
+}
+
+/**
  * Perform a full architectural governance audit on the repository.
  */
-export function auditArchitecture(projectRoot, { strict = false, openIntel = null } = {}) {
+export function auditArchitecture(projectRoot, {
+  strict = false,
+  layerOrder = [],
+  forbiddenRules = [],
+  openIntel = null
+} = {}) {
   const intel = openIntel || openIntelligence(projectRoot);
   const circ = findCircularDependencies(intel.graph);
   const bounds = checkModuleBoundaries(intel.graph);
+  const layers = enforceLayerConstraints(intel.graph, { layerOrder });
+  const forbidden = checkForbiddenImports(intel.graph, { forbiddenRules });
 
-  const totalIssues = circ.cycle_count + bounds.violation_count;
+  const allViolations = [
+    ...bounds.violations,
+    ...layers.violations,
+    ...forbidden.violations
+  ];
+
+  const totalIssues = circ.cycle_count + allViolations.length;
   const status = totalIssues === 0 ? 'PASS' : (strict ? 'FAIL' : 'WARN');
 
   return {
@@ -110,8 +203,10 @@ export function auditArchitecture(projectRoot, { strict = false, openIntel = nul
     edge_count: intel.graph.edge_count,
     circular_dependencies: circ.cycles,
     circular_dependency_count: circ.cycle_count,
-    boundary_violations: bounds.violations,
-    boundary_violation_count: bounds.violation_count,
+    boundary_violations: allViolations,
+    boundary_violation_count: allViolations.length,
+    layer_violations_count: layers.violation_count,
+    forbidden_imports_count: forbidden.violation_count,
     total_issues: totalIssues
   };
 }

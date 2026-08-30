@@ -77,6 +77,8 @@
     "test:error-triage": "node scripts/test-error-triage.mjs",
     "test:webhook": "node scripts/test-webhook-retry.mjs",
     "test:sse": "node scripts/test-sse-stream.mjs",
+    "test:dead-code": "node scripts/test-dead-code.mjs",
+    "test:arch-linter": "node scripts/test-arch-linter.mjs",
     "typecheck": "node scripts/validate-types.mjs"
   }
 }

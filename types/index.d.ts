@@ -370,3 +370,59 @@ export interface SSEEventRecord {
   timestamp: string;
   [key: string]: any;
 }
+
+export interface UnreachableFileItem {
+  path: string;
+  module: string | null;
+  exports_count: number;
+}
+
+export interface UnusedExportItem {
+  file: string;
+  name: string;
+  type: string;
+  line: number;
+}
+
+export interface GhostDependencyItem {
+  name: string;
+  version: string;
+  type: 'production' | 'dev';
+}
+
+export interface DeadCodeReport {
+  schema?: string;
+  health_score: number;
+  total_files: number;
+  unreachable_files_count: number;
+  unreachable_files: UnreachableFileItem[];
+  total_exports_count: number;
+  unused_exports_count: number;
+  unused_exports: UnusedExportItem[];
+  export_utilization_rate: number;
+  ghost_dependencies_count: number;
+  ghost_dependencies: GhostDependencyItem[];
+}
+
+export interface ArchViolationItem {
+  type: 'PRODUCTION_IMPORTS_TEST' | 'LAYER_INVERSION' | 'FORBIDDEN_IMPORT' | 'ENCAPSULATION_LEAK';
+  from: string;
+  to: string;
+  from_layer?: string;
+  to_layer?: string;
+  reason: string;
+}
+
+export interface ArchAuditReport {
+  schema?: string;
+  status: 'PASS' | 'WARN' | 'FAIL';
+  file_count: number;
+  edge_count: number;
+  circular_dependencies: string[][];
+  circular_dependency_count: number;
+  boundary_violations: ArchViolationItem[];
+  boundary_violation_count: number;
+  layer_violations_count?: number;
+  forbidden_imports_count?: number;
+  total_issues: number;
+}

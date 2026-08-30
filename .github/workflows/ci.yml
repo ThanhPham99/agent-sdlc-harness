@@ -94,6 +94,10 @@ jobs:
         run: npm run test:webhook
       - name: Real-time live SSE event stream and event replay
         run: npm run test:sse
+      - name: Dead code, unused exports, and ghost dependency eliminator
+        run: npm run test:dead-code
+      - name: Architectural linter and module boundary enforcer
+        run: npm run test:arch-linter
       # --- build, then the surfaces that read what it produced -----------
       - name: Build provider distributions
         run: npm run build

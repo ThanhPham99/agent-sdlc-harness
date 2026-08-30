@@ -65,7 +65,9 @@ const ENTRIES=[
   'scripts/test-pr-synthesizer.mjs',
   'scripts/test-security-linter.mjs',
   'scripts/test-webhook-retry.mjs',
-  'scripts/test-sse-stream.mjs'
+  'scripts/test-sse-stream.mjs',
+  'scripts/test-dead-code.mjs',
+  'scripts/test-arch-linter.mjs'
 ];
 
 // Suites deliberately not measured, each with the reason. Naming them rather
