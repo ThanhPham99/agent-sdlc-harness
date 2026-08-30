@@ -826,6 +826,27 @@ export function runTaskRuntimeSuite(root){
       if(evidence.attempt!==fresh.attempt)fail(`attempt ${evidence.attempt} != ${fresh.attempt}`);
     });
 
+    t('the-per-task-secret-scan-searches-the-files-the-task-just-wrote',()=>{
+      // This command runs inside the task's own workspace, on a task that was
+      // singled out as security-critical or interface-changing -- so the files
+      // it most needs to read are the ones the task just created, and those are
+      // untracked. `git grep` without --untracked exits 1 there, and
+      // task-verification.mjs maps exit 1 to a pass. The comment on this branch
+      // says the patterns cannot drift from the gateway scanner's; the flag had
+      // drifted instead.
+      const projectRoot=makeFixture();
+      const task={task_id:'TASK-900',risk:{security:'HIGH'},verification:{targeted_tests:[]}};
+      const cmds=plannedCommands(projectRoot,task,'BROAD_SUITE',{root});
+      const scan=cmds.find(c=>c.kind==='security_secret_scan');
+      if(!scan)fail(`a HIGH-security task planned no secret scan: ${JSON.stringify(cmds.map(c=>c.kind))}`);
+      if(!scan.command.includes('--untracked'))
+        fail(`the per-task scan cannot see new files: ${JSON.stringify(scan.command)}`);
+      // Still the same patterns as the gateway scanner, from the same policy.
+      const declared=JSON.parse(fs.readFileSync(path.join(root,'policies','security-policy.json'),'utf8'))
+        .secret_scan.patterns.map(p=>p.regex);
+      for(const rx of declared)if(!scan.command.join(' ').includes(rx))fail(`pattern missing from the per-task scan: ${rx}`);
+    });
+
     t('diff_hash-covers-the-content-of-files-the-task-created-and-never-staged',()=>{
       // `git diff` reports tracked changes only. The hash was
       // sha256(diff.stdout + changed_paths), so an untracked file contributed

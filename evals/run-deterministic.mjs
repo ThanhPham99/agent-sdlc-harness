@@ -580,6 +580,21 @@ test('sensitive-read-patterns-do-not-block-ordinary-source',()=>{
     finally{try{fs.rmSync(abs,{force:true});}catch{}}
   }
 });
+test('repo-search-finds-a-file-the-task-just-created',()=>{
+  // Same blind spot as the secret scan, in the tool an agent uses to answer
+  // "who calls this?" before changing an interface: `git grep` searches
+  // tracked files, so code written earlier in the same task was invisible.
+  const marker='needle_'+'written_by_this_task';
+  const p=path.join(tmp,'untracked-search-target.js');
+  fs.writeFileSync(p,`export const x='${marker}';\n`);
+  try{
+    const out=invokeTool(ROOT,tmp,toolRun,'repo.search',{pattern:marker});
+    if(out.status!=='PASS')throw Error(JSON.stringify(out));
+    if(!out.summary.includes('untracked-search-target.js'))
+      throw Error(`a newly created file was not searched: ${JSON.stringify(out.summary)}`);
+  }finally{fs.rmSync(p,{force:true});}
+});
+
 test('repo-search-no-match-is-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'repo.search',{pattern:'definitely_not_present_123'});if(out.status!=='PASS'||out.exit_code!==0)throw Error(JSON.stringify(out));});
 test('secret-scan-clean-is-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'security.secret_scan',{});if(out.status!=='PASS')throw Error(JSON.stringify(out));});
 test('secret-scan-finding-redacts-value',()=>{fs.writeFileSync(path.join(tmp,'leak.txt'),'api_key=SUPERSECRET\n');execFileSync('git',['add','leak.txt'],{cwd:tmp});const out=invokeTool(ROOT,tmp,toolRun,'security.secret_scan',{});execFileSync('git',['reset','-q','HEAD','leak.txt'],{cwd:tmp});fs.rmSync(path.join(tmp,'leak.txt'));if(out.status!=='FAIL'||out.summary.includes('SUPERSECRET')||out.full_log_artifact)throw Error(JSON.stringify(out));});

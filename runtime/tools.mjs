@@ -194,7 +194,10 @@ export function invokeTool(root,projectRoot,run,tool,args={}){
     const rel=String(args.path||'');if(sensitivePath(root,rel))throw new Error(`sensitive path blocked: ${rel}`);
     const p=safeRelative(projectRoot,rel);const data=fs.readFileSync(p,'utf8');const t=truncateUtf8(data,maxBytes);result={status:'PASS',exit_code:0,summary:t.text,truncated:t.truncated,raw:data};
   }
-  else if(tool==='repo.search'){const argv=['git','grep','-n','--',''+(args.pattern||'')]; if(args.path)argv.push('--',args.path); result=exec(argv,projectRoot,timeout,maxBytes);if(result.exit_code===1){result={...result,status:'PASS',exit_code:0,summary:'No matches.',raw:''};}}
+  else if(tool==='repo.search'){// --untracked: an agent asking "who calls this?" before changing an
+    // interface must see code written earlier in the same task, which is not
+    // staged yet. .gitignore is still honoured.
+    const argv=['git','grep','-n','--untracked','--',''+(args.pattern||'')]; if(args.path)argv.push('--',args.path); result=exec(argv,projectRoot,timeout,maxBytes);if(result.exit_code===1){result={...result,status:'PASS',exit_code:0,summary:'No matches.',raw:''};}}
   else if(tool==='repo.diff')result=exec(['git','diff','--no-ext-diff',...(args.cached?['--cached']:[])],projectRoot,timeout,maxBytes);
   else if(tool==='git.status')result=exec(['git','status','--short'],projectRoot,timeout,maxBytes);
   else if(tool==='security.secret_scan')result=secretScan(root,projectRoot);

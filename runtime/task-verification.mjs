@@ -67,10 +67,16 @@ export function plannedCommands(projectRoot,task,strategy,{root=null}={}){
     // Patterns come from the same policy the tool gateway's scanner reads, so
     // the two cannot drift apart. This path stays narrow on purpose: it is a
     // per-task check, not the repository-wide scan.
+    //
+    // --untracked for the same reason the gateway scanner needs it, and more
+    // urgently: this runs inside the workspace of a task singled out as
+    // security-critical, so the files it most needs to read are the ones that
+    // task just created -- and those are untracked. Without the flag `git
+    // grep` exits 1 there, which this module maps to a pass.
     const declared=root?(readJson(path.join(root,'policies','security-policy.json'),{}).secret_scan?.patterns||[]):[];
     const regexes=declared.map(p=>p.regex).filter(Boolean);
     const pattern=regexes.length?`(${regexes.join('|')})`:'(AKIA[0-9A-Z]{16}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY)';
-    out.push({kind:'security_secret_scan',command:['git','grep','-l','-E',pattern],unsatisfied_selector:false});
+    out.push({kind:'security_secret_scan',command:['git','grep','-l','-E','--untracked',pattern],unsatisfied_selector:false});
   }
   return out;
 }
