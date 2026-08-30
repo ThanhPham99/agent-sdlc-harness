@@ -67,7 +67,9 @@ const ENTRIES=[
   'scripts/test-webhook-retry.mjs',
   'scripts/test-sse-stream.mjs',
   'scripts/test-dead-code.mjs',
-  'scripts/test-arch-linter.mjs'
+  'scripts/test-arch-linter.mjs',
+  'scripts/test-mutation.mjs',
+  'scripts/test-simulator.mjs'
 ];
 
 // Suites deliberately not measured, each with the reason. Naming them rather

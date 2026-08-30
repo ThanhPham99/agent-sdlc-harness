@@ -426,3 +426,100 @@ export interface ArchAuditReport {
   forbidden_imports_count?: number;
   total_issues: number;
 }
+
+export interface MutantItem {
+  id: string;
+  line: number;
+  type: string;
+  original: string;
+  mutated: string;
+  status: 'KILLED' | 'SURVIVED';
+  impacted_tests: string[];
+}
+
+export interface MutationReport {
+  schema?: string;
+  target_file: string;
+  total_mutants: number;
+  killed: number;
+  survived: number;
+  mutation_score: number;
+  status: 'PASS' | 'WARN';
+  impacted_test_count: number;
+  impacted_tests: string[];
+  mutants: MutantItem[];
+}
+
+export interface WeakSpotItem {
+  file: string;
+  score: number;
+  survived: number;
+}
+
+export interface RepoMutationReport {
+  schema?: string;
+  total_files_analyzed: number;
+  total_mutants: number;
+  total_killed: number;
+  total_survived: number;
+  overall_mutation_score: number;
+  status: 'PASS' | 'WARN';
+  weak_spots_count: number;
+  weak_spots: WeakSpotItem[];
+  file_reports: MutationReport[];
+}
+
+export interface DAGConcurrencyAnalysis {
+  sequential_duration_s: number;
+  concurrent_duration_s: number;
+  speedup_factor: number;
+  concurrency_limit: number;
+  wave_count: number;
+  waves: string[][];
+}
+
+export interface PromptCacheSavings {
+  enabled: boolean;
+  cache_hit_ratio: number;
+  cached_prompt_tokens: number;
+  uncached_prompt_tokens: number;
+  standard_prompt_cost_usd: number;
+  optimized_prompt_cost_usd: number;
+  estimated_savings_usd: number;
+  savings_percentage: number;
+}
+
+export interface OptimizationRecommendation {
+  type: string;
+  priority: 'HIGH' | 'MEDIUM' | 'LOW';
+  message: string;
+}
+
+export interface SimulationCaseEstimate {
+  prompt_tokens: number;
+  completion_tokens: number;
+  total_tokens: number;
+  cost_usd: number;
+  turns: number;
+  duration_s: number;
+}
+
+export interface SimulationReport {
+  schema?: string;
+  run_id: string;
+  task_count: number;
+  historical_first_try_success_rate: number;
+  best_case: SimulationCaseEstimate;
+  expected: SimulationCaseEstimate;
+  worst_case: SimulationCaseEstimate;
+  concurrency_analysis: DAGConcurrencyAnalysis;
+  prompt_cache_savings: PromptCacheSavings;
+  recommendations: OptimizationRecommendation[];
+  budget_guard: {
+    configured_budget_usd: number;
+    configured_max_turns: number;
+    within_budget: boolean;
+    warnings: string[];
+  };
+  task_breakdown: any[];
+}

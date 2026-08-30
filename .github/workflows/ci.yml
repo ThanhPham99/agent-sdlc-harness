@@ -98,6 +98,10 @@ jobs:
         run: npm run test:dead-code
       - name: Architectural linter and module boundary enforcer
         run: npm run test:arch-linter
+      - name: Lightweight mutation testing and test strength analyzer
+        run: npm run test:mutation
+      - name: Predictive budgeting and pre-flight cost simulator
+        run: npm run test:simulator
       # --- build, then the surfaces that read what it produced -----------
       - name: Build provider distributions
         run: npm run build

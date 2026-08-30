@@ -79,6 +79,8 @@
     "test:sse": "node scripts/test-sse-stream.mjs",
     "test:dead-code": "node scripts/test-dead-code.mjs",
     "test:arch-linter": "node scripts/test-arch-linter.mjs",
+    "test:mutation": "node scripts/test-mutation.mjs",
+    "test:simulator": "node scripts/test-simulator.mjs",
     "typecheck": "node scripts/validate-types.mjs"
   }
 }
