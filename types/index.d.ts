@@ -296,3 +296,39 @@ export interface TuiDashboardOptions {
   } | null;
   version?: string;
 }
+
+export interface GraphCentralityNode {
+  path: string;
+  module: string | null;
+  is_test: boolean;
+  pagerank_score: number;
+  in_degree: number;
+  out_degree: number;
+  is_critical_core: boolean;
+}
+
+export interface GraphCentralityReport {
+  schema?: string;
+  query: 'calculateGraphCentrality';
+  total_files: number;
+  critical_core_count: number;
+  critical_core_files: string[];
+  centrality_ranking: GraphCentralityNode[];
+  capability_tier?: string;
+  revision?: string | null;
+}
+
+export interface BlastRadiusAnalysis {
+  schema?: string;
+  query: 'getBlastRadiusAnalysis';
+  seeds: string[];
+  risk_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
+  total_affected_count: number;
+  direct_core_hits: string[];
+  transitive_core_hits: string[];
+  transitive_dependents_count: number;
+  direct_dependents: string[];
+  transitive_dependents: Array<{ path: string; depth: number; direct: boolean }>;
+  capability_tier?: string;
+  revision?: string | null;
+}

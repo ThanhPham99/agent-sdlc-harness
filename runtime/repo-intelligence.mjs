@@ -318,3 +318,139 @@ export function findImpactedTests(intel,{paths=[],symbols=[],maxDepth=10}={}){
     recommended_test_files:sortedTests.map(t=>t.path)
   });
 }
+
+/**
+ * Calculate graph centrality (in-degree, out-degree, PageRank score) for all repository files.
+ * Identifies core hotspot modules that carry high blast radius across the codebase.
+ */
+export function calculateGraphCentrality(intel, { iterations = 20, dampingFactor = 0.85 } = {}) {
+  const fileNodes = [...intel.graph.files.keys()];
+  const n = fileNodes.length;
+  if (n === 0) {
+    return withCapability(intel, {
+      query: 'calculateGraphCentrality',
+      total_files: 0,
+      critical_core_count: 0,
+      critical_core_files: [],
+      centrality_ranking: []
+    });
+  }
+
+  const inDegreeMap = new Map();
+  const outDegreeMap = new Map();
+  const outgoingLinks = new Map();
+
+  for (const f of fileNodes) {
+    inDegreeMap.set(f, 0);
+    outDegreeMap.set(f, 0);
+    outgoingLinks.set(f, []);
+  }
+
+  for (const [src, deps] of intel.graph.dependencies) {
+    outDegreeMap.set(src, arr(deps).length);
+    outgoingLinks.set(src, arr(deps));
+    for (const target of arr(deps)) {
+      if (inDegreeMap.has(target)) {
+        inDegreeMap.set(target, inDegreeMap.get(target) + 1);
+      }
+    }
+  }
+
+  let scores = new Map();
+  for (const f of fileNodes) scores.set(f, 1 / n);
+
+  for (let iter = 0; iter < iterations; iter++) {
+    const nextScores = new Map();
+    const baseRank = (1 - dampingFactor) / n;
+
+    for (const f of fileNodes) nextScores.set(f, baseRank);
+
+    for (const [src, targets] of outgoingLinks) {
+      const rank = scores.get(src);
+      if (targets.length > 0) {
+        const share = (rank * dampingFactor) / targets.length;
+        for (const target of targets) {
+          if (nextScores.has(target)) {
+            nextScores.set(target, nextScores.get(target) + share);
+          }
+        }
+      } else {
+        const share = (rank * dampingFactor) / n;
+        for (const f of fileNodes) {
+          nextScores.set(f, nextScores.get(f) + share);
+        }
+      }
+    }
+    scores = nextScores;
+  }
+
+  const ranking = fileNodes.map(f => {
+    const score = Number((scores.get(f) || 0).toFixed(6));
+    const inDegree = inDegreeMap.get(f) || 0;
+    const outDegree = outDegreeMap.get(f) || 0;
+    const fileMeta = intel.graph.files.get(f);
+    return {
+      path: f,
+      module: fileMeta?.module || null,
+      is_test: fileMeta?.is_test || false,
+      pagerank_score: score,
+      in_degree: inDegree,
+      out_degree: outDegree,
+      is_critical_core: false
+    };
+  }).sort((a, b) => b.pagerank_score - a.pagerank_score || b.in_degree - a.in_degree || a.path.localeCompare(b.path));
+
+  const coreCutoff = Math.max(3, Math.ceil(n * 0.15));
+  const coreFiles = [];
+
+  ranking.forEach((r, idx) => {
+    if (!r.is_test && (idx < coreCutoff || r.in_degree >= 5)) {
+      r.is_critical_core = true;
+      coreFiles.push(r.path);
+    }
+  });
+
+  return withCapability(intel, {
+    query: 'calculateGraphCentrality',
+    total_files: n,
+    critical_core_count: coreFiles.length,
+    critical_core_files: coreFiles,
+    centrality_ranking: ranking
+  });
+}
+
+/**
+ * Perform Blast Radius Analysis for proposed file changes.
+ * Evaluates impact severity, touches on critical core modules, and affected dependent surface.
+ */
+export function getBlastRadiusAnalysis(intel, { paths = [], symbols = [], maxDepth = 5 } = {}) {
+  const transitive = findTransitiveImpact(intel, { paths, symbols, maxDepth });
+  const centrality = calculateGraphCentrality(intel);
+  const coreSet = new Set(centrality.critical_core_files);
+
+  const directSeeds = transitive.seeds;
+  const directCoreHit = directSeeds.filter(p => coreSet.has(p));
+  const transitiveCoreHit = transitive.transitive_dependents.filter(d => coreSet.has(d.path)).map(d => d.path);
+
+  const totalAffected = transitive.total_impacted_files + directSeeds.length;
+  let riskLevel = 'LOW';
+  if (directCoreHit.length > 0 || totalAffected > 15) {
+    riskLevel = 'CRITICAL';
+  } else if (transitiveCoreHit.length > 0 || totalAffected > 8) {
+    riskLevel = 'HIGH';
+  } else if (totalAffected > 3) {
+    riskLevel = 'MEDIUM';
+  }
+
+  return withCapability(intel, {
+    query: 'getBlastRadiusAnalysis',
+    seeds: directSeeds,
+    risk_level: riskLevel,
+    total_affected_count: totalAffected,
+    direct_core_hits: directCoreHit,
+    transitive_core_hits: transitiveCoreHit,
+    transitive_dependents_count: transitive.total_impacted_files,
+    direct_dependents: transitive.direct_dependents,
+    transitive_dependents: transitive.transitive_dependents
+  });
+}

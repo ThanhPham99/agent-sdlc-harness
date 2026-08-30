@@ -37,6 +37,35 @@ await test('security-linter-detects-prototype-pollution',()=>{
   assert(res.findings.some(f=>f.rule_id==='PROTOTYPE_POLLUTION'),'missing PROTOTYPE_POLLUTION');
 });
 
+await test('security-linter-detects-hardcoded-secrets',()=>{
+  const code='const awsKey = "AKIAIOSFODNN7EXAMPLE"; const ghToken = "ghp_123456789012345678901234567890123456";';
+  const res=lintSecurityRisks(code,{filename:'credentials.js'});
+  assert(res.clean===false,'should detect hardcoded secrets');
+  assert(res.risk_level==='HIGH','should be HIGH risk');
+  assert(res.findings.some(f=>f.rule_id==='HARDCODED_SECRET'),'missing HARDCODED_SECRET');
+});
+
+await test('security-linter-detects-path-traversal',()=>{
+  const code='const fullPath = path.join("/var/data", "../../../etc/passwd"); const data = fs.readFileSync(fullPath);';
+  const res=lintSecurityRisks(code,{filename:'reader.js'});
+  assert(res.clean===false,'should detect path traversal');
+  assert(res.findings.some(f=>f.rule_id==='PATH_TRAVERSAL'),'missing PATH_TRAVERSAL');
+});
+
+await test('security-linter-detects-timing-attack',()=>{
+  const code='if (userApiKey === serverToken) { return true; }';
+  const res=lintSecurityRisks(code,{filename:'auth.js'});
+  assert(res.clean===false,'should detect timing attack comparison');
+  assert(res.findings.some(f=>f.rule_id==='TIMING_ATTACK'),'missing TIMING_ATTACK');
+});
+
+await test('security-linter-detects-insecure-randomness',()=>{
+  const code='const sessionToken = Math.random().toString(36).substring(2);';
+  const res=lintSecurityRisks(code,{filename:'session.js'});
+  assert(res.clean===false,'should detect insecure randomness');
+  assert(res.findings.some(f=>f.rule_id==='INSECURE_RANDOMNESS'),'missing INSECURE_RANDOMNESS');
+});
+
 await test('security-linter-passes-clean-code',()=>{
   const code='export function add(a, b) { return Number(a) + Number(b); }';
   const res=lintSecurityRisks(code,{filename:'math.js'});
