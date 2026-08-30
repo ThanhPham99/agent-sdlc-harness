@@ -47,7 +47,7 @@ const CASES=[
   ['gradle',{'build.gradle':'plugins {}'},'gradle',['test_full','test_targeted','build']],
   ['dotnet',{'App.csproj':'<Project/>'},'dotnet',['test_full','test_targeted','build']],
   ['php',{'composer.json':pkg({name:'x/y',scripts:{test:'phpunit'}})},'composer',['test_full','test_targeted']],
-  ['php',{'composer.json':pkg({name:'x/y'})},'vendor/bin/phpunit',['test_full','test_targeted']],
+  ['php',{'composer.json':pkg({name:'x/y'})},'vendor/bin/phpunit',['test_full','test_targeted'],'fallback'],
   ['ruby',{'Gemfile':'source "https://rubygems.org"\n'},'bundle',['test_full','test_targeted']],
   ['elixir',{'mix.exs':'defmodule X.MixProject do\nend\n'},'mix',['test_full','test_targeted','build']],
   ['bun',{'bunfig.toml':'# bun config\n'},'bun',['test_full','test_targeted','build']],
@@ -55,8 +55,8 @@ const CASES=[
   ['cmake',{'CMakeLists.txt':'cmake_minimum_required(VERSION 3.10)\n'},'ctest',['test_full','test_targeted','build']],
   ['swift',{'Package.swift':'// swift-tools-version:5.5\n'},'swift',['test_full','test_targeted','build']]
 ];
-for(const [stack,files,binary,expected] of CASES){
-  test(`detects-${stack}-from-${Object.keys(files)[0]}`,()=>{
+for(const [stack,files,binary,expected,tag] of CASES){
+  test(`detects-${stack}-from-${Object.keys(files)[0]}${tag?`-${tag}`:''}`,()=>{
     const cfg=detectProject(repo(files));
     assert(cfg.stack===stack,`stack ${cfg.stack}`);
     for(const key of expected)assert(Array.isArray(cfg.commands[key]),`${key} missing: ${JSON.stringify(cfg.commands)}`);

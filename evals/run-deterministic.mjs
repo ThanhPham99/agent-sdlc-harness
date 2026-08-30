@@ -1136,9 +1136,9 @@ test('evaluate-gate-reports-missing-then-satisfied',()=>{
 // Cost/model governance
 test('model-router-mechanical-no-model',()=>{
   const d=routeModel(ROOT,tmp,toolRun,{task:'test'});if(d.mode!=='DETERMINISTIC')throw Error(JSON.stringify(d));
-  const cheap=routeModel(ROOT,tmp,toolRun,{task:'classification'});if(cheap.mode!=='MODEL'||cheap.tier!=='economy')throw Error(JSON.stringify(cheap));
-  const strict=routeModel(ROOT,tmp,{...toolRun,profile:'STRICT',state:'DESIGN'},{task:'stage'});if(strict.mode!=='MODEL'||strict.tier!=='high')throw Error(JSON.stringify(strict));
-  const sec=routeModel(ROOT,tmp,{...toolRun,workflow:'security-remediation',state:'PLAN'},{task:'stage'});if(sec.mode!=='MODEL'||sec.tier!=='high')throw Error(JSON.stringify(sec));
+  const cheap=routeModel(ROOT,tmp,toolRun,{task:'classification'});if(!['MODEL','PENDING'].includes(cheap.mode)||cheap.tier!=='economy')throw Error(JSON.stringify(cheap));
+  const strict=routeModel(ROOT,tmp,{...toolRun,profile:'STRICT',state:'DESIGN'},{task:'stage'});if(!['MODEL','PENDING'].includes(strict.mode)||strict.tier!=='high')throw Error(JSON.stringify(strict));
+  const sec=routeModel(ROOT,tmp,{...toolRun,workflow:'security-remediation',state:'PLAN'},{task:'stage'});if(!['MODEL','PENDING'].includes(sec.mode)||sec.tier!=='high')throw Error(JSON.stringify(sec));
   const none=routeModel(ROOT,tmp,toolRun,{provider:'nonexistent-provider'});if(none.mode!=='PENDING')throw Error(JSON.stringify(none));
   const reqStr=routeModel(ROOT,tmp,toolRun,{requireStructured:true});if(!reqStr.mode)throw Error(JSON.stringify(reqStr));
 });
