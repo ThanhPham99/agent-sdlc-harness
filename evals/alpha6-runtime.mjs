@@ -179,6 +179,30 @@ export function runAlpha6Suite(root){
       if(restoredStale.stale)fail(`restored working tree should be clean, got: ${JSON.stringify(restoredStale)}`);
     });
 
+    t('a-new-file-the-task-wrote-makes-the-index-stale',()=>{
+      // indexStale asked git with --untracked-files=no, so a workspace holding
+      // modules the index has never seen reported stale:false. The case above
+      // modifies a TRACKED file, which is the third fixture in this repo to
+      // route around the same blind spot. openIntelligence hands this verdict
+      // to the caller alongside findDependents/getMinimalChangeSurface answers
+      // computed without the new code -- an index claiming to be current for a
+      // tree it does not describe.
+      const idx=buildIndex(projectRoot,{force:true});
+      if(indexStale(projectRoot,idx).stale)fail('fixture did not start clean');
+
+      const added=path.join(projectRoot,'src/notify/brand-new-module.js');
+      try{
+        fs.writeFileSync(added,'export function brandNew(){return 1;}\n');
+        const s=indexStale(projectRoot,idx);
+        if(!s.stale)fail('a file the index has never seen left it reported as current');
+        if(!s.dirty_files.some(f=>f.includes('brand-new-module.js')))
+          fail(`the new file is not named in the report: ${JSON.stringify(s.dirty_files)}`);
+      }finally{
+        fs.rmSync(added,{force:true});
+      }
+      if(indexStale(projectRoot,idx).stale)fail('removing the new file did not restore a clean verdict');
+    });
+
     t('index-records-truncation-for-oversized-files',()=>{
       const bigRel='src/big-data.js';
       const bigPath=path.join(projectRoot,bigRel);

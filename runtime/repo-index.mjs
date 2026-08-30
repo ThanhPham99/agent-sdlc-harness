@@ -383,10 +383,16 @@ export function indexStale(projectRoot,index=null){
   if(!idx)return {stale:true,reason:'NO_INDEX'};
   const rev=gitSha(projectRoot);
   if(idx.revision!==rev)return {stale:true,reason:'REVISION_CHANGED',indexed:idx.revision,current:rev};
-  const dirty=git(['status','--porcelain','--untracked-files=no'],projectRoot);
+  // Untracked files included: a module the task just wrote is exactly what the
+  // index does not describe, and `--untracked-files=no` reported such a tree as
+  // current. `.agent-sdlc/` is dropped because it is the harness's own state --
+  // a project that has not gitignored it would otherwise never see a fresh
+  // index again. .gitignore is honoured, so build output stays out.
+  const dirty=git(['status','--porcelain','--untracked-files=all'],projectRoot);
   if(dirty.code===0&&dirty.stdout.trim()){
-    const changed=dirty.stdout.split('\n').map(s=>s.trim()).filter(Boolean);
-    return {stale:true,reason:'DIRTY_WORKING_TREE',dirty_count:changed.length,dirty_files:changed.slice(0,20)};
+    const changed=dirty.stdout.split('\n').map(s=>s.trim()).filter(Boolean)
+      .filter(l=>!/^\?\?\s+\.agent-sdlc\//.test(l));
+    if(changed.length)return {stale:true,reason:'DIRTY_WORKING_TREE',dirty_count:changed.length,dirty_files:changed.slice(0,20)};
   }
   return {stale:false,reason:null};
 }
