@@ -216,9 +216,36 @@ function pdfText(file){
   if(!text)return {status:'NEEDS_MULTIMODAL',reason:'PDF_HAS_NO_EXTRACTABLE_TEXT',text:''};
   return {status:'NORMALIZED',text};
 }
+function formatTable(text,delimiter=','){
+  const lines=text.split(/\r?\n/).filter(l=>l.trim().length>0);
+  if(lines.length<=1)return text;
+  const parseRow=l=>{
+    const cells=[];let cur='';let inQuote=false;
+    for(let i=0;i<l.length;i++){
+      const c=l[i];
+      if(c==='"'&&inQuote&&l[i+1]==='"'){cur+='"';i++;}
+      else if(c==='"'){inQuote=!inQuote;}
+      else if(c===delimiter&&!inQuote){cells.push(cur.trim());cur='';}
+      else{cur+=c;}
+    }
+    cells.push(cur.trim());
+    return cells.map(cell=>cell.replace(/\|/g,'\\|').replace(/\r?\n/g,' '));
+  };
+  const rows=lines.map(parseRow);
+  if(!rows.length)return text;
+  const width=rows.reduce((w,r)=>Math.max(w,r.length),0);
+  if(width<=1)return text;
+  const norm=rows.map(r=>Array.from({length:width},(_,i)=>r[i]??''));
+  const header=norm[0];
+  const out=[`| ${header.join(' | ')} |`,`| ${header.map(()=>'---').join(' | ')} |`,...norm.slice(1).map(r=>`| ${r.join(' | ')} |`)];
+  return out.join('\n');
+}
+
 function textFile(file,ext){
   let t=fs.readFileSync(file,'utf8').replace(/^\uFEFF/,'');
   if(ext==='.json'){try{t=JSON.stringify(JSON.parse(t),null,2);}catch{}}
+  else if(ext==='.csv'){try{t=formatTable(t,',');}catch{}}
+  else if(ext==='.tsv'){try{t=formatTable(t,'\t');}catch{}}
   return {status:'NORMALIZED',text:t.trim()};
 }
 export function normalizeInput(file,{maxBytes=20*1024*1024}={}){

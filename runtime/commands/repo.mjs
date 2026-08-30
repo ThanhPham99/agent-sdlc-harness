@@ -42,7 +42,15 @@ export const commands={
       const g=buildTraceabilityGraph(projectRoot,run.run_id,{run,revision:gitSha(projectRoot),designDecisions:design,release});
       print({schema:g.schema,run_id:g.run_id,nodes:g.nodes.length,edges:g.edges.length,validation:validateTraceabilityGraph(g)});
     }
-    else if(sub==='show')print(await need());
+    else if(sub==='show'){
+      const g=await need();
+      if(args.mermaid){
+        const {renderTraceabilityMermaid}=await import('../traceability.mjs');
+        print(renderTraceabilityMermaid(g));
+      } else {
+        print(g);
+      }
+    }
     else if(sub==='kinds')print({node_kinds:NODE_KINDS,edge_kinds:EDGE_KINDS,delta_classes:DELTA_CLASSES});
     else if(sub==='validate'){const v=validateTraceabilityGraph(await need());print(v);if(!v.valid)process.exitCode=1;}
     else if(sub==='coverage')print(computeTraceCoverage(await need()));

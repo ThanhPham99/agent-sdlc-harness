@@ -27,9 +27,11 @@ const LANG_BY_EXT={
   '.js':'javascript','.mjs':'javascript','.cjs':'javascript','.jsx':'javascript',
   '.ts':'typescript','.tsx':'typescript',
   '.py':'python','.go':'go','.java':'java','.rb':'ruby','.rs':'rust','.cs':'csharp','.php':'php','.kt':'kotlin',
+  '.c':'c','.h':'c','.cpp':'cpp','.hpp':'cpp','.cc':'cpp','.cxx':'cpp',
+  '.swift':'swift','.scala':'scala','.sh':'shell','.bash':'shell','.zsh':'shell',
   '.sql':'sql','.json':'json','.yml':'yaml','.yaml':'yaml','.md':'markdown'
 };
-const CODE_LANGS=new Set(['javascript','typescript','python','go','java','ruby','rust','csharp','php','kotlin']);
+const CODE_LANGS=new Set(['javascript','typescript','python','go','java','ruby','rust','csharp','php','kotlin','c','cpp','swift','scala','shell']);
 
 const TEST_PATTERNS=[
   /(^|\/)tests?\//i,/(^|\/)__tests__\//,/(^|\/)spec\//i,
@@ -112,6 +114,59 @@ const RX={
     symbols:[/^\s*(?:fun|class|interface|object|enum\s+class)\s+([A-Za-z_]\w*)/gm],
     exports:[/^\s*(?:public\s+)?(?:fun|class|interface|object|enum\s+class)\s+([A-Za-z_]\w*)/gm],
     imports:[/^\s*import\s+([\w.*]+)/gm]
+  },
+  c:{
+    symbols:[
+      /^\s*(?:typedef\s+)?(?:struct|enum|union)\s+([A-Za-z_]\w*)/gm,
+      /^\s*(?:[A-Za-z_][\w*]*\s+)+([A-Za-z_]\w*)\s*\([^)]*\)\s*[{;]/gm
+    ],
+    exports:[
+      /^\s*(?:typedef\s+)?(?:struct|enum|union)\s+([A-Za-z_]\w*)/gm,
+      /^\s*(?:[A-Za-z_][\w*]*\s+)+([A-Za-z_]\w*)\s*\([^)]*\)\s*[{;]/gm
+    ],
+    imports:[/^\s*#\s*include\s*[<"]([^>"]+)[>"]/gm]
+  },
+  cpp:{
+    symbols:[
+      /^\s*(?:class|struct|enum(?:\s+class)?)\s+([A-Za-z_]\w*)/gm,
+      /^\s*(?:template\s*<[^>]*>\s*)?(?:[A-Za-z_][\w:*&<>\s]*?)\s+([A-Za-z_]\w*)\s*\([^)]*\)\s*(?:const)?\s*[{;]/gm
+    ],
+    exports:[
+      /^\s*(?:class|struct|enum(?:\s+class)?)\s+([A-Za-z_]\w*)/gm,
+      /^\s*(?:template\s*<[^>]*>\s*)?(?:[A-Za-z_][\w:*&<>\s]*?)\s+([A-Za-z_]\w*)\s*\([^)]*\)\s*(?:const)?\s*[{;]/gm
+    ],
+    imports:[/^\s*#\s*include\s*[<"]([^>"]+)[>"]/gm,/^\s*import\s+([\w.:]+);/gm]
+  },
+  swift:{
+    symbols:[
+      /^\s*(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+)?(?:protocol|struct|class|enum|actor)\s+([A-Za-z_]\w*)/gm,
+      /^\s*(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+)?func\s+([A-Za-z_]\w*)/gm
+    ],
+    exports:[
+      /^\s*(?:public\s+|open\s+)(?:protocol|struct|class|enum|actor)\s+([A-Za-z_]\w*)/gm,
+      /^\s*(?:public\s+|open\s+)func\s+([A-Za-z_]\w*)/gm
+    ],
+    imports:[/^\s*import\s+([A-Za-z_]\w*)/gm]
+  },
+  scala:{
+    symbols:[
+      /^\s*(?:def|class|object|trait|enum|case\s+class)\s+([A-Za-z_]\w*)/gm
+    ],
+    exports:[
+      /^\s*(?:def|class|object|trait|enum|case\s+class)\s+([A-Za-z_]\w*)/gm
+    ],
+    imports:[/^\s*import\s+([\w._]+)/gm]
+  },
+  shell:{
+    symbols:[
+      /^\s*(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\s*\)\s*\{/gm,
+      /^\s*function\s+([A-Za-z_][\w-]*)/gm
+    ],
+    exports:[
+      /^\s*(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\s*\)\s*\{/gm,
+      /^\s*function\s+([A-Za-z_][\w-]*)/gm
+    ],
+    imports:[/^\s*(?:\.|source)\s+([^\s;]+)/gm]
   }
 };
 RX.typescript={

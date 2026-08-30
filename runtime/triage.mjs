@@ -11,6 +11,10 @@ const PATTERNS={
   gotest_fail:/^--- FAIL:\s+([^\s]+)/gm,
   cargo_fail:/^test\s+([^\s]+)\s+\.\.\.\s+FAILED/gm,
   tap_fail:/^not ok\s+\d+\s+-\s+(.+)$/gm,
+  typescript_fail:/^\s*(?:error\s+)?(TS\d+:\s*.+)$/gm,
+  rust_error:/^\s*(error(?:\[E\d+\])?:\s*.+)$/gm,
+  go_panic:/^(panic:\s*.+)$/gm,
+  eslint_fail:/^\s*\d+:\d+\s+error\s+(.+)$/gm,
   location:/(?:at\s+.*?\(([^)]+):(\d+):(\d+)\))|(?:([a-zA-Z0-9_\-\./\\]+\.(?:[jt]sx?|py|go|rs|php|rb|java|kt|cs)):(\d+)(?::(\d+))?)/g
 };
 
@@ -57,6 +61,24 @@ export function extractFailingNames(raw){
   // TAP / Node test
   const tapRegex=new RegExp(PATTERNS.tap_fail.source,'gm');
   while((m=tapRegex.exec(text))!==null){
+    names.add(m[1].trim());
+  }
+
+  // TypeScript compiler errors
+  const tsRegex=new RegExp(PATTERNS.typescript_fail.source,'gm');
+  while((m=tsRegex.exec(text))!==null){
+    names.add(m[1].trim());
+  }
+
+  // Rust errors
+  const rustRegex=new RegExp(PATTERNS.rust_error.source,'gm');
+  while((m=rustRegex.exec(text))!==null){
+    names.add(m[1].trim());
+  }
+
+  // Go panic
+  const panicRegex=new RegExp(PATTERNS.go_panic.source,'gm');
+  while((m=panicRegex.exec(text))!==null){
     names.add(m[1].trim());
   }
 
