@@ -105,7 +105,12 @@ function secretScan(root,projectRoot){
     return {status:'ERROR',reason:'NO_SECRET_PATTERNS_CONFIGURED',exit_code:null,
       summary:'policies/security-policy.json declares no secret_scan.patterns; refusing to report a clean scan.',truncated:false,raw:''};
   }
-  const argv=['git','grep','-l','-E',`(${patterns.join('|')})`];
+  // --untracked: `git grep` searches TRACKED files, and a file an
+  // implementation task just wrote is untracked until someone stages it. The
+  // scan used to return PASS -- worded "No tracked files matched" -- with a
+  // credential sitting in a module the task had just created. The flag still
+  // honours .gitignore, so build output and dependencies stay out.
+  const argv=['git','grep','-l','-E','--untracked',`(${patterns.join('|')})`];
   const launch=resolveLaunch(argv);
   if(launch.status!=='OK'){
     return {status:'ERROR',reason:launch.reason,exit_code:null,
@@ -119,7 +124,7 @@ function secretScan(root,projectRoot){
     return {status:'ERROR',reason:d.reason,exit_code:null,
       summary:`${d.reason}: ${argv.join(' ')}${d.signal?` (killed by ${d.signal})`:''}`,truncated:false,raw:''};
   }
-  if(r.status===1)return {status:'PASS',exit_code:0,summary:'No tracked files matched the configured secret patterns.',truncated:false,raw:''};
+  if(r.status===1)return {status:'PASS',exit_code:0,summary:'No tracked or newly created file matched the configured secret patterns.',truncated:false,raw:''};
   if(r.status===0){
     const all=(r.stdout||'').split('\n').filter(Boolean);
     const files=all.filter(f=>!pathAllowed(cfg.allowlist_paths,f)).slice(0,200);
@@ -130,7 +135,7 @@ function secretScan(root,projectRoot){
     }
     const note=skipped?`\n(${skipped} further match(es) are allowlisted in policies/security-policy.json)`:'';
     return {status:'FAIL',exit_code:1,
-      summary:`Potential secret patterns detected in tracked files (values redacted):\n${files.join('\n')}${note}`,truncated:false,raw:''};
+      summary:`Potential secret patterns detected (values redacted):\n${files.join('\n')}${note}`,truncated:false,raw:''};
   }
   return {status:'FAIL',exit_code:r.status??1,summary:(r.stderr||'secret scan failed').slice(0,24000),truncated:false,raw:''};
 }

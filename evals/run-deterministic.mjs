@@ -620,6 +620,41 @@ test('secret-scan-still-catches-an-assigned-credential',()=>{
   if(out.summary.includes('sk-abcdefghijklmnopqrstuv'))throw Error('the value leaked into the summary');
 });
 
+test('secret-scan-sees-a-file-the-task-created-and-never-staged',()=>{
+  // `git grep` searches tracked files. Every other secret-scan case here has
+  // to `git add` its fixture first, which is the workaround, not the contract:
+  // a file an implementation task just wrote is untracked until someone
+  // stages it, and the scan returned PASS with the words "No tracked files
+  // matched" while a credential sat in it. --untracked closes that and still
+  // honours .gitignore, so build output stays out.
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-secret4-'));
+  execFileSync('git',['init','-q'],{cwd:d});
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'leaky',commands:{test_targeted:['node','-e','process.exit(0)']},providers:{preferred:['claude']}});
+  fs.writeFileSync(path.join(d,'.gitignore'),'node_modules/\n');
+  fs.writeFileSync(path.join(d,'placeholder.js'),'export const a=1;\n');
+  execFileSync('git',['add','-A'],{cwd:d});
+  execFileSync('git',['-c','user.email=t@t','-c','user.name=t','commit','-qm','base'],{cwd:d});
+
+  const r=newRun(ROOT,d,{objective:'x',route:route(ROOT,'Add fixture feature')});
+  transition(ROOT,d,r,'REQUIREMENTS');
+  transition(ROOT,d,r,'DESIGN',{evidence:['requirements_confirmed']});
+  transition(ROOT,d,r,'PLAN',{evidence:['design_or_skip_decision'],internal:true});
+  transition(ROOT,d,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
+
+  // Exactly what an implementation task does: write a new module. Never staged.
+  fs.writeFileSync(path.join(d,'new-module.js'),'const key = "AKIAIOSFODNN7EXAMPLE";\n');
+  const out=invokeTool(ROOT,d,r,'security.secret_scan',{});
+  if(out.status!=='FAIL')throw Error(`a credential in a newly created file must be a finding: ${JSON.stringify(out)}`);
+  if(out.summary.includes('AKIAIOSFODNN7EXAMPLE'))throw Error('the value leaked into the summary');
+
+  // .gitignore is still honoured: dependencies are not the project's secrets.
+  fs.rmSync(path.join(d,'new-module.js'));
+  fs.mkdirSync(path.join(d,'node_modules'),{recursive:true});
+  fs.writeFileSync(path.join(d,'node_modules','dep.js'),'const key = "AKIAIOSFODNN7EXAMPLE";\n');
+  const ignored=invokeTool(ROOT,d,r,'security.secret_scan',{});
+  if(ignored.status!=='PASS')throw Error(`a gitignored path must not be a finding: ${JSON.stringify(ignored)}`);
+});
+
 test('secret-scan-honours-the-policy-allowlist',()=>{
   const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-secret3-'));
   execFileSync('git',['init','-q'],{cwd:d});
