@@ -332,3 +332,41 @@ export interface BlastRadiusAnalysis {
   capability_tier?: string;
   revision?: string | null;
 }
+
+export interface WebhookDeliveryHistoryItem {
+  attempt: number;
+  status: string;
+  status_code: number | null;
+  error: string | null;
+  time: string;
+}
+
+export interface WebhookDeliveryRecord {
+  delivery_id: string;
+  url: string;
+  event_type: string;
+  status: 'DELIVERED' | 'HTTP_ERROR' | 'NETWORK_ERROR' | 'TIMEOUT' | 'FAILED_PERMANENTLY';
+  attempts: number;
+  history: WebhookDeliveryHistoryItem[];
+  error?: string;
+  duration_ms: number;
+  created_at: string;
+}
+
+export interface WebhookRetryOptions {
+  secret?: string | null;
+  timeoutMs?: number;
+  maxRetries?: number;
+  initialBackoffMs?: number;
+  backoffMultiplier?: number;
+  maxBackoffMs?: number;
+  jitter?: boolean;
+  projectRoot?: string | null;
+}
+
+export interface SSEEventRecord {
+  id: string;
+  type: string;
+  timestamp: string;
+  [key: string]: any;
+}

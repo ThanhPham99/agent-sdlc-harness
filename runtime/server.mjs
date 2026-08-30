@@ -6,20 +6,42 @@ import {listRuns,listTasks,loadRun,loadState,projectConfig} from './store.mjs';
 import {generateDashboardHtml} from './commands/dashboard.mjs';
 import {metrics as getMetrics} from './telemetry.mjs';
 import {readJson,rootFrom} from './util.mjs';
+import {getWebhookDeliveries, matchesPattern} from './webhook.mjs';
 
-const ROOT=rootFrom(import.meta.url);
+const ROOT = rootFrom(import.meta.url);
 const clients = new Set();
+let eventSeq = 0;
+const RECENT_EVENTS = [];
+const MAX_BACKLOG = 50;
 
 /**
- * Broadcast an event to all connected SSE clients.
+ * Broadcast an event to all connected SSE clients, respecting individual event filters.
  */
 export function broadcastSseEvent(event) {
-  const payload = `data: ${JSON.stringify(event)}\n\n`;
-  for (const res of clients) {
+  if (!event) return;
+  eventSeq++;
+  const eventRecord = {
+    id: String(event.id || eventSeq),
+    type: event.type || 'generic',
+    timestamp: event.timestamp || new Date().toISOString(),
+    ...event
+  };
+
+  RECENT_EVENTS.push(eventRecord);
+  if (RECENT_EVENTS.length > MAX_BACKLOG) {
+    RECENT_EVENTS.shift();
+  }
+
+  const payload = `id: ${eventRecord.id}\ndata: ${JSON.stringify(eventRecord)}\n\n`;
+
+  for (const client of clients) {
     try {
-      res.write(payload);
+      const match = client.filterPatterns.length === 0 || client.filterPatterns.some(p => matchesPattern(eventRecord.type, p));
+      if (match) {
+        client.res.write(payload);
+      }
     } catch {
-      clients.delete(res);
+      clients.delete(client);
     }
   }
 }
@@ -117,28 +139,78 @@ export function startServer(projectRoot, { port = 4100, host = '127.0.0.1' } = {
       return;
     }
 
-    if (pathname === '/api/events') {
+    if (pathname === '/api/events' || pathname === '/api/v1/events/stream') {
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
         'Connection': 'keep-alive'
       });
+
+      const typesParam = url.searchParams.get('types');
+      const filterPatterns = typesParam ? typesParam.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const lastEventId = req.headers['last-event-id'] || url.searchParams.get('last_event_id') || null;
+
+      const clientObj = { res, filterPatterns, lastEventId };
+      clients.add(clientObj);
+
       res.write(`data: ${JSON.stringify({ type: 'stream.connected', timestamp: new Date().toISOString() })}\n\n`);
-      clients.add(res);
+
+      // Replay backlog if client provided Last-Event-ID
+      if (lastEventId) {
+        const lastIdNum = Number(lastEventId);
+        for (const ev of RECENT_EVENTS) {
+          if (Number(ev.id) > lastIdNum) {
+            const match = filterPatterns.length === 0 || filterPatterns.some(p => matchesPattern(ev.type, p));
+            if (match) {
+              res.write(`id: ${ev.id}\ndata: ${JSON.stringify(ev)}\n\n`);
+            }
+          }
+        }
+      }
 
       const heartbeatTimer = setInterval(() => {
         try {
           res.write(': heartbeat\n\n');
         } catch {
           clearInterval(heartbeatTimer);
-          clients.delete(res);
+          clients.delete(clientObj);
         }
       }, 15000);
 
       req.on('close', () => {
         clearInterval(heartbeatTimer);
-        clients.delete(res);
+        clients.delete(clientObj);
       });
+      return;
+    }
+
+    if ((pathname === '/api/v1/events/publish' || pathname === '/api/events/publish') && req.method === 'POST') {
+      let body = '';
+      req.on('data', c => { body += c; });
+      req.on('end', () => {
+        try {
+          const payload = JSON.parse(body || '{}');
+          const event = payload.event || payload;
+          broadcastSseEvent(event);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ status: 'PUBLISHED', id: String(eventSeq), type: event.type }));
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: err.message }));
+        }
+      });
+      return;
+    }
+
+    if (pathname === '/api/v1/webhooks/deliveries' || pathname === '/api/webhooks/deliveries') {
+      const limit = Number(url.searchParams.get('limit')) || 50;
+      const deliveries = getWebhookDeliveries(projectRoot, { limit });
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        schema: 'agent-sdlc/webhook-deliveries/v1',
+        deliveries_count: deliveries.length,
+        deliveries
+      }, null, 2));
       return;
     }
 

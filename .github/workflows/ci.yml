@@ -90,6 +90,10 @@ jobs:
         run: npm run test:security-linter
       - name: Error triage and classification engine
         run: npm run test:error-triage
+      - name: Webhook notification and exponential backoff retry
+        run: npm run test:webhook
+      - name: Real-time live SSE event stream and event replay
+        run: npm run test:sse
       # --- build, then the surfaces that read what it produced -----------
       - name: Build provider distributions
         run: npm run build

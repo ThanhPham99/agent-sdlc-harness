@@ -75,6 +75,8 @@
     "test:pr-synthesizer": "node scripts/test-pr-synthesizer.mjs",
     "test:security-linter": "node scripts/test-security-linter.mjs",
     "test:error-triage": "node scripts/test-error-triage.mjs",
+    "test:webhook": "node scripts/test-webhook-retry.mjs",
+    "test:sse": "node scripts/test-sse-stream.mjs",
     "typecheck": "node scripts/validate-types.mjs"
   }
 }
