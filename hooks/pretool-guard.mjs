@@ -103,6 +103,11 @@ if(/\bdelete\s+from\s+\w+\s*(?:;|$)/i.test(norm))flag('ask','sql-delete-without-
 if(/\bprisma\s+migrate\s+reset\b|\bsupabase\s+db\s+reset\b|\bdjango-admin\s+flush\b|\brails\s+db:drop\b/i.test(norm))
   flag('deny','orm-database-reset','framework command that drops and recreates the database');
 
+// Exfiltration of environment variables / credentials directly to network tools
+if(/\b(?:printenv|env)\b[^|;\n]*\|\s*(?:curl|wget|nc|ncat|netcat|iwr|invoke-webrequest|invoke-restmethod)\b/i.test(norm)||
+   /\b(?:get-childitem\s+env:|dir\s+env:|ls\s+env:)\b[^|;\n]*\|\s*(?:curl|wget|iwr|invoke-webrequest|invoke-restmethod)\b/i.test(norm))
+  flag('deny','env-credential-exfiltration','dumping environment variables directly into a network transfer tool risks leaking credentials');
+
 // Infrastructure, release and production surfaces. Irreversible or externally
 // visible: a human decides, the guard only stops to ask.
 const ASK_PATTERNS=[

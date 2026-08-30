@@ -39,8 +39,23 @@ export const commands={
     print(run);
   },
   status:async ctx=>{
-    const {print,needRun}=ctx;
-    print(await needRun());
+    const {args,print,needRun}=ctx;
+    const run=await needRun();
+    if(truthy(args.pretty)){
+      const lines=[
+        `=== SDLC Run ${run.run_id} ===`,
+        `Objective: ${run.objective}`,
+        `Workflow:  ${run.workflow} [${run.profile}]`,
+        `Stage:     ${run.state}`,
+        `Artifacts: ${(run.artifacts||[]).length} attached`,
+        `Tasks:     ${(run.tasks||[]).length} materialized`,
+        `Created:   ${run.created_at}`,
+        `Updated:   ${run.updated_at}`
+      ];
+      print(lines.join('\n'));
+    } else {
+      print(run);
+    }
   },
   next:async ctx=>{
     const {print,needRun}=ctx;

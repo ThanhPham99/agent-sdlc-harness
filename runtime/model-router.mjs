@@ -17,7 +17,9 @@ export function routeModel(root,projectRoot,run,{task='stage',provider='auto',re
   const preferred=provider!=='auto'?[provider]:(cfg.providers?.preferred||policy.provider_order||[]);
   const considered=[];
   for(const host of preferred){
-    const cap=capabilities(host,probe(host));considered.push(cap);
+    let cap;
+    try{cap=capabilities(host,probe(host));}catch{cap={host,available:false};}
+    considered.push(cap);
     if(!cap.available)continue;
     if(requireStructured&&!cap.structured_output)continue;
     const envModel=process.env[`AGENT_SDLC_MODEL_${host.toUpperCase()}_${tier.toUpperCase()}`]||process.env[`AGENT_SDLC_MODEL_${host.toUpperCase()}`]||process.env[`AGENT_SDLC_QUAL_MODEL_${host.toUpperCase()}`];

@@ -53,6 +53,31 @@ const DETECTORS=[
   }},
   {stack:'dotnet',markers:['*.sln','*.csproj','*.fsproj'],commands(){
     return {test_full:['dotnet','test'],test_targeted:['dotnet','test','--filter','{selector}'],build:['dotnet','build']};
+  }},
+  {stack:'php',markers:['composer.json'],commands(root,warnings){
+    const composer=readJsonFile(path.join(root,'composer.json'),warnings,'composer.json');
+    const c={};
+    if(composer?.scripts?.test){c.test_full=['composer','test'];c.test_targeted=['composer','test','--','{selector}'];}
+    else{c.test_full=['vendor/bin/phpunit'];c.test_targeted=['vendor/bin/phpunit','--filter','{selector}'];}
+    return c;
+  }},
+  {stack:'ruby',markers:['Gemfile','Rakefile'],commands(){
+    return {test_full:['bundle','exec','rspec'],test_targeted:['bundle','exec','rspec','{selector}']};
+  }},
+  {stack:'elixir',markers:['mix.exs'],commands(){
+    return {test_full:['mix','test'],test_targeted:['mix','test','{selector}'],build:['mix','compile']};
+  }},
+  {stack:'bun',markers:['bunfig.toml','bun.lockb','bun.lock'],commands(){
+    return {test_full:['bun','test'],test_targeted:['bun','test','{selector}'],build:['bun','build']};
+  }},
+  {stack:'deno',markers:['deno.json','deno.jsonc'],commands(){
+    return {test_full:['deno','test'],test_targeted:['deno','test','{selector}']};
+  }},
+  {stack:'cmake',markers:['CMakeLists.txt'],commands(){
+    return {test_full:['ctest','--output-on-failure'],test_targeted:['ctest','--output-on-failure','-R','{selector}'],build:['cmake','--build','build']};
+  }},
+  {stack:'swift',markers:['Package.swift'],commands(){
+    return {test_full:['swift','test'],test_targeted:['swift','test','--filter','{selector}'],build:['swift','build']};
   }}
 ];
 

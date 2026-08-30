@@ -28,7 +28,23 @@ export const commands={
     const needTaskId=()=>{if(!args['task-id'])throw new Error('--task-id required');return args['task-id'];};
     if(sub==='list'){const run=await needRun();print(listTasks(projectRoot,run.run_id).map(t=>({task_id:t.task_id,status:t.status,category:t.category,attempt:t.attempt,depends_on:t.depends_on,writer:t.execution?.primary_writer||null})));}
     else if(sub==='show'){const run=await needRun();print(requireTask(projectRoot,run.run_id,needTaskId()));}
-    else if(sub==='graph'){const run=await needRun();print(scheduleView(projectRoot,run.run_id));}
+    else if(sub==='graph'){
+      const run=await needRun();
+      if(args.mermaid){
+        const tasks=listTasks(projectRoot,run.run_id);
+        const lines=['graph TD'];
+        for(const t of tasks){
+          const safeId=t.task_id.replace(/[^a-zA-Z0-9_]/g,'_');
+          lines.push(`  ${safeId}["${t.task_id} [${t.category}]<br/>${t.status}"]`);
+          for(const dep of (t.depends_on||[])){
+            lines.push(`  ${dep.replace(/[^a-zA-Z0-9_]/g,'_')} --> ${safeId}`);
+          }
+        }
+        print(lines.join('\n'));
+      } else {
+        print(scheduleView(projectRoot,run.run_id));
+      }
+    }
     else if(sub==='events'){const run=await needRun();print(listTaskEvents(projectRoot,run.run_id,args['task-id']||null));}
     else if(sub==='progress'){const run=await needRun();print(taskProgress(projectRoot,run.run_id));}
     else if(sub==='state-machine')print(getTaskStateMachine(ROOT));

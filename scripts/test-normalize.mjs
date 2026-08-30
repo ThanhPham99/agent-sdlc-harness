@@ -90,7 +90,6 @@ test('a-directory-is-not-an-input',()=>{
 
 // --- docx ------------------------------------------------------------------
 test('docx-body-headers-and-footnotes-are-extracted-in-order',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   const f=ooxml('.docx',{
     'word/document.xml':'<w:p><w:t>Body one</w:t></w:p><w:p><w:t>Body two</w:t></w:p>',
     'word/header1.xml':'<w:p><w:t>Header text</w:t></w:p>',
@@ -104,19 +103,16 @@ test('docx-body-headers-and-footnotes-are-extracted-in-order',()=>{
   if(order.some(i=>i<0)||order[0]>order[1]||order[1]>order[2])throw new Error(`unexpected section order: ${order}`);
 });
 test('docx-markup-becomes-text-not-tags',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   const out=normalizeInput(docx('<w:p><w:t>a</w:t><w:tab/><w:t>b</w:t><w:br/><w:t>c &amp; d</w:t></w:p>'));
   if(/<w:/.test(out.markdown))throw new Error('markup survived');
   if(!out.markdown.includes('a\tb'))throw new Error('tab not converted');
   if(!out.markdown.includes('c & d'))throw new Error('entity not decoded');
 });
 test('docx-with-no-text-part-is-pending-not-empty-success',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   const out=normalizeInput(ooxml('.docx',{'docProps/app.xml':'<Properties/>'}));
   if(out.status!=='PENDING'||out.reason!=='DOCX_TEXT_NOT_FOUND')throw new Error(JSON.stringify(out));
 });
 test('character-reference-outside-unicode-is-left-as-text',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   // Regression: String.fromCodePoint threw RangeError out of the parser.
   for(const ref of ['&#1114112;','&#x110000;','&#99999999999999;']){
     const out=normalizeInput(docx(`<w:p><w:t>before ${ref} after</w:t></w:p>`));
@@ -128,7 +124,6 @@ test('character-reference-outside-unicode-is-left-as-text',()=>{
 });
 
 test('a-docx-cannot-spend-an-unbounded-extraction-budget-across-many-parts',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   // The per-entry cap (unzip maxBuffer) bounds one part, not a document. A
   // container is free to declare hundreds of header/footer parts, and the
   // parser extracted every one of them: the input size limit says nothing
@@ -147,7 +142,6 @@ test('a-docx-cannot-spend-an-unbounded-extraction-budget-across-many-parts',()=>
 });
 
 test('an-xlsx-cannot-spend-an-unbounded-extraction-budget-across-many-sheets',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   const parts={};
   const rows=Array.from({length:150},(_,i)=>`<row>${inlineCell(`A${i+1}`,'y'.repeat(400))}</row>`).join('');
   for(let i=1;i<=200;i++)parts[`xl/worksheets/sheet${i}.xml`]=`<worksheet><sheetData>${rows}</sheetData></worksheet>`;
@@ -158,14 +152,12 @@ test('an-xlsx-cannot-spend-an-unbounded-extraction-budget-across-many-sheets',()
 });
 
 test('a-document-inside-the-budget-is-not-marked-truncated',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   const out=normalizeInput(docx('<w:p><w:t>small enough</w:t></w:p>'));
   if(out.status!=='NORMALIZED'||out.reason)throw new Error(JSON.stringify({status:out.status,reason:out.reason}));
 });
 
 // --- xlsx ------------------------------------------------------------------
 test('xlsx-shared-and-inline-strings-become-a-table',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   const f=ooxml('.xlsx',{
     'xl/sharedStrings.xml':'<sst><si><t>Item</t></si><si><t>Amount</t></si><si><t>Refund</t></si></sst>',
     'xl/worksheets/sheet1.xml':
@@ -180,7 +172,6 @@ test('xlsx-shared-and-inline-strings-become-a-table',()=>{
   if(!out.markdown.includes('| Refund | 12.5 |'))throw new Error('body row missing');
 });
 test('xlsx-sheet-names-come-from-the-workbook-relationships',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   const f=ooxml('.xlsx',{
     'xl/workbook.xml':'<workbook><sheets><sheet name="Q3 Refunds" sheetId="1" r:id="rId1"/></sheets></workbook>',
     'xl/_rels/workbook.xml.rels':'<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>',
@@ -190,7 +181,6 @@ test('xlsx-sheet-names-come-from-the-workbook-relationships',()=>{
   if(!out.markdown.includes('## Sheet: Q3 Refunds'))throw new Error(out.markdown.slice(0,300));
 });
 test('a-cell-reference-past-the-column-limit-is-dropped',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   // Regression: r="ZZZZZ1" padded the row to 12.3M cells and turned a 1 KB
   // workbook into a 111 MB artifact; one letter more threw RangeError.
   for(const ref of ['XFE1','ZZZ1','ZZZZZ1','ZZZZZZZZ1']){
@@ -201,23 +191,19 @@ test('a-cell-reference-past-the-column-limit-is-dropped',()=>{
   }
 });
 test('the-last-legal-column-still-works',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   const out=normalizeInput(sheet(row(inlineCell('A1','first')+inlineCell('XFD1','last'))));
   if(out.status!=='NORMALIZED')throw new Error(JSON.stringify(out));
   if(!out.markdown.includes('last'))throw new Error('XFD was rejected');
 });
 test('xlsx-cell-text-cannot-forge-table-columns',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   const out=normalizeInput(sheet(row(inlineCell('A1','a | b')+inlineCell('B1','c'))));
   if(!out.markdown.includes('a \\| b'))throw new Error('pipe not escaped');
 });
 test('a-sheet-with-no-cells-is-pending',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   const out=normalizeInput(sheet('<worksheet><sheetData/></worksheet>'));
   if(out.status!=='PENDING'||out.reason!=='XLSX_TEXT_NOT_FOUND')throw new Error(JSON.stringify(out));
 });
 test('an-unsafe-relationship-target-is-refused',()=>{
-  if(!HAS_UNZIP)return 'SKIP';
   // The sheet target is attacker controlled; a traversal or option-looking name
   // must never reach the unzip argv.
   for(const target of ['../../../etc/passwd','-p']){
@@ -243,8 +229,7 @@ test('pdf-without-extractable-text-is-not-silently-empty',()=>{
 
 // --- contract --------------------------------------------------------------
 test('every-result-carries-a-status-and-a-provenance-header',()=>{
-  const inputs=[write('c.md','x'),write('d.bin','x'),write('e.png','x')];
-  if(HAS_UNZIP)inputs.push(docx('<w:p><w:t>y</w:t></w:p>'));
+  const inputs=[write('c.md','x'),write('d.bin','x'),write('e.png','x'),docx('<w:p><w:t>y</w:t></w:p>')];
   for(const p of inputs){
     const out=normalizeInput(p);
     if(!['NORMALIZED','PENDING','NEEDS_MULTIMODAL'].includes(out.status))throw new Error(`${p}: ${out.status}`);

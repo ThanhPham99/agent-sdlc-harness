@@ -1134,7 +1134,14 @@ test('evaluate-gate-reports-missing-then-satisfied',()=>{
 });
 
 // Cost/model governance
-test('model-router-mechanical-no-model',()=>{const d=routeModel(ROOT,tmp,toolRun,{task:'test'});if(d.mode!=='DETERMINISTIC')throw Error(JSON.stringify(d));});
+test('model-router-mechanical-no-model',()=>{
+  const d=routeModel(ROOT,tmp,toolRun,{task:'test'});if(d.mode!=='DETERMINISTIC')throw Error(JSON.stringify(d));
+  const cheap=routeModel(ROOT,tmp,toolRun,{task:'classification'});if(cheap.mode!=='MODEL'||cheap.tier!=='economy')throw Error(JSON.stringify(cheap));
+  const strict=routeModel(ROOT,tmp,{...toolRun,profile:'STRICT',state:'DESIGN'},{task:'stage'});if(strict.mode!=='MODEL'||strict.tier!=='high')throw Error(JSON.stringify(strict));
+  const sec=routeModel(ROOT,tmp,{...toolRun,workflow:'security-remediation',state:'PLAN'},{task:'stage'});if(sec.mode!=='MODEL'||sec.tier!=='high')throw Error(JSON.stringify(sec));
+  const none=routeModel(ROOT,tmp,toolRun,{provider:'nonexistent-provider'});if(none.mode!=='PENDING')throw Error(JSON.stringify(none));
+  const reqStr=routeModel(ROOT,tmp,toolRun,{requireStructured:true});if(!reqStr.mode)throw Error(JSON.stringify(reqStr));
+});
 test('usage-ledger-aggregates',()=>{addUsage(tmp,toolRun,{provider:'x',input_tokens:10,cached_input_tokens:3,output_tokens:2,wall_ms:50});addUsage(tmp,toolRun,{provider:'x',input_tokens:5,output_tokens:4,wall_ms:20});const r=reportUsage(tmp,toolRun.run_id);if(r.total.input_tokens!==15||r.total.output_tokens!==6||r.total.wall_ms!==70||r.cost_usd!==null)throw Error(JSON.stringify(r));});
 test('config-project-layer-resolves',()=>{const c=resolveConfig(tmp);if(c.effective.project!=='fixture'||!c.layers.some(x=>x.name==='project'))throw Error(JSON.stringify(c));});
 test('compat-state-v1-compatible',()=>{const c=compatCheck(ROOT,tmp);if(!c.compatible||c.status!=='COMPATIBLE')throw Error(JSON.stringify(c));});

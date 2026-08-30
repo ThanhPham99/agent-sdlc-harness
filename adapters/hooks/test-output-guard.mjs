@@ -39,7 +39,7 @@ const norm=command.replace(/["'`]/g,'');
 // unbounded by construction. `(?!:)` on the npm/yarn/pnpm "test" token keeps
 // this off named scripts like "npm run test:integrity", which are not
 // necessarily verbose and are not what this rule is about.
-const VERBOSE_PRODUCER=/\b(?:npm\s+(?:test(?!:)|run\s+test(?!:))|yarn\s+test(?!:)|pnpm\s+test(?!:)|npx\s+(?:jest|vitest|mocha)|jest|vitest|mocha|pytest|go\s+test|mvn\s+test|gradle\s+test|gradlew\s+test|cargo\s+test|dotnet\s+test|rspec|phpunit|ctest)\b/i;
+const VERBOSE_PRODUCER=/\b(?:npm\s+(?:test(?!:)|run\s+test(?!:))|yarn\s+test(?!:)|pnpm\s+test(?!:)|bun\s+test(?!:)|deno\s+test(?!:)|npx\s+(?:jest|vitest|mocha)|jest|vitest|mocha|pytest|go\s+test|mvn\s+test|gradle\s+test|gradlew\s+test|cargo\s+test|dotnet\s+test|rspec|phpunit|ctest|k6\s+run|artillery\s+run|wrk|autocannon)\b/i;
 const LOG_DUMP=/\bcat\s+[^|>\n]*\.log\b|\bdocker\s+logs\b(?!.*--tail)|\bkubectl\s+logs\b(?!.*--tail)/i;
 
 if(!VERBOSE_PRODUCER.test(norm)&&!LOG_DUMP.test(norm))process.exit(0);

@@ -173,6 +173,26 @@ await test('the-unified-task-tool-matches-its-granular-twin',async()=>{
   const direct=payload(await c.tool('agent_sdlc_task_list',{run_id:runId}));
   assert(JSON.stringify(viaOp)===JSON.stringify(direct),'op:list and task_list disagree');
 });
+await test('model-route-and-tool-run-over-transport',async()=>{
+  const routed=payload(await c.tool('agent_sdlc_model_route',{run_id:runId,task:'code',provider:'auto'}));
+  assert(routed.mode,JSON.stringify(routed));
+  const toolRes=payload(await c.tool('agent_sdlc_tool_run',{run_id:runId,tool:'git.status'}));
+  assert(toolRes,JSON.stringify(toolRes));
+});
+
+await test('task-granular-tools-sweep',async()=>{
+  const ready=payload(await c.tool('agent_sdlc_task_ready',{run_id:runId}));
+  assert(ready!==undefined,JSON.stringify(ready));
+  const schedule=payload(await c.tool('agent_sdlc_task_schedule',{run_id:runId}));
+  assert(schedule!==undefined,JSON.stringify(schedule));
+  const status=payload(await c.tool('agent_sdlc_task_status',{run_id:runId}));
+  assert(status!==undefined,JSON.stringify(status));
+  const rReady=payload(await c.tool('agent_sdlc_task',{run_id:runId,op:'ready'}));
+  assert(rReady!==undefined,JSON.stringify(rReady));
+  const rSched=payload(await c.tool('agent_sdlc_task',{run_id:runId,op:'schedule'}));
+  assert(rSched!==undefined,JSON.stringify(rSched));
+});
+
 await test('an-unknown-task-op-is-named-in-the-error',async()=>{
   const r=await c.tool('agent_sdlc_task',{run_id:runId,op:'nonsense'});
   assert(r.result.isError===true,'an unknown op succeeded');

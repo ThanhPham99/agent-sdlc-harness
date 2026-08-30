@@ -982,6 +982,98 @@ test('task-implementation-complete-reports-unfinished-tasks',()=>{
   if(!doc.problems.some(p=>p.startsWith('TASKS_NOT_DONE')))throw new Error(JSON.stringify(doc.problems));
 });
 
+test('completion-bash-generates-script', ()=>{
+  const r=raw(['completion','bash']);
+  if(r.status!==0)throw new Error(`exit ${r.status}: ${r.stderr}`);
+  if(!r.stdout.includes('_agent_sdlc()')||!r.stdout.includes('complete -F _agent_sdlc'))throw new Error(`unexpected output: ${r.stdout}`);
+});
+
+test('completion-zsh-generates-script', ()=>{
+  const r=raw(['completion','zsh']);
+  if(r.status!==0)throw new Error(`exit ${r.status}: ${r.stderr}`);
+  if(!r.stdout.includes('#compdef agent-sdlc'))throw new Error(`unexpected output: ${r.stdout}`);
+});
+
+test('completion-pwsh-generates-script', ()=>{
+  const r=raw(['completion','pwsh']);
+  if(r.status!==0)throw new Error(`exit ${r.status}: ${r.stderr}`);
+  if(!r.stdout.includes('Register-ArgumentCompleter'))throw new Error(`unexpected output: ${r.stdout}`);
+});
+
+test('completion-rejects-unknown-shell', ()=>{
+  const err=failure(['completion','fish']);
+  if(!err.error.includes('unsupported shell'))throw new Error(JSON.stringify(err));
+});
+
+test('status-pretty-prints-human-readable-summary', ()=>{
+  const run=json(['start','--objective','build feature']);
+  const r=raw(['status','--run-id',run.run_id,'--pretty']);
+  if(r.status!==0)throw new Error(`exit ${r.status}: ${r.stderr}`);
+  if(!r.stdout.includes('=== SDLC Run')||!r.stdout.includes(run.run_id))throw new Error(`unexpected output: ${r.stdout}`);
+});
+
+test('task-graph-mermaid-prints-mermaid-flowchart', ()=>{
+  const run=json(['start','--objective','build feature']);
+  const r=raw(['task','graph','--run-id',run.run_id,'--mermaid']);
+  if(r.status!==0)throw new Error(`exit ${r.status}: ${r.stderr}`);
+  if(!r.stdout.includes('graph TD'))throw new Error(`unexpected output: ${r.stdout}`);
+});
+
+test('feature-lifecycle-create-list-update-phase', ()=>{
+  const f=json(['feature','create','--title','User Authentication','--workflow','new-feature']);
+  if(!f.feature_id||f.title!=='User Authentication')throw new Error(JSON.stringify(f));
+  const list=json(['feature','list']);
+  if(!Array.isArray(list)||!list.some(x=>x.feature_id===f.feature_id))throw new Error(JSON.stringify(list));
+  const shown=json(['feature','show','--feature-id',f.feature_id]);
+  if(shown.feature_id!==f.feature_id)throw new Error(JSON.stringify(shown));
+  const updated=json(['feature','update','--feature-id',f.feature_id,'--status','BLOCKED','--open-questions','q1,q2','--deferred-items','d1']);
+  if(updated.status!=='BLOCKED'||updated.open_questions?.length!==2)throw new Error(JSON.stringify(updated));
+  const phase=json(['feature','phase-create','--feature-id',f.feature_id,'--name','Phase 1','--objective','Design API']);
+  if(!phase.phase_id)throw new Error(JSON.stringify(phase));
+  const phases=json(['feature','phase-list','--feature-id',f.feature_id]);
+  if(!Array.isArray(phases)||!phases.length)throw new Error(JSON.stringify(phases));
+  const pshown=json(['feature','phase-show','--feature-id',f.feature_id,'--phase-id',phase.phase_id]);
+  if(pshown.phase_id!==phase.phase_id)throw new Error(JSON.stringify(pshown));
+  const pcompleted=json(['feature','phase-complete','--feature-id',f.feature_id,'--phase-id',phase.phase_id]);
+  if(pcompleted.status!=='COMPLETE')throw new Error(JSON.stringify(pcompleted));
+});
+
+test('repo-and-trace-subcommands-sweep', ()=>{
+  const sym=json(['repo','symbol','--name','charge']);
+  if(!sym.locations||!sym.symbol)throw new Error(JSON.stringify(sym));
+  const tests=json(['repo','tests','--paths','src/service.js']);
+  if(!tests)throw new Error(JSON.stringify(tests));
+  const recent=json(['repo','recent','--since','30','--limit','10']);
+  if(!recent)throw new Error(JSON.stringify(recent));
+  const surf=json(['repo','surface','--objective','charge amount']);
+  if(!surf)throw new Error(JSON.stringify(surf));
+  const kinds=json(['trace','kinds']);
+  if(!kinds.node_kinds||!kinds.edge_kinds)throw new Error(JSON.stringify(kinds));
+  const closure=json(['trace','closure','--node','TASK:TASK-001',...ENGINE]);
+  if(!closure)throw new Error(JSON.stringify(closure));
+  const dryInv=json(['trace','invalidate','--node','TASK:TASK-001','--dry-run',...ENGINE]);
+  if(!dryInv)throw new Error(JSON.stringify(dryInv));
+  const inv=json(['trace','invalidate','--node','TASK:TASK-001','--reason','spec change',...ENGINE]);
+  if(!inv)throw new Error(JSON.stringify(inv));
+});
+
+test('model-route-and-usage-report', ()=>{
+  const run=json(['start','--objective','calculate tax']);
+  const route=json(['model-route','--run-id',run.run_id,'--task','code']);
+  if(!route.mode)throw new Error(JSON.stringify(route));
+  const usage=json(['usage-report','--run-id',run.run_id]);
+  if(usage.run_id!==run.run_id)throw new Error(JSON.stringify(usage));
+});
+
+test('start-with-track-feature-and-context-prompt-and-parallel-tasks', ()=>{
+  const tracked=json(['start','--objective','add dark mode','--track-feature']);
+  if(!tracked.feature_id)throw new Error(JSON.stringify(tracked));
+  const r=raw(['context','--run-id',tracked.run_id,'--prompt']);
+  if(r.status!==0||!r.stdout.includes('SDLC execution agent'))throw new Error(r.stdout);
+  const plan=json(['parallel-plan','--tasks',JSON.stringify([{id:'t1',write_set:['a.js']},{id:'t2',write_set:['b.js']}])]);
+  if(!plan.decision)throw new Error(JSON.stringify(plan));
+});
+
 // --- shim execution: bin/agent-sdlc.cmd and bin/agent-sdlc.ps1 on Windows ---
 // scripts/verify-dist.mjs drives the packaged .cmd, and only on win32.
 // scripts/validate-cli-surface.mjs asserts both shims' source text forwards

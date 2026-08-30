@@ -24,7 +24,8 @@ const GROUPS={
   task:()=>import("./task.mjs"),
   repo:()=>import("./repo.mjs"),
   feature:()=>import("./feature.mjs"),
-  delivery:()=>import("./delivery.mjs")
+  delivery:()=>import("./delivery.mjs"),
+  completion:()=>import("./completion.mjs")
 };
 
 /** Command name -> its group, and the subcommands it dispatches.
@@ -77,7 +78,8 @@ export const COMMANDS={
   fallback:{group:"provider"},
   learn:{group:"delivery",subcommands:["sources","candidate"]},
   doctor:{group:"project"},
-  gc:{group:"project",subcommands:["status","apply"]}
+  gc:{group:"project",subcommands:["status","apply"]},
+  completion:{group:"completion"}
 };
 
 export const COMMAND_NAMES=Object.keys(COMMANDS);
