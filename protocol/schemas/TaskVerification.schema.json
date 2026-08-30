@@ -13,7 +13,8 @@
     "base_revision",
     "diff_hash",
     "commands",
-    "status"
+    "status",
+    "scope"
   ],
   "properties": {
     "schema": {
@@ -185,7 +186,8 @@
         "respected": {
           "type": "boolean"
         }
-      }
+      },
+      "description": "The write-scope audit for this attempt. Required: verifyTask computes it on every path it takes, dry runs included, and the scope_respected gate rejects a record that omits it or omits its `respected` boolean -- absence of a violation report is not a report of no violation."
     },
     "environment": {
       "type": "object",

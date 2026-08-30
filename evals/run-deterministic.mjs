@@ -857,6 +857,54 @@ test('every-shipped-blocked-query-pattern-compiles',()=>{
     catch(e){throw Error(`shipped pattern ${pat} does not compile: ${e.message}`);}
   }
 });
+// The documented way to turn query sanitization off is to declare no patterns.
+// Pinned because it is the reason `sanitize_queries` does not need to exist: a
+// second switch for the same behaviour is a second thing to get out of step.
+test('an-empty-blocked_query_patterns-list-is-how-sanitization-is-turned-off',()=>{
+  const fixture=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-webpolicy-off-'));
+  fs.mkdirSync(path.join(fixture,'policies'),{recursive:true});
+  fs.writeFileSync(path.join(fixture,'policies','security-policy.json'),
+    JSON.stringify({web_search_policy:{blocked_query_patterns:[],blocked_host_patterns:[]}}));
+  const out=sanitizeWebQuery(fixture,'search with api_key=SECRET123');
+  if(!out.ok)throw Error(`no declared patterns must not block anything: ${out.reason}`);
+});
+
+// project.json is written into the repository and an agent can edit it, so it
+// must never be able to widen tool policy. checkTool took a projectCfg
+// parameter it never read; removing it cannot change this, and this case is
+// what says so.
+test('project-json-cannot-grant-a-tool-the-stage-denies',()=>{
+  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-projpolicy-'));
+  execFileSync('git',['init','-q'],{cwd:d});
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'x',commands:{test_targeted:['node','-e','process.exit(0)']},providers:{preferred:['claude']}});
+  // Every shape a project might hope grants itself something.
+  const cfgPath=path.join(d,'.agent-sdlc','project.json');
+  const cfg=JSON.parse(fs.readFileSync(cfgPath,'utf8'));
+  fs.writeFileSync(cfgPath,JSON.stringify({
+    ...cfg,
+    allowed_tools:['deploy.production','security.secret_scan'],
+    denied_tools:[],
+    tools:{'deploy.production':{risk:'safe'},'security.secret_scan':{risk:'safe'}},
+    security:{human_approval_required:[]},
+    human_approval_required:[]
+  },null,2));
+  const r=newRun(ROOT,d,{objective:'x',route:route(ROOT,'Add fixture feature')});
+
+  // Both denial branches, named: an earlier check firing first would otherwise
+  // let this pass while the branch a project could plausibly widen -- the
+  // allow-list one -- went untested. Asserting the reason is what makes the
+  // case discriminate; a first draft that only asserted DENY did not.
+  const explicit=checkTool(ROOT,r,'deploy.production');
+  if(explicit.reason!=='STAGE_EXPLICIT_DENY')throw Error(`fixture drifted: ${JSON.stringify(explicit)}`);
+  const notAllowed=checkTool(ROOT,r,'security.secret_scan');
+  if(notAllowed.reason!=='NOT_ALLOWED_IN_STAGE')throw Error(`fixture drifted: ${JSON.stringify(notAllowed)}`);
+
+  for(const tool of ['deploy.production','security.secret_scan']){
+    const out=invokeTool(ROOT,d,r,tool,{});
+    if(out.status!=='DENY')throw Error(`project.json granted ${tool}: ${JSON.stringify(out.summary)}`);
+  }
+});
+
 test('web-fetch-valid-url-pass',()=>{const out=invokeTool(ROOT,tmp,researchRun,'web.fetch_url',{url:'https://docs.example.com/api/v1'});if(out.status!=='PASS'||out.exit_code!==0||!out.summary.includes('DOCUMENTATION_CONTENT'))throw Error(JSON.stringify(out));});
 test('web-fetch-blocked-host-fails',()=>{const out=invokeTool(ROOT,tmp,researchRun,'web.fetch_url',{url:'http://localhost:8080/admin'});if(out.status!=='FAIL'||out.exit_code!==1||!out.summary.includes('blocked by security policy'))throw Error(JSON.stringify(out));});
 // Walk a fresh run all the way to DEPLOY with real gate evidence at each step,

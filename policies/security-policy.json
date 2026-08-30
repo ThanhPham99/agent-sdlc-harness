@@ -51,7 +51,6 @@
     "_netrc"
   ],
   "web_search_policy": {
-    "sanitize_queries": true,
     "blocked_query_patterns": [
       "(?i)api[_-]?key",
       "(?i)secret",

@@ -179,7 +179,7 @@ function checkWebUrl(root,urlStr){
   }catch{return {ok:false,reason:`Invalid URL format: ${urlStr}`};}
 }
 export function invokeTool(root,projectRoot,run,tool,args={}){
-  const cfg=JSON.parse(fs.readFileSync(path.join(projectRoot,'.agent-sdlc','project.json'),'utf8'));const decision=checkTool(root,run,tool,cfg);if(decision.decision!=='ALLOW')return {tool,status:decision.decision==='DENY'?'DENY':'APPROVAL_REQUIRED',exit_code:null,summary:decision,failures:[],full_log_artifact:null,truncated:false};let result;
+  const cfg=JSON.parse(fs.readFileSync(path.join(projectRoot,'.agent-sdlc','project.json'),'utf8'));const decision=checkTool(root,run,tool);if(decision.decision!=='ALLOW')return {tool,status:decision.decision==='DENY'?'DENY':'APPROVAL_REQUIRED',exit_code:null,summary:decision,failures:[],full_log_artifact:null,truncated:false};let result;
   // config/tools.json declares these per tool and nothing read them, so a budget
   // tightened in config had no effect. The literals stay as the fallback for a
   // tool the registry does not size.
