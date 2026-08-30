@@ -12,10 +12,23 @@ import {validateTaskPlan,computeTaskGraph,findCycles,computeReadySets,computeCov
 import {runTaskRuntimeSuite} from './task-runtime.mjs';
 import {runAlpha6Suite} from './alpha6-runtime.mjs';
 import {checkTool} from '../runtime/policy.mjs';
-import {buildContext,renderPrompt} from '../runtime/context.mjs';
-import {putArtifact,getArtifact,listArtifacts,artifactsForRun,loadRun,saveRun,emit} from '../runtime/store.mjs';
+import {buildContext,renderPrompt,condenseLog,compactArtifactSummaries} from '../runtime/context.mjs';
+import {putArtifact,getArtifact,listArtifacts,artifactsForRun,loadRun,saveRun,emit,verifyEventChain} from '../runtime/store.mjs';
 import {validateReplay} from '../runtime/replay.mjs';
-import {normalizeText,sha256} from '../runtime/util.mjs';
+import {normalizeText,sha256,calculateEntropy,redactHighEntropySecrets} from '../runtime/util.mjs';
+import {parseFailureDiagnostics} from '../runtime/task-recovery.mjs';
+import {generateDashboardHtml} from '../runtime/commands/dashboard.mjs';
+import {openIntelligence,findTransitiveImpact,findImpactedTests} from '../runtime/repo-intelligence.mjs';
+import {rewindRun} from '../runtime/rewind.mjs';
+import {sendWebhook,testWebhook,dispatchWebhooks,computeWebhookSignature,matchesPattern} from '../runtime/webhook.mjs';
+import {findCircularDependencies,auditArchitecture} from '../runtime/arch-linter.mjs';
+import {addToQuarantine,removeFromQuarantine,isQuarantined,quarantineStatus} from '../runtime/quarantine.mjs';
+import {simulateRunBudget,estimateTaskAttempt} from '../runtime/simulator.mjs';
+import {startServer} from '../runtime/server.mjs';
+import {generateMutations,runMutationSuite} from '../runtime/mutation.mjs';
+import {generatePrBody,generateChangelog} from '../runtime/pr-generator.mjs';
+import {findDeadCode} from '../runtime/dead-code.mjs';
+import {auditCodebase} from '../runtime/review-engine.mjs';
 import {probe,capabilities} from '../runtime/provider.mjs';
 import {invokeTool,sanitizeWebQuery} from '../runtime/tools.mjs';
 import {zipDir,unzipTo} from '../scripts/archive.mjs';
@@ -1827,6 +1840,273 @@ test('job-block-throws-on-an-unknown-job-name',()=>{
   let ok=false;
   try{jobBlock(SYNTHETIC_WORKFLOW,'does-not-exist');}catch(e){ok=/no top-level job named/.test(e.message);}
   if(!ok)throw Error('an unknown job name should fail loudly, not return an empty/wrong block silently');
+});
+
+// Phase 1-3 Optimization Tests: Entropy, Self-Healing, Merkle Chain, Dashboard
+test('optimization/entropy-shannon-calculation',()=>{
+  const lowEntropy=calculateEntropy('aaaaaaaaaa'); // 0
+  const normalText=calculateEntropy('hello world this is standard text'); // ~3.3
+  const highEntropy=calculateEntropy('7f8b9a2c4e1d6f0a3b5c7e9f1a2d4b6c'); // > 3.8
+  if(lowEntropy!==0)throw Error(`expected 0, got ${lowEntropy}`);
+  if(highEntropy<=normalText)throw Error('high entropy random string should have higher entropy than normal text');
+});
+
+test('optimization/entropy-secret-redaction',()=>{
+  const text='API config: key=9aF83jKl2Nm0PqRt5vWx7yZa1Bc4De6Fg and user=john_doe';
+  const redacted=redactHighEntropySecrets(text);
+  if(!redacted.includes('[REDACTED_ENTROPY_SECRET]'))throw Error(`entropy secret was not redacted: ${redacted}`);
+  if(!redacted.includes('user=john_doe'))throw Error('normal low-entropy token was unexpectedly redacted');
+});
+
+test('optimization/task-failure-diagnostics-parsing',()=>{
+  const syntaxErr='SyntaxError: Unexpected token ) in file src/index.js:42:10';
+  const d1=parseFailureDiagnostics(syntaxErr);
+  if(d1.error_type!=='SYNTAX_ERROR'||d1.failing_file!=='src/index.js'||d1.failing_line!==42)throw Error(JSON.stringify(d1));
+
+  const typeErr='TypeError: user.getName is not a function at Object.run (lib/auth.js:15:4)';
+  const d2=parseFailureDiagnostics(typeErr);
+  if(d2.error_type!=='TYPE_ERROR'||d2.failing_file!=='lib/auth.js'||d2.failing_line!==15)throw Error(JSON.stringify(d2));
+
+  const assertErr='AssertionError: expected false to equal true at tests/app.test.js:88:5';
+  const d3=parseFailureDiagnostics(assertErr);
+  if(d3.error_type!=='ASSERTION_FAILURE'||d3.failing_file!=='tests/app.test.js')throw Error(JSON.stringify(d3));
+});
+
+test('optimization/event-merkle-chain-verification',()=>{
+  const r=newRun(ROOT,tmp,{objective:'test merkle chain',route:{workflow:'new-feature',profile:'STANDARD'}});
+  emit(tmp,r,{type:'test.step1',payload:{value:1}});
+  emit(tmp,r,{type:'test.step2',payload:{value:2}});
+  const check1=verifyEventChain(tmp,r.run_id);
+  if(!check1.valid||check1.event_count<2)throw Error(JSON.stringify(check1));
+
+  // Test tampering detection
+  const eventFile=path.join(tmp,'.agent-sdlc','events',`${r.run_id}.jsonl`);
+  const lines=fs.readFileSync(eventFile,'utf8').trim().split('\n');
+  const tampered=JSON.parse(lines[1]);
+  tampered.payload={value:999}; // tamper payload without updating hash
+  lines[1]=JSON.stringify(tampered);
+  fs.writeFileSync(eventFile,lines.join('\n')+'\n','utf8');
+
+  const check2=verifyEventChain(tmp,r.run_id);
+  if(check2.valid)throw Error('tampered event chain was not detected');
+});
+
+test('optimization/dashboard-html-generation',()=>{
+  const html=generateDashboardHtml({
+    project:{project:'test-project'},
+    state:{schema:'agent-sdlc/state/v1'},
+    runs:[{run_id:'run-test',state:'REQUIREMENTS',workflow:'new-feature',profile:'STANDARD'}],
+    tasks:[{task_id:'TASK-1',title:'Test Task',status:'DONE',category:'feature'}],
+    metrics:{tasks:{total_tokens:1500,total_cost_usd:0.02}},
+    version:'3.0.0-alpha6'
+  });
+  if(!html.includes('Agent SDLC Dashboard')||!html.includes('test-project')||!html.includes('TASK-1'))throw Error('dashboard html missing expected content');
+});
+
+// Package A (Efficiency) Tests: Transitive Blast Radius, Smart Test Selection, Log & Context Compression
+test('optimization/condense-log-noise-reduction',()=>{
+  const verboseLines=[];
+  for(let i=0;i<100;i++)verboseLines.push(`[info] Processing item ${i}... OK`);
+  verboseLines[50]='AssertionError: expected value 42 to equal 99';
+  verboseLines[51]='    at Object.testRun (tests/unit.test.js:52:11)';
+  const fullLog=verboseLines.join('\n');
+
+  const condensed=condenseLog(fullLog,{maxLines:30,preserveHead:5,preserveTail:5});
+  if(!condensed.includes('AssertionError: expected value 42 to equal 99'))throw Error('condenseLog dropped AssertionError');
+  if(!condensed.includes('tests/unit.test.js:52:11'))throw Error('condenseLog dropped stack trace');
+  if(!condensed.includes('omitted for brevity'))throw Error('condenseLog did not omit verbose lines');
+  if(condensed.split('\n').length>=fullLog.split('\n').length)throw Error('condenseLog did not reduce line count');
+});
+
+test('optimization/compact-artifact-summaries',()=>{
+  const artifacts=[
+    {ref:'art_1',kind:'DESIGN',summary:'A'.repeat(1000),sha256:'11111111111111111111111111111111'},
+    {ref:'art_2',kind:'PLAN',summary:'B'.repeat(1000),sha256:'22222222222222222222222222222222'},
+    {ref:'art_3',kind:'CODE',summary:'C'.repeat(500),sha256:'33333333333333333333333333333333'}
+  ];
+  // Budget allowing ~250 tokens (~1000 bytes) total
+  const compacted=compactArtifactSummaries(artifacts,250,4);
+  if(!compacted[0].compacted)throw Error('oldest artifact was not compacted under token pressure');
+  if(!compacted[0].summary.includes('compacted from'))throw Error('missing compaction notice');
+  // Latest artifact (art_3) should stay uncompacted if within remaining budget
+  if(compacted[2].summary!=='C'.repeat(500))throw Error('latest artifact summary was prematurely modified');
+});
+
+test('optimization/repo-impacted-tests-and-transitive-closure',()=>{
+  const intel=openIntelligence(ROOT);
+  const impact=findTransitiveImpact(intel,{paths:['runtime/util.mjs']});
+  if(impact.query!=='findTransitiveImpact'||impact.total_impacted_files<=0)throw Error(JSON.stringify(impact));
+  if(!impact.direct_dependents.some(d=>d.includes('runtime/')))throw Error('expected direct dependents under runtime/');
+
+  const tests=findImpactedTests(intel,{paths:['runtime/util.mjs']});
+  if(tests.query!=='findImpactedTests'||tests.impacted_files_count<=0)throw Error(JSON.stringify(tests));
+});
+
+// Package B (Resilience & Control) Tests: Time-Travel Rewind & Native Webhooks
+test('optimization/rewind-to-stage-prunes-evidence-and-resets-state',()=>{
+  const r=newRun(ROOT,tmp,{objective:'test rewind',route:{workflow:'new-feature',profile:'STANDARD'}});
+  r.state='PLAN';
+  r.evidence={INTAKE:['req-doc'],REQUIREMENTS:['spec-doc'],DESIGN:['arch-doc'],PLAN:['task-plan']};
+  saveRun(tmp,r);
+
+  const res=rewindRun(ROOT,tmp,r,{toStage:'REQUIREMENTS'});
+  if(res.status!=='REWOUND'||res.to_stage!=='REQUIREMENTS')throw Error(JSON.stringify(res));
+  if(r.evidence.DESIGN||r.evidence.PLAN)throw Error('downstream evidence was not pruned');
+  if(!r.evidence.INTAKE||!r.evidence.REQUIREMENTS)throw Error('upstream evidence was unexpectedly pruned');
+});
+
+test('optimization/webhook-signature-and-pattern-matching',()=>{
+  const secret='super-secret-key';
+  const payload={event:'run.completed',run_id:'run_123'};
+  const sig=computeWebhookSignature(secret,payload);
+  if(!sig.startsWith('sha256=')||sig.length!==71)throw Error(`invalid signature: ${sig}`);
+
+  if(!matchesPattern('run.completed','*'))throw Error('wildcard pattern failed');
+  if(!matchesPattern('run.completed','run.*'))throw Error('prefix pattern failed');
+  if(!matchesPattern('run.completed','run.completed'))throw Error('exact pattern failed');
+  if(matchesPattern('run.completed','task.*'))throw Error('unmatched pattern matched');
+});
+
+test('optimization/webhook-dispatcher-execution',()=>{
+  const dispatches=dispatchWebhooks(tmp,{type:'test.event'});
+  if(!Array.isArray(dispatches))throw Error('dispatchWebhooks should return array');
+});
+
+// Package C (Governance & Advanced Quality Gates) Tests: Architectural Linter & Flaky Test Quarantine
+test('optimization/arch-linter-detects-circular-dependencies',()=>{
+  const mockGraph={
+    files:new Map([
+      ['modA.js',{path:'modA.js',module:'a',is_test:false}],
+      ['modB.js',{path:'modB.js',module:'b',is_test:false}],
+      ['modC.js',{path:'modC.js',module:'c',is_test:false}],
+      ['modD.js',{path:'modD.js',module:'d',is_test:false}]
+    ]),
+    edges:[
+      {from:'modA.js',to:'modB.js'},
+      {from:'modB.js',to:'modC.js'},
+      {from:'modC.js',to:'modA.js'},
+      {from:'modC.js',to:'modD.js'}
+    ]
+  };
+
+  const circ=findCircularDependencies(mockGraph);
+  if(circ.cycle_count!==1)throw Error(`expected 1 cycle, got ${circ.cycle_count}`);
+  const cycle=circ.cycles[0];
+  if(!cycle.includes('modA.js')||!cycle.includes('modB.js')||!cycle.includes('modC.js'))throw Error('unexpected cycle nodes');
+
+  const audit=auditArchitecture(ROOT);
+  if(audit.schema!=='agent-sdlc/arch-audit/v1')throw Error('invalid audit report schema');
+});
+
+test('optimization/quarantine-lifecycle-add-remove-check',()=>{
+  const testFile='tests/flaky-integration.test.js';
+  const addRes=addToQuarantine(tmp,{testPath:testFile,reason:'INTERMITTENT_TIMEOUT'});
+  if(!addRes||addRes.test_path!==testFile)throw Error(JSON.stringify(addRes));
+
+  if(!isQuarantined(tmp,testFile))throw Error('test was not reported as quarantined');
+  const stat=quarantineStatus(tmp);
+  if(stat.quarantined_count<1)throw Error('quarantine count mismatch');
+
+  const rmRes=removeFromQuarantine(tmp,testFile);
+  if(!rmRes.removed)throw Error('failed to remove test from quarantine');
+  if(isQuarantined(tmp,testFile))throw Error('test is still reported as quarantined after removal');
+});
+
+// Package D (Predictive Budgeting & Pre-Flight Cost Simulator) Tests
+test('optimization/cost-simulation-estimates-tokens-and-usd',()=>{
+  const lowEst=estimateTaskAttempt('LOW','ECONOMY');
+  if(lowEst.total_tokens!==5000||lowEst.cost_usd<=0)throw Error('low complexity estimate failed');
+
+  const highEst=estimateTaskAttempt('HIGH','HIGH_REASONING');
+  if(highEst.total_tokens!==43000||highEst.cost_usd<=lowEst.cost_usd)throw Error('high complexity estimate failed');
+
+  const mockRun={
+    run_id:'sim_run_1',
+    budget:{max_usd:25.0,max_turns:60}
+  };
+  const mockTasks=[
+    {task_id:'t1',title:'Setup DB',scope:{write:['db.js'],modules:['db']},execution:{estimated_seconds:30}},
+    {task_id:'t2',title:'API Endpoints',scope:{write:['api.js','auth.js','router.js'],modules:['api','auth','router']},execution:{estimated_seconds:120}}
+  ];
+
+  const sim=simulateRunBudget(ROOT,tmp,mockRun,{tasks:mockTasks});
+  if(sim.schema!=='agent-sdlc/simulation/v1')throw Error(`invalid simulation schema: ${sim.schema}`);
+  if(sim.task_count!==2)throw Error(`expected 2 tasks in simulation, got ${sim.task_count}`);
+  if(!sim.best_case||!sim.expected||!sim.worst_case)throw Error('missing simulation cases');
+  if(sim.best_case.cost_usd>sim.expected.cost_usd||sim.expected.cost_usd>sim.worst_case.cost_usd)throw Error('cost ordering mismatch');
+  if(!sim.budget_guard||typeof sim.budget_guard.within_budget!=='boolean')throw Error('invalid budget guard');
+});
+
+// Package E (Real-Time Live Server & SSE Dashboard) Tests
+test('optimization/live-server-creation-and-routes',()=>{
+  if(typeof startServer!=='function')throw Error('startServer is not a function');
+});
+
+// Package F (Lightweight Mutation Testing Engine) Tests
+test('optimization/mutation-testing-engine-and-report',()=>{
+  const sampleCode=`
+export function computeScore(a, b, flag) {
+  if (a >= b && flag === true) {
+    return a + b;
+  }
+  return 0;
+}
+`;
+  const mutants=generateMutations(sampleCode,{maxMutants:10});
+  if(mutants.length<3)throw Error(`expected at least 3 mutants, got ${mutants.length}`);
+
+  const types=mutants.map(m=>m.type);
+  if(!types.includes('COMPARISON')||!types.includes('EQUALITY')||!types.includes('LOGICAL')||!types.includes('BOOLEAN')) {
+    throw Error(`missing expected mutation types: ${JSON.stringify(types)}`);
+  }
+
+  // Test runMutationSuite on a sample file in tmp
+  const targetPath=path.join(tmp,'sample-logic.js');
+  fs.writeFileSync(targetPath,sampleCode,'utf8');
+  const rep=runMutationSuite(tmp,{targetFile:'sample-logic.js',maxMutants:5});
+  if(rep.schema!=='agent-sdlc/mutation-report/v1')throw Error(`invalid mutation report schema: ${rep.schema}`);
+  if(rep.total_mutants===0||typeof rep.mutation_score!=='number')throw Error('invalid mutation results');
+});
+
+// Package G (Automated PR Description & Semantic Changelog) Tests
+test('optimization/pr-generator-and-changelog-markdown',()=>{
+  const mockRun={
+    run_id:'pr_run_1',
+    objective:'Implement zero-dep webhooks and rewind engine',
+    workflow:'standard',
+    profile:'STANDARD',
+    revision:2
+  };
+  const bodyMd=generatePrBody(tmp,mockRun);
+  if(!bodyMd.includes('## 🎯 Objective')||!bodyMd.includes('Implement zero-dep webhooks'))throw Error('missing objective in PR body');
+  if(!bodyMd.includes('## 🔨 Completed Tasks'))throw Error('missing tasks section in PR body');
+
+  const bodyJson=generatePrBody(tmp,mockRun,{format:'json'});
+  if(bodyJson.schema!=='agent-sdlc/pr-body/v1'||bodyJson.run_id!=='pr_run_1')throw Error('invalid PR body JSON schema');
+
+  const sampleTasks=[
+    {task_id:'t1',title:'feat: add webhooks',category:'feature'},
+    {task_id:'t2',title:'fix: resolve race condition in state lock',category:'bug'}
+  ];
+  const cl=generateChangelog(tmp,{version:'3.1.0',tasks:sampleTasks});
+  if(!cl.includes('### 🚀 Features')||!cl.includes('add webhooks'))throw Error('features section missing in changelog');
+  if(!cl.includes('### 🐛 Bug Fixes')||!cl.includes('resolve race condition'))throw Error('bug fixes section missing in changelog');
+});
+
+// Package H (Dead Code & Unused Export Eliminator) Tests
+test('optimization/dead-code-detection-and-health-score',()=>{
+  const rep=findDeadCode(ROOT);
+  if(rep.schema!=='agent-sdlc/dead-code-report/v1')throw Error(`invalid dead code report schema: ${rep.schema}`);
+  if(typeof rep.health_score!=='number'||rep.health_score<0||rep.health_score>100)throw Error('invalid health score');
+  if(!Array.isArray(rep.unreachable_files)||!Array.isArray(rep.ghost_dependencies))throw Error('invalid report lists');
+});
+
+// Package I (Multi-Dimensional Static Code-Review & Security Persona Auditor) Tests
+test('optimization/static-code-review-persona-scorecard',()=>{
+  const scorecard=auditCodebase(ROOT,{paths:['runtime/util.mjs']});
+  if(scorecard.schema!=='agent-sdlc/review-scorecard/v1')throw Error(`invalid review scorecard schema: ${scorecard.schema}`);
+  if(typeof scorecard.overall_score!=='number'||scorecard.overall_score<=0)throw Error('invalid overall score');
+  if(typeof scorecard.dimensions?.security!=='number'||typeof scorecard.dimensions?.performance!=='number')throw Error('missing dimension scores');
 });
 
 // ---------------------------------------------------------------------------

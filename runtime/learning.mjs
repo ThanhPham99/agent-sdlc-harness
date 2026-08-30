@@ -8,7 +8,7 @@
 //      emits a *candidate* that deterministic or live eval must validate before
 //      anyone adopts it.
 import path from 'node:path';
-import {now,sha256} from './util.mjs';
+import {now,sha256,redactHighEntropySecrets} from './util.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -53,6 +53,7 @@ const SECRET_PATTERNS=[
 export function sanitizeText(text,{maxChars=1200}={}){
   let out=String(text??'');
   for(const [rx,rep] of SECRET_PATTERNS)out=out.replace(rx,rep);
+  out=redactHighEntropySecrets(out);
   if(out.length>maxChars)out=out.slice(0,maxChars)+'…[TRUNCATED]';
   return out;
 }

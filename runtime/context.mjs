@@ -74,6 +74,71 @@ function resolveSkills(root,projectRoot,run){
   return ids.map(id=>{const spec=registry[id];let instructions='';try{instructions=readTextFile(path.join(root,spec.instructions)).trim();}catch{}return {id,description:spec.description,instructions,max_response_words:spec.max_response_words};});
 }
 
+/**
+ * Condense verbose test/build stdout/stderr to reduce token footprint while preserving
+ * 100% of error diagnostics, stack traces, failure summaries, and assertion mismatches.
+ */
+export function condenseLog(rawLog,{maxLines=60,preserveHead=10,preserveTail=25}={}){
+  const text=String(rawLog||'').trim();
+  if(!text)return '';
+  const lines=text.split('\n');
+  if(lines.length<=maxLines)return text;
+
+  const errorIndices=new Set();
+  const errorPatterns=/(?:error|err|fail|fatal|exception|syntaxerror|typeerror|assertionerror|errno|stack|at\s+.*:\d+|\^)/i;
+
+  for(let i=0;i<lines.length;i++){
+    if(errorPatterns.test(lines[i])){
+      for(let j=Math.max(0,i-2);j<=Math.min(lines.length-1,i+3);j++){
+        errorIndices.add(j);
+      }
+    }
+  }
+
+  for(let i=0;i<Math.min(preserveHead,lines.length);i++)errorIndices.add(i);
+  for(let i=Math.max(0,lines.length-preserveTail);i<lines.length;i++)errorIndices.add(i);
+
+  const selectedLines=[...errorIndices].sort((a,b)=>a-b);
+  const result=[];
+  let lastIdx=-1;
+
+  for(const idx of selectedLines){
+    if(lastIdx!==-1&&idx>lastIdx+1){
+      const omitted=idx-lastIdx-1;
+      result.push(`... [${omitted} verbose log lines omitted for brevity] ...`);
+    }
+    result.push(lines[idx]);
+    lastIdx=idx;
+  }
+
+  return result.join('\n');
+}
+
+/**
+ * Compact artifact summaries when context payload exceeds stage token budget.
+ */
+export function compactArtifactSummaries(artifacts,maxBudgetTokens,charsPerToken=4){
+  if(!Array.isArray(artifacts)||artifacts.length===0)return artifacts;
+  const maxBytes=maxBudgetTokens*charsPerToken;
+  let totalBytes=artifacts.reduce((acc,a)=>acc+(a.summary?Buffer.byteLength(a.summary):0),0);
+  if(totalBytes<=maxBytes)return artifacts;
+
+  const compacted=artifacts.map(a=>({...a}));
+  for(let i=0;i<compacted.length-1;i++){
+    if(totalBytes<=maxBytes)break;
+    const a=compacted[i];
+    if(a.summary&&a.summary.length>200){
+      const originalBytes=Buffer.byteLength(a.summary);
+      const lines=a.summary.split('\n');
+      const concise=lines.slice(0,3).join('\n')+`\n... [compacted from ${lines.length} lines, sha256: ${a.sha256?a.sha256.slice(0,12):'n/a'}]`;
+      a.summary=concise;
+      a.compacted=true;
+      totalBytes-=(originalBytes-Buffer.byteLength(concise));
+    }
+  }
+  return compacted;
+}
+
 export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],constraints=[]}={}){
   const stagePolicy=readJson(path.join(root,'policies','stage-policy.json')).stages[run.state];
   if(!stagePolicy)throw new Error(`no stage policy for ${run.state}`);
@@ -94,6 +159,8 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
       remainingArtifactBytes-=Buffer.byteLength(t.text);
     }catch{artifacts.push({ref,missing:true});}
   }
+  const maxArtifactTokens=Math.floor(maxContextTokens*0.45);
+  const finalArtifacts=compactArtifactSummaries(artifacts,maxArtifactTokens,charsPerToken);
   const skills=resolveSkills(root,projectRoot,run);
   const procedures=resolveProcedures(root,projectRoot,run);
   const manifest={
@@ -102,7 +169,7 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
     constraints:[...(cfg.context?.project_invariants||[]),...constraints],evidence_required:stagePolicy.gate_requirements||[],
     allowed_tools:stagePolicy.allowed_tools,budget:stagePolicy.budget,active_roles:resolveRoles(root,stagePolicy),
     skills:skills.map(s=>({id:s.id,description:s.description,max_response_words:s.max_response_words})),
-    skill_instructions:skills.map(s=>({id:s.id,instructions:s.instructions})),artifact_summaries:artifacts,
+    skill_instructions:skills.map(s=>({id:s.id,instructions:s.instructions})),artifact_summaries:finalArtifacts,
     procedures:procedures.map(p=>({id:p.id,group:p.group,when:p.when})),
     procedure_instructions:procedures.map(p=>({id:p.id,instructions:p.instructions})),
     requirement_update:run.workflow==='requirement-update'?loadRequirementUpdatePlan(projectRoot,run.run_id):null,

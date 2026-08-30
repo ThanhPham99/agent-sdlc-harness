@@ -182,5 +182,19 @@ export const commands={
       git_stat:(r.stdout||'').trim(),
       artifacts_count:(run.artifacts||[]).length
     });
+  },
+  rewind:async ctx=>{
+    const {args,ROOT,projectRoot,print,needRun}=ctx;
+    const run=await needRun();
+    const toStage=args['to-stage']||args.to||args._[1]||null;
+    const toTaskId=args['to-task']||args['task-id']||null;
+    if(!toStage&&!toTaskId)throw new Error('--to-stage <stage> or --to-task <taskId> required');
+    const {rewindRun}=await import('../rewind.mjs');
+    const res=rewindRun(ROOT,projectRoot,run,{
+      toStage,
+      toTaskId,
+      preserveEvidence:truthy(args['preserve-evidence'])
+    });
+    print(res);
   }
 };

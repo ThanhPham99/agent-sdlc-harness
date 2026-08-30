@@ -50,6 +50,14 @@ function generatePowershellCompletion(){
 `;
 }
 
+function generateFishCompletion(){
+  const cmds=COMMAND_NAMES.join(' ');
+  return `# Fish completion for agent-sdlc
+complete -c agent-sdlc -f
+complete -c agent-sdlc -n "__fish_use_subcommand" -a "${cmds}"
+`;
+}
+
 export const commands={
   completion:async ctx=>{
     const {args,print}=ctx;

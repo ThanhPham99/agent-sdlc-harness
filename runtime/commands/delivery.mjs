@@ -35,6 +35,18 @@ export const commands={
       });
       print(out);if(out.status!=='READY')process.exitCode=1;
     }
+    else if(sub==='pr-body'){
+      const r=await needRun();
+      const {generatePrBody}=await import('../pr-generator.mjs');
+      print(generatePrBody(projectRoot,r,{format:args.format||'markdown'}));
+    }
+    else if(sub==='changelog'){
+      const {generateChangelog}=await import('../pr-generator.mjs');
+      const {listTasks,loadState}=await import('../store.mjs');
+      const state=loadState(projectRoot);
+      const tasks=state.active_run_id?listTasks(projectRoot,state.active_run_id):[];
+      print(generateChangelog(projectRoot,{version:args.version||'Unreleased',tasks}));
+    }
     else throw new Error(`unknown delivery subcommand ${sub}`);
   },
   ci:async ctx=>{
@@ -55,6 +67,27 @@ export const commands={
     else if(sub==='status'){const r=await needRun();const c=ciEvidenceCurrent(projectRoot,r.run_id,{revision:args.revision||null});print(c);if(!c.current)process.exitCode=1;}
     else if(sub==='show'){const r=await needRun();print(loadCiEvidence(projectRoot,r.run_id)||{status:'NO_CI_EVIDENCE'});}
     else if(sub==='history'){const r=await needRun();print(ciEvidenceHistory(projectRoot,r.run_id));}
+    else if(sub==='verify-chain'){
+      const r=await needRun();
+      const {verifyEventChain}=await import('../store.mjs');
+      const res=verifyEventChain(projectRoot,r.run_id);
+      print(res);
+      if(!res.valid)process.exitCode=1;
+    }
+    else if(sub==='quarantine'){
+      const act=args._[2]||'list';
+      const {quarantineStatus,addToQuarantine,removeFromQuarantine}=await import('../quarantine.mjs');
+      if(act==='list')print(quarantineStatus(projectRoot));
+      else if(act==='add'){
+        const testPath=args.test||args._[3];
+        if(!testPath)throw new Error('--test <path> required');
+        print(addToQuarantine(projectRoot,{testPath,reason:args.reason||'FLAKY_TEST'}));
+      }else if(act==='remove'){
+        const testPath=args.test||args._[3];
+        if(!testPath)throw new Error('--test <path> required');
+        print(removeFromQuarantine(projectRoot,testPath));
+      }else throw new Error(`unknown quarantine action ${act}`);
+    }
     else throw new Error(`unknown ci subcommand ${sub}`);
   },
   govern:async ctx=>{
@@ -65,6 +98,17 @@ export const commands={
     if(sub==='policy')print(getGovernancePolicy(ROOT));
     else if(sub==='report'){const r=await needRun();print(governorReport(ROOT,projectRoot,r));}
     else if(sub==='complexity'){const r=await needRun();print(taskComplexity(ROOT,requireTask(projectRoot,r.run_id,need('task-id'))));}
+    else if(sub==='boundaries'){
+      const {auditArchitecture}=await import('../arch-linter.mjs');
+      const res=auditArchitecture(projectRoot,{strict:truthy(args.strict)});
+      print(res);
+      if(res.status==='FAIL')process.exitCode=1;
+    }
+    else if(sub==='simulate'){
+      const r=await needRun();
+      const {simulateRunBudget}=await import('../simulator.mjs');
+      print(simulateRunBudget(ROOT,projectRoot,r));
+    }
     else if(sub==='task'){
       const run=await needRun();const task=requireTask(projectRoot,run.run_id,need('task-id'));
       print(governTask(ROOT,projectRoot,run,task,{
@@ -94,5 +138,17 @@ export const commands={
       if(!validation.valid)process.exitCode=1;
     }
     else throw new Error(`unknown learn subcommand ${sub}`);
+  },
+  review:async ctx=>{
+    const {args,projectRoot,print}=ctx;
+    const sub=args._[1]||'audit';
+    if(sub==='audit'){
+      const {auditCodebase}=await import('../review-engine.mjs');
+      const paths=args.paths?String(args.paths).split(',').map(s=>s.trim()).filter(Boolean):(args.path?[args.path]:[]);
+      const res=auditCodebase(projectRoot,{paths,strict:truthy(args.strict)});
+      print(res);
+      if(res.status==='FAIL')process.exitCode=1;
+    }
+    else throw new Error(`unknown review subcommand ${sub}`);
   }
 };

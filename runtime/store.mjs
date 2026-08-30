@@ -30,6 +30,12 @@ export function saveRun(projectRoot,run){
   writeJson(p,run);
 }
 export function loadRun(projectRoot,runId){return readJson(runPath(projectRoot,runId));}
+export function loadState(projectRoot){return readJson(path.join(stateDir(projectRoot),'state.json'),{});}
+export function listRuns(projectRoot){
+  const d=path.join(stateDir(projectRoot),'runs');
+  if(!fs.existsSync(d))return [];
+  return fs.readdirSync(d).filter(x=>x.endsWith('.json')).sort().map(x=>x.replace(/\.json$/,''));
+}
 // Event sequence numbers are cosmetic display aids (e.g. mcp-server stream display).
 // They were derived by reading and splitting the whole event log on every append:
 // quadratic in the number of events for a single run. The count is now derived once
@@ -37,6 +43,7 @@ export function loadRun(projectRoot,runId){return readJson(runPath(projectRoot,r
 // operate on append order and timestamps, so sequence collision across distinct
 // concurrent processes is harmless.
 const seqCache=new Map();
+const lastHashCache=new Map();
 function nextSeq(p){
   if(!seqCache.has(p)){
     let count=0;
@@ -47,7 +54,44 @@ function nextSeq(p){
   seqCache.set(p,seq);
   return seq;
 }
-export function emit(projectRoot,run,event){const p=path.join(stateDir(projectRoot),'events',`${run.run_id}.jsonl`); const full={event_id:uuid('evt'),run_id:run.run_id,seq:nextSeq(p),time:now(),stage:run.state,provider:null,artifact_refs:[],usage:{},...event};appendJsonl(p,full);return full;}
+export function emit(projectRoot,run,event){
+  const p=path.join(stateDir(projectRoot),'events',`${run.run_id}.jsonl`);
+  if(!lastHashCache.has(p)){
+    let prev='0'.repeat(64);
+    if(fs.existsSync(p)){
+      const lines=fs.readFileSync(p,'utf8').trim().split('\n').filter(Boolean);
+      if(lines.length>0){
+        try{
+          const last=JSON.parse(lines[lines.length-1]);
+          if(last.hash)prev=last.hash;
+        }catch{}
+      }
+    }
+    lastHashCache.set(p,prev);
+  }
+  const prev_hash=lastHashCache.get(p);
+  const full={
+    event_id:uuid('evt'),
+    run_id:run.run_id,
+    seq:nextSeq(p),
+    time:now(),
+    stage:run.state,
+    provider:null,
+    artifact_refs:[],
+    usage:{},
+    ...event,
+    prev_hash
+  };
+  const event_hash=sha256(JSON.stringify(full));
+  full.hash=event_hash;
+  lastHashCache.set(p,event_hash);
+  appendJsonl(p,full);
+  try{
+    import('./webhook.mjs').then(m=>m.dispatchWebhooks(projectRoot,full)).catch(()=>{});
+    import('./server.mjs').then(m=>m.broadcastSseEvent(full)).catch(()=>{});
+  }catch{}
+  return full;
+}
 /**
  * Store content-addressed content and record who stored it.
  *
@@ -177,3 +221,32 @@ export function getTaskContextManifest(projectRoot,runId,taskId){
 // graph. Meta filenames are content hashes, so sorting by name is stable and
 // carries no meaning of its own.
 export function listArtifacts(projectRoot){const d=path.join(stateDir(projectRoot),'artifacts','meta');if(!fs.existsSync(d))return [];return fs.readdirSync(d).filter(x=>x.endsWith('.json')).sort().map(x=>readJson(path.join(d,x)));}
+
+/**
+ * Verify cryptographic hash-chain integrity of a run's event stream.
+ */
+export function verifyEventChain(projectRoot,runId){
+  const p=path.join(stateDir(projectRoot),'events',`${runId}.jsonl`);
+  if(!fs.existsSync(p))return {valid:true,event_count:0,head_hash:null,corrupted_at_seq:null};
+  const lines=fs.readFileSync(p,'utf8').trim().split('\n').filter(Boolean);
+  let expectedPrev='0'.repeat(64);
+  for(let i=0;i<lines.length;i++){
+    try{
+      const evt=JSON.parse(lines[i]);
+      if(evt.prev_hash!==undefined){
+        if(evt.prev_hash!==expectedPrev){
+          return {valid:false,event_count:lines.length,corrupted_at_seq:evt.seq||i+1,reason:'PREV_HASH_MISMATCH'};
+        }
+        const {hash,...rest}=evt;
+        const computed=sha256(JSON.stringify(rest));
+        if(hash&&hash!==computed){
+          return {valid:false,event_count:lines.length,corrupted_at_seq:evt.seq||i+1,reason:'EVENT_HASH_TAMPERED'};
+        }
+        expectedPrev=hash||expectedPrev;
+      }
+    }catch(e){
+      return {valid:false,event_count:lines.length,corrupted_at_seq:i+1,reason:`JSON_PARSE_ERROR:${e.message}`};
+    }
+  }
+  return {valid:true,event_count:lines.length,head_hash:expectedPrev,corrupted_at_seq:null};
+}

@@ -10,16 +10,16 @@
       "source": "adapters/hooks/pretool-guard.mjs",
       "root_copy": "hooks/pretool-guard.mjs",
       "status": "PASS",
-      "source_sha256": "5ed300b6fb628aca",
-      "root_sha256": "5ed300b6fb628aca",
+      "source_sha256": "7d83d3cc5edaf60c",
+      "root_sha256": "7d83d3cc5edaf60c",
       "problems": []
     },
     {
       "source": "adapters/hooks/test-output-guard.mjs",
       "root_copy": "hooks/test-output-guard.mjs",
       "status": "PASS",
-      "source_sha256": "19c09a12513cd6a4",
-      "root_sha256": "19c09a12513cd6a4",
+      "source_sha256": "06ce2b51ab4c75dc",
+      "root_sha256": "06ce2b51ab4c75dc",
       "problems": []
     },
     {

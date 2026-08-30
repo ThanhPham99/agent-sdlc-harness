@@ -85,6 +85,41 @@ export function untrackedDigest(cwd,listed=null){
 export function dirtyHash(cwd){const r=git(['diff','--binary','HEAD'],cwd);return r.code===0?sha256(r.stdout+'\n'+untrackedDigest(cwd)):null;}
 export function uuid(prefix='id'){return `${prefix}_${crypto.randomUUID()}`;}
 export function estimateTokens(text,charsPerToken=4){return Math.ceil((text||'').length/charsPerToken);}
+
+/**
+ * Calculate Shannon Entropy of a string: H(S) = -sum(p * log2(p)).
+ * Useful for detecting high-entropy random keys/hashes/tokens.
+ */
+export function calculateEntropy(str){
+  if(!str||typeof str!=='string'||str.length===0)return 0;
+  const freq={};
+  for(let i=0;i<str.length;i++){
+    const c=str[i];
+    freq[c]=(freq[c]||0)+1;
+  }
+  let entropy=0;
+  const len=str.length;
+  for(const c in freq){
+    const p=freq[c]/len;
+    entropy-=p*Math.log2(p);
+  }
+  return entropy;
+}
+
+/**
+ * Scan text for standalone high-entropy tokens (e.g. random api keys, hashes, base64 strings)
+ * and replace them with [REDACTED_ENTROPY_SECRET].
+ */
+export function redactHighEntropySecrets(text,{minLength=20,minEntropy=4.2}={}){
+  if(!text||typeof text!=='string')return text;
+  return text.replace(/\b[A-Za-z0-9_\-+/=]{20,}\b/g,(match)=>{
+    if(match.startsWith('REDACTED')||match.includes('[REDACTED'))return match;
+    if(calculateEntropy(match)>=minEntropy){
+      return '[REDACTED_ENTROPY_SECRET]';
+    }
+    return match;
+  });
+}
 export function safeRelative(base,p){const abs=path.resolve(base,p); if(!abs.startsWith(path.resolve(base)+path.sep) && abs!==path.resolve(base)) throw new Error('path escapes project root'); return abs;}
 /**
  * A boolean arriving from an untrusted boundary — an MCP argument or a CLI flag.

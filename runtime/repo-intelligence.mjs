@@ -13,11 +13,19 @@ import {git} from './util.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 const norm=p=>String(p||'').replace(/\\/g,'/').replace(/^\.\//,'');
+const graphCache=new Map();
 
 /** Open (and cache per call site) the intelligence view of a project. */
 export function openIntelligence(projectRoot,{refresh=false}={}){
   const index=refresh?buildIndex(projectRoot,{force:true}):loadIndex(projectRoot);
-  const graph=buildSymbolGraph(projectRoot,{index});
+  const cacheKey=`${projectRoot}:${index?.revision||'no-rev'}:${index?.counts?.files||0}`;
+  let graph;
+  if(!refresh&&graphCache.has(cacheKey)){
+    graph=graphCache.get(cacheKey);
+  }else{
+    graph=buildSymbolGraph(projectRoot,{index});
+    graphCache.set(cacheKey,graph);
+  }
   return {
     schema:'agent-sdlc/repo-intelligence/v1',
     project_root:projectRoot,
@@ -220,4 +228,93 @@ export function changeSurfaceSummary(intel,objective,opts={}){
     data_entities:s.data_entities,
     empty_reason:s.empty_reason
   };
+}
+
+/**
+ * Find transitive dependency closure and blast radius for modified files or symbols.
+ */
+export function findTransitiveImpact(intel,{paths=[],symbols=[],maxDepth=10}={}){
+  const normPaths=arr(paths).map(norm).filter(Boolean);
+  const symbolLocations=arr(symbols).flatMap(s=>arr(intel.graph.symbols.get(s)).map(l=>l.path));
+  const seeds=[...new Set([...normPaths,...symbolLocations])];
+
+  const directDependents=new Set();
+  const transitiveDependents=new Map();
+
+  for(const seed of seeds){
+    const closure=dependentClosure(intel.graph,seed,{maxDepth});
+    for(const item of closure){
+      if(!seeds.includes(item.path)){
+        if(item.depth===1)directDependents.add(item.path);
+        const existing=transitiveDependents.get(item.path);
+        if(existing===undefined||item.depth<existing){
+          transitiveDependents.set(item.path,item.depth);
+        }
+      }
+    }
+  }
+
+  const sortedTransitive=[...transitiveDependents.entries()]
+    .map(([p,depth])=>({path:p,depth,direct:directDependents.has(p)}))
+    .sort((a,b)=>a.depth-b.depth||a.path.localeCompare(b.path));
+
+  return withCapability(intel,{
+    query:'findTransitiveImpact',
+    seeds,
+    direct_dependents:[...directDependents].sort(),
+    transitive_dependents:sortedTransitive,
+    total_impacted_files:sortedTransitive.length
+  });
+}
+
+/**
+ * Smart Test Selection: calculate exactly which tests need to run for modified files/symbols.
+ */
+export function findImpactedTests(intel,{paths=[],symbols=[],maxDepth=10}={}){
+  const impact=findTransitiveImpact(intel,{paths,symbols,maxDepth});
+  const allAffectedFiles=[...new Set([...impact.seeds,...impact.transitive_dependents.map(d=>d.path)])];
+
+  const candidateTests=testsForFiles(intel.graph,allAffectedFiles,{maxDepth});
+  const symbolTests=arr(symbols).flatMap(s=>testsForSymbol(intel.graph,s));
+
+  const mergedTests=new Map();
+  for(const t of candidateTests){
+    mergedTests.set(t.path,{
+      path:t.path,
+      depth:t.depth,
+      reason:t.reason||(impact.seeds.includes(t.path)?'MODIFIED_TEST':'TRANSITIVE_DEPENDENCY'),
+      strength:t.depth===0?'STRONG':(t.depth===1?'STRONG':'MEDIUM')
+    });
+  }
+
+  for(const st of symbolTests){
+    if(!mergedTests.has(st.path)){
+      mergedTests.set(st.path,{
+        path:st.path,
+        depth:1,
+        reason:'SYMBOL_REFERENCE',
+        strength:st.strength
+      });
+    }
+  }
+
+  const sortedTests=[...mergedTests.values()]
+    .sort((a,b)=>{
+      const rank={STRONG:0,MEDIUM:1,WEAK:2};
+      return rank[a.strength]-rank[b.strength]||a.depth-b.depth||a.path.localeCompare(b.path);
+    });
+
+  const totalRepoTests=[...intel.graph.files.values()].filter(f=>f.is_test).length;
+  const coverageRatio=totalRepoTests>0?(sortedTests.length/totalRepoTests):1;
+
+  return withCapability(intel,{
+    query:'findImpactedTests',
+    modified_seeds:impact.seeds,
+    impacted_files_count:allAffectedFiles.length,
+    impacted_tests:sortedTests,
+    impacted_tests_count:sortedTests.length,
+    total_repo_tests:totalRepoTests,
+    test_selection_ratio:Number(coverageRatio.toFixed(3)),
+    recommended_test_files:sortedTests.map(t=>t.path)
+  });
 }
