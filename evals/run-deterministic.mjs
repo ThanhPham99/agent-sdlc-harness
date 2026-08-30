@@ -595,6 +595,26 @@ test('repo-search-finds-a-file-the-task-just-created',()=>{
   }finally{fs.rmSync(p,{force:true});}
 });
 
+test('repo-diff-says-which-new-files-it-cannot-show',()=>{
+  // `git diff` has no --untracked and never will: a file with no index entry
+  // has nothing to diff against. So the tool cannot show the content, but it
+  // can stop implying there is nothing there. An agent reading repo.diff to
+  // answer "what did I change?" was told only about tracked edits.
+  const created=path.join(tmp,'repo-diff-new-module.js');
+  fs.writeFileSync(created,'export const created=1;\n');
+  try{
+    const out=invokeTool(ROOT,tmp,toolRun,'repo.diff',{});
+    if(!out.summary.includes('repo-diff-new-module.js'))
+      throw Error(`a new file is absent from the diff report: ${JSON.stringify(out.summary.slice(-300))}`);
+    if(!/not shown|untracked/i.test(out.summary))
+      throw Error('the report does not say the content is unshown');
+  }finally{fs.rmSync(created,{force:true});}
+
+  // With nothing untracked the note must not appear at all.
+  const clean=invokeTool(ROOT,tmp,toolRun,'repo.diff',{});
+  if(/untracked/i.test(clean.summary))throw Error(`a clean tree got an untracked note: ${JSON.stringify(clean.summary.slice(-200))}`);
+});
+
 test('repo-search-no-match-is-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'repo.search',{pattern:'definitely_not_present_123'});if(out.status!=='PASS'||out.exit_code!==0)throw Error(JSON.stringify(out));});
 test('secret-scan-clean-is-pass',()=>{const out=invokeTool(ROOT,tmp,toolRun,'security.secret_scan',{});if(out.status!=='PASS')throw Error(JSON.stringify(out));});
 test('secret-scan-finding-redacts-value',()=>{fs.writeFileSync(path.join(tmp,'leak.txt'),'api_key=SUPERSECRET\n');execFileSync('git',['add','leak.txt'],{cwd:tmp});const out=invokeTool(ROOT,tmp,toolRun,'security.secret_scan',{});execFileSync('git',['reset','-q','HEAD','leak.txt'],{cwd:tmp});fs.rmSync(path.join(tmp,'leak.txt'));if(out.status!=='FAIL'||out.summary.includes('SUPERSECRET')||out.full_log_artifact)throw Error(JSON.stringify(out));});

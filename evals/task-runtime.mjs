@@ -826,6 +826,24 @@ export function runTaskRuntimeSuite(root){
       if(evidence.attempt!==fresh.attempt)fail(`attempt ${evidence.attempt} != ${fresh.attempt}`);
     });
 
+    t('an-isolated-workspace-records-the-new-files-it-cannot-see-either',()=>{
+      // uncommitted_changes_excluded is what the worktree cannot see. It was
+      // counted with --untracked-files=no, so it named modified tracked files
+      // and stayed silent about files that exist only in the project root --
+      // which are just as invisible from a worktree at the base revision, and
+      // are what a half-finished session leaves behind.
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot);
+      const stray=path.join(projectRoot,'left-behind.js');
+      fs.writeFileSync(stray,'export const strayWork=1;\n');
+      try{
+        const ws=createTaskWorkspace(projectRoot,{run,task:{task_id:'TASK-777',scope:{write:['src/']}},writer:'writer-z'});
+        if(ws.mode!=='isolated-worktree')fail(`fixture did not isolate: ${ws.mode} ${ws.degraded||''}`);
+        if(!ws.uncommitted_changes_excluded)
+          fail('a file the worktree cannot see was not recorded as excluded');
+      }finally{fs.rmSync(stray,{force:true});}
+    });
+
     t('the-per-task-secret-scan-searches-the-files-the-task-just-wrote',()=>{
       // This command runs inside the task's own workspace, on a task that was
       // singled out as security-critical or interface-changing -- so the files

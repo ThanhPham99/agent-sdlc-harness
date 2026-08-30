@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {safeRelative,truncateUtf8,readJson} from './util.mjs';
+import {safeRelative,truncateUtf8,readJson,untrackedFiles} from './util.mjs';
 import {checkTool} from './policy.mjs';
 import {putArtifact,emit,saveRun} from './store.mjs';
 import {normalizeInput} from './normalize.mjs';
@@ -198,7 +198,24 @@ export function invokeTool(root,projectRoot,run,tool,args={}){
     // interface must see code written earlier in the same task, which is not
     // staged yet. .gitignore is still honoured.
     const argv=['git','grep','-n','--untracked','--',''+(args.pattern||'')]; if(args.path)argv.push('--',args.path); result=exec(argv,projectRoot,timeout,maxBytes);if(result.exit_code===1){result={...result,status:'PASS',exit_code:0,summary:'No matches.',raw:''};}}
-  else if(tool==='repo.diff')result=exec(['git','diff','--no-ext-diff',...(args.cached?['--cached']:[])],projectRoot,timeout,maxBytes);
+  else if(tool==='repo.diff'){
+    result=exec(['git','diff','--no-ext-diff',...(args.cached?['--cached']:[])],projectRoot,timeout,maxBytes);
+    // `git diff` has no --untracked and cannot have one: a file with no index
+    // entry has nothing to diff against. The content stays unshown, but the
+    // report must not imply there is nothing there -- an agent reading this to
+    // answer "what did I change?" was told only about tracked edits.
+    const newFiles=(untrackedFiles(projectRoot)||[]).filter(rel=>!rel.startsWith('.agent-sdlc/'));
+    if(newFiles.length&&result.status!=='ERROR'){
+      const shown=newFiles.slice(0,50);
+      const more=newFiles.length-shown.length;
+      const header=`(${newFiles.length} new file(s), content not shown -- git diff cannot render a file with no index entry; read them with repo.read)`;
+      const listed=shown.map(f=>`?? ${f}`);
+      if(more)listed.push(`... and ${more} more`);
+      const note=['','',header,...listed,''].join('\n');
+      const merged=truncateUtf8((result.summary||'')+note,maxBytes);
+      result={...result,summary:merged.text,truncated:result.truncated||merged.truncated};
+    }
+  }
   else if(tool==='git.status')result=exec(['git','status','--short'],projectRoot,timeout,maxBytes);
   else if(tool==='security.secret_scan')result=secretScan(root,projectRoot);
   else if(tool==='web.search'){

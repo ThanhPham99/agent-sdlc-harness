@@ -99,7 +99,13 @@ export function createTaskWorkspace(projectRoot,{run,task,writer=null,mode=null,
       // base revision is still the honest thing to branch from. What they do
       // affect is what the workspace can see, so record the exclusion instead
       // of silently dropping isolation.
-      const modified=git(['status','--porcelain','--untracked-files=no'],projectRoot).stdout.trim();
+      // Untracked included: `uncommitted_changes_excluded` is what the worktree
+      // cannot see, and a file that exists only in the project root is exactly
+      // as invisible from a tree at the base revision as an unstaged edit is.
+      // `.agent-sdlc/` is the harness's own state, not work being excluded.
+      const modified=git(['status','--porcelain','--untracked-files=all'],projectRoot).stdout
+        .split('\n').map(l=>l.trim()).filter(Boolean)
+        .filter(l=>!/^\?\?\s+\.agent-sdlc\//.test(l)).join('\n');
       const existingBranch=git(['branch','--list',branch],projectRoot);
       const branchExists=existingBranch.code===0&&existingBranch.stdout.trim().length>0;
       const worktreeArgs=branchExists
