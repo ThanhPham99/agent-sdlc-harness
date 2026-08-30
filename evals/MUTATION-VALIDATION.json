@@ -1,0 +1,21 @@
+{
+  "schema": "agent-sdlc/mutation-validation/v1",
+  "checks": 3,
+  "passes": 3,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "generate-mutations-operator-coverage",
+      "status": "PASS"
+    },
+    {
+      "name": "run-mutation-suite-on-target-file",
+      "status": "PASS"
+    },
+    {
+      "name": "analyze-repository-mutations-multimodule",
+      "status": "PASS"
+    }
+  ]
+}

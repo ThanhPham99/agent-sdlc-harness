@@ -1,11 +1,11 @@
 {
   "schema": "agent-sdlc/provider-validation/v1",
-  "platform": "linux",
-  "real_binary_checks": true,
+  "platform": "win32",
+  "real_binary_checks": false,
   "checks": 42,
-  "passes": 42,
+  "passes": 38,
   "failures": 0,
-  "skipped": 0,
+  "skipped": 4,
   "results": [
     {
       "name": "every-probe-spawn-is-bounded",
@@ -105,15 +105,15 @@
     },
     {
       "name": "a-real-hanging-binary-is-bounded-by-the-probe-timeout",
-      "status": "PASS"
+      "status": "SKIP"
     },
     {
       "name": "a-real-binary-that-fails-version-is-unavailable",
-      "status": "PASS"
+      "status": "SKIP"
     },
     {
       "name": "a-real-binary-round-trips-through-runHost",
-      "status": "PASS"
+      "status": "SKIP"
     },
     {
       "name": "a-node-script-binary-probes-and-runs-across-platforms",
@@ -145,7 +145,7 @@
     },
     {
       "name": "launcher-posix-symlinked-script-stays-direct",
-      "status": "PASS"
+      "status": "SKIP"
     },
     {
       "name": "launcher-resolve-on-path-tries-pathext",

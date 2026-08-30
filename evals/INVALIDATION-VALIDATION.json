@@ -17,8 +17,8 @@
     "every affected node carries the graph path that justified including it",
     "each decision is appended to a replayable invalidation log with the earliest outer gate"
   ],
-  "checks": 8,
-  "passes": 8,
+  "checks": 10,
+  "passes": 10,
   "failures": 0,
   "results": [
     {
@@ -43,6 +43,14 @@
     },
     {
       "name": "unrelated-nodes-remain-valid-after-invalidation",
+      "status": "PASS"
+    },
+    {
+      "name": "graph_sha256-identifies-the-graph-state-not-the-order-nodes-happened-to-be-built-in",
+      "status": "PASS"
+    },
+    {
+      "name": "the-anchor-orders-node-ids-by-code-point-not-by-locale",
       "status": "PASS"
     },
     {

@@ -9,11 +9,15 @@
     "artifact-put",
     "ci",
     "compat-check",
+    "completion",
     "config-show",
     "context",
+    "dashboard",
     "delivery",
     "design",
+    "diff",
     "doctor",
+    "explain",
     "fallback",
     "feature",
     "gate",
@@ -39,7 +43,10 @@
     "replay-validate",
     "repo",
     "requirement-update",
+    "review",
+    "rewind",
     "route",
+    "serve",
     "start",
     "status",
     "task",
@@ -48,9 +55,10 @@
     "trace",
     "transition",
     "usage-add",
-    "usage-report"
+    "usage-report",
+    "webhook"
   ],
-  "command_count": 47,
+  "command_count": 55,
   "groups": [
     "project",
     "run",
@@ -62,7 +70,9 @@
     "task",
     "repo",
     "feature",
-    "delivery"
+    "delivery",
+    "completion",
+    "dashboard"
   ],
   "help_generated": true,
   "subcommand_groups": [
@@ -82,15 +92,15 @@
     },
     {
       "command": "ci",
-      "implemented": 4,
-      "declared": 4,
+      "implemented": 6,
+      "declared": 6,
       "missing": [],
       "phantom": []
     },
     {
       "command": "delivery",
-      "implemented": 7,
-      "declared": 7,
+      "implemented": 9,
+      "declared": 9,
       "missing": [],
       "phantom": []
     },
@@ -124,8 +134,8 @@
     },
     {
       "command": "govern",
-      "implemented": 4,
-      "declared": 4,
+      "implemented": 6,
+      "declared": 6,
       "missing": [],
       "phantom": []
     },
@@ -152,8 +162,8 @@
     },
     {
       "command": "repo",
-      "implemented": 13,
-      "declared": 13,
+      "implemented": 17,
+      "declared": 17,
       "missing": [],
       "phantom": []
     },
@@ -161,6 +171,13 @@
       "command": "requirement-update",
       "implemented": 2,
       "declared": 2,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "review",
+      "implemented": 1,
+      "declared": 1,
       "missing": [],
       "phantom": []
     },
@@ -175,6 +192,13 @@
       "command": "trace",
       "implemented": 8,
       "declared": 8,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "webhook",
+      "implemented": 2,
+      "declared": 2,
       "missing": [],
       "phantom": []
     }

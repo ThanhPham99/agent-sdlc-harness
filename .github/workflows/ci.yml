@@ -124,23 +124,7 @@ jobs:
           name: agent-sdlc-${{ github.sha }}
           path: |
             release/*
-            evals/DETERMINISTIC-VALIDATION.json
-            evals/AUTO-ACTIVATION-VALIDATION.json
-            evals/VERSION-CONSISTENCY.json
-            evals/REGISTRY-VALIDATION.json
-            evals/ROOT-SYNC-VALIDATION.json
-            evals/GUARD-VALIDATION.json
-            evals/CI-COVERAGE-VALIDATION.json
-            evals/DEV-LINK-VALIDATION.json
-            evals/CLI-CONTRACT-VALIDATION.json
-            evals/CLI-SURFACE-VALIDATION.json
-            evals/SYNTAX-VALIDATION.json
-            evals/REPORT-HYGIENE-VALIDATION.json
-            evals/NORMALIZE-VALIDATION.json
-            evals/PROVIDER-VALIDATION.json
-            evals/COMPAT-VALIDATION.json
-            evals/MCP-VALIDATION.json
-            evals/PROJECT-DETECTION-VALIDATION.json
+            evals/*.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -216,6 +200,18 @@ jobs:
         run: npm run test:security-linter
       - name: Error triage and classification engine
         run: npm run test:error-triage
+      - name: Webhook notification and exponential backoff retry
+        run: npm run test:webhook
+      - name: Real-time live SSE event stream and event replay
+        run: npm run test:sse
+      - name: Dead code, unused exports, and ghost dependency eliminator
+        run: npm run test:dead-code
+      - name: Architectural linter and module boundary enforcer
+        run: npm run test:arch-linter
+      - name: Lightweight mutation testing and test strength analyzer
+        run: npm run test:mutation
+      - name: Predictive budgeting and pre-flight cost simulator
+        run: npm run test:simulator
       - name: Build provider distributions
         run: npm run build
       - name: Verify extracted distributions

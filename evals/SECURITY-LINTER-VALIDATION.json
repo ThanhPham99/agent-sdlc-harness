@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/security-linter-validation/v1",
-  "checks": 5,
-  "passes": 5,
+  "checks": 9,
+  "passes": 9,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -19,6 +19,22 @@
     },
     {
       "name": "security-linter-detects-prototype-pollution",
+      "status": "PASS"
+    },
+    {
+      "name": "security-linter-detects-hardcoded-secrets",
+      "status": "PASS"
+    },
+    {
+      "name": "security-linter-detects-path-traversal",
+      "status": "PASS"
+    },
+    {
+      "name": "security-linter-detects-timing-attack",
+      "status": "PASS"
+    },
+    {
+      "name": "security-linter-detects-insecure-randomness",
       "status": "PASS"
     },
     {

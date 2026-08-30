@@ -2,8 +2,8 @@
   "schema": "agent-sdlc/syntax-validation/v1",
   "version": "3.0.0-alpha6",
   "checked": "node --check (parse only, not executed)",
-  "checks": 130,
-  "passes": 130,
+  "checks": 171,
+  "passes": 171,
   "failures": 0,
   "results": [
     {
@@ -92,6 +92,11 @@
       "error": null
     },
     {
+      "file": "runtime/arch-linter.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "runtime/ci-evidence.mjs",
       "status": "PASS",
       "error": null
@@ -113,6 +118,16 @@
     },
     {
       "file": "runtime/commands/artifacts.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/completion.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/commands/dashboard.mjs",
       "status": "PASS",
       "error": null
     },
@@ -187,6 +202,11 @@
       "error": null
     },
     {
+      "file": "runtime/dead-code.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "runtime/design-discovery.mjs",
       "status": "PASS",
       "error": null
@@ -203,6 +223,11 @@
     },
     {
       "file": "runtime/features.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/flaky-detector.mjs",
       "status": "PASS",
       "error": null
     },
@@ -242,12 +267,22 @@
       "error": null
     },
     {
+      "file": "runtime/mcp-gateway.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "runtime/mcp-server.mjs",
       "status": "PASS",
       "error": null
     },
     {
       "file": "runtime/model-router.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/mutation.mjs",
       "status": "PASS",
       "error": null
     },
@@ -277,6 +312,11 @@
       "error": null
     },
     {
+      "file": "runtime/pr-generator.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "runtime/procedures.mjs",
       "status": "PASS",
       "error": null
@@ -288,6 +328,11 @@
     },
     {
       "file": "runtime/provider.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/quarantine.mjs",
       "status": "PASS",
       "error": null
     },
@@ -317,12 +362,42 @@
       "error": null
     },
     {
+      "file": "runtime/review-engine.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/rewind.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "runtime/router.mjs",
       "status": "PASS",
       "error": null
     },
     {
+      "file": "runtime/scanner.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "runtime/scope.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/security-linter.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/server.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/simulator.mjs",
       "status": "PASS",
       "error": null
     },
@@ -382,6 +457,11 @@
       "error": null
     },
     {
+      "file": "runtime/test-impact.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "runtime/tools.mjs",
       "status": "PASS",
       "error": null
@@ -392,7 +472,22 @@
       "error": null
     },
     {
+      "file": "runtime/triage.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/tui.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "runtime/util.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/webhook.mjs",
       "status": "PASS",
       "error": null
     },
@@ -507,12 +602,27 @@
       "error": null
     },
     {
+      "file": "scripts/test-adaptive-fallback.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "scripts/test-antigravity-bootstrap-hook.mjs",
       "status": "PASS",
       "error": null
     },
     {
+      "file": "scripts/test-arch-linter.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "scripts/test-auto-bootstrap.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-budget-governor.mjs",
       "status": "PASS",
       "error": null
     },
@@ -537,7 +647,27 @@
       "error": null
     },
     {
+      "file": "scripts/test-dead-code.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "scripts/test-dev-link.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-error-triage.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-failure-memory.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-flaky-detector.mjs",
       "status": "PASS",
       "error": null
     },
@@ -547,7 +677,22 @@
       "error": null
     },
     {
+      "file": "scripts/test-live-dashboard.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-mcp-gateway.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "scripts/test-mcp.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-mutation.mjs",
       "status": "PASS",
       "error": null
     },
@@ -557,7 +702,22 @@
       "error": null
     },
     {
+      "file": "scripts/test-parallel-execution.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-pr-synthesizer.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "scripts/test-project-detection.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-prompt-caching.mjs",
       "status": "PASS",
       "error": null
     },
@@ -587,7 +747,47 @@
       "error": null
     },
     {
+      "file": "scripts/test-secret-scanner.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-security-linter.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-simulator.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-sse-stream.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "scripts/test-statusline.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-test-impact.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-tui.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-webhook-retry.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-worktree-isolation.mjs",
       "status": "PASS",
       "error": null
     },
@@ -643,6 +843,11 @@
     },
     {
       "file": "scripts/validate-test-output-guard.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/validate-types.mjs",
       "status": "PASS",
       "error": null
     },

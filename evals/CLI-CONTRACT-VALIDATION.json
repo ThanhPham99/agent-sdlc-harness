@@ -1,9 +1,9 @@
 {
   "schema": "agent-sdlc/cli-contract-validation/v1",
-  "checks": 144,
-  "passes": 140,
+  "checks": 156,
+  "passes": 156,
   "failures": 0,
-  "skipped": 4,
+  "skipped": 0,
   "results": [
     {
       "name": "init-creates-project-state",
@@ -79,6 +79,14 @@
     },
     {
       "name": "approval-status-starts-empty",
+      "status": "PASS"
+    },
+    {
+      "name": "explain-reports-run-explanation-and-recommendations",
+      "status": "PASS"
+    },
+    {
+      "name": "diff-reports-run-diff-summary",
       "status": "PASS"
     },
     {
@@ -566,20 +574,60 @@
       "status": "PASS"
     },
     {
+      "name": "completion-bash-generates-script",
+      "status": "PASS"
+    },
+    {
+      "name": "completion-zsh-generates-script",
+      "status": "PASS"
+    },
+    {
+      "name": "completion-pwsh-generates-script",
+      "status": "PASS"
+    },
+    {
+      "name": "completion-rejects-unknown-shell",
+      "status": "PASS"
+    },
+    {
+      "name": "status-pretty-prints-human-readable-summary",
+      "status": "PASS"
+    },
+    {
+      "name": "task-graph-mermaid-prints-mermaid-flowchart",
+      "status": "PASS"
+    },
+    {
+      "name": "feature-lifecycle-create-list-update-phase",
+      "status": "PASS"
+    },
+    {
+      "name": "repo-and-trace-subcommands-sweep",
+      "status": "PASS"
+    },
+    {
+      "name": "model-route-and-usage-report",
+      "status": "PASS"
+    },
+    {
+      "name": "start-with-track-feature-and-context-prompt-and-parallel-tasks",
+      "status": "PASS"
+    },
+    {
       "name": "cmd-shim-prints-json-and-exits-0",
-      "status": "SKIP"
+      "status": "PASS"
     },
     {
       "name": "cmd-shim-propagates-a-non-zero-exit-code",
-      "status": "SKIP"
+      "status": "PASS"
     },
     {
       "name": "ps1-shim-prints-json-and-exits-0",
-      "status": "SKIP"
+      "status": "PASS"
     },
     {
       "name": "ps1-shim-propagates-a-non-zero-exit-code",
-      "status": "SKIP"
+      "status": "PASS"
     }
   ]
 }

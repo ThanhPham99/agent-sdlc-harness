@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/project-detection-validation/v1",
-  "checks": 23,
-  "passes": 23,
+  "checks": 38,
+  "passes": 38,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -39,6 +39,66 @@
     },
     {
       "name": "detects-dotnet-from-App.csproj",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-php-from-composer.json",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-php-from-composer.json-fallback",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-ruby-from-Gemfile",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-elixir-from-mix.exs",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-bun-from-bunfig.toml",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-deno-from-deno.json",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-cmake-from-CMakeLists.txt",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-swift-from-Package.swift",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-dart-from-pubspec.yaml",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-dart-from-pubspec.yaml-flutter",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-zig-from-build.zig",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-make-from-Makefile",
+      "status": "PASS"
+    },
+    {
+      "name": "pnpm-lock-selects-pnpm-runner",
+      "status": "PASS"
+    },
+    {
+      "name": "yarn-lock-selects-yarn-runner",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-monorepo-workspaces",
       "status": "PASS"
     },
     {

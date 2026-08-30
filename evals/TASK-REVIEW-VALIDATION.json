@@ -29,8 +29,8 @@
     "blocking_finding_blocks_done": true,
     "independence": "recorded truthfully; an achieved claim contradicting its mode is rejected, and an unachieved claim requires a recorded limitation"
   },
-  "checks": 22,
-  "passes": 22,
+  "checks": 26,
+  "passes": 26,
   "failures": 0,
   "results": [
     {
@@ -98,7 +98,23 @@
       "status": "PASS"
     },
     {
+      "name": "an-isolated-workspace-records-the-new-files-it-cannot-see-either",
+      "status": "PASS"
+    },
+    {
+      "name": "the-per-task-secret-scan-searches-the-files-the-task-just-wrote",
+      "status": "PASS"
+    },
+    {
+      "name": "diff_hash-covers-the-content-of-files-the-task-created-and-never-staged",
+      "status": "PASS"
+    },
+    {
       "name": "a-failed-verification-does-not-satisfy-the-verification-gate",
+      "status": "PASS"
+    },
+    {
+      "name": "a-verification-record-with-no-scope-audit-does-not-satisfy-the-scope-gate",
       "status": "PASS"
     },
     {

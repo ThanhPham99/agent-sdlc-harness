@@ -1,11 +1,11 @@
 {
   "schema": "agent-sdlc/normalize-validation/v1",
-  "unzip_available": true,
-  "pdftotext_available": true,
+  "unzip_available": false,
+  "pdftotext_available": false,
   "checks": 22,
-  "passes": 22,
+  "passes": 21,
   "failures": 0,
-  "skipped": 0,
+  "skipped": 1,
   "results": [
     {
       "name": "text-file-is-normalized-with-provenance",
@@ -89,7 +89,7 @@
     },
     {
       "name": "pdf-without-extractable-text-is-not-silently-empty",
-      "status": "PASS"
+      "status": "SKIP"
     },
     {
       "name": "every-result-carries-a-status-and-a-provenance-header",

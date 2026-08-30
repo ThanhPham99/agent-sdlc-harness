@@ -1,0 +1,25 @@
+{
+  "schema": "agent-sdlc/simulator-validation/v1",
+  "checks": 4,
+  "passes": 4,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "estimate-task-attempt-pricing-tiers",
+      "status": "PASS"
+    },
+    {
+      "name": "simulate-dag-concurrency-waves-and-speedup",
+      "status": "PASS"
+    },
+    {
+      "name": "calculate-prompt-cache-savings",
+      "status": "PASS"
+    },
+    {
+      "name": "simulate-run-budget-end-to-end",
+      "status": "PASS"
+    }
+  ]
+}

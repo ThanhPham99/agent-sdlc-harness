@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/test-impact-validation/v1",
-  "checks": 3,
-  "passes": 3,
+  "checks": 5,
+  "passes": 5,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -15,6 +15,14 @@
     },
     {
       "name": "analyzeTestImpact-returns-empty-when-no-tests-impacted",
+      "status": "PASS"
+    },
+    {
+      "name": "calculateGraphCentrality-computes-pagerank-and-core-files",
+      "status": "PASS"
+    },
+    {
+      "name": "getBlastRadiusAnalysis-evaluates-risk-levels",
       "status": "PASS"
     }
   ]

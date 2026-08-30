@@ -1,0 +1,25 @@
+{
+  "schema": "agent-sdlc/arch-linter-validation/v1",
+  "checks": 4,
+  "passes": 4,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "arch-circular-dependency-detection",
+      "status": "PASS"
+    },
+    {
+      "name": "arch-layer-inversion-enforcer",
+      "status": "PASS"
+    },
+    {
+      "name": "arch-forbidden-imports-checker",
+      "status": "PASS"
+    },
+    {
+      "name": "audit-architecture-end-to-end",
+      "status": "PASS"
+    }
+  ]
+}

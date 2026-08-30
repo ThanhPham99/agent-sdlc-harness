@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/mcp-validation/v1",
   "harness_version": "3.0.0-alpha6",
-  "checks": 26,
-  "passes": 26,
+  "checks": 29,
+  "passes": 29,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -16,6 +16,10 @@
     },
     {
       "name": "an-unknown-method-is-a-protocol-error",
+      "status": "PASS"
+    },
+    {
+      "name": "resources-and-prompts-are-advertised-and-readable",
       "status": "PASS"
     },
     {
@@ -60,6 +64,14 @@
     },
     {
       "name": "the-unified-task-tool-matches-its-granular-twin",
+      "status": "PASS"
+    },
+    {
+      "name": "model-route-and-tool-run-over-transport",
+      "status": "PASS"
+    },
+    {
+      "name": "task-granular-tools-sweep",
       "status": "PASS"
     },
     {

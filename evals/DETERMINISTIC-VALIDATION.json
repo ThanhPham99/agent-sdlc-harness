@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-alpha6",
-  "checks": 343,
-  "passes": 343,
+  "checks": 379,
+  "passes": 379,
   "failures": 0,
   "results": [
     {
@@ -278,6 +278,10 @@
       "status": "PASS"
     },
     {
+      "name": "a-second-run-storing-identical-content-does-not-take-over-the-first-runs-artifact",
+      "status": "PASS"
+    },
+    {
       "name": "replay-hash-validation",
       "status": "PASS"
     },
@@ -306,6 +310,14 @@
       "status": "PASS"
     },
     {
+      "name": "repo-search-finds-a-file-the-task-just-created",
+      "status": "PASS"
+    },
+    {
+      "name": "repo-diff-says-which-new-files-it-cannot-show",
+      "status": "PASS"
+    },
+    {
       "name": "repo-search-no-match-is-pass",
       "status": "PASS"
     },
@@ -323,6 +335,10 @@
     },
     {
       "name": "secret-scan-still-catches-an-assigned-credential",
+      "status": "PASS"
+    },
+    {
+      "name": "secret-scan-sees-a-file-the-task-created-and-never-staged",
       "status": "PASS"
     },
     {
@@ -379,6 +395,22 @@
     },
     {
       "name": "web-search-honours-registry-return-limit-not-hardcoded-24000",
+      "status": "PASS"
+    },
+    {
+      "name": "an-uncompilable-blocked-query-pattern-refuses-the-query-instead-of-ignoring-the-rule",
+      "status": "PASS"
+    },
+    {
+      "name": "every-shipped-blocked-query-pattern-compiles",
+      "status": "PASS"
+    },
+    {
+      "name": "an-empty-blocked_query_patterns-list-is-how-sanitization-is-turned-off",
+      "status": "PASS"
+    },
+    {
+      "name": "project-json-cannot-grant-a-tool-the-stage-denies",
       "status": "PASS"
     },
     {
@@ -447,6 +479,10 @@
     },
     {
       "name": "stale-verify-evidence-blocks-the-gate",
+      "status": "PASS"
+    },
+    {
+      "name": "a-new-untracked-file-makes-verify-evidence-stale-too",
       "status": "PASS"
     },
     {
@@ -710,6 +746,10 @@
       "status": "PASS"
     },
     {
+      "name": "feature-and-phase-listing-is-sorted-by-id",
+      "status": "PASS"
+    },
+    {
       "name": "feature-update-rejects-an-unknown-status",
       "status": "PASS"
     },
@@ -799,6 +839,82 @@
     },
     {
       "name": "job-block-throws-on-an-unknown-job-name",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/entropy-shannon-calculation",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/entropy-secret-redaction",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/task-failure-diagnostics-parsing",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/event-merkle-chain-verification",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/dashboard-html-generation",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/condense-log-noise-reduction",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/compact-artifact-summaries",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/repo-impacted-tests-and-transitive-closure",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/rewind-to-stage-prunes-evidence-and-resets-state",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/webhook-signature-and-pattern-matching",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/webhook-dispatcher-execution",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/arch-linter-detects-circular-dependencies",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/quarantine-lifecycle-add-remove-check",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/cost-simulation-estimates-tokens-and-usd",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/live-server-creation-and-routes",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/mutation-testing-engine-and-report",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/pr-generator-and-changelog-markdown",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/dead-code-detection-and-health-score",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/static-code-review-persona-scorecard",
       "status": "PASS"
     },
     {
@@ -1014,7 +1130,23 @@
       "status": "PASS"
     },
     {
+      "name": "task-verification_review/an-isolated-workspace-records-the-new-files-it-cannot-see-either",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/the-per-task-secret-scan-searches-the-files-the-task-just-wrote",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/diff_hash-covers-the-content-of-files-the-task-created-and-never-staged",
+      "status": "PASS"
+    },
+    {
       "name": "task-verification_review/a-failed-verification-does-not-satisfy-the-verification-gate",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/a-verification-record-with-no-scope-audit-does-not-satisfy-the-scope-gate",
       "status": "PASS"
     },
     {
@@ -1118,6 +1250,10 @@
       "status": "PASS"
     },
     {
+      "name": "a6-repo_intelligence/a-new-file-the-task-wrote-makes-the-index-stale",
+      "status": "PASS"
+    },
+    {
       "name": "a6-repo_intelligence/index-records-truncation-for-oversized-files",
       "status": "PASS"
     },
@@ -1215,6 +1351,14 @@
     },
     {
       "name": "a6-invalidation/unrelated-nodes-remain-valid-after-invalidation",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-invalidation/graph_sha256-identifies-the-graph-state-not-the-order-nodes-happened-to-be-built-in",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-invalidation/the-anchor-orders-node-ids-by-code-point-not-by-locale",
       "status": "PASS"
     },
     {

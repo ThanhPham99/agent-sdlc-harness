@@ -37,8 +37,8 @@
     "rule": "anchored to the task declared scope, consulted before any broad repo.search, never mined from free text",
     "no_match_behaviour": "reports NO_DETERMINISTIC_MATCH_BROADER_SEARCH_REQUIRED instead of returning the repository"
   },
-  "checks": 15,
-  "passes": 15,
+  "checks": 16,
+  "passes": 16,
   "failures": 0,
   "results": [
     {
@@ -51,6 +51,10 @@
     },
     {
       "name": "index-is-incremental-and-detects-staleness",
+      "status": "PASS"
+    },
+    {
+      "name": "a-new-file-the-task-wrote-makes-the-index-stale",
       "status": "PASS"
     },
     {
