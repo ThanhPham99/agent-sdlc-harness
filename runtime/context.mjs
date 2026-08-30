@@ -115,7 +115,7 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
   return manifest;
 }
 
-export function renderPrompt(root,manifest){
+export function renderCacheablePrompt(root,manifest){
   const system=readTextFile(path.join(root,'prompts','system.md')).trim();
   const skillText=(manifest.skill_instructions||[]).map(s=>`### ${s.id}\n${s.instructions}`).join('\n\n');
   const roleText=(manifest.active_roles||[]).map(r=>`${r.id}: ${(r.responsibilities||[]).join(', ')}`).join('\n');
@@ -124,5 +124,26 @@ export function renderPrompt(root,manifest){
   const requirementUpdateText=ru?`This run continues ${ru.continues_run_id}. Changed: ${ru.changed} (${ru.delta_class}). ${ru.affected_count} node(s) invalidated, ${ru.preserved_count} preserved -- do not redo preserved work. Earliest affected stage: ${ru.earliest_outer_gate||'none (no downstream impact)'}. This run still must produce its own evidence at every gate it passes through.`:'';
   const ft=manifest.feature;
   const featureText=ft?`Feature ${ft.feature_id} "${ft.title}" (${ft.status})${ft.phase?`, phase ${ft.phase.phase_id} "${ft.phase.name}" (${ft.phase.status})`:''}.${ft.deferred_items?.length?` Deferred: ${ft.deferred_items.join('; ')}.`:''}${ft.open_questions?.length?` Open questions: ${ft.open_questions.join('; ')}.`:''} This run finishing does not mean the feature is complete -- feature completion is tracked separately.`:'';
-  return `${system}\n\nSTAGE SKILLS\n${skillText||'(none)'}\n\nDETAILED PROCEDURES\n${procedureText||'(none)'}\n\nOBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nFEATURE\n${featureText||'(standalone run, not attached to a feature)'}\n\nACTIVE ROLES\n${roleText||'(none)'}\n\nREQUIREMENT UPDATE\n${requirementUpdateText||'(none)'}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}\n\nReturn a compact StageResult JSON.`;
+
+  const staticPrefix=`${system}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}`;
+  const stagePrefix=`STAGE SKILLS\n${skillText||'(none)'}\n\nDETAILED PROCEDURES\n${procedureText||'(none)'}\n\nACTIVE ROLES\n${roleText||'(none)'}`;
+  const dynamicSuffix=`OBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nFEATURE\n${featureText||'(standalone run, not attached to a feature)'}\n\nREQUIREMENT UPDATE\n${requirementUpdateText||'(none)'}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nReturn a compact StageResult JSON.`;
+
+  const fullPrompt=`${system}\n\nSTAGE SKILLS\n${skillText||'(none)'}\n\nDETAILED PROCEDURES\n${procedureText||'(none)'}\n\nOBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nFEATURE\n${featureText||'(standalone run, not attached to a feature)'}\n\nACTIVE ROLES\n${roleText||'(none)'}\n\nREQUIREMENT UPDATE\n${requirementUpdateText||'(none)'}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}\n\nReturn a compact StageResult JSON.`;
+
+  return {
+    static_prefix:staticPrefix,
+    stage_prefix:stagePrefix,
+    dynamic_suffix:dynamicSuffix,
+    full_prompt:fullPrompt,
+    cache_blocks:[
+      {type:'static_prefix',content:staticPrefix,cache_control:{type:'ephemeral'}},
+      {type:'stage_prefix',content:stagePrefix,cache_control:{type:'ephemeral'}},
+      {type:'dynamic_suffix',content:dynamicSuffix}
+    ]
+  };
+}
+
+export function renderPrompt(root,manifest){
+  return renderCacheablePrompt(root,manifest).full_prompt;
 }

@@ -1,0 +1,29 @@
+{
+  "schema": "agent-sdlc/error-triage-validation/v1",
+  "checks": 5,
+  "passes": 5,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "triages-jest-failure",
+      "status": "PASS"
+    },
+    {
+      "name": "triages-pytest-failure",
+      "status": "PASS"
+    },
+    {
+      "name": "triages-go-test-failure",
+      "status": "PASS"
+    },
+    {
+      "name": "triages-cargo-test-failure",
+      "status": "PASS"
+    },
+    {
+      "name": "triages-compilation-and-timeout-failures",
+      "status": "PASS"
+    }
+  ]
+}

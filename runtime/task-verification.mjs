@@ -14,6 +14,7 @@ import {now,readJson,truncateUtf8} from './util.mjs';
 import {putArtifact,emitTaskEvent,saveTask} from './store.mjs';
 import {workspaceDiff,getTaskWorkspace} from './workspace.mjs';
 import {resolveLaunch,describeSpawn} from './launcher.mjs';
+import {triageFailure} from './triage.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 const norm=p=>String(p||'').replace(/\\/g,'/').replace(/^\.\//,'').replace(/\/+$/,'');
@@ -161,6 +162,10 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
     :noWork?'NO_CHANGE_CAPTURED'
     :allPassed?null:'COMMAND_FAILED';
 
+  const failingCommands=executed.filter(c=>c.exit_code!==0&&c.exit_code!==null);
+  const triages=failingCommands.map(c=>triageFailure(c.summary,c.kind));
+  const failingNames=[...new Set(triages.flatMap(t=>t.failing_names))];
+
   const evidence={
     schema:'agent-sdlc/task-verification/v1',
     task_id:task.task_id,
@@ -174,7 +179,8 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
       passed:executed.filter(c=>c.kind.startsWith('test')&&c.exit_code===0).length,
       failed:executed.filter(c=>c.kind.startsWith('test')&&c.exit_code!==0&&c.exit_code!==null).length,
       skipped:0,
-      failing_names:[]
+      failing_names:failingNames,
+      triage:triages[0]||null
     },
     build:executed.some(c=>c.kind==='build')
       ?{required:true,status:executed.find(c=>c.kind==='build').exit_code===0?'PASS':'FAIL'}

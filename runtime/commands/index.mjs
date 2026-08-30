@@ -36,6 +36,8 @@ export const COMMANDS={
   route:{group:"run"},
   start:{group:"run"},
   status:{group:"run"},
+  explain:{group:"run"},
+  diff:{group:"run"},
   next:{group:"run"},
   transition:{group:"run"},
   approval:{group:"run",subcommands:["status","grant","revoke"]},

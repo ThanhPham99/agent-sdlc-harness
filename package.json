@@ -59,6 +59,8 @@
     "test:provider": "node scripts/test-provider.mjs",
     "test:compat": "node scripts/test-compat.mjs",
     "test:mcp": "node scripts/test-mcp.mjs",
-    "test:detection": "node scripts/test-project-detection.mjs"
+    "test:detection": "node scripts/test-project-detection.mjs",
+    "test:prompt-caching": "node scripts/test-prompt-caching.mjs",
+    "test:error-triage": "node scripts/test-error-triage.mjs"
   }
 }

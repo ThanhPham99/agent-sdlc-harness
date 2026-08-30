@@ -135,5 +135,52 @@ export const commands={
     const {parallelPlan}=await import('../parallel.mjs');
     const tasks=args.tasks?JSON.parse(args.tasks):(args.file?JSON.parse(fs.readFileSync(path.resolve(args.file),'utf8')):[]);
     print(parallelPlan(ROOT,tasks));
+  },
+  explain:async ctx=>{
+    const {ROOT,projectRoot,print,needRun}=ctx;
+    const run=await needRun();
+    const {evaluateGate}=await import('../gates.mjs');
+    const {nextState}=await import('../orchestrator.mjs');
+    const gate=evaluateGate(ROOT,projectRoot,run,run.state);
+    const next=nextState(run);
+    const tasks=run.tasks||[];
+    const taskSummary={
+      total:tasks.length,
+      done:tasks.filter(t=>t.status==='DONE').length,
+      in_progress:tasks.filter(t=>t.status==='IN_PROGRESS').length,
+      pending:tasks.filter(t=>t.status==='PENDING').length
+    };
+    print({
+      schema:'agent-sdlc/run-explanation/v1',
+      run_id:run.run_id,
+      objective:run.objective,
+      workflow:run.workflow,
+      profile:run.profile,
+      current_stage:run.state,
+      next_stage:next,
+      gate_decision:gate.decision,
+      gate_status:{
+        satisfied:gate.satisfied,
+        missing:gate.missing,
+        stale:gate.stale
+      },
+      tasks:taskSummary,
+      recommendation:gate.decision==='PASS'
+        ?`Stage ${run.state} gate is satisfied. Proceed with transition to ${next||'CLOSE'}.`
+        :`Stage ${run.state} gate is blocked. Provide missing evidence tokens: [${gate.missing.join(', ')}]${gate.stale.length?` (refresh stale: [${gate.stale.join(', ')}])`:''}.`
+    });
+  },
+  diff:async ctx=>{
+    const {projectRoot,print,needRun}=ctx;
+    const run=await needRun();
+    const {spawnSync}=await import('node:child_process');
+    const r=spawnSync('git',['diff','--stat'],{cwd:projectRoot,encoding:'utf8'});
+    print({
+      schema:'agent-sdlc/run-diff/v1',
+      run_id:run.run_id,
+      stage:run.state,
+      git_stat:(r.stdout||'').trim(),
+      artifacts_count:(run.artifacts||[]).length
+    });
   }
 };

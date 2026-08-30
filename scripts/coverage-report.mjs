@@ -48,7 +48,9 @@ const ENTRIES=[
   'scripts/validate-gates.mjs',
   'scripts/validate-task-engine.mjs',
   'scripts/validate-alpha6.mjs',
-  'scripts/validate-cli-surface.mjs'
+  'scripts/validate-cli-surface.mjs',
+  'scripts/test-prompt-caching.mjs',
+  'scripts/test-error-triage.mjs'
 ];
 
 // Suites deliberately not measured, each with the reason. Naming them rather

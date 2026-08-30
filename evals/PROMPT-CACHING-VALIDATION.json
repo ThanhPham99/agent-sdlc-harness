@@ -1,0 +1,17 @@
+{
+  "schema": "agent-sdlc/prompt-caching-validation/v1",
+  "checks": 2,
+  "passes": 2,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "renderCacheablePrompt-returns-consistent-blocks",
+      "status": "PASS"
+    },
+    {
+      "name": "static-prefix-is-stable-across-different-objectives",
+      "status": "PASS"
+    }
+  ]
+}

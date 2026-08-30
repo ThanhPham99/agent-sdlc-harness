@@ -198,6 +198,19 @@ test('approval-status-starts-empty',()=>{
   const status=json(['approval','status','--run-id',r.run_id]);
   if(!Array.isArray(status)||status.length!==0)throw new Error(JSON.stringify(status));
 });
+test('explain-reports-run-explanation-and-recommendations',()=>{
+  const r=json(['start','--objective','Add explain test case']);
+  const exp=json(['explain','--run-id',r.run_id]);
+  if(exp.schema!=='agent-sdlc/run-explanation/v1')throw new Error(JSON.stringify(exp));
+  if(exp.run_id!==r.run_id||exp.current_stage!=='INTAKE')throw new Error(JSON.stringify(exp));
+  if(typeof exp.recommendation!=='string')throw new Error('missing recommendation string');
+});
+test('diff-reports-run-diff-summary',()=>{
+  const r=json(['start','--objective','Add diff test case']);
+  const d=json(['diff','--run-id',r.run_id]);
+  if(d.schema!=='agent-sdlc/run-diff/v1')throw new Error(JSON.stringify(d));
+  if(d.run_id!==r.run_id||typeof d.artifacts_count!=='number')throw new Error(JSON.stringify(d));
+});
 test('gate-status-and-explain-report-missing-evidence',()=>{
   const r=json(['start','--objective','Add gate-status capability']);
   const at=['--run-id',r.run_id];

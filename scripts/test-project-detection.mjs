@@ -53,7 +53,11 @@ const CASES=[
   ['bun',{'bunfig.toml':'# bun config\n'},'bun',['test_full','test_targeted','build']],
   ['deno',{'deno.json':'{"name":"x"}'},'deno',['test_full','test_targeted']],
   ['cmake',{'CMakeLists.txt':'cmake_minimum_required(VERSION 3.10)\n'},'ctest',['test_full','test_targeted','build']],
-  ['swift',{'Package.swift':'// swift-tools-version:5.5\n'},'swift',['test_full','test_targeted','build']]
+  ['swift',{'Package.swift':'// swift-tools-version:5.5\n'},'swift',['test_full','test_targeted','build']],
+  ['dart',{'pubspec.yaml':'name: my_app\n'},'dart',['test_full','test_targeted','build']],
+  ['dart',{'pubspec.yaml':'name: my_flutter_app\nflutter:\n  uses-material-design: true\n'},'flutter',['test_full','test_targeted','build'],'flutter'],
+  ['zig',{'build.zig':'const std = @import("std");\n'},'zig',['test_full','test_targeted','build']],
+  ['make',{'Makefile':'test:\n\t@echo ok\n'},'make',['test_full','test_targeted','build']]
 ];
 for(const [stack,files,binary,expected,tag] of CASES){
   test(`detects-${stack}-from-${Object.keys(files)[0]}${tag?`-${tag}`:''}`,()=>{
@@ -65,6 +69,26 @@ for(const [stack,files,binary,expected,tag] of CASES){
     assert(cfg.detection_warnings.length===0,JSON.stringify(cfg.detection_warnings));
   });
 }
+test('pnpm-lock-selects-pnpm-runner',()=>{
+  const cfg=detectProject(repo({'package.json':pkg({name:'x',scripts:{test:'jest',build:'tsc'}}),'pnpm-lock.yaml':''}));
+  assert(cfg.commands.test_full[0]==='pnpm',JSON.stringify(cfg.commands.test_full));
+  assert(cfg.commands.build?.join(' ')==='pnpm run build',JSON.stringify(cfg.commands.build));
+});
+test('yarn-lock-selects-yarn-runner',()=>{
+  const cfg=detectProject(repo({'package.json':pkg({name:'x',scripts:{test:'jest',build:'tsc'}}),'yarn.lock':''}));
+  assert(cfg.commands.test_full[0]==='yarn',JSON.stringify(cfg.commands.test_full));
+  assert(cfg.commands.build?.join(' ')==='yarn build',JSON.stringify(cfg.commands.build));
+});
+test('detects-monorepo-workspaces',()=>{
+  const pnpmRepo=detectProject(repo({'pnpm-workspace.yaml':'packages:\n  - "packages/*"\n'}));
+  assert(pnpmRepo.monorepo.is_monorepo===true&&pnpmRepo.monorepo.type==='pnpm-workspace',JSON.stringify(pnpmRepo.monorepo));
+
+  const npmRepo=detectProject(repo({'package.json':pkg({name:'root',workspaces:['apps/*']})}));
+  assert(npmRepo.monorepo.is_monorepo===true&&npmRepo.monorepo.type==='npm-workspaces',JSON.stringify(npmRepo.monorepo));
+
+  const cargoRepo=detectProject(repo({'Cargo.toml':'[workspace]\nmembers = ["crates/*"]\n'}));
+  assert(cargoRepo.monorepo.is_monorepo===true&&cargoRepo.monorepo.type==='cargo-workspace',JSON.stringify(cargoRepo.monorepo));
+});
 test('a-gradle-wrapper-is-preferred-over-a-system-gradle',()=>{
   const withWrapper=detectProject(repo({'build.gradle':'plugins {}','gradlew':'#!/bin/sh\n'}));
   assert(withWrapper.commands.test_full[0]==='./gradlew',JSON.stringify(withWrapper.commands.test_full));
