@@ -1,0 +1,15 @@
+{
+  "schema": "agent-sdlc/type-validation/v1",
+  "version": "3.0.0-alpha6",
+  "checked": "TypeScript definitions validation",
+  "checks": 1,
+  "passes": 1,
+  "failures": 0,
+  "results": [
+    {
+      "file": "types/index.d.ts",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS"
+}

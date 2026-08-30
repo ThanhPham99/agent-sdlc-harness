@@ -220,3 +220,43 @@ export function executeWithAdaptiveFailover(prompt, schemaPath, budget = {}, {
   };
 }
 
+/**
+ * Format a cacheable prompt package for a specific provider/host CLI.
+ * If host supports structured prompt caching blocks, outputs the multi-part structure;
+ * otherwise returns the unified full_prompt string.
+ */
+export function formatProviderPrompt(host, cacheablePrompt) {
+  if (typeof cacheablePrompt === 'string') return { prompt: cacheablePrompt, cache_enabled: false };
+  const fullPrompt = cacheablePrompt.full_prompt || '';
+  if (!cacheablePrompt.cache_blocks) {
+    return { prompt: fullPrompt, cache_enabled: false };
+  }
+
+  if (host === 'claude') {
+    return {
+      prompt: fullPrompt,
+      cache_enabled: true,
+      provider: 'anthropic',
+      cache_control: { type: 'ephemeral' },
+      blocks: cacheablePrompt.cache_blocks
+    };
+  }
+
+  if (host === 'antigravity') {
+    return {
+      prompt: fullPrompt,
+      cache_enabled: true,
+      provider: 'google-antigravity',
+      cache_control: { type: 'context_cache' },
+      blocks: cacheablePrompt.cache_blocks
+    };
+  }
+
+  return {
+    prompt: fullPrompt,
+    cache_enabled: false,
+    provider: host || 'generic',
+    blocks: cacheablePrompt.cache_blocks
+  };
+}
+

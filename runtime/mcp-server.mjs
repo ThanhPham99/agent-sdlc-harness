@@ -56,10 +56,102 @@ const toolDefs=[
   {name:'agent_sdlc_task_evidence',description:'Read a task verification/review evidence summary: refs, diff binding and current status.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id','task_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},task_id:{type:'string'}}}}
 ];
 
+const resourceDefs=[
+  {uri:'sdlc://project/status',name:'Project SDLC Status',description:'Overall project lifecycle status and active runs',mimeType:'application/json'},
+  {uri:'sdlc://intelligence/summary',name:'Repository Intelligence',description:'Repository symbol index and architectural summary',mimeType:'application/json'}
+];
+
+const promptDefs=[
+  {
+    name:'sdlc_feature_kickoff',
+    description:'Start a feature implementation through the canonical SDLC workflow',
+    arguments:[{name:'objective',description:'The feature goal or requirement description',required:true}]
+  },
+  {
+    name:'sdlc_pr_review',
+    description:'Perform a comprehensive code quality and spec compliance review',
+    arguments:[{name:'run_id',description:'Active SDLC run identifier',required:false}]
+  },
+  {
+    name:'sdlc_incident_triage',
+    description:'Triage an incident, diagnose error patterns and propose safe remediation',
+    arguments:[{name:'symptoms',description:'Observed error messages or failure symptoms',required:true}]
+  }
+];
+
 export function getActiveTools(){
   const profile=(process.env.AGENT_SDLC_MCP_PROFILE||'full').toLowerCase();
   if(profile==='core')return toolDefs.filter(t=>CORE_TOOL_NAMES.has(t.name));
   return toolDefs;
+}
+
+export function getActiveResources(){
+  return resourceDefs;
+}
+
+export function getActivePrompts(){
+  return promptDefs;
+}
+
+export function readResource(uri,projectRoot=process.cwd()){
+  const root=path.resolve(projectRoot);
+  if(uri==='sdlc://project/status'){
+    const p=detectProject(root);
+    return {uri,mimeType:'application/json',text:JSON.stringify({project:p,status:'ACTIVE'})};
+  }
+  if(uri==='sdlc://intelligence/summary'){
+    return {uri,mimeType:'application/json',text:JSON.stringify({project_root:root,indexed:fs.existsSync(path.join(root,'.agent-sdlc','index.json'))})};
+  }
+  if(uri.startsWith('sdlc://runs/')){
+    const rest=uri.slice('sdlc://runs/'.length);
+    const parts=rest.split('/');
+    const runId=parts[0];
+    const sub=parts[1]||'state';
+    const run=loadRun(root,runId);
+    if(sub==='state'){
+      return {uri,mimeType:'application/json',text:JSON.stringify({...run,next:nextState(run)})};
+    }
+    if(sub==='tasks'){
+      const tasks=listTasks(root,runId);
+      return {uri,mimeType:'application/json',text:JSON.stringify(tasks)};
+    }
+    if(sub==='dag'){
+      const tasks=listTasks(root,runId);
+      return {uri,mimeType:'text/vnd.mermaid',text:renderTaskDagMermaid(tasks)};
+    }
+  }
+  throw new Error(`Resource not found: ${uri}`);
+}
+
+export function getPrompt(name,args={}){
+  if(name==='sdlc_feature_kickoff'){
+    return {
+      description:'Start a feature implementation through the canonical SDLC workflow',
+      messages:[{
+        role:'user',
+        content:{type:'text',text:`Please route and start the SDLC workflow for this objective: "${args.objective||''}". Adhere to strict verification gates and token governance.`}
+      }]
+    };
+  }
+  if(name==='sdlc_pr_review'){
+    return {
+      description:'Perform a comprehensive code quality and spec compliance review',
+      messages:[{
+        role:'user',
+        content:{type:'text',text:`Review the changes in run ${args.run_id||'current'} across spec compliance, architecture, security, and test verification.`}
+      }]
+    };
+  }
+  if(name==='sdlc_incident_triage'){
+    return {
+      description:'Triage an incident, diagnose error patterns and propose safe remediation',
+      messages:[{
+        role:'user',
+        content:{type:'text',text:`Triage the following incident symptoms: "${args.symptoms||''}". Identify root cause, impacted components, and safe rollback or hotfix strategy.`}
+      }]
+    };
+  }
+  throw new Error(`Prompt not found: ${name}`);
 }
 
 function pr(a){return path.resolve(a.project_root||process.cwd());}
@@ -145,10 +237,20 @@ process.stdin.setEncoding('utf8');
 process.stdin.on('data',chunk=>{buffer+=chunk;let i;while((i=buffer.indexOf('\n'))>=0){const line=buffer.slice(0,i).trim();buffer=buffer.slice(i+1);if(line)handle(line);}});
 function handle(line){let req;try{req=JSON.parse(line);}catch{return;}const id=req.id;
   try{
-    if(req.method==='initialize')return send({jsonrpc:'2.0',id,result:{protocolVersion:req.params?.protocolVersion||'2025-06-18',capabilities:{tools:{listChanged:false}},serverInfo:{name:'agent-sdlc-harness',version:MANIFEST_VERSION}}});
+    if(req.method==='initialize')return send({jsonrpc:'2.0',id,result:{protocolVersion:req.params?.protocolVersion||'2025-06-18',capabilities:{tools:{listChanged:false},resources:{listChanged:false},prompts:{listChanged:false}},serverInfo:{name:'agent-sdlc-harness',version:MANIFEST_VERSION}}});
     if(req.method==='notifications/initialized')return;
     if(req.method==='ping')return send({jsonrpc:'2.0',id,result:{}});
     if(req.method==='tools/list')return send({jsonrpc:'2.0',id,result:{tools:getActiveTools()}});
+    if(req.method==='resources/list')return send({jsonrpc:'2.0',id,result:{resources:getActiveResources()}});
+    if(req.method==='resources/read'){
+      const r=readResource(req.params?.uri,req.params?.project_root);
+      return send({jsonrpc:'2.0',id,result:{contents:[r]}});
+    }
+    if(req.method==='prompts/list')return send({jsonrpc:'2.0',id,result:{prompts:getActivePrompts()}});
+    if(req.method==='prompts/get'){
+      const p=getPrompt(req.params?.name,req.params?.arguments||{});
+      return send({jsonrpc:'2.0',id,result:p});
+    }
     if(req.method==='tools/call'){
       // The profile shrinks the advertised surface; it must shrink the reachable
       // one too. `core` hid the granular task tools while still answering calls

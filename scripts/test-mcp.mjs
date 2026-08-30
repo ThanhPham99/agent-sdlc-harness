@@ -97,9 +97,20 @@ await test('ping-and-the-initialized-notification-are-handled',async()=>{
   assert(JSON.stringify(r.result)==='{}',JSON.stringify(r.result));
 });
 await test('an-unknown-method-is-a-protocol-error',async()=>{
-  const r=await c.call('resources/list',{});
+  const r=await c.call('custom/unknown_method',{});
   assert(r.error?.code===-32601,JSON.stringify(r));
   assert(/Method not found/.test(r.error.message),r.error.message);
+});
+await test('resources-and-prompts-are-advertised-and-readable',async()=>{
+  const resList=await c.call('resources/list',{});
+  assert(Array.isArray(resList.result?.resources)&&resList.result.resources.length>=2,JSON.stringify(resList));
+  const resRead=await c.call('resources/read',{uri:'sdlc://project/status'});
+  assert(resRead.result?.contents?.[0]?.text,JSON.stringify(resRead));
+
+  const promptList=await c.call('prompts/list',{});
+  assert(Array.isArray(promptList.result?.prompts)&&promptList.result.prompts.length>=3,JSON.stringify(promptList));
+  const promptGet=await c.call('prompts/get',{name:'sdlc_feature_kickoff',arguments:{objective:'Add refund processing'}});
+  assert(promptGet.result?.messages?.[0]?.content?.text?.includes('Add refund processing'),JSON.stringify(promptGet));
 });
 await test('garbage-input-does-not-kill-the-server',async()=>{
   c.raw('this is not json\n');

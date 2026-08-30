@@ -202,11 +202,22 @@ export function renderCacheablePrompt(root,manifest){
 
   const fullPrompt=`${system}\n\nSTAGE SKILLS\n${skillText||'(none)'}\n\nDETAILED PROCEDURES\n${procedureText||'(none)'}\n\nOBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nFEATURE\n${featureText||'(standalone run, not attached to a feature)'}\n\nACTIVE ROLES\n${roleText||'(none)'}\n\nREQUIREMENT UPDATE\n${requirementUpdateText||'(none)'}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}\n\nReturn a compact StageResult JSON.`;
 
+  const staticTokens=estimateTokens(staticPrefix,4);
+  const stageTokens=estimateTokens(stagePrefix,4);
+  const dynamicTokens=estimateTokens(dynamicSuffix,4);
+  const totalTokens=staticTokens+stageTokens+dynamicTokens;
+  const cacheHitRatio=totalTokens>0?Math.round(((staticTokens+stageTokens)/totalTokens)*100)/100:0;
+
   return {
     static_prefix:staticPrefix,
     stage_prefix:stagePrefix,
     dynamic_suffix:dynamicSuffix,
     full_prompt:fullPrompt,
+    cache_breakpoints:[
+      {tier:'STATIC_SYSTEM',tokens_estimate:staticTokens,breakpoint:'ALLOWED_TOOLS_BOUNDARY'},
+      {tier:'STAGE_POLICY',tokens_estimate:stageTokens,breakpoint:'ACTIVE_ROLES_BOUNDARY'}
+    ],
+    estimated_cache_hit_rate:cacheHitRatio,
     cache_blocks:[
       {type:'static_prefix',content:staticPrefix,cache_control:{type:'ephemeral'}},
       {type:'stage_prefix',content:stagePrefix,cache_control:{type:'ephemeral'}},

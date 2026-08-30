@@ -50,7 +50,20 @@ const ENTRIES=[
   'scripts/validate-alpha6.mjs',
   'scripts/validate-cli-surface.mjs',
   'scripts/test-prompt-caching.mjs',
-  'scripts/test-error-triage.mjs'
+  'scripts/test-error-triage.mjs',
+  'scripts/test-worktree-isolation.mjs',
+  'scripts/test-live-dashboard.mjs',
+  'scripts/test-parallel-execution.mjs',
+  'scripts/test-secret-scanner.mjs',
+  'scripts/test-budget-governor.mjs',
+  'scripts/test-tui.mjs',
+  'scripts/test-adaptive-fallback.mjs',
+  'scripts/test-failure-memory.mjs',
+  'scripts/test-flaky-detector.mjs',
+  'scripts/test-mcp-gateway.mjs',
+  'scripts/test-test-impact.mjs',
+  'scripts/test-pr-synthesizer.mjs',
+  'scripts/test-security-linter.mjs'
 ];
 
 // Suites deliberately not measured, each with the reason. Naming them rather
@@ -76,6 +89,7 @@ const NOT_MEASURED={
   'scripts/restore-tracked-reports.mjs':'local git-tree hygiene (git status/checkout on evals/); never enters runtime/',
   'scripts/test-restore-tracked-reports.mjs':'exercises restore-tracked-reports.mjs against a throwaway git fixture; never enters runtime/',
   'scripts/test-root-sync.mjs':'exercises validate-root-sync.mjs against a throwaway file tree; never enters runtime/',
+  'scripts/validate-types.mjs':'validates type definitions; never enters runtime/',
   'scripts/run-check.mjs':'runs the other suites as child processes; never enters runtime/ itself, and each child is measured on its own'
 };
 

@@ -25,7 +25,10 @@ export const STAGES=[
     // safe; the only shared reads are policy/registry files nothing mutates.
     parallel:['test','test:integrity','test:activation','test:gates','test:tasks','test:alpha6',
       'test:cli-contract','test:normalize','test:provider','test:compat','test:mcp',
-      'test:detection','test:dev-link']
+      'test:detection','test:dev-link','test:prompt-caching','test:worktree','test:dashboard',
+      'test:parallel','test:secret-scan','test:budget','test:tui','test:fallback','test:memory',
+      'test:flaky','test:mcp-gateway','test:test-impact','test:pr-synthesizer','test:security-linter',
+      'test:error-triage']
   },
   {
     name:'build',

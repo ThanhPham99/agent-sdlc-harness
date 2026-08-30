@@ -246,12 +246,22 @@ export function renderCacheableTaskPrompt(root,manifest){
   ].join('\n\n');
 
   const fullPrompt=`${staticPrefix}\n\n${modulePrefix}\n\n${dynamicSuffix}`;
+  const staticTokens=estimateTokens(staticPrefix,4);
+  const moduleTokens=estimateTokens(modulePrefix,4);
+  const dynamicTokens=estimateTokens(dynamicSuffix,4);
+  const totalTokens=staticTokens+moduleTokens+dynamicTokens;
+  const cacheHitRatio=totalTokens>0?Math.round(((staticTokens+moduleTokens)/totalTokens)*100)/100:0;
 
   return {
     static_prefix:staticPrefix,
     module_prefix:modulePrefix,
     dynamic_suffix:dynamicSuffix,
     full_prompt:fullPrompt,
+    cache_breakpoints:[
+      {tier:'STATIC_HARNESS',tokens_estimate:staticTokens,breakpoint:'EXCLUDED_CONTEXT_BOUNDARY'},
+      {tier:'MODULE_GUIDANCE',tokens_estimate:moduleTokens,breakpoint:'YOU_MAY_NOT_BOUNDARY'}
+    ],
+    estimated_cache_hit_rate:cacheHitRatio,
     cache_blocks:[
       {type:'static_prefix',content:staticPrefix,cache_control:{type:'ephemeral'}},
       {type:'module_prefix',content:modulePrefix,cache_control:{type:'ephemeral'}},

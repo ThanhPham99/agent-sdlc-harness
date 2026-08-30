@@ -60,6 +60,36 @@ jobs:
         run: npm run test:detection
       - name: Development link tooling
         run: npm run test:dev-link
+      - name: Prompt caching strategies and context bounds
+        run: npm run test:prompt-caching
+      - name: Git worktree isolation and worker boundaries
+        run: npm run test:worktree
+      - name: Live dashboard metrics and pipeline status
+        run: npm run test:dashboard
+      - name: Bounded parallel task scheduling and batch partitioning
+        run: npm run test:parallel
+      - name: Deterministic secret scanning and credential redactor
+        run: npm run test:secret-scan
+      - name: Budget governor and circuit breaker
+        run: npm run test:budget
+      - name: Terminal user interface ANSI renderer
+        run: npm run test:tui
+      - name: Adaptive provider fallback and checkpoint resumption
+        run: npm run test:fallback
+      - name: Failure memory and regression test promotion
+        run: npm run test:memory
+      - name: Flaky test detection and quarantine
+        run: npm run test:flaky
+      - name: MCP gateway routing and authorization
+        run: npm run test:mcp-gateway
+      - name: Test impact analysis and smart test selection
+        run: npm run test:test-impact
+      - name: PR synthesizer and changelog generator
+        run: npm run test:pr-synthesizer
+      - name: Deterministic security linter
+        run: npm run test:security-linter
+      - name: Error triage and classification engine
+        run: npm run test:error-triage
       # --- build, then the surfaces that read what it produced -----------
       - name: Build provider distributions
         run: npm run build
@@ -144,6 +174,36 @@ jobs:
         run: npm run test:detection
       - name: Development link tooling
         run: npm run test:dev-link
+      - name: Prompt caching strategies and context bounds
+        run: npm run test:prompt-caching
+      - name: Git worktree isolation and worker boundaries
+        run: npm run test:worktree
+      - name: Live dashboard metrics and pipeline status
+        run: npm run test:dashboard
+      - name: Bounded parallel task scheduling and batch partitioning
+        run: npm run test:parallel
+      - name: Deterministic secret scanning and credential redactor
+        run: npm run test:secret-scan
+      - name: Budget governor and circuit breaker
+        run: npm run test:budget
+      - name: Terminal user interface ANSI renderer
+        run: npm run test:tui
+      - name: Adaptive provider fallback and checkpoint resumption
+        run: npm run test:fallback
+      - name: Failure memory and regression test promotion
+        run: npm run test:memory
+      - name: Flaky test detection and quarantine
+        run: npm run test:flaky
+      - name: MCP gateway routing and authorization
+        run: npm run test:mcp-gateway
+      - name: Test impact analysis and smart test selection
+        run: npm run test:test-impact
+      - name: PR synthesizer and changelog generator
+        run: npm run test:pr-synthesizer
+      - name: Deterministic security linter
+        run: npm run test:security-linter
+      - name: Error triage and classification engine
+        run: npm run test:error-triage
       - name: Build provider distributions
         run: npm run build
       - name: Verify extracted distributions

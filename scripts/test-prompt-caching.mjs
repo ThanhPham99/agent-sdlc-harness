@@ -4,6 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {buildContext,renderPrompt,renderCacheablePrompt,condenseLog} from '../runtime/context.mjs';
 import {buildTaskContext,renderTaskPrompt,renderCacheableTaskPrompt} from '../runtime/task-context.mjs';
+import {formatProviderPrompt} from '../runtime/provider.mjs';
 import {initProject} from '../runtime/store.mjs';
 import {newRun} from '../runtime/orchestrator.mjs';
 import {route} from '../runtime/router.mjs';
@@ -172,6 +173,59 @@ test('condenseLog-preserves-error-frames-across-frameworks',()=>{
   assert(condensedGo.includes('--- FAIL: TestFail'),'condenseLog dropped Go FAIL marker');
   assert(condensedGo.includes('token validation failed: expired'),'condenseLog dropped Go error message');
   assert(condensedGo.includes('panic: runtime error'),'condenseLog dropped panic stack trace');
+});
+
+test('cache-breakpoints-and-estimated-hit-rate-are-computed',()=>{
+  const d=fixture();
+  const r=route(ROOT,'Build microservice authentication');
+  const run=newRun(ROOT,d,{objective:'Build microservice authentication',route:r});
+  const manifest=buildContext(ROOT,d,run);
+  const cacheable=renderCacheablePrompt(ROOT,manifest);
+
+  assert(Array.isArray(cacheable.cache_breakpoints)&&cacheable.cache_breakpoints.length===2,'missing stage cache_breakpoints');
+  assert(typeof cacheable.estimated_cache_hit_rate==='number'&&cacheable.estimated_cache_hit_rate>0,'invalid estimated_cache_hit_rate');
+
+  const task={
+    task_id:'TASK-AUTH',
+    category:'implementation',
+    objective:'JWT verification middleware',
+    scope:{write:['src/jwt.js']}
+  };
+  const taskManifest=buildTaskContext(ROOT,d,run,task);
+  const taskCacheable=renderCacheableTaskPrompt(ROOT,taskManifest);
+
+  assert(Array.isArray(taskCacheable.cache_breakpoints)&&taskCacheable.cache_breakpoints.length===2,'missing task cache_breakpoints');
+  assert(typeof taskCacheable.estimated_cache_hit_rate==='number'&&taskCacheable.estimated_cache_hit_rate>0,'invalid task estimated_cache_hit_rate');
+});
+
+test('formatProviderPrompt-adapts-to-host-capabilities',()=>{
+  const d=fixture();
+  const r=route(ROOT,'Test caching prompt formatter');
+  const run=newRun(ROOT,d,{objective:'Test caching prompt formatter',route:r});
+  const manifest=buildContext(ROOT,d,run);
+  const cacheable=renderCacheablePrompt(ROOT,manifest);
+
+  // Claude / Anthropic format
+  const claudeFormatted=formatProviderPrompt('claude',cacheable);
+  assert(claudeFormatted.cache_enabled===true,'claude cache_enabled mismatch');
+  assert(claudeFormatted.provider==='anthropic','claude provider mismatch');
+  assert(claudeFormatted.cache_control?.type==='ephemeral','claude cache_control mismatch');
+  assert(Array.isArray(claudeFormatted.blocks)&&claudeFormatted.blocks.length===3,'claude blocks count mismatch');
+
+  // Antigravity format
+  const agyFormatted=formatProviderPrompt('antigravity',cacheable);
+  assert(agyFormatted.cache_enabled===true,'agy cache_enabled mismatch');
+  assert(agyFormatted.provider==='google-antigravity','agy provider mismatch');
+  assert(agyFormatted.cache_control?.type==='context_cache','agy cache_control mismatch');
+
+  // Codex / generic fallback
+  const codexFormatted=formatProviderPrompt('codex',cacheable);
+  assert(codexFormatted.cache_enabled===false,'codex cache_enabled mismatch');
+  assert(typeof codexFormatted.prompt==='string'&&codexFormatted.prompt.length>0,'codex prompt missing');
+
+  // Bare string fallback
+  const rawFormatted=formatProviderPrompt('claude','hello world');
+  assert(rawFormatted.prompt==='hello world'&&rawFormatted.cache_enabled===false,'raw string formatting failed');
 });
 
 finish();
