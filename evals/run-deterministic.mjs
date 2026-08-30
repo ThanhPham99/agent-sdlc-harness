@@ -959,7 +959,7 @@ test('a-real-test-run-satisfies-the-verify-gate',()=>{
 test('stale-verify-evidence-blocks-the-gate',()=>{
   const r=toVerify('Add stale-check capability');
   invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
-  fs.appendFileSync(path.join(tmp,'README.md'),'dirty\n'); // moves dirtyHash; a new untracked file would not
+  fs.appendFileSync(path.join(tmp,'README.md'),'dirty\n'); // a tracked edit; the case below covers a new untracked file
   let ok=false;
   try{transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});}
   catch(e){ok=/stale evidence/.test(e.message)&&/targeted_verification_pass/.test(e.message);}
@@ -969,6 +969,39 @@ test('stale-verify-evidence-blocks-the-gate',()=>{
   invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
   const out=transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});
   if(out.state!=='REVIEW')throw Error('a fresh re-run did not reopen the gate');
+});
+test('a-new-untracked-file-makes-verify-evidence-stale-too',()=>{
+  // The case above deliberately dirties a TRACKED file, and its comment said
+  // why: "a new untracked file would not" move dirtyHash. `git diff` never
+  // reports a file that was created and never staged, so the workspace
+  // fingerprint was blind to exactly the change an implementation task makes
+  // most often -- adding a module. Evidence recorded before the file existed
+  // stayed fresh after it appeared.
+  const r=toVerify('Add untracked-staleness capability');
+  invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
+  const added=path.join(tmp,'newly-added-module.js');
+  fs.writeFileSync(added,'export const x=1;\n');
+  let ok=false;
+  try{transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});}
+  catch(e){ok=/stale evidence/.test(e.message)&&/targeted_verification_pass/.test(e.message);}
+  if(!ok){fs.rmSync(added,{force:true});throw Error('a new untracked file left the evidence fresh');}
+
+  // Its CONTENT counts, not just its name: rewriting it keeps the gate shut.
+  invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
+  fs.writeFileSync(added,'export const x=2;\nexport function other(){}\n');
+  let ok2=false;
+  try{transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});}
+  catch(e){ok2=/stale evidence/.test(e.message);}
+  if(!ok2){fs.rmSync(added,{force:true});throw Error('rewriting an untracked file left the evidence fresh');}
+
+  // Restoring the exact bytes the evidence was recorded against reopens the
+  // gate with no re-run: the fingerprint is a function of content, not a
+  // one-way "something happened" flag.
+  fs.writeFileSync(added,'export const x=1;\n');
+  let out;
+  try{out=transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});}
+  finally{fs.rmSync(added,{force:true});}
+  if(out.state!=='REVIEW')throw Error('a restored workspace did not reopen the gate');
 });
 test('evaluate-gate-reports-missing-then-satisfied',()=>{
   const r=newRun(ROOT,tmp,{objective:'Add gate-explain capability',route:route(ROOT,'Add gate-explain capability')});

@@ -15,7 +15,7 @@
 // - production credentials never become ambient writer workspace credentials.
 import fs from 'node:fs';
 import path from 'node:path';
-import {ensureDir,git,gitSha,now,readJson,sha256,writeJson} from './util.mjs';
+import {ensureDir,git,gitSha,now,readJson,sha256,untrackedDigest,untrackedFiles,writeJson} from './util.mjs';
 import {stateDir,emitTaskEvent} from './store.mjs';
 
 export const WORKSPACE_MODES=['shared-readonly','isolated-worktree','provider-sandbox'];
@@ -127,15 +127,19 @@ export function workspaceDiff(projectRoot,ws){
   const base=ws.base_revision;
   const diff=base?git(['diff','--binary',base],cwd):git(['diff','--binary'],cwd);
   const namesRaw=base?git(['diff','--name-only',base],cwd):git(['diff','--name-only'],cwd);
-  const untracked=git(['ls-files','--others','--exclude-standard'],cwd);
+  // Listed once and reused for both the path list and the content digest.
+  const untrackedList=untrackedFiles(cwd)??[];
   const changed=[...new Set([
     ...namesRaw.stdout.split('\n').map(s=>s.trim()).filter(Boolean),
-    ...untracked.stdout.split('\n').map(s=>s.trim()).filter(Boolean)
+    ...untrackedList
   ])].sort();
   return {
     base_revision:base,
     changed_paths:changed,
-    diff_hash:diff.code===0?sha256(diff.stdout+changed.join('\n')):null,
+    // The untracked digest, not just the untracked NAMES: `git diff` never
+    // shows a file that was created and never staged, so without it a task
+    // could rewrite every module it added and keep the same binding.
+    diff_hash:diff.code===0?sha256(diff.stdout+changed.join('\n')+'\n'+untrackedDigest(cwd,untrackedList)):null,
     diff_available:diff.code===0
   };
 }

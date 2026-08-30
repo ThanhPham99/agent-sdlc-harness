@@ -826,6 +826,36 @@ export function runTaskRuntimeSuite(root){
       if(evidence.attempt!==fresh.attempt)fail(`attempt ${evidence.attempt} != ${fresh.attempt}`);
     });
 
+    t('diff_hash-covers-the-content-of-files-the-task-created-and-never-staged',()=>{
+      // `git diff` reports tracked changes only. The hash was
+      // sha256(diff.stdout + changed_paths), so an untracked file contributed
+      // its NAME but never its CONTENT -- and a file a task just created is
+      // untracked by definition. Rewriting it wholesale left diff_hash
+      // identical, which reaches three separate gates: diff_captured,
+      // REVIEW_NOT_BOUND_TO_CURRENT_DIFF, and the retry fingerprint that
+      // decides whether an attempt brought new evidence.
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot);
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      const ws=getTaskWorkspace(projectRoot,run.run_id,'TASK-001');
+
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/new-module.js','export const secret="v1";\n');
+      const before=workspaceDiff(projectRoot,ws);
+      if(!before.changed_paths.some(p=>p.endsWith('new-module.js')))fail(JSON.stringify(before.changed_paths));
+
+      // Same path, entirely different code.
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/new-module.js','export const secret="different";\nexport function backdoor(){}\n');
+      const after=workspaceDiff(projectRoot,ws);
+      if(before.diff_hash===after.diff_hash)
+        fail('rewriting an untracked file left the diff binding unchanged');
+
+      // Rewriting it back reproduces the earlier hash: the binding is a
+      // function of content, not a counter that only ever moves forward.
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/new-module.js','export const secret="v1";\n');
+      if(workspaceDiff(projectRoot,ws).diff_hash!==before.diff_hash)
+        fail('the same workspace content produced a different diff binding');
+    });
+
     t('a-failed-verification-does-not-satisfy-the-verification-gate',()=>{
       // task.evidence_refs is appended for every verification run, passing or
       // not (task-verification.mjs records the artifact before it branches on
