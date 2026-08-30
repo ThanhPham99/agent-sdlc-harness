@@ -61,6 +61,20 @@
     "test:mcp": "node scripts/test-mcp.mjs",
     "test:detection": "node scripts/test-project-detection.mjs",
     "test:prompt-caching": "node scripts/test-prompt-caching.mjs",
-    "test:error-triage": "node scripts/test-error-triage.mjs"
+    "test:worktree": "node scripts/test-worktree-isolation.mjs",
+    "test:dashboard": "node scripts/test-live-dashboard.mjs",
+    "test:parallel": "node scripts/test-parallel-execution.mjs",
+    "test:secret-scan": "node scripts/test-secret-scanner.mjs",
+    "test:budget": "node scripts/test-budget-governor.mjs",
+    "test:tui": "node scripts/test-tui.mjs",
+    "test:fallback": "node scripts/test-adaptive-fallback.mjs",
+    "test:memory": "node scripts/test-failure-memory.mjs",
+    "test:flaky": "node scripts/test-flaky-detector.mjs",
+    "test:mcp-gateway": "node scripts/test-mcp-gateway.mjs",
+    "test:test-impact": "node scripts/test-test-impact.mjs",
+    "test:pr-synthesizer": "node scripts/test-pr-synthesizer.mjs",
+    "test:security-linter": "node scripts/test-security-linter.mjs",
+    "test:error-triage": "node scripts/test-error-triage.mjs",
+    "typecheck": "npx tsc --noEmit"
   }
 }

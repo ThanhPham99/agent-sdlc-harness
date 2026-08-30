@@ -1,0 +1,21 @@
+{
+  "schema": "agent-sdlc/test-impact-validation/v1",
+  "checks": 3,
+  "passes": 3,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "analyzeTestImpact-detects-single-modified-file",
+      "status": "PASS"
+    },
+    {
+      "name": "analyzeTestImpact-detects-multiple-modified-files",
+      "status": "PASS"
+    },
+    {
+      "name": "analyzeTestImpact-returns-empty-when-no-tests-impacted",
+      "status": "PASS"
+    }
+  ]
+}

@@ -29,3 +29,72 @@ export function parallelPlan(root,tasks=[]){
     reason:conflicts.length?'shared-write-or-interface':(max>1?'disjoint-and-worthwhile':'coordination-cost-not-justified')
   };
 }
+
+/**
+ * Partition a list of tasks into sequential batches of mutually disjoint (parallel-executable) tasks.
+ */
+export function partitionParallelBatches(tasks = []) {
+  const batches = [];
+  const remaining = [...tasks];
+
+  while (remaining.length > 0) {
+    const currentBatch = [];
+    const unselected = [];
+
+    for (const task of remaining) {
+      const taskWrite = task.scope?.write || task.write_set || [];
+      const taskInterface = task.scope?.interfaces || task.interface_set || [];
+      
+      const hasConflict = currentBatch.some(bTask => {
+        const bWrite = bTask.scope?.write || bTask.write_set || [];
+        const bInterface = bTask.scope?.interfaces || bTask.interface_set || [];
+        return overlap(taskWrite, bWrite) || overlap(taskInterface, bInterface);
+      });
+
+      if (!hasConflict) {
+        currentBatch.push(task);
+      } else {
+        unselected.push(task);
+      }
+    }
+
+    batches.push(currentBatch);
+    remaining.length = 0;
+    remaining.push(...unselected);
+  }
+
+  return batches;
+}
+
+/**
+ * Execute tasks in parallel batches.
+ * Inside each batch, tasks are executed concurrently (up to maxWorkers) on isolated worktrees.
+ */
+export async function executeParallelBatches(projectRoot, { run, batches = [], workerRunner = null, maxWorkers = 4 } = {}) {
+  const results = [];
+
+  for (let batchIdx = 0; batchIdx < batches.length; batchIdx++) {
+    const batch = batches[batchIdx];
+    
+    // Execute tasks concurrently within the current batch
+    const batchPromises = batch.map(async (task, taskIdx) => {
+      const writer = `worker-pool-${(taskIdx % maxWorkers) + 1}`;
+      if (typeof workerRunner === 'function') {
+        return await workerRunner({ projectRoot, run, task, writer, batchIndex: batchIdx });
+      }
+      return { task_id: task.task_id || task.id, status: 'DONE', writer };
+    });
+
+    const batchResults = await Promise.all(batchPromises);
+    results.push(...batchResults);
+  }
+
+  return {
+    schema: 'agent-sdlc/parallel-execution-result/v1',
+    run_id: run?.run_id,
+    batches_count: batches.length,
+    total_tasks: results.length,
+    results
+  };
+}
+

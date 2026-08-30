@@ -1,0 +1,29 @@
+{
+  "schema": "agent-sdlc/security-linter-validation/v1",
+  "checks": 5,
+  "passes": 5,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "security-linter-detects-eval",
+      "status": "PASS"
+    },
+    {
+      "name": "security-linter-detects-inner-html-xss",
+      "status": "PASS"
+    },
+    {
+      "name": "security-linter-detects-command-injection",
+      "status": "PASS"
+    },
+    {
+      "name": "security-linter-detects-prototype-pollution",
+      "status": "PASS"
+    },
+    {
+      "name": "security-linter-passes-clean-code",
+      "status": "PASS"
+    }
+  ]
+}

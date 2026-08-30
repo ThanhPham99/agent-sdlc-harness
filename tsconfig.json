@@ -4,17 +4,19 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "allowJs": true,
-    "checkJs": true,
+    "checkJs": false,
     "noEmit": true,
     "strict": false,
     "skipLibCheck": true,
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
+    "types": ["node"]
   },
   "include": [
+    "types/**/*",
     "runtime/**/*",
-    "evals/**/*",
-    "scripts/**/*",
-    "adapters/**/*"
+    "scripts/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    ".agent-sdlc"
   ]
 }

@@ -1,0 +1,21 @@
+{
+  "schema": "agent-sdlc/failure-memory-validation/v1",
+  "checks": 3,
+  "passes": 3,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "indexFailurePattern-sanitizes-and-stores",
+      "status": "PASS"
+    },
+    {
+      "name": "lookupFailurePattern-matches-query",
+      "status": "PASS"
+    },
+    {
+      "name": "lookupFailurePattern-returns-empty-on-miss",
+      "status": "PASS"
+    }
+  ]
+}

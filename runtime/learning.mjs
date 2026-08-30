@@ -8,7 +8,9 @@
 //      emits a *candidate* that deterministic or live eval must validate before
 //      anyone adopts it.
 import path from 'node:path';
+import fs from 'node:fs';
 import {now,sha256,redactHighEntropySecrets} from './util.mjs';
+import {stateDir} from './store.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -157,3 +159,60 @@ export function toEvalCase(candidate){
     status:'CANDIDATE_PENDING_VALIDATION'
   };
 }
+
+function memoryPath(projectRoot) {
+  return path.join(stateDir(projectRoot), 'memory', 'failure-index.json');
+}
+
+/**
+ * Record a failure pattern and its verified resolution.
+ * Automatically sanitizes text content before indexing.
+ */
+export function indexFailurePattern(projectRoot, { signature, hint, category = 'VERIFICATION_FAILURE', resolution = '' } = {}) {
+  const p = memoryPath(projectRoot);
+  let db = { schema: 'agent-sdlc/failure-index/v1', patterns: [] };
+  if (fs.existsSync(p)) {
+    try { db = JSON.parse(fs.readFileSync(p, 'utf8')); } catch {}
+  }
+  const cleanSignature = sanitizeText(signature, { maxChars: 200 });
+  const cleanHint = sanitizeText(hint, { maxChars: 500 });
+  const cleanResolution = sanitizeText(resolution, { maxChars: 500 });
+
+  const existingIdx = (db.patterns || []).findIndex(x => x.signature === cleanSignature);
+  const entry = {
+    signature: cleanSignature,
+    hint: cleanHint,
+    category,
+    resolution: cleanResolution,
+    indexed_at: now()
+  };
+
+  if (existingIdx >= 0) {
+    db.patterns[existingIdx] = entry;
+  } else {
+    db.patterns = [...(db.patterns || []), entry];
+  }
+
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, JSON.stringify(db, null, 2), 'utf8');
+  return entry;
+}
+
+/**
+ * Look up matching failure patterns to provide hints for current errors.
+ */
+export function lookupFailurePattern(projectRoot, querySignature) {
+  const p = memoryPath(projectRoot);
+  if (!fs.existsSync(p)) return [];
+  try {
+    const db = JSON.parse(fs.readFileSync(p, 'utf8'));
+    const q = String(querySignature || '').toLowerCase();
+    return (db.patterns || []).filter(item => {
+      const sig = String(item.signature || '').toLowerCase();
+      return sig.includes(q) || q.includes(sig);
+    });
+  } catch {
+    return [];
+  }
+}
+

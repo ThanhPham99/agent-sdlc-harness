@@ -21,6 +21,21 @@ export function generateDashboardHtml({project,state,runs=[],tasks=[],metrics=nu
   const doneTasks=tasks.filter(t=>t.status==='DONE').length;
   const runningTasks=tasks.filter(t=>t.status==='RUNNING').length;
   const failedTasks=tasks.filter(t=>t.status==='FAILED'||t.status==='FAIL').length;
+  const activeRun=runs[0]||null;
+  const currentStage=activeRun?.state||state?.stage||'IDLE';
+
+  const STAGES=['INTAKE','REQUIREMENTS','DESIGN','PLAN','IMPLEMENT','VERIFY','REVIEW','RELEASE','DEPLOY','CLOSE'];
+  const stageIdx=STAGES.indexOf(currentStage);
+
+  const pipelineHtml=STAGES.map((s,i)=>{
+    const isPast=stageIdx!==-1&&i<stageIdx;
+    const isCurrent=s===currentStage;
+    const bg=isCurrent?'#3b82f6':isPast?'#10b981':'#334155';
+    const text=isCurrent?'#ffffff':isPast?'#ecfdf5':'#94a3b8';
+    return `<div style="flex:1;background:${bg};color:${text};padding:8px 4px;border-radius:6px;text-align:center;font-size:11px;font-weight:700;letter-spacing:0.5px;transition:all 0.2s;">
+      ${escapeHtml(s)}
+    </div>`;
+  }).join('\n');
 
   const taskRows=tasks.map(t=>{
     const color=t.status==='DONE'?'#22c55e':t.status==='RUNNING'?'#f59e0b':t.status==='BLOCKED'?'#a855f7':t.status==='FAILED'?'#ef4444':'#3b82f6';
@@ -29,10 +44,11 @@ export function generateDashboardHtml({project,state,runs=[],tasks=[],metrics=nu
         <span style="font-weight:600;color:#f8fafc;font-family:monospace;">${escapeHtml(t.task_id)}</span>
         <span style="background:${color}22;color:${color};padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;">${escapeHtml(t.status)}</span>
       </div>
-      <div style="color:#94a3b8;font-size:13px;margin-bottom:6px;">${escapeHtml(t.title||t.description||'(no description)')}</div>
-      <div style="display:flex;gap:12px;font-size:11px;color:#64748b;font-family:monospace;">
+      <div style="color:#94a3b8;font-size:13px;margin-bottom:6px;">${escapeHtml(t.title||t.description||t.goal||'(no description)')}</div>
+      <div style="display:flex;gap:12px;font-size:11px;color:#64748b;font-family:monospace;flex-wrap:wrap;">
         <span>Category: ${escapeHtml(t.category||'feature')}</span>
         <span>Attempt: ${t.attempt||1}</span>
+        ${t.scope?.write?.length?`<span>Write: ${escapeHtml(t.scope.write.join(', '))}</span>`:''}
         ${t.diff_hash?`<span>Diff: ${t.diff_hash.slice(0,8)}</span>`:''}
       </div>
     </div>`;
@@ -42,10 +58,10 @@ export function generateDashboardHtml({project,state,runs=[],tasks=[],metrics=nu
     return `<div style="background:#1e293b;border:1px solid #334155;border-radius:6px;padding:12px;margin-bottom:10px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
         <span style="font-weight:600;color:#38bdf8;font-family:monospace;">${escapeHtml(r.run_id)}</span>
-        <span style="background:#3b82f622;color:#38bdf8;padding:2px 8px;border-radius:12px;font-size:12px;">${escapeHtml(r.state)}</span>
+        <span style="background:#3b82f622;color:#38bdf8;padding:2px 8px;border-radius:12px;font-size:12px;font-weight:600;">${escapeHtml(r.state)}</span>
       </div>
       <div style="color:#e2e8f0;font-size:14px;margin-bottom:6px;">${escapeHtml(r.objective||'(no objective)')}</div>
-      <div style="display:flex;gap:12px;font-size:12px;color:#94a3b8;">
+      <div style="display:flex;gap:12px;font-size:12px;color:#94a3b8;flex-wrap:wrap;">
         <span>Workflow: <strong>${escapeHtml(r.workflow||'standard')}</strong></span>
         <span>Profile: <strong>${escapeHtml(r.profile||'STANDARD')}</strong></span>
         <span>Revision: ${r.revision||0}</span>
@@ -63,8 +79,10 @@ export function generateDashboardHtml({project,state,runs=[],tasks=[],metrics=nu
     :root { --bg: #0f172a; --card: #1e293b; --text: #f8fafc; --muted: #94a3b8; --border: #334155; }
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body { background: var(--bg); color: var(--text); padding: 24px; }
-    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 24px; }
+    .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); padding-bottom: 16px; margin-bottom: 20px; }
     .badge { background: #3b82f633; color: #60a5fa; border: 1px solid #3b82f666; padding: 4px 10px; border-radius: 999px; font-size: 13px; }
+    .pipeline-container { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+    .pipeline-grid { display: flex; gap: 8px; margin-top: 10px; overflow-x: auto; }
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
     .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
     .stat-val { font-size: 28px; font-weight: 700; margin-top: 4px; color: #38bdf8; }
@@ -81,6 +99,13 @@ export function generateDashboardHtml({project,state,runs=[],tasks=[],metrics=nu
     </div>
     <div>
       <span class="badge">Live SDLC State</span>
+    </div>
+  </div>
+
+  <div class="pipeline-container">
+    <div style="font-size:14px;font-weight:600;color:#94a3b8;">SDLC Stage Pipeline (Active: <strong style="color:#60a5fa;">${escapeHtml(currentStage)}</strong>)</div>
+    <div class="pipeline-grid">
+      ${pipelineHtml}
     </div>
   </div>
 
@@ -128,6 +153,23 @@ export function generateDashboardHtml({project,state,runs=[],tasks=[],metrics=nu
 export const commands={
   dashboard:async ctx=>{
     const {ROOT,projectRoot,args,print}=ctx;
+    if(args.serve||args.watch){
+      const port=args.port?Number(args.port):4100;
+      const host=args.host||'127.0.0.1';
+      const {startServer}=await import('../server.mjs');
+      const srv=await startServer(projectRoot,{port,host});
+      print({
+        status:'DASHBOARD_SERVER_STARTED',
+        url:srv.url,
+        port:srv.port,
+        host:srv.host,
+        mode:'LIVE_SSE'
+      });
+      if(args['close-after-init']){
+        await srv.close();
+      }
+      return;
+    }
     const proj=fs.existsSync(path.join(projectRoot,'.agent-sdlc','project.json'))?projectConfig(projectRoot):{};
     const state=fs.existsSync(path.join(projectRoot,'.agent-sdlc','state.json'))?readJson(path.join(projectRoot,'.agent-sdlc','state.json'),{}):{};
     const version=readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version;
@@ -143,6 +185,18 @@ export const commands={
       try{allTasks.push(...listTasks(projectRoot,r.run_id));}catch{}
     }
     const metrics=getMetrics(projectRoot);
+    if(args.tui){
+      const {renderTuiDashboard}=await import('../tui.mjs');
+      const tuiText=renderTuiDashboard({project:proj,state,runs,tasks:allTasks,metrics,version});
+      console.log(tuiText);
+      print({
+        status:'TUI_RENDERED',
+        runs_count:runs.length,
+        tasks_count:allTasks.length,
+        version
+      });
+      return;
+    }
     const html=generateDashboardHtml({project:proj,state,runs,tasks:allTasks,metrics,version});
     const outPath=args.out?path.resolve(projectRoot,args.out):path.join(projectRoot,'.agent-sdlc','dashboard.html');
     fs.mkdirSync(path.dirname(outPath),{recursive:true});
@@ -173,3 +227,4 @@ export const commands={
     }
   }
 };
+

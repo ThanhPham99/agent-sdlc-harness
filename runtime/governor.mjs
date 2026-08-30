@@ -10,7 +10,7 @@
 // argue with it.
 import path from 'node:path';
 import {now,readJson} from './util.mjs';
-import {reportRunTaskUsage} from './cost.mjs';
+import {reportRunTaskUsage,reportUsage} from './cost.mjs';
 import {listTasks} from './store.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
@@ -189,3 +189,39 @@ export function governorReport(root,projectRoot,run){
     time:now()
   };
 }
+
+/**
+ * Evaluates whether budget limits have been exceeded, acting as an automated circuit breaker.
+ */
+export function evaluateBudgetCircuitBreaker(projectRoot, runId, { budgetLimits = null } = {}) {
+  const usage = reportUsage(projectRoot, runId);
+  const currentTokens = (usage.total?.input_tokens || 0) + (usage.total?.output_tokens || 0);
+  const estimatedCost = Number(((usage.total?.input_tokens || 0) * 0.000003 + (usage.total?.output_tokens || 0) * 0.000015).toFixed(4));
+  const currentCostUsd = usage.cost_usd !== null ? usage.cost_usd : estimatedCost;
+
+  const limits = budgetLimits || {
+    max_cost_usd: 50.0,
+    max_tokens: 2000000
+  };
+
+  const trippedReasons = [];
+  if (limits.max_cost_usd && currentCostUsd > limits.max_cost_usd) {
+    trippedReasons.push(`Run cost $${currentCostUsd.toFixed(4)} exceeds max budget $${limits.max_cost_usd}`);
+  }
+  if (limits.max_tokens && currentTokens > limits.max_tokens) {
+    trippedReasons.push(`Run token usage ${currentTokens.toLocaleString()} exceeds max budget ${limits.max_tokens.toLocaleString()}`);
+  }
+
+  const isTripped = trippedReasons.length > 0;
+  return {
+    schema: 'agent-sdlc/budget-circuit-breaker/v1',
+    run_id: runId,
+    tripped: isTripped,
+    status: isTripped ? 'CIRCUIT_BREAKER_TRIPPED' : 'BUDGET_OK',
+    current_tokens: currentTokens,
+    current_cost_usd: currentCostUsd,
+    limits,
+    reasons: trippedReasons
+  };
+}
+

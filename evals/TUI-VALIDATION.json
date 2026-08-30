@@ -1,0 +1,21 @@
+{
+  "schema": "agent-sdlc/tui-validation/v1",
+  "checks": 3,
+  "passes": 3,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "renderTuiDashboard-renders-boxes-and-title",
+      "status": "PASS"
+    },
+    {
+      "name": "renderTuiDashboard-renders-tasks-and-stats",
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard-command-tui-flag",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "schema": "agent-sdlc/mcp-gateway-validation/v1",
+  "checks": 3,
+  "passes": 3,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "mcp-gateway-tools-list-returns-declarations",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-gateway-calls-dashboard-tool",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-gateway-calls-govern-tool",
+      "status": "PASS"
+    }
+  ]
+}

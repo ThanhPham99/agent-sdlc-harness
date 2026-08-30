@@ -162,15 +162,65 @@ export function checkpointTaskWorkspace(projectRoot,{run,task,label='checkpoint'
 }
 
 /**
+ * Commit all uncommitted changes inside the task workspace to its task branch.
+ * Safe to call multiple times; if clean, returns existing commit SHA.
+ */
+export function commitTaskWorkspace(projectRoot,{run,task,message=null}){
+  const ws=record(projectRoot,run.run_id,task.task_id);
+  if(!ws||!ws.writable||ws.mode!=='isolated-worktree'||!ws.root||!fs.existsSync(ws.root)){
+    return {committed:false,reason:'NOT_AN_ISOLATED_WORKTREE',commit_sha:null};
+  }
+  const cwd=ws.root;
+  const status=git(['status','--porcelain'],cwd);
+  if(status.code===0&&!status.stdout.trim()){
+    const headSha=gitSha(cwd);
+    return {committed:false,reason:'WORKING_TREE_CLEAN',commit_sha:headSha};
+  }
+  git(['add','-A'],cwd);
+  const commitMsg=message||`chore(sdlc): commit changes for ${task.task_id} [${task.goal||task.title||'task'}]`;
+  const r=git(['-c','user.email=agent-sdlc@localhost','-c','user.name=Agent SDLC','commit','-m',commitMsg],cwd);
+  const commitSha=gitSha(cwd);
+  ws.commit_sha=commitSha;
+  ws.last_committed_at=now();
+  writeJson(wsRecordPath(projectRoot,run.run_id,task.task_id),ws);
+  emitTaskEvent(projectRoot,task,{type:'task.workspace_committed',payload:{branch:ws.branch,commit_sha:commitSha}});
+  return {committed:r.code===0,commit_sha:commitSha,output:r.stdout||r.stderr};
+}
+
+/**
+ * Safely integrate task workspace changes into the target repository root.
+ * Applies the task branch commits/diff to the primary workspace.
+ */
+export function integrateTaskWorkspace(projectRoot,{run,task,targetRoot=null}){
+  const ws=record(projectRoot,run.run_id,task.task_id);
+  if(!ws)return {integrated:false,reason:'NO_WORKSPACE'};
+  const dest=targetRoot||projectRoot;
+  if(ws.mode==='isolated-worktree'&&ws.root&&fs.existsSync(ws.root)){
+    commitTaskWorkspace(projectRoot,{run,task});
+  }
+  if(ws.mode==='isolated-worktree'&&ws.branch){
+    const r=git(['merge','--no-ff','-m',`Merge task ${task.task_id} from ${ws.branch}`,ws.branch],dest);
+    const integrated=r.code===0;
+    emitTaskEvent(projectRoot,task,{type:'task.workspace_integrated',payload:{branch:ws.branch,integrated,target:dest}});
+    return {integrated,branch:ws.branch,commit_sha:ws.commit_sha,output:r.stdout||r.stderr};
+  }
+  return {integrated:true,mode:ws.mode,reason:'NON_ISOLATED_WORKSPACE'};
+}
+
+/**
  * Remove the workspace. Refuses while the task still has no persisted evidence,
  * unless the caller explicitly accepts losing it.
  */
-export function cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted=null,force=false}){
-  const ws=record(projectRoot,run.run_id,task.task_id);
+export function cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted=null,force=false,autoCommit=true}){
+  let ws=record(projectRoot,run.run_id,task.task_id);
   if(!ws)return {status:'NO_WORKSPACE'};
   const hasEvidence=evidencePersisted??((task.evidence_refs||[]).length>0||(ws.checkpoints||[]).length>0);
   if(ws.writable&&!hasEvidence&&!force){
     return {status:'REFUSED_EVIDENCE_NOT_PERSISTED',workspace:ws};
+  }
+  if(autoCommit&&ws.mode==='isolated-worktree'&&ws.root&&fs.existsSync(ws.root)){
+    const res=commitTaskWorkspace(projectRoot,{run,task});
+    if(res.commit_sha)ws.commit_sha=res.commit_sha;
   }
   if(ws.mode==='isolated-worktree'&&ws.root&&ws.root!==projectRoot&&fs.existsSync(ws.root)){
     const r=git(['worktree','remove','--force',ws.root],projectRoot);

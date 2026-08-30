@@ -1,0 +1,21 @@
+{
+  "schema": "agent-sdlc/flaky-detector-validation/v1",
+  "checks": 3,
+  "passes": 3,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "detectFlakyTests-deterministic-pass",
+      "status": "PASS"
+    },
+    {
+      "name": "detectFlakyTests-deterministic-fail",
+      "status": "PASS"
+    },
+    {
+      "name": "detectFlakyTests-detects-flaky-command",
+      "status": "PASS"
+    }
+  ]
+}

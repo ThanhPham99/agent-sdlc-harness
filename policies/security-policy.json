@@ -22,6 +22,13 @@
       {"id": "PRIVATE_KEY_BLOCK", "regex": "BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY"},
       {"id": "STRIPE_API_KEY", "regex": "(sk|pk|rk)_(live|test)_[0-9a-zA-Z]{24,}"},
       {"id": "DATABASE_URI_CREDENTIAL", "regex": "(postgres|postgresql|mysql|mongodb|redis|amqp)://[^/ :@]+:[^/ :@]+@[^/ :]+"},
+      {"id": "ANTHROPIC_API_KEY", "regex": "sk-ant-[A-Za-z0-9_./+-]{32,}"},
+      {"id": "OPENAI_API_KEY", "regex": "sk-proj-[A-Za-z0-9_./+-]{32,}"},
+      {"id": "GITHUB_PAT", "regex": "(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36}"},
+      {"id": "GITHUB_FINE_GRAINED_PAT", "regex": "github_pat_[A-Za-z0-9_]{82}"},
+      {"id": "SLACK_API_TOKEN", "regex": "xox[baprs]-[0-9a-zA-Z]{10,48}"},
+      {"id": "SUPABASE_API_KEY", "regex": "sbp_[a-zA-Z0-9]{32,}"},
+      {"id": "GOOGLE_API_KEY", "regex": "AIza[0-9A-Za-z_./+-]{35}"},
       {"id": "ASSIGNED_CREDENTIAL", "regex": "(api[_-]?key|secret|token|password|passwd)[\"']?[[:space:]]*[:=][[:space:]]*[\"']?[A-Za-z0-9_./+-]{8,}"}
     ],
     "allowlist_paths": [

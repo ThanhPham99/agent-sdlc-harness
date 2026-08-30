@@ -85,11 +85,15 @@ export function condenseLog(rawLog,{maxLines=60,preserveHead=10,preserveTail=25}
   if(lines.length<=maxLines)return text;
 
   const errorIndices=new Set();
-  const errorPatterns=/(?:error|err|fail|fatal|exception|syntaxerror|typeerror|assertionerror|errno|stack|at\s+.*:\d+|\^)/i;
+  const errorPatterns=/(?:error|err|fail|fatal|exception|syntaxerror|typeerror|assertionerror|errno|stack|at\s+.*:\d+|\^|--- FAIL:|FAIL\s+|FAILED\s+|FAILURES|failures:|assertion failed:|short test summary info|expected:<.*> but was:<.*>|expected.*received|panicked at|panic:)/i;
+  const blockPatterns=/(?:short test summary info|FAILURES|failures:|=== FAILURES ===|AssertionError|Expected:|Received:|expected:<)/i;
 
   for(let i=0;i<lines.length;i++){
     if(errorPatterns.test(lines[i])){
-      for(let j=Math.max(0,i-2);j<=Math.min(lines.length-1,i+3);j++){
+      const isBlock=blockPatterns.test(lines[i]);
+      const before=isBlock?3:2;
+      const after=isBlock?8:4;
+      for(let j=Math.max(0,i-before);j<=Math.min(lines.length-1,i+after);j++){
         errorIndices.add(j);
       }
     }

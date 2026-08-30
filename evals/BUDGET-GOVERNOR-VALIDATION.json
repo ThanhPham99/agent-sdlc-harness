@@ -1,0 +1,21 @@
+{
+  "schema": "agent-sdlc/budget-governor-validation/v1",
+  "checks": 3,
+  "passes": 3,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "budget-status-ok-when-below-limits",
+      "status": "PASS"
+    },
+    {
+      "name": "budget-trips-when-cost-exceeds-limit",
+      "status": "PASS"
+    },
+    {
+      "name": "budget-trips-when-tokens-exceed-limit",
+      "status": "PASS"
+    }
+  ]
+}
