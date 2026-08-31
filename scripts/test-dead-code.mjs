@@ -81,6 +81,7 @@ await test('find-dead-code-unreachable-files-and-ghost-deps', () => {
 
   execFileSync('git', ['init', '-q'], { cwd: d });
   execFileSync('git', ['add', '.'], { cwd: d });
+  execFileSync('git', ['-c', 'user.email=test@test.local', '-c', 'user.name=Tester', 'commit', '-qm', 'init'], { cwd: d });
 
   const report = findDeadCode(d);
 

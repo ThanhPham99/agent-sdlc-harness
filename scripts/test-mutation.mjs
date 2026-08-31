@@ -57,6 +57,7 @@ await test('run-mutation-suite-on-target-file', () => {
 
   execFileSync('git', ['init', '-q'], { cwd: d });
   execFileSync('git', ['add', '.'], { cwd: d });
+  execFileSync('git', ['-c', 'user.email=test@test.local', '-c', 'user.name=Tester', 'commit', '-qm', 'init'], { cwd: d });
 
   const rep = runMutationSuite(d, { targetFile: 'calc.mjs' });
   assert(rep.total_mutants > 0, 'mutants should be generated');
@@ -93,6 +94,7 @@ await test('analyze-repository-mutations-multimodule', () => {
 
   execFileSync('git', ['init', '-q'], { cwd: d });
   execFileSync('git', ['add', '.'], { cwd: d });
+  execFileSync('git', ['-c', 'user.email=test@test.local', '-c', 'user.name=Tester', 'commit', '-qm', 'init'], { cwd: d });
 
   const repoRep = analyzeRepositoryMutations(d, { maxMutantsPerFile: 5 });
   assert(repoRep.total_files_analyzed === 2, 'should analyze 2 non-test modules');

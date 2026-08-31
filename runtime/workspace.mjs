@@ -199,7 +199,7 @@ export function integrateTaskWorkspace(projectRoot,{run,task,targetRoot=null}){
     commitTaskWorkspace(projectRoot,{run,task});
   }
   if(ws.mode==='isolated-worktree'&&ws.branch){
-    const r=git(['merge','--no-ff','-m',`Merge task ${task.task_id} from ${ws.branch}`,ws.branch],dest);
+    const r=git(['-c','user.email=agent-sdlc@localhost','-c','user.name=Agent SDLC','merge','--no-ff','-m',`Merge task ${task.task_id} from ${ws.branch}`,ws.branch],dest);
     const integrated=r.code===0;
     emitTaskEvent(projectRoot,task,{type:'task.workspace_integrated',payload:{branch:ws.branch,integrated,target:dest}});
     return {integrated,branch:ws.branch,commit_sha:ws.commit_sha,output:r.stdout||r.stderr};

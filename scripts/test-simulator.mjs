@@ -63,6 +63,7 @@ await test('simulate-run-budget-end-to-end', () => {
 
   execFileSync('git', ['init', '-q'], { cwd: d });
   execFileSync('git', ['add', '.'], { cwd: d });
+  execFileSync('git', ['-c', 'user.email=test@test.local', '-c', 'user.name=Tester', 'commit', '-qm', 'init'], { cwd: d });
 
   const run = {
     schema: 'agent-sdlc/run/v1',
