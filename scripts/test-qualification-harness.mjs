@@ -84,6 +84,35 @@ test('decision-schema-observed-state-enum-matches-the-state-machine',()=>{
   const missing=states.filter(s=>!allowed.includes(s));
   if(missing.length)throw Error(`state machine has states the schema forbids: ${JSON.stringify(missing)}`);
 });
+// Three places name overlays and nothing kept them agreeing: `incident` was
+// mandated by a router rule and mapped to an internal skill while having no
+// overlays/*.md for either to point at, and `release-impact` had a file that
+// nothing referenced. An overlay the router can mandate must have guidance to
+// load when it does.
+test('every-mandatable-overlay-has-a-guidance-file',()=>{
+  const rules=JSON.parse(fs.readFileSync(path.join(ROOT,'config','router-rules.json'),'utf8'));
+  const wf=JSON.parse(fs.readFileSync(path.join(ROOT,'config','workflows.json'),'utf8')).workflows;
+  const mandatable=new Set([
+    ...rules.rules.flatMap(r=>r.overlays||[]),
+    ...Object.values(wf).flatMap(v=>v.required_overlays||[])
+  ]);
+  const missing=[...mandatable].filter(o=>!fs.existsSync(path.join(ROOT,'overlays',`${o}.md`)));
+  if(missing.length)throw Error(`mandatable overlays with no overlays/*.md: ${JSON.stringify(missing)}`);
+});
+test('overlay-enum-is-exactly-what-the-router-can-mandate',()=>{
+  const rules=JSON.parse(fs.readFileSync(path.join(ROOT,'config','router-rules.json'),'utf8'));
+  const wf=JSON.parse(fs.readFileSync(path.join(ROOT,'config','workflows.json'),'utf8')).workflows;
+  const mandatable=[...new Set([
+    ...rules.rules.flatMap(r=>r.overlays||[]),
+    ...Object.values(wf).flatMap(v=>v.required_overlays||[])
+  ])].sort();
+  const schema=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8'));
+  const allowed=[...schema.properties.overlays.items.enum].sort();
+  // Offering an overlay the router never mandates is offering the model a
+  // wrong answer: release-impact and client-impact were picked in six cases
+  // purely because the enum listed them.
+  if(JSON.stringify(allowed)!==JSON.stringify(mandatable))throw Error(`enum ${JSON.stringify(allowed)} != mandatable ${JSON.stringify(mandatable)}`);
+});
 // Pinning is only safe if it cannot forbid an answer the corpus asks for.
 test('decision-schema-enums-admit-every-expected-value',()=>{
   const sem=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8')).properties;

@@ -59,21 +59,21 @@
     "overlays": {
       "type": "array",
       "uniqueItems": true,
+      "description": "Only the overlays the router mandates for the chosen workflow. Not a list of overlays that could plausibly apply: an overlay the router does not mandate is not part of the decision.",
       "items": {
         "type": "string",
         "enum": [
           "api-breaking-change",
-          "client-impact",
           "db-migration",
           "hotfix",
           "incident",
-          "release-impact",
           "security"
         ]
       }
     },
     "human_stop_required": {
-      "type": "boolean"
+      "type": "boolean",
+      "description": "True only when the request itself asks to bypass a required control -- deploy without approval, delete data without asking, disable a gate, publish despite failed verification, reveal secrets. Ordinary risky work is not a stop: that is what approval_required and the STRICT profile are for. This does not cancel the handoff. The router always routes and hands control to the orchestrator, which owns the NEEDS_CONFIRMATION suspension, so next_action stays RUN_SDLC_ORCHESTRATOR whenever the request activates."
     },
     "next_action": {
       "type": [

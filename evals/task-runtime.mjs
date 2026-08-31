@@ -295,6 +295,44 @@ export function runTaskRuntimeSuite(root){
       if(requireTask(projectRoot,run.run_id,'TASK-001').status!=='RUNNING')fail('an in-flight task was reset');
     });
 
+    // An amended plan used to be silently inert: an existing task kept its
+    // original scope and the caller got `preserved` with no hint the amendment
+    // had not landed. Amending the plan IS the prescribed fix for a wrong
+    // scope, so an amendment that cannot be seen is that fix failing quietly.
+    t('an-amended-plan-redefines-a-task-that-has-not-started',()=>{
+      const {run}=runAtImplement(root,projectRoot);
+      const before=requireTask(projectRoot,run.run_id,'TASK-001');
+      if(!['CREATED','READY'].includes(before.status))fail(`fixture assumption broke: TASK-001 is ${before.status}`);
+      const amended=basePlan();
+      amended.tasks[0].write_scope=[...(amended.tasks[0].write_scope||[]),'runtime/extra-file.mjs'];
+      const out=materializeTaskGraph(root,projectRoot,run,amended);
+      if(!out.materialized)fail(JSON.stringify(out.validation.errors));
+      if(!out.updated.includes('TASK-001'))fail(`amendment did not land: ${JSON.stringify(out)}`);
+      const after=requireTask(projectRoot,run.run_id,'TASK-001');
+      if(!after.scope.write.includes('runtime/extra-file.mjs'))fail(`scope not updated: ${JSON.stringify(after.scope.write)}`);
+      if(after.status!==before.status)fail('redefinition changed the status');
+      if(after.attempt!==before.attempt)fail('redefinition changed the attempt counter');
+    });
+
+    // The other half: a task with work bound to it keeps everything, because
+    // evidence describes the task as it was defined when that evidence was
+    // produced. It must be reported, not folded into `preserved` unmarked.
+    t('an-amended-plan-reports-a-conflict-when-work-is-already-bound',()=>{
+      const {run}=runAtImplement(root,projectRoot);
+      let task=requireTask(projectRoot,run.run_id,'TASK-001');
+      task=transitionTask(root,projectRoot,task,'RUNNING',{force:true});
+      task.diff_hash='deadbeef';task.base_revision='cafebabe';saveTask(projectRoot,task);
+      const amended=basePlan();
+      amended.tasks[0].write_scope=[...(amended.tasks[0].write_scope||[]),'runtime/extra-file.mjs'];
+      const out=materializeTaskGraph(root,projectRoot,run,amended);
+      if(out.updated.includes('TASK-001'))fail('scope was rewritten under bound evidence');
+      const c=(out.conflicts||[]).find(x=>x.task_id==='TASK-001');
+      if(!c)fail(`conflict not reported: ${JSON.stringify(out.conflicts)}`);
+      if(c.reason!=='DEFINITION_CHANGED_BUT_WORK_ALREADY_BOUND')fail(JSON.stringify(c));
+      const after=requireTask(projectRoot,run.run_id,'TASK-001');
+      if(after.scope.write.includes('runtime/extra-file.mjs'))fail('scope changed despite the conflict');
+    });
+
     t('implement-gate-closed-until-every-task-is-done',()=>{
       const {run}=runAtImplement(root,projectRoot);
       const gate=recordImplementationComplete(root,projectRoot,run);
@@ -1259,12 +1297,46 @@ export function runTaskRuntimeSuite(root){
       const task=requireTask(projectRoot,run.run_id,'TASK-001');
       const ws=createTaskWorkspace(projectRoot,{run,task,writer:'writer-a'});
       if(!ws.writable)fail('a task with a write scope got a read-only workspace');
+      // The fixture has to contain work for the refusal to be about anything.
+      // It used to be an untouched workspace, so the case asserted a refusal in
+      // the one situation where nothing was at stake.
+      fs.writeFileSync(path.join(ws.root,'uncaptured-work.txt'),'a worker wrote this and no evidence recorded it\n');
       const refused=cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted:false});
       if(refused.status!=='REFUSED_EVIDENCE_NOT_PERSISTED')fail(JSON.stringify(refused));
       const still=listTaskWorkspaces(projectRoot,run.run_id).find(w=>w.task_id==='TASK-001');
       if(still.status!=='ACTIVE')fail('the workspace was cleaned despite unpersisted evidence');
       const forced=cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted:false,force:true});
       if(forced.status!=='CLEANED')fail(JSON.stringify(forced));
+    });
+
+    // The other side of the same guard: a workspace created and never written to
+    // holds nothing, so refusing guarded nothing while leaving a real worktree
+    // on disk that only `force` could remove.
+    t('workspace-cleanup-allows-a-provably-empty-workspace',()=>{
+      const {run}=runAtImplement(root,projectRoot,{plan:basePlan({plan_id:'PLAN-007'})});
+      const task=requireTask(projectRoot,run.run_id,'TASK-001');
+      const ws=createTaskWorkspace(projectRoot,{run,task,writer:'writer-a'});
+      if(!ws.writable)fail('a task with a write scope got a read-only workspace');
+      const diff=workspaceDiff(projectRoot,ws);
+      if(diff.changed_paths.length)fail(`fixture assumption broke: ${JSON.stringify(diff.changed_paths)}`);
+      const out=cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted:false});
+      if(out.status!=='CLEANED')fail(JSON.stringify(out));
+      if(out.reason!=='WORKSPACE_EMPTY')fail(`cleanup did not say why it was allowed: ${JSON.stringify(out)}`);
+    });
+
+    // Emptiness has to be proven, not assumed. A worktree whose diff cannot be
+    // read is not a worktree known to be clean, so that case keeps refusing.
+    t('workspace-cleanup-refuses-when-emptiness-cannot-be-proven',()=>{
+      const {run}=runAtImplement(root,projectRoot,{plan:basePlan({plan_id:'PLAN-008'})});
+      const task=requireTask(projectRoot,run.run_id,'TASK-001');
+      const ws=createTaskWorkspace(projectRoot,{run,task,writer:'writer-a'});
+      // Point the record at a path that is not a git worktree at all.
+      const rec=path.join(projectRoot,'.agent-sdlc','workspaces',run.run_id,'TASK-001.json');
+      const saved=JSON.parse(fs.readFileSync(rec,'utf8'));
+      fs.writeFileSync(rec,JSON.stringify({...saved,root:path.join(projectRoot,'.agent-sdlc','no-such-worktree')},null,2));
+      const out=cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted:false});
+      if(out.status!=='REFUSED_EVIDENCE_NOT_PERSISTED')fail(`an unreadable worktree was treated as clean: ${JSON.stringify(out)}`);
+      fs.writeFileSync(rec,JSON.stringify(saved,null,2));
     });
   }
 

@@ -257,6 +257,17 @@ test('gate-blocks-missing-evidence',()=>{let ok=false;try{transition(ROOT,tmp,ru
 test('gate-accepts-evidence',()=>{transition(ROOT,tmp,run,'DESIGN',{evidence:['requirements_confirmed']});if(run.state!=='DESIGN')throw Error('no transition');});
 test('side-state-suspend-resume',()=>{transition(ROOT,tmp,run,'NEEDS_CONFIRMATION');if(run.suspended_from!=='DESIGN'||nextState(run)!=='DESIGN')throw Error('not suspended');transition(ROOT,tmp,run,'DESIGN');if(run.suspended_from!==null||run.state!=='DESIGN')throw Error('not resumed');});
 test('side-state-wrong-resume-blocked',()=>{transition(ROOT,tmp,run,'BLOCKED');let ok=false;try{transition(ROOT,tmp,run,'PLAN');}catch(e){ok=/resume must return/.test(e.message);}transition(ROOT,tmp,run,'DESIGN');if(!ok)throw Error('wrong resume accepted');});
+// skills/sdlc-orchestrator/SKILL.md states that a diff outside a task's approved
+// write scope "is a planning event that re-enters PLAN, not a retry" -- but the
+// state machine had no IMPLEMENT->PLAN edge, so the only way back was claiming
+// IMPLEMENT->REQUIREMENTS, i.e. asserting a requirement change that had not
+// happened. A documented recovery path has to exist.
+test('implement-can-reenter-plan',()=>{
+  const sm=JSON.parse(fs.readFileSync(path.join(ROOT,'config','state-machine.json'),'utf8'));
+  const edge=sm.edges.find(e=>e.from==='IMPLEMENT'&&e.to==='PLAN');
+  if(!edge)throw Error('IMPLEMENT->PLAN edge is missing');
+  if(edge.kind!=='reentry')throw Error(`expected a reentry edge, got ${edge.kind}`);
+});
 test('invalid-reentry-blocked',()=>{transition(ROOT,tmp,run,'PLAN',{evidence:['design_or_skip_decision'],internal:true});let ok=false;try{transition(ROOT,tmp,run,'INTAKE');}catch(e){ok=/reentry/.test(e.message);}if(!ok)throw Error('invalid reentry accepted');});
 
 // Context compiler / progressive disclosure
