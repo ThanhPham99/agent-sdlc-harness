@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "agent-sdlc-harness",
   "displayName": "Agent SDLC Harness",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc1",
   "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for software delivery and maintenance.",
   "author": {
     "name": "Agent SDLC Harness Contributors"

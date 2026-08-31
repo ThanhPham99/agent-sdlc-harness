@@ -102,6 +102,8 @@ jobs:
         run: npm run test:mutation
       - name: Predictive budgeting and pre-flight cost simulator
         run: npm run test:simulator
+      - name: Expanded commands, rewind engine, and webhook edge cases
+        run: npm run test:commands-expansion
       # --- build, then the surfaces that read what it produced -----------
       - name: Build provider distributions
         run: npm run build

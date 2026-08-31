@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/test-output-guard-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc1",
   "guard": "adapters/hooks/test-output-guard.mjs",
   "checks": 31,
   "passes": 31,

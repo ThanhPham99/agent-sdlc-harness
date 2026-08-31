@@ -2,7 +2,7 @@
 name: sdlc-router
 description: Use automatically, before planning/editing/tool use, for any request that changes, investigates, operates on, or ships a real software repository or system - features, bug fixes, debugging, incidents, tests, review, security, dependency/platform upgrades, database migrations, CI/CD, release, deployment, observability, maintenance, modernization, documentation and compliance work. Routes to exactly one SDLC workflow and hands control to sdlc-orchestrator. Generic programming Q&A, tutorials and standalone examples do not activate it.
 metadata:
-  version: "3.0.0-alpha6"
+  version: "3.0.0-rc1"
 ---
 # SDLC Router
 

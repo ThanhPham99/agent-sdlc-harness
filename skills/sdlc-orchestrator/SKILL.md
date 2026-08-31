@@ -2,7 +2,7 @@
 name: sdlc-orchestrator
 description: Run or resume the complete evidence-driven software lifecycle after routing. Enforces deterministic state, progressive context, budgets, least privilege, verification gates, artifact handoffs, review, release/deploy/observe, incident and maintenance workflows.
 metadata:
-  version: "3.0.0-alpha6"
+  version: "3.0.0-rc1"
 ---
 # SDLC Orchestrator
 

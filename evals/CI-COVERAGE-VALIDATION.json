@@ -1,10 +1,10 @@
 {
   "schema": "agent-sdlc/ci-coverage-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc1",
   "workflow": ".github/workflows/ci.yml",
   "check_script": "check",
-  "checks": 34,
-  "passes": 33,
+  "checks": 56,
+  "passes": 55,
   "failures": 0,
   "suites": [
     {
@@ -161,6 +161,138 @@
       "script": "test:dev-link",
       "status": "PASS",
       "gated_via": "test:dev-link",
+      "problems": []
+    },
+    {
+      "script": "test:prompt-caching",
+      "status": "PASS",
+      "gated_via": "test:prompt-caching",
+      "problems": []
+    },
+    {
+      "script": "test:worktree",
+      "status": "PASS",
+      "gated_via": "test:worktree",
+      "problems": []
+    },
+    {
+      "script": "test:dashboard",
+      "status": "PASS",
+      "gated_via": "test:dashboard",
+      "problems": []
+    },
+    {
+      "script": "test:parallel",
+      "status": "PASS",
+      "gated_via": "test:parallel",
+      "problems": []
+    },
+    {
+      "script": "test:secret-scan",
+      "status": "PASS",
+      "gated_via": "test:secret-scan",
+      "problems": []
+    },
+    {
+      "script": "test:budget",
+      "status": "PASS",
+      "gated_via": "test:budget",
+      "problems": []
+    },
+    {
+      "script": "test:tui",
+      "status": "PASS",
+      "gated_via": "test:tui",
+      "problems": []
+    },
+    {
+      "script": "test:fallback",
+      "status": "PASS",
+      "gated_via": "test:fallback",
+      "problems": []
+    },
+    {
+      "script": "test:memory",
+      "status": "PASS",
+      "gated_via": "test:memory",
+      "problems": []
+    },
+    {
+      "script": "test:flaky",
+      "status": "PASS",
+      "gated_via": "test:flaky",
+      "problems": []
+    },
+    {
+      "script": "test:mcp-gateway",
+      "status": "PASS",
+      "gated_via": "test:mcp-gateway",
+      "problems": []
+    },
+    {
+      "script": "test:test-impact",
+      "status": "PASS",
+      "gated_via": "test:test-impact",
+      "problems": []
+    },
+    {
+      "script": "test:pr-synthesizer",
+      "status": "PASS",
+      "gated_via": "test:pr-synthesizer",
+      "problems": []
+    },
+    {
+      "script": "test:security-linter",
+      "status": "PASS",
+      "gated_via": "test:security-linter",
+      "problems": []
+    },
+    {
+      "script": "test:error-triage",
+      "status": "PASS",
+      "gated_via": "test:error-triage",
+      "problems": []
+    },
+    {
+      "script": "test:webhook",
+      "status": "PASS",
+      "gated_via": "test:webhook",
+      "problems": []
+    },
+    {
+      "script": "test:sse",
+      "status": "PASS",
+      "gated_via": "test:sse",
+      "problems": []
+    },
+    {
+      "script": "test:dead-code",
+      "status": "PASS",
+      "gated_via": "test:dead-code",
+      "problems": []
+    },
+    {
+      "script": "test:arch-linter",
+      "status": "PASS",
+      "gated_via": "test:arch-linter",
+      "problems": []
+    },
+    {
+      "script": "test:mutation",
+      "status": "PASS",
+      "gated_via": "test:mutation",
+      "problems": []
+    },
+    {
+      "script": "test:simulator",
+      "status": "PASS",
+      "gated_via": "test:simulator",
+      "problems": []
+    },
+    {
+      "script": "test:commands-expansion",
+      "status": "PASS",
+      "gated_via": "test:commands-expansion",
       "problems": []
     },
     {

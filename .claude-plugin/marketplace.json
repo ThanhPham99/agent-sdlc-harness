@@ -9,7 +9,7 @@
       "name": "agent-sdlc-harness",
       "source": "./",
       "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for coding agents.",
-      "version": "3.0.0-alpha6",
+      "version": "3.0.0-rc1",
       "strict": true,
       "category": "development",
       "tags": [

@@ -1,6 +1,6 @@
 {
   "name": "agent-sdlc-harness",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc1",
   "private": true,
   "type": "module",
   "engines": {
@@ -81,6 +81,7 @@
     "test:arch-linter": "node scripts/test-arch-linter.mjs",
     "test:mutation": "node scripts/test-mutation.mjs",
     "test:simulator": "node scripts/test-simulator.mjs",
+    "test:commands-expansion": "node scripts/test-commands-expansion.mjs",
     "typecheck": "node scripts/validate-types.mjs"
   }
 }

@@ -1,10 +1,196 @@
 {
   "schema": "agent-sdlc/version-consistency/v1",
-  "version": "3.0.0-alpha6",
-  "checks": 60,
-  "passes": 60,
+  "version": "3.0.0-rc1",
+  "checks": 62,
+  "passes": 62,
   "failures": 0,
-  "behind": [],
+  "behind": [
+    {
+      "where": "config/procedures.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "config/roles.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "config/router-rules.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "config/skills.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "config/state-machine.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "config/task-state-machine.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "config/tools.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "config/workflows.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "policies/context-policy.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "policies/cost-context-governance.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "policies/design-discovery.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "policies/failure-policy.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "policies/model-routing.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "policies/parallelism-policy.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "policies/security-policy.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "policies/stage-policy.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "policies/task-failure-policy.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "policies/task-scheduling.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/DELIVERY-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/DESIGN-DISCOVERY-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/DETERMINISTIC-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/FALLBACK-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/GOVERNOR-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/INVALIDATION-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/LEARNING-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/PLAN-QUALITY-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/PROVIDER-PREFLIGHT.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/QUALIFICATION-HARNESS-REGRESSION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/QUALIFICATION-TRANSPORT-REGRESSION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/REPO-INTELLIGENCE-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/TASK-CONTEXT-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/TASK-ENGINE-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/TASK-RECOVERY-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/TASK-REVIEW-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/TASK-SCHEDULER-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/TRACEABILITY-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    },
+    {
+      "where": "evals/TYPE-VALIDATION.json#version",
+      "found": "3.0.0-alpha6",
+      "current": "3.0.0-rc1"
+    }
+  ],
   "problems": [],
   "status": "PASS"
 }

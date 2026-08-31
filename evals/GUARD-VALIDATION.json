@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/guard-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc1",
   "guard": "adapters/hooks/pretool-guard.mjs",
   "checks": 63,
   "passes": 63,

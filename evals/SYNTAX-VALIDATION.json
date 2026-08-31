@@ -1,9 +1,9 @@
 {
   "schema": "agent-sdlc/syntax-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc1",
   "checked": "node --check (parse only, not executed)",
-  "checks": 171,
-  "passes": 171,
+  "checks": 172,
+  "passes": 172,
   "failures": 0,
   "results": [
     {
@@ -638,6 +638,11 @@
     },
     {
       "file": "scripts/test-codex-bootstrap.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-commands-expansion.mjs",
       "status": "PASS",
       "error": null
     },

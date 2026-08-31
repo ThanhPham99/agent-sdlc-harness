@@ -1,4 +1,4 @@
-# Remaining Audit Findings — agent-sdlc-harness 3.0.0-alpha6
+# Remaining Audit Findings — agent-sdlc-harness 3.0.0-rc1
 
 Source: Comprehensive audit of all 40 remaining runtime modules across six work streams per plan `docs/superpowers/plans/2026-08-30-remaining-audit.md`.
 

@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/cli-surface-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc1",
   "commands": [
     "activation",
     "approval",

@@ -69,7 +69,8 @@ const ENTRIES=[
   'scripts/test-dead-code.mjs',
   'scripts/test-arch-linter.mjs',
   'scripts/test-mutation.mjs',
-  'scripts/test-simulator.mjs'
+  'scripts/test-simulator.mjs',
+  'scripts/test-commands-expansion.mjs'
 ];
 
 // Suites deliberately not measured, each with the reason. Naming them rather
@@ -128,7 +129,7 @@ if(unclassified.length){
 }
 
 const outDir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-cov-'));
-const concurrency=Math.max(1,Math.min(ENTRIES.length,os.availableParallelism?.()??os.cpus().length));
+const concurrency=Math.max(1,Math.min(8,os.availableParallelism?.()??os.cpus().length));
 
 function runEntry(entry){
   return new Promise((resolve,reject)=>{

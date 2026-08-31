@@ -63,4 +63,66 @@ await test('mcp-gateway-calls-govern-tool',async ()=>{
   assert(res.result&&res.result.content[0].text.includes('agent-sdlc/budget-circuit-breaker/v1'),'govern output missing');
 });
 
+await test('mcp-gateway-calls-flaky-detect-tool',async ()=>{
+  const res=await handleMcpGatewayRequest(ROOT,{
+    method:'tools/call',
+    params:{name:'agent_sdlc_flaky_detect',arguments:{command:['node','-e','process.exit(0)'],iterations:2}},
+    id:4
+  });
+  assert(res.result&&res.result.content[0].text.includes('agent-sdlc/flaky-test-report/v1'),'flaky detect output missing');
+});
+
+await test('mcp-gateway-calls-memory-lookup-tool',async ()=>{
+  const d=fixture();
+  const {indexFailurePattern}=await import('../runtime/learning.mjs');
+  indexFailurePattern(d,{signature:'timeout in network call',hint:'increase timeout value'});
+
+  const res=await handleMcpGatewayRequest(d,{
+    method:'tools/call',
+    params:{name:'agent_sdlc_memory_lookup',arguments:{query:'timeout in network call'}},
+    id:5
+  });
+  assert(res.result&&res.result.content[0].text.includes('increase timeout value'),'memory lookup output missing');
+});
+
+await test('mcp-gateway-calls-release-notes-tool',async ()=>{
+  const d=fixture();
+  const r=route(ROOT,'MCP Release Notes Test');
+  const run=newRun(ROOT,d,{objective:'MCP Release Notes Test',route:r});
+
+  const res=await handleMcpGatewayRequest(d,{
+    method:'tools/call',
+    params:{name:'agent_sdlc_release_notes',arguments:{run_id:run.run_id,version:'3.0.0-rc1',bump_type:'minor'}},
+    id:6
+  });
+  assert(res.result&&res.result.content[0].text.includes('agent-sdlc/semantic-release-notes/v1'),'release notes output missing');
+});
+
+await test('mcp-gateway-handles-unknown-tool',async ()=>{
+  const res=await handleMcpGatewayRequest(ROOT,{
+    method:'tools/call',
+    params:{name:'non_existent_tool',arguments:{}},
+    id:7
+  });
+  assert(res.error&&res.error.code===-32601,'unknown tool error missing');
+});
+
+await test('mcp-gateway-handles-tool-execution-error',async ()=>{
+  const res=await handleMcpGatewayRequest(ROOT,{
+    method:'tools/call',
+    params:{name:'agent_sdlc_release_notes',arguments:{run_id:'invalid-non-existent-run'}},
+    id:8
+  });
+  assert(res.error&&res.error.code===-32000,'execution error catch block missing');
+});
+
+await test('mcp-gateway-handles-unsupported-method',async ()=>{
+  const res=await handleMcpGatewayRequest(ROOT,{
+    method:'notifications/cancelled',
+    params:{},
+    id:9
+  });
+  assert(res.error&&res.error.code===-32600,'unsupported method error missing');
+});
+
 finish();
