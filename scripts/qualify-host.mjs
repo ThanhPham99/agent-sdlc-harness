@@ -6,7 +6,7 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {
   ROOT,VERSION,HOSTS,hostPreflight,selectedCases,packageDigest,packagePath,
-  qualificationSubjectDigest,corpusDigest,evidenceInputs,environmentFingerprint,runtimeContract,runtimeContractDigest,
+  qualificationSubjectDigest,corpusDigest,evidenceInputs,environmentFingerprint,runtimeContract,runtimeContractDigest,stripSchemaDialect,
   extractStructured,classifyFailure,extractUsage,summarizeUsage,sanitizeDiagnostic,utcNow,exitCode,loadCases,loadLock,
   activationProbeCases,activationExpectations,spawnHost
 } from './qualification-lib.mjs';
@@ -25,7 +25,18 @@ function cpSkills(srcRoot,dstRoot){fs.mkdirSync(dstRoot,{recursive:true});for(co
 function commandFor(h,prompt,schema,workdir,pf,tmp,pkg){
   const bin=pf.resolved_binary, help=readHelp(bin,h), env={...process.env}; let final=null; const model=process.env[`AGENT_SDLC_QUAL_MODEL_${h.toUpperCase()}`]; const effort=process.env[`AGENT_SDLC_QUAL_EFFORT_${h.toUpperCase()}`];
   if(h==='claude'){
-    const schemaText=fs.readFileSync(schema,'utf8'); const a=[]; if(help.includes('--bare'))a.push('--bare'); a.push('--plugin-dir',pkg,'-p',prompt,'--output-format','json','--json-schema',schemaText); if(help.includes('--no-session-persistence'))a.push('--no-session-persistence'); if(help.includes('--max-turns'))a.push('--max-turns','3'); if(model&&help.includes('--model'))a.push('--model',model); if(effort&&help.includes('--effort'))a.push('--effort',effort); return {bin,args:a,env,cwd:workdir,final};
+    // --bare is deliberately not passed. It promises a hermetic run, but on
+    // Claude Code 2.1.233 it also drops the user's credentials: every case came
+    // back "Not logged in · Please run /login", and the same command without it
+    // answers normally.
+    //
+    // The $schema key is stripped rather than removed from the schema files.
+    // The host validator rejects the whole document with "no schema with key or
+    // ref https://json-schema.org/draft/2020-12/schema"; the identical schema
+    // without that key is accepted. The files keep it so every other consumer,
+    // and every editor, still sees a declared dialect.
+    const schemaText=JSON.stringify(stripSchemaDialect(JSON.parse(fs.readFileSync(schema,'utf8'))));
+    const a=['--plugin-dir',pkg,'-p',prompt,'--output-format','json','--json-schema',schemaText]; if(help.includes('--no-session-persistence'))a.push('--no-session-persistence'); if(help.includes('--max-turns'))a.push('--max-turns','3'); if(model&&help.includes('--model'))a.push('--model',model); if(effort&&help.includes('--effort'))a.push('--effort',effort); return {bin,args:a,env,cwd:workdir,final};
   }
   if(h==='codex'){
     const home=path.join(tmp,'codex-home'); cpSkills(pkg,path.join(home,'skills')); env.CODEX_HOME=home; final=path.join(tmp,'codex-final.json'); const a=['exec']; if(help.includes('--ephemeral'))a.push('--ephemeral'); a.push('--json'); if(model&&help.includes('--model'))a.push('--model',model); if(effort&&help.includes('-c'))a.push('-c',`model_reasoning_effort="${effort}"`); a.push('--output-schema',schema,'--output-last-message',final,'--sandbox','read-only','--skip-git-repo-check',prompt); return {bin,args:a,env,cwd:workdir,final};

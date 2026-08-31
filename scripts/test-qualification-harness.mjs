@@ -5,7 +5,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {
   ROOT,VERSION,HOSTS,packageDigest,corpusDigest,qualificationSubjectDigest,hostPreflight,
-  extractStructured,extractUsage
+  extractStructured,extractUsage,stripSchemaDialect
 } from './qualification-lib.mjs';
 import {writeReport} from './lib/report-io.mjs';
 
@@ -26,6 +26,48 @@ function fakeCli(name,missing=''){
 }
 for(const h of HOSTS)test(`preflight-compatible-${h}`,()=>{const p=hostPreflight(h,{binary:fakeCli(h)});if(p.status!=='READY')throw Error(JSON.stringify(p));});
 test('preflight-incompatible-blocked',()=>{const p=hostPreflight('claude',{binary:fakeCli('claude','--json-schema')});if(p.status!=='BLOCKED'||!p.checks[1].missing_tokens.includes('--json-schema'))throw Error(JSON.stringify(p));});
+// Claude Code 2.1.233 dropped --max-turns. Requiring it blocked preflight on a
+// flag the runtime already treated as optional, so a host that lacks only an
+// optional token stays READY and says which capability it gave up.
+test('preflight-ready-without-optional-max-turns',()=>{
+  const p=hostPreflight('claude',{binary:fakeCli('claude','--max-turns')});
+  if(p.status!=='READY')throw Error(JSON.stringify(p));
+  if(!p.degraded_capabilities.some(d=>d.flag==='--max-turns'))throw Error('degradation not reported');
+  if(p.checks[1].required_tokens.includes('--max-turns'))throw Error('--max-turns is still required');
+});
+// --bare is not merely optional: on Claude Code 2.1.233 it drops the user's
+// credentials, so every live case came back "Not logged in". It must never be
+// required, and qualification must never pass it.
+test('preflight-ready-without-bare',()=>{
+  const p=hostPreflight('claude',{binary:fakeCli('claude','--bare')});
+  if(p.status!=='READY')throw Error(JSON.stringify(p));
+  if(p.checks[1].required_tokens.includes('--bare'))throw Error('--bare is still required');
+});
+test('qualification-never-passes-bare',()=>{
+  const src=fs.readFileSync(path.join(ROOT,'scripts','qualify-host.mjs'),'utf8');
+  if(/push\('--bare'\)|'--bare',/.test(src))throw Error('qualify-host still passes --bare');
+});
+// The host validator rejects a document that declares a dialect it cannot
+// resolve, so the key is stripped on the way to --json-schema -- everywhere it
+// appears, because a nested subschema carries one too.
+test('strip-schema-dialect-removes-every-occurrence',()=>{
+  const out=stripSchemaDialect({
+    $schema:'https://json-schema.org/draft/2020-12/schema',
+    type:'object',
+    properties:{nested:{$schema:'https://json-schema.org/draft/2020-12/schema',type:'string'}},
+    anyOf:[{$schema:'x',const:1}]
+  });
+  if(JSON.stringify(out).includes('$schema'))throw Error(JSON.stringify(out));
+  if(out.type!=='object'||out.properties.nested.type!=='string'||out.anyOf[0].const!==1)throw Error('stripping altered the schema body');
+});
+// Stripping happens at the call site; the files keep their declared dialect so
+// every other consumer, and every editor, still sees one.
+test('live-decision-schemas-keep-their-dialect-on-disk',()=>{
+  for(const f of ['semantic-decision.schema.json','repository-decision.schema.json']){
+    const d=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live',f),'utf8'));
+    if(!d.$schema)throw Error(`${f} lost its $schema declaration`);
+  }
+});
 test('structured-output-extraction',()=>{const x=extractStructured('{"response":"{\\"activate\\":true,\\"workflow\\":\\"new-feature\\"}"}',null,'activate');if(x?.workflow!=='new-feature')throw Error(JSON.stringify(x));});
 test('token-usage-proxy-marked',()=>{const u=extractUsage('not-json','hello','world');if(u.source!=='PROXY_ESTIMATE'||!u.total_tokens)throw Error(JSON.stringify(u));});
 

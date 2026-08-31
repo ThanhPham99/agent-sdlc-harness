@@ -46,7 +46,15 @@ if(update||process.env.CI){
 
 // Git's own pathspec glob, not shell expansion -- this is a single argv
 // element, never passed through a shell.
-const porcelain=execFileSync('git',['status','--porcelain','--','evals/*.json'],{cwd:ROOT,encoding:'utf8'});
+//
+// `:(glob)` matters: in a plain pathspec git's `*` crosses `/`, so
+// `evals/*.json` also matched `evals/live/*.json` and `evals/activation/*.json`
+// -- the hand-authored qualification corpora and the tier lock, none of which
+// any suite writes. Running `npm run check` after editing one silently reverted
+// the edit, and those files are digest-bound inputs to live qualification, so
+// the loss was invisible until an evidence digest disagreed. With `:(glob)` the
+// `*` stays inside one path segment and only the top-level reports match.
+const porcelain=execFileSync('git',['status','--porcelain','--',':(glob)evals/*.json'],{cwd:ROOT,encoding:'utf8'});
 const restored=porcelain.split('\n').filter(Boolean)
   // Modified-and-tracked only ('M' in either column). '??' is untracked --
   // git checkout on a path git has never seen errors instead of no-op-ing.
