@@ -17,6 +17,31 @@
       "type": [
         "string",
         "null"
+      ],
+      "enum": [
+        "new-feature",
+        "continue-feature",
+        "bug-fix",
+        "hotfix",
+        "refactor",
+        "performance",
+        "dependency-upgrade",
+        "database-migration",
+        "api-breaking-change",
+        "security-remediation",
+        "ci-cd-change",
+        "infrastructure-change",
+        "observability-change",
+        "incident-response",
+        "maintenance",
+        "modernization",
+        "compliance-change",
+        "documentation",
+        "technical-spike",
+        "test-only",
+        "deprecation-removal",
+        "requirement-update",
+        null
       ]
     },
     "profile": {
@@ -33,10 +58,19 @@
     },
     "overlays": {
       "type": "array",
+      "uniqueItems": true,
       "items": {
-        "type": "string"
-      },
-      "uniqueItems": true
+        "type": "string",
+        "enum": [
+          "api-breaking-change",
+          "client-impact",
+          "db-migration",
+          "hotfix",
+          "incident",
+          "release-impact",
+          "security"
+        ]
+      }
     },
     "human_stop_required": {
       "type": "boolean"
@@ -45,6 +79,10 @@
       "type": [
         "string",
         "null"
+      ],
+      "enum": [
+        "RUN_SDLC_ORCHESTRATOR",
+        null
       ]
     },
     "reason_codes": {

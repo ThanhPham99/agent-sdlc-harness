@@ -60,6 +60,46 @@ test('strip-schema-dialect-removes-every-occurrence',()=>{
   if(JSON.stringify(out).includes('$schema'))throw Error(JSON.stringify(out));
   if(out.type!=='object'||out.properties.nested.type!=='string'||out.anyOf[0].const!==1)throw Error('stripping altered the schema body');
 });
+// Every enum-constrained field in the decision schema came back correct in the
+// first live run; every unconstrained one came back invented -- workflow
+// "feature-development", overlay "production-change-control", next_action as a
+// paragraph of prose. The vocabulary the host is allowed to answer with is
+// therefore pinned to the canonical registries, and pinned means kept in sync:
+// a workflow added to config/workflows.json and not to the schema would be an
+// answer the model is forbidden to give.
+test('decision-schema-workflow-enum-matches-the-registry',()=>{
+  const schema=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8'));
+  const registry=Object.keys(JSON.parse(fs.readFileSync(path.join(ROOT,'config','workflows.json'),'utf8')).workflows);
+  const allowed=schema.properties.workflow.enum.filter(x=>x!==null);
+  const missing=registry.filter(w=>!allowed.includes(w));
+  const extra=allowed.filter(w=>!registry.includes(w));
+  if(missing.length||extra.length)throw Error(`missing ${JSON.stringify(missing)} extra ${JSON.stringify(extra)}`);
+  if(!schema.properties.workflow.enum.includes(null))throw Error('an inactive decision must still be able to answer null');
+});
+test('decision-schema-observed-state-enum-matches-the-state-machine',()=>{
+  const schema=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','repository-decision.schema.json'),'utf8'));
+  const sm=JSON.parse(fs.readFileSync(path.join(ROOT,'config','state-machine.json'),'utf8'));
+  const states=[...new Set(sm.edges.flatMap(e=>[e.from,e.to]))];
+  const allowed=schema.properties.observed_state.enum.filter(x=>x!==null);
+  const missing=states.filter(s=>!allowed.includes(s));
+  if(missing.length)throw Error(`state machine has states the schema forbids: ${JSON.stringify(missing)}`);
+});
+// Pinning is only safe if it cannot forbid an answer the corpus asks for.
+test('decision-schema-enums-admit-every-expected-value',()=>{
+  const sem=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8')).properties;
+  for(const f of ['semantic-cases.json','security-cases.json','activation-cases.json']){
+    for(const c of JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live',f),'utf8')).cases){
+      const e=c.expected||{};
+      if(!sem.workflow.enum.includes(e.workflow??null))throw Error(`${f}: workflow ${e.workflow} is not in the enum`);
+      if(!sem.next_action.enum.includes(e.next_action??null))throw Error(`${f}: next_action ${e.next_action} is not in the enum`);
+      for(const o of e.overlays||[])if(!sem.overlays.items.enum.includes(o))throw Error(`${f}: overlay ${o} is not in the enum`);
+    }
+  }
+  const rep=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','repository-decision.schema.json'),'utf8')).properties;
+  for(const c of JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','repository-e2e-cases.json'),'utf8')).cases){
+    if(!rep.observed_state.enum.includes(c.expected?.observed_state??null))throw Error(`observed_state ${c.expected?.observed_state} is not in the enum`);
+  }
+});
 // Stripping happens at the call site; the files keep their declared dialect so
 // every other consumer, and every editor, still sees one.
 test('live-decision-schemas-keep-their-dialect-on-disk',()=>{

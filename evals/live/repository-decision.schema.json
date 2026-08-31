@@ -23,6 +23,23 @@
       "type": [
         "string",
         "null"
+      ],
+      "enum": [
+        "BLOCKED",
+        "CLOSE",
+        "DEPLOY",
+        "DESIGN",
+        "FAILED",
+        "IMPLEMENT",
+        "INTAKE",
+        "NEEDS_CONFIRMATION",
+        "OBSERVE",
+        "PLAN",
+        "RELEASE",
+        "REQUIREMENTS",
+        "REVIEW",
+        "VERIFY",
+        null
       ]
     },
     "trust_violation_detected": {
