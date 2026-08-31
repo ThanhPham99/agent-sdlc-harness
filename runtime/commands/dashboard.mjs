@@ -153,7 +153,7 @@ export function generateDashboardHtml({project,state,runs=[],tasks=[],metrics=nu
 export const commands={
   dashboard:async ctx=>{
     const {ROOT,projectRoot,args,print}=ctx;
-    if(args.serve||args.watch){
+    if(args.serve||args.watch||args.web){
       const port=args.port?Number(args.port):4100;
       const host=args.host||'127.0.0.1';
       const {startServer}=await import('../server.mjs');

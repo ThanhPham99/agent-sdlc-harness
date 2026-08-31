@@ -82,6 +82,8 @@
     "test:mutation": "node scripts/test-mutation.mjs",
     "test:simulator": "node scripts/test-simulator.mjs",
     "test:commands-expansion": "node scripts/test-commands-expansion.mjs",
+    "test:web-dashboard": "node scripts/test-web-dashboard.mjs",
+    "test:simulate-e2e": "node scripts/simulate-e2e-run.mjs",
     "typecheck": "node scripts/validate-types.mjs"
   }
 }

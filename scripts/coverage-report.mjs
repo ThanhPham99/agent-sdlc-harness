@@ -70,7 +70,9 @@ const ENTRIES=[
   'scripts/test-arch-linter.mjs',
   'scripts/test-mutation.mjs',
   'scripts/test-simulator.mjs',
-  'scripts/test-commands-expansion.mjs'
+  'scripts/test-commands-expansion.mjs',
+  'scripts/test-web-dashboard.mjs',
+  'scripts/simulate-e2e-run.mjs'
 ];
 
 // Suites deliberately not measured, each with the reason. Naming them rather

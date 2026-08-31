@@ -104,6 +104,10 @@ jobs:
         run: npm run test:simulator
       - name: Expanded commands, rewind engine, and webhook edge cases
         run: npm run test:commands-expansion
+      - name: Built-in Live Web Dashboard and SSE Streaming Server
+        run: npm run test:web-dashboard
+      - name: End-to-end full 10-stage lifecycle dogfooding simulation
+        run: npm run test:simulate-e2e
       # --- build, then the surfaces that read what it produced -----------
       - name: Build provider distributions
         run: npm run build

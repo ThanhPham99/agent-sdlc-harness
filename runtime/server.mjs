@@ -243,6 +243,41 @@ export function startServer(projectRoot, { port = 4100, host = '127.0.0.1' } = {
       return;
     }
 
+    if (pathname === '/api/dag') {
+      const state = loadState(projectRoot);
+      const runId = url.searchParams.get('run_id') || state.active_run_id || (listRuns(projectRoot)[0]);
+      const tasks = runId ? listTasks(projectRoot, runId) : [];
+      const { renderTaskDagMermaid } = await import('./task-scheduler.mjs');
+      const mermaid = renderTaskDagMermaid(tasks);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        schema: 'agent-sdlc/dag-view/v1',
+        run_id: runId || null,
+        tasks_count: tasks.length,
+        mermaid,
+        tasks
+      }, null, 2));
+      return;
+    }
+
+    if (pathname === '/api/trace') {
+      const state = loadState(projectRoot);
+      const runId = url.searchParams.get('run_id') || state.active_run_id || (listRuns(projectRoot)[0]);
+      const { loadTraceabilityGraph, renderTraceabilityMermaid } = await import('./traceability.mjs');
+      const graph = runId ? loadTraceabilityGraph(projectRoot, runId) : null;
+      const mermaid = graph ? renderTraceabilityMermaid(graph) : 'graph TD\n  Empty["(No Traceability Graph)"]';
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        schema: 'agent-sdlc/trace-view/v1',
+        run_id: runId || null,
+        nodes_count: graph?.nodes?.length || 0,
+        edges_count: graph?.edges?.length || 0,
+        mermaid,
+        graph
+      }, null, 2));
+      return;
+    }
+
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not Found');
   });

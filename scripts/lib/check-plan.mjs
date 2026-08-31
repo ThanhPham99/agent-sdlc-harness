@@ -29,7 +29,7 @@ export const STAGES=[
       'test:parallel','test:secret-scan','test:budget','test:tui','test:fallback','test:memory',
       'test:flaky','test:mcp-gateway','test:test-impact','test:pr-synthesizer','test:security-linter',
       'test:error-triage','test:webhook','test:sse','test:dead-code','test:arch-linter',
-      'test:mutation','test:simulator','test:commands-expansion']
+      'test:mutation','test:simulator','test:commands-expansion','test:web-dashboard','test:simulate-e2e']
   },
   {
     name:'build',

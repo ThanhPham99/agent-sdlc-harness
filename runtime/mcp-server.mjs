@@ -165,7 +165,7 @@ function arrayArg(v,name){
   if(Array.isArray(v))return v;
   throw new Error(`${name} must be an array of strings, received ${typeof v}`);
 }
-function execute(name,a={}){
+export function execute(name,a={}){
   const projectRoot=pr(a);
   if(name==='agent_sdlc_route')return route(ROOT,a.objective,a.workflow||null,a.profile||null);
   if(name==='agent_sdlc_start'){

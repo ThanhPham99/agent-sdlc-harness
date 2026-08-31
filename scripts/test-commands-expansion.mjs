@@ -857,4 +857,351 @@ await test('commands-run-rewind-and-approval-revoke',async ()=>{
   assert(revAppOut&&revAppOut.revoked_at,'run approval revoke failed');
 });
 
+await test('task-scheduler-edge-cases-and-caps-and-mermaid',async ()=>{
+  const d=fixture();
+  const r=route(ROOT,'Scheduler Edge Cases Test');
+  const run=newRun(ROOT,d,{objective:'Scheduler Edge Cases Test',route:r});
+
+  const {
+    mustSerialize,
+    benefitJustified,
+    readySet,
+    scheduleTasks,
+    scheduleView,
+    renderTaskDagMermaid
+  }=await import('../runtime/task-scheduler.mjs');
+  const {saveTask}=await import('../runtime/store.mjs');
+
+  const policy={
+    serialize_on:{
+      categories:['MIGRATION','SECURITY_CRITICAL'],
+      risk:{security:['HIGH'],data:['CRITICAL']},
+      destructive_data_change:true
+    },
+    benefit_threshold:{min_estimated_seconds:10},
+    writers:{hard_default_max:4,default_max_concurrent:2,absolute_max:8},
+    profile_max_writers:{STANDARD:2,STRICT:1,FAST:4},
+    read_only:{hard_default_max:4,default_max_concurrent:2},
+    budget:{respect_stage_max_model_calls:true,min_remaining_model_calls_per_dispatch:2}
+  };
+
+  // Test mustSerialize
+  const tSec={category:'FEATURE',risk:{security:'HIGH'}};
+  const tData={category:'FEATURE',risk:{data:'CRITICAL'}};
+  const tDestruct={category:'FEATURE',risk:{destructive_data_change:true}};
+  assert(mustSerialize(policy,tSec).length>0,'mustSerialize security failed');
+  assert(mustSerialize(policy,tData).length>0,'mustSerialize data failed');
+  assert(mustSerialize(policy,tDestruct).length>0,'mustSerialize destructive failed');
+
+  // Test benefitJustified
+  assert(benefitJustified(policy,[{scope:{write:[]}}]).justified===true,'read-only benefit failed');
+  assert(benefitJustified(policy,[{scope:{write:['a']}},{scope:{write:['b']},execution:{estimated_seconds:5}}]).justified===false,'short task no-benefit failed');
+  assert(benefitJustified(policy,[{scope:{write:['a']}},{scope:{write:['b']},execution:{estimated_seconds:15}}]).justified===true,'long task benefit failed');
+
+  // Test tasks in store
+  const t1={
+    run_id:run.run_id,
+    task_id:'TASK-001',
+    category:'MIGRATION',
+    status:'READY',
+    scope:{write:['src/a.js'],interfaces:['UserApi']},
+    execution:{parallel_candidate:true,estimated_seconds:20}
+  };
+  const t2={
+    run_id:run.run_id,
+    task_id:'TASK-002',
+    category:'FEATURE',
+    status:'READY',
+    scope:{write:['src/a.js'],interfaces:['UserApi']},
+    execution:{parallel_candidate:true,estimated_seconds:20}
+  };
+  const t3={
+    run_id:run.run_id,
+    task_id:'TASK-003',
+    category:'FEATURE',
+    status:'PENDING',
+    dependencies:['TASK-999'],
+    scope:{write:[],interfaces:[]}
+  };
+  saveTask(d,t1);
+  saveTask(d,t2);
+  saveTask(d,t3);
+
+  // readySet test
+  const rs=readySet(d,run.run_id,{outerStage:'EXECUTE',root:ROOT});
+  assert(rs.ready.includes('TASK-001'),'readySet missing TASK-001');
+  assert(rs.excluded.some(x=>x.task_id==='TASK-003'),'readySet should exclude TASK-003');
+
+  // scheduleTasks with budget exhausted
+  const schedExhausted=scheduleTasks(ROOT,d,run,{
+    outerStage:'EXECUTE',
+    budget:{remaining_model_calls:0}
+  });
+  assert(schedExhausted.reason==='budget-exhausted','budget-exhausted check failed');
+
+  // scheduleTasks with serialized boundary
+  const schedNorm=scheduleTasks(ROOT,d,run,{outerStage:'EXECUTE'});
+  assert(schedNorm.selected.includes('TASK-001'),'scheduleTasks should select TASK-001');
+  assert(schedNorm.deferred.some(d=>d.task_id==='TASK-002'),'scheduleTasks should defer TASK-002 on serialized boundary');
+
+  // scheduleView
+  const view=scheduleView(d,run.run_id);
+  assert(view.schema==='agent-sdlc/task-graph-view/v1','scheduleView schema failed');
+
+  // renderTaskDagMermaid
+  const mmEmpty=renderTaskDagMermaid([]);
+  assert(mmEmpty.includes('Empty'),'mermaid empty failed');
+  const mmTasks=renderTaskDagMermaid([
+    {task_id:'TASK-001',title:'First Task',status:'DONE',dependencies:[]},
+    {task_id:'TASK-002',title:'Second Task',status:'IN_PROGRESS',dependencies:['TASK-001']},
+    {task_id:'TASK-003',title:'Third Task',status:'BLOCKED',dependencies:['TASK-002']},
+    {task_id:'TASK-004',title:'Fourth Task',status:'FAILED',dependencies:['TASK-003']},
+    {task_id:'TASK-005',title:'Fifth Task',status:'CLAIMED',dependencies:[]},
+    {task_id:'TASK-006',title:'Sixth Task',status:'VERIFYING',dependencies:[]},
+    {task_id:'TASK-007',title:'Seventh Task',status:'REVIEWING',dependencies:[]}
+  ]);
+  assert(mmTasks.includes('TASK_001 --> TASK_002'),'mermaid dependencies failed');
+  assert(mmTasks.includes('style TASK_001 fill:#2ecc71'),'mermaid DONE style failed');
+});
+
+await test('mcp-server-prompts-resources-and-unified-tasks',async ()=>{
+  const d=fixture();
+  const r=route(ROOT,'MCP Deep Test');
+  const run=newRun(ROOT,d,{objective:'MCP Deep Test',route:r});
+
+  const {
+    getPrompt,
+    readResource,
+    execute
+  }=await import('../runtime/mcp-server.mjs');
+  const {saveTask}=await import('../runtime/store.mjs');
+
+  saveTask(d,{
+    run_id:run.run_id,
+    task_id:'TASK-001',
+    status:'READY',
+    category:'FEATURE',
+    attempt:1,
+    dependencies:[],
+    scope:{write:['src/index.js'],interfaces:[]}
+  });
+
+  // Prompts
+  const p1=getPrompt('sdlc_feature_kickoff',{objective:'build auth'});
+  assert(p1&&p1.messages[0].content.text.includes('build auth'),'getPrompt kickoff failed');
+  const p2=getPrompt('sdlc_pr_review',{run_id:run.run_id});
+  assert(p2&&p2.messages[0].content.text.includes(run.run_id),'getPrompt pr review failed');
+  const p3=getPrompt('sdlc_incident_triage',{symptoms:'database timeout'});
+  assert(p3&&p3.messages[0].content.text.includes('database timeout'),'getPrompt incident triage failed');
+
+  let promptErr=null;
+  try{getPrompt('unknown_prompt');}catch(e){promptErr=e;}
+  assert(promptErr&&promptErr.message.includes('Prompt not found'),'unknown prompt should throw');
+
+  // Resources
+  const resProj=readResource('sdlc://project/status',d);
+  assert(resProj&&resProj.text,'resource project status failed');
+  const resIntel=readResource('sdlc://intelligence/summary',d);
+  assert(resIntel&&resIntel.text,'resource intel summary failed');
+  const resRun=readResource(`sdlc://runs/${run.run_id}/state`,d);
+  assert(resRun&&resRun.text,'resource run state failed');
+  const resTasks=readResource(`sdlc://runs/${run.run_id}/tasks`,d);
+  assert(resTasks&&resTasks.text,'resource run tasks failed');
+  const resDag=readResource(`sdlc://runs/${run.run_id}/dag`,d);
+  assert(resDag&&resDag.text.includes('graph TD'),'resource run tasks dag mermaid failed');
+
+  let resErr=null;
+  try{readResource('sdlc://unknown/resource',d);}catch(e){resErr=e;}
+  assert(resErr&&resErr.message.includes('Resource not found'),'unknown resource should throw');
+
+  // Unified Task tool operations
+  const opList=execute('agent_sdlc_task',{project_root:d,run_id:run.run_id,op:'list'});
+  assert(Array.isArray(opList)&&opList.length>0,'agent_sdlc_task list failed');
+
+  const opStatus=execute('agent_sdlc_task',{project_root:d,run_id:run.run_id,op:'status'});
+  assert(opStatus&&opStatus.total>=1,'agent_sdlc_task status progress failed');
+
+  const opTaskStatus=execute('agent_sdlc_task',{project_root:d,run_id:run.run_id,op:'status',task_id:'TASK-001'});
+  assert(opTaskStatus&&opTaskStatus.task_id==='TASK-001','agent_sdlc_task single status failed');
+
+  const opReady=execute('agent_sdlc_task',{project_root:d,run_id:run.run_id,op:'ready'});
+  assert(opReady&&opReady.schema==='agent-sdlc/task-ready-set/v1','agent_sdlc_task ready failed');
+
+  const opSched=execute('agent_sdlc_task',{project_root:d,run_id:run.run_id,op:'schedule'});
+  assert(opSched&&opSched.schema==='agent-sdlc/task-schedule-decision/v1','agent_sdlc_task schedule failed');
+
+  const opCtx=execute('agent_sdlc_task',{project_root:d,run_id:run.run_id,op:'context',task_id:'TASK-001'});
+  assert(opCtx&&opCtx.context_hash,'agent_sdlc_task context failed');
+
+  const opCtxPrompt=execute('agent_sdlc_task',{project_root:d,run_id:run.run_id,op:'context',task_id:'TASK-001',prompt:true});
+  assert(opCtxPrompt&&opCtxPrompt.prompt,'agent_sdlc_task context prompt failed');
+
+  const opEvid=execute('agent_sdlc_task',{project_root:d,run_id:run.run_id,op:'evidence',task_id:'TASK-001'});
+  assert(opEvid&&opEvid.status,'agent_sdlc_task evidence failed');
+
+  const opGraph=execute('agent_sdlc_task',{project_root:d,run_id:run.run_id,op:'graph'});
+  assert(opGraph&&opGraph.schema==='agent-sdlc/task-graph-view/v1','agent_sdlc_task graph failed');
+
+  const opGraphMermaid=execute('agent_sdlc_task',{project_root:d,run_id:run.run_id,op:'graph',mermaid:true});
+  assert(opGraphMermaid&&opGraphMermaid.mermaid,'agent_sdlc_task graph mermaid failed');
+
+  let opUnknownErr=null;
+  try{execute('agent_sdlc_task',{project_root:d,run_id:run.run_id,op:'invalid_op'});}catch(e){opUnknownErr=e;}
+  assert(opUnknownErr&&opUnknownErr.message.includes('unknown op'),'unknown op should throw');
+
+  // Transition force disabled rejection check
+  let forceErr=null;
+  try{execute('agent_sdlc_transition',{project_root:d,run_id:run.run_id,to:'REQUIREMENTS',force:true});}catch(e){forceErr=e;}
+  assert(forceErr&&forceErr.message.includes('FORCE_DISABLED'),'force transition should throw');
+
+  // Artifact put via MCP
+  const art=execute('agent_sdlc_artifact_put',{project_root:d,run_id:run.run_id,kind:'test-artifact',content:'sample text'});
+  assert(art&&art.artifact_id,'agent_sdlc_artifact_put failed');
+});
+
+await test('task-verification-deep-branches',async ()=>{
+  const d=fixture();
+  const r=route(ROOT,'Task Verification Deep Test');
+  const run=newRun(ROOT,d,{objective:'Task Verification Deep Test',route:r});
+
+  const {
+    environmentFingerprint,
+    verificationStrategy,
+    plannedCommands,
+    scopeAudit,
+    verifyTask
+  }=await import('../runtime/task-verification.mjs');
+  const {saveTask}=await import('../runtime/store.mjs');
+
+  const env=environmentFingerprint();
+  assert(env&&env.platform,'environmentFingerprint failed');
+
+  // Strategies
+  assert(verificationStrategy({category:'integration'},{escalate:true})==='BROAD_SUITE','escalate strategy failed');
+  assert(verificationStrategy({category:'integration'},{escalate:false})==='AFFECTED_INTEGRATION','integration category strategy failed');
+  assert(verificationStrategy({category:'feature',risk:{security:'HIGH'}},{escalate:false})==='AFFECTED_INTEGRATION','security high strategy failed');
+  assert(verificationStrategy({category:'feature',scope:{interfaces:['Api']}},{escalate:false})==='AFFECTED_INTEGRATION','interfaces strategy failed');
+  assert(verificationStrategy({category:'feature',scope:{interfaces:[]}},{escalate:false})==='TARGETED','targeted strategy failed');
+
+  // Scope Audit
+  const audit1=scopeAudit({scope:{write:['src/*'],forbidden:['src/secret.js']}},['src/index.js','src/secret.js','other.js']);
+  assert(audit1.respected===false,'scopeAudit should flag forbidden and other');
+  assert(audit1.out_of_scope_paths.includes('src/secret.js'),'scopeAudit should catch secret.js');
+  assert(audit1.out_of_scope_paths.includes('other.js'),'scopeAudit should catch other.js');
+
+  const audit2=scopeAudit({scope:{write:['src/index.js'],forbidden:[]}},['src/index.js']);
+  assert(audit2.respected===true,'scopeAudit respected failed');
+
+  // verifyTask dryRun
+  const tDry={
+    run_id:run.run_id,
+    task_id:'TASK-001',
+    status:'READY',
+    category:'feature',
+    verification:{targeted_tests:['tests/a.test.js']},
+    scope:{write:['src/a.js']}
+  };
+  saveTask(d,tDry);
+  const dryRes=verifyTask(ROOT,d,run,tDry,{dryRun:true});
+  assert(dryRes.evidence.status==='PENDING','verifyTask dryRun status failed');
+
+  // verifyTask with unsatisfied selector
+  const tUnsat={
+    run_id:run.run_id,
+    task_id:'TASK-002',
+    status:'READY',
+    category:'feature',
+    verification:{targeted_tests:[]},
+    scope:{write:['src/a.js']}
+  };
+  saveTask(d,tUnsat);
+  const unsatRes=verifyTask(ROOT,d,run,tUnsat,{commands:[{kind:'test_targeted',command:['node','{selector}'],unsatisfied_selector:true}]});
+  assert(unsatRes.evidence.status==='FAIL','unsatisfied selector should fail verification');
+});
+
+await test('task-migration-deep-branches',async ()=>{
+  const d=fixture();
+  const r=route(ROOT,'Migration Deep Test');
+  const run=newRun(ROOT,d,{objective:'Migration Deep Test',route:r});
+
+  const {
+    findPlanArtifact,
+    assignStableTaskIds,
+    migrateRunToTaskRuntime
+  }=await import('../runtime/task-migration.mjs');
+  const {putArtifact}=await import('../runtime/store.mjs');
+
+  // assignStableTaskIds
+  const planRaw={
+    schema:'agent-sdlc/task-plan/v1',
+    plan_id:'PLAN-001',
+    tasks:[
+      {task_id:'TASK-001',title:'First'},
+      {title:'Second without id'}
+    ]
+  };
+  const {plan:planAssigned,assigned}=assignStableTaskIds(planRaw);
+  assert(assigned.length===1,'assignStableTaskIds assigned count failed');
+  assert(planAssigned.tasks[1].task_id==='TASK-002','assignStableTaskIds id sequence failed');
+
+  // migrateRunToTaskRuntime without plan artifact
+  const migNoPlan=migrateRunToTaskRuntime(ROOT,d,run);
+  assert(migNoPlan.status==='NO_PLAN_ARTIFACT','migrateRun should report NO_PLAN_ARTIFACT');
+
+  // Record a valid task plan artifact
+  putArtifact(d,{
+    kind:'task-plan',
+    content:JSON.stringify(planRaw),
+    runId:run.run_id,
+    stage:run.state
+  });
+
+  const found=findPlanArtifact(d,run.run_id);
+  assert(found&&found.plan,'findPlanArtifact failed');
+
+  // migrateRunToTaskRuntime dryRun
+  const migDry=migrateRunToTaskRuntime(ROOT,d,run,{dryRun:true});
+  assert(migDry.status==='DRY_RUN','migrateRun dryRun status failed');
+
+  // migrateRunToTaskRuntime with invalid schema fail-closed
+  const runInvalid=newRun(ROOT,d,{objective:'Invalid Plan Test',route:r});
+  putArtifact(d,{
+    kind:'task-plan',
+    content:JSON.stringify({schema:'agent-sdlc/unknown-plan/v99',tasks:[]}),
+    runId:runInvalid.run_id,
+    stage:runInvalid.state
+  });
+  const migInvalid=migrateRunToTaskRuntime(ROOT,d,runInvalid);
+  assert(migInvalid.status==='FAILED_CLOSED','migrateRun unknown schema should FAIL_CLOSED');
+});
+
+await test('webhook-system-deep-branches',async ()=>{
+  const d=fixture();
+  const {
+    sendWebhook,
+    sendWebhookWithRetry,
+    recordWebhookDelivery,
+    getWebhookDeliveries
+  }=await import('../runtime/webhook.mjs');
+
+  // sendWebhook invalid URL
+  const invRes=await sendWebhook('not-a-valid-url',{test:true});
+  assert(invRes.status==='INVALID_URL','sendWebhook invalid url failed');
+
+  // recordWebhookDelivery bounding at 100
+  for(let i=0;i<105;i++){
+    recordWebhookDelivery(d,{
+      delivery_id:`wh_test_${i}`,
+      status:'DELIVERED',
+      url:'http://localhost:9999/hook',
+      created_at:new Date().toISOString()
+    });
+  }
+  const dels=getWebhookDeliveries(d,{limit:200});
+  assert(dels.length===100,'recordWebhookDelivery bounding at 100 failed');
+
+  const delsLimit=getWebhookDeliveries(d,{limit:10});
+  assert(delsLimit.length===10,'getWebhookDeliveries limit failed');
+});
+
 finish();
