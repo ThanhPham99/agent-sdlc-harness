@@ -10,7 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {initProject,listTasks,loadTask,saveTask,loadTaskGraph,putArtifact,listTaskEvents,getTaskContextManifest} from '../runtime/store.mjs';
+import {initProject,listTasks,loadTask,saveTask,loadTaskGraph,putArtifact,listTaskEvents,getTaskContextManifest,tasksDir} from '../runtime/store.mjs';
 import {route} from '../runtime/router.mjs';
 import {newRun,transition,recordDesignDecision,recordTaskPlan,materializeRunTasks,recordImplementationComplete} from '../runtime/orchestrator.mjs';
 import {materializeTaskGraph,refreshReadiness,transitionTask,evaluateTransition,dependencyState,taskProgress,requireTask} from '../runtime/task-engine.mjs';
@@ -282,6 +282,40 @@ export function runTaskRuntimeSuite(root){
       if(out.materialized)fail('an invalid plan was materialized');
       if(!out.validation.errors.some(e=>e.code==='UNKNOWN_DEPENDENCY'))fail(JSON.stringify(out.validation.errors));
       if(listTasks(projectRoot,run.run_id).length)fail('tasks were created from an invalid plan');
+    });
+
+    // listTasks used to select records by filename, /^TASK-[0-9]+.json$/. The
+    // plan validator places no constraint on task_id, so a plan numbered any
+    // other way materialized with `materialized: true` and was then invisible
+    // to every reader of the graph: an unexecutable run that reported success.
+    t('a-task-id-that-is-not-TASK-NNN-is-still-a-task',()=>{
+      const plan=basePlan();
+      plan.tasks[0].task_id='auth-token-store';
+      const {run}=runAtImplement(root,projectRoot,{plan});
+      const ids=listTasks(projectRoot,run.run_id).map(x=>x.task_id);
+      if(!ids.includes('auth-token-store'))fail(`materialized task is invisible to listTasks: ${JSON.stringify(ids)}`);
+      if(taskProgress(projectRoot,run.run_id).total!==1)fail('taskProgress does not see the task');
+    });
+
+    t('sidecars-are-never-returned-as-tasks',()=>{
+      const {run}=runAtImplement(root,projectRoot);
+      const dir=tasksDir(projectRoot,run.run_id);
+      fs.writeFileSync(path.join(dir,'migration.json'),JSON.stringify({schema:'agent-sdlc/task-migration/v1',run_id:run.run_id}));
+      fs.writeFileSync(path.join(dir,'notes.json'),JSON.stringify({anything:true}));
+      const ids=listTasks(projectRoot,run.run_id).map(x=>x.task_id);
+      if(ids.length!==1||ids[0]!=='TASK-001')fail(`a sidecar was read as a task: ${JSON.stringify(ids)}`);
+    });
+
+    // The id becomes a filename, so it is authored input reaching the
+    // filesystem. Selecting records by content rather than by a TASK-NNN
+    // pattern removed the accidental guard that used to sit in the way.
+    t('a-task-id-cannot-write-outside-its-run-directory',()=>{
+      const {run}=runAtImplement(root,projectRoot);
+      for(const bad of ['../escape','a/b','..']){
+        let threw=false;
+        try{saveTask(projectRoot,{run_id:run.run_id,task_id:bad,status:'CREATED'});}catch{threw=true;}
+        if(!threw)fail(`saveTask accepted an unsafe task_id: ${JSON.stringify(bad)}`);
+      }
     });
 
     t('materialization-is-idempotent',()=>{

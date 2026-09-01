@@ -157,26 +157,46 @@ export function getArtifact(projectRoot,ref){const hash=ref.replace('artifact://
 // the content-addressed artifact store; task records hold refs.
 // ---------------------------------------------------------------------------
 export function tasksDir(projectRoot,runId){return path.join(stateDir(projectRoot),'tasks',runId);}
-export function taskPath(projectRoot,runId,taskId){return path.join(tasksDir(projectRoot,runId),`${taskId}.json`);}
+// Task ids come from a plan, and a plan is authored input: the id becomes a
+// filename, so an id carrying a separator or a parent reference would write a
+// task record outside its own run directory. The plan validator constrains the
+// graph, not the characters, and the safe set is deliberately narrow -- the ids
+// the engine has ever produced are TASK-001 and the like.
+const SAFE_TASK_ID=/^[A-Za-z0-9._-]+$/;
+export function assertSafeTaskId(taskId){
+  if(typeof taskId!=='string'||!SAFE_TASK_ID.test(taskId)||taskId==='.'||taskId==='..')
+    throw new Error(`unsafe task_id: ${JSON.stringify(taskId)}`);
+  return taskId;
+}
+export function taskPath(projectRoot,runId,taskId){return path.join(tasksDir(projectRoot,runId),`${assertSafeTaskId(taskId)}.json`);}
 export function taskGraphPath(projectRoot,runId){return path.join(tasksDir(projectRoot,runId),'graph.json');}
 // `writeJson` is itself temp-file + rename now, so every JSON document the
 // runtime owns gets the durability task records already had.
 const writeJsonAtomic=writeJson;
 export function saveTask(projectRoot,task){
   if(!task?.run_id||!task?.task_id)throw new Error('task requires run_id and task_id');
+  assertSafeTaskId(task.task_id);
   task.updated_at=now();
   writeJsonAtomic(taskPath(projectRoot,task.run_id,task.task_id),task);
   return task;
 }
 export function loadTask(projectRoot,runId,taskId){return readJson(taskPath(projectRoot,runId,taskId));}
 export function hasTask(projectRoot,runId,taskId){return fs.existsSync(taskPath(projectRoot,runId,taskId));}
+// `graph.json`, `migration.json` and any future sidecar file live in the same
+// directory and must never be read as tasks. That used to be enforced by
+// matching the filename against /^TASK-[0-9]+.json$/, which also silently
+// excluded every task record whose id followed a different convention: the
+// plan validator places no constraint on task_id, so such a plan materialized
+// with `materialized: true` and was then invisible to list, refresh, schedule,
+// the governor and taskProgress -- an unexecutable run with nothing to say why.
+// A record is now recognised by what it is rather than what it is called.
+const TASK_SIDECARS=new Set(['graph.json','migration.json']);
 export function listTasks(projectRoot,runId){
   const d=tasksDir(projectRoot,runId);
   if(!fs.existsSync(d))return [];
-  // Only task records. `graph.json`, `migration.json` and any future sidecar
-  // file live in the same directory and must never be read as tasks.
-  return fs.readdirSync(d).filter(x=>/^TASK-[0-9]+\.json$/.test(x)).sort()
-    .map(x=>readJson(path.join(d,x)));
+  return fs.readdirSync(d).filter(x=>x.endsWith('.json')&&!TASK_SIDECARS.has(x)).sort()
+    .map(x=>readJson(path.join(d,x)))
+    .filter(t=>t&&typeof t.task_id==='string'&&typeof t.run_id==='string');
 }
 export function saveTaskGraph(projectRoot,graph){
   if(!graph?.run_id)throw new Error('task graph requires run_id');
