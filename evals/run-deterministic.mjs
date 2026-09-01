@@ -138,6 +138,70 @@ test('router-rejects-a-rule-naming-an-undefined-workflow',()=>{
   if(!/unknown workflow: ghost-workflow/.test(msg||''))
     throw Error(`a rule naming an undefined workflow should fail loudly, got ${JSON.stringify(msg)}`);
 });
+// The router skill states the profile and overlay mapping in its own text,
+// because a host deciding a route cannot read config/workflows.json: it runs
+// with its working directory set somewhere else entirely, and in a real install
+// that relative path names a file in the operator's repository. Stating it twice
+// is the same duplication that let the two config tables drift for three
+// workflows, so this time the copies are compared mechanically. Both directions
+// matter: a workflow the skill forgets is as wrong as one it invents.
+const backticked=s=>[...s.matchAll(/`([a-z-]+)`/g)].map(m=>m[1]);
+function skillMapping(text){
+  const line=label=>{
+    const m=text.match(new RegExp(`^\\s*- \\*\\*${label}\\*\\*:(.*)$`,'m'));
+    return m?m[1]:null;
+  };
+  const strict=line('STRICT'), fast=line('FAST'), overlays=line('Mandatory overlays');
+  if(strict===null||fast===null||overlays===null)
+    return {error:`the skill no longer states the mapping in the expected form (STRICT ${strict!==null}, FAST ${fast!==null}, overlays ${overlays!==null})`};
+  const pairs={};
+  for(const m of overlays.matchAll(/`([a-z-]+)`\s*(?:→|->)\s*`([a-z-]+)`/g))pairs[m[1]]=[m[2]];
+  return {profiles:{STRICT:backticked(strict),FAST:backticked(fast)},overlays:pairs};
+}
+function skillMappingDiff(text,wf){
+  const stated=skillMapping(text);
+  if(stated.error)return [stated.error];
+  const problems=[];
+  const setOf=p=>Object.entries(wf).filter(([,v])=>v.default_profile===p).map(([k])=>k).sort();
+  for(const p of ['STRICT','FAST']){
+    const want=setOf(p), got=[...stated.profiles[p]].sort();
+    for(const w of want)if(!got.includes(w))problems.push(`${w} is ${p} in config/workflows.json but the skill does not list it there`);
+    for(const g of got)if(!want.includes(g))problems.push(`the skill lists ${g} as ${p} but config/workflows.json does not`);
+  }
+  // STANDARD is stated as the remainder, so a workflow named under STRICT or
+  // FAST that is really STANDARD is already caught above; the reverse -- a
+  // STANDARD workflow wrongly named -- is caught the same way.
+  for(const [k,v] of Object.entries(wf)){
+    const want=v.required_overlays||[];
+    const got=stated.overlays[k]||[];
+    if(JSON.stringify([...want].sort())!==JSON.stringify([...got].sort()))
+      problems.push(`${k} mandates ${JSON.stringify(want)} in config/workflows.json but the skill states ${JSON.stringify(got)}`);
+  }
+  for(const k of Object.keys(stated.overlays))if(!wf[k])problems.push(`the skill states an overlay for ${k}, which is not a workflow`);
+  return problems;
+}
+const routerSkillPath=path.join(ROOT,'skills','sdlc-router','SKILL.md');
+test('router-skill-states-the-same-mapping-as-the-workflow-table',()=>{
+  const problems=skillMappingDiff(fs.readFileSync(routerSkillPath,'utf8'),workflows);
+  if(problems.length)throw Error(problems.join('; '));
+});
+test('router-skill-mapping-check-fails-on-drift',()=>{
+  const text=fs.readFileSync(routerSkillPath,'utf8');
+  // Move one workflow from FAST to STRICT and drop one overlay, then require the
+  // same function to name both -- a guard nobody has seen fail is not a guard.
+  const moved=text.replace('- **FAST**: `maintenance`, ','- **FAST**: ').replace('- **STRICT**: ','- **STRICT**: `maintenance`, ');
+  const movedProblems=skillMappingDiff(moved,workflows);
+  if(!movedProblems.some(p=>/^maintenance is FAST/.test(p))||!movedProblems.some(p=>/lists maintenance as STRICT/.test(p)))
+    throw Error(`moving a workflow between profiles was not caught: ${JSON.stringify(movedProblems)}`);
+  const dropped=text.replace('`security-remediation` → `security`; ','');
+  const droppedProblems=skillMappingDiff(dropped,workflows);
+  if(!droppedProblems.some(p=>/^security-remediation mandates/.test(p)))
+    throw Error(`dropping an overlay was not caught: ${JSON.stringify(droppedProblems)}`);
+  // A skill that stops stating the mapping at all must fail loudly rather than
+  // comparing two empty sets and passing.
+  if(!skillMappingDiff('# nothing here\n',workflows).some(p=>/no longer states the mapping/.test(p)))
+    throw Error('a skill with no mapping at all was not caught');
+});
 test('router-requirement-update-semantic-rule',()=>{const r=route(ROOT,'Requirements changed for refunds; process the requirement delta');if(r.workflow!=='requirement-update')throw Error(JSON.stringify(r));});
 // Non-ASCII objectives. Diacritics used to be stripped before matching, so any
 // Vietnamese objective fell through to the default workflow with the wrong
