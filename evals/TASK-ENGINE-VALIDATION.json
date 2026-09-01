@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/task-engine-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc1",
   "state_machine": {
     "version": "3.0.0-alpha6",
     "statuses": [
@@ -76,8 +76,8 @@
     },
     "caller_assertable": false
   },
-  "checks": 15,
-  "passes": 15,
+  "checks": 28,
+  "passes": 28,
   "failures": 0,
   "results": [
     {
@@ -129,7 +129,27 @@
       "status": "PASS"
     },
     {
+      "name": "a-task-id-that-is-not-TASK-NNN-is-still-a-task",
+      "status": "PASS"
+    },
+    {
+      "name": "sidecars-are-never-returned-as-tasks",
+      "status": "PASS"
+    },
+    {
+      "name": "a-task-id-cannot-write-outside-its-run-directory",
+      "status": "PASS"
+    },
+    {
       "name": "materialization-is-idempotent",
+      "status": "PASS"
+    },
+    {
+      "name": "an-amended-plan-redefines-a-task-that-has-not-started",
+      "status": "PASS"
+    },
+    {
+      "name": "an-amended-plan-reports-a-conflict-when-work-is-already-bound",
       "status": "PASS"
     },
     {
@@ -143,8 +163,8 @@
   ],
   "status": "PASS",
   "migration": {
-    "checks": 6,
-    "passes": 6,
+    "checks": 8,
+    "passes": 8,
     "failures": 0,
     "results": [
       {
@@ -169,6 +189,14 @@
       },
       {
         "name": "workspace-cleanup-refuses-to-destroy-unpersisted-evidence",
+        "status": "PASS"
+      },
+      {
+        "name": "workspace-cleanup-allows-a-provably-empty-workspace",
+        "status": "PASS"
+      },
+      {
+        "name": "workspace-cleanup-refuses-when-emptiness-cannot-be-proven",
         "status": "PASS"
       }
     ],
