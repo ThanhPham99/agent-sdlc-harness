@@ -78,6 +78,66 @@ test('router-refactor',()=>{const r=route(ROOT,'refactor service boundaries');if
 test('router-default-feature',()=>{const r=route(ROOT,'Add refund capability');if(r.workflow!=='new-feature')throw Error(JSON.stringify(r));});
 test('router-explicit-workflow',()=>{const r=route(ROOT,'continue prior work','continue-feature');if(r.workflow!=='continue-feature'||!r.reason_codes.includes('EXPLICIT_WORKFLOW'))throw Error(JSON.stringify(r));});
 test('router-continue-feature-semantic-rule',()=>{const r=route(ROOT,'Continue phase 2 of the existing feature');if(r.workflow!=='continue-feature')throw Error(JSON.stringify(r));});
+// The profile and the overlay set belong to the workflow, not to the keyword
+// rule that selected it. config/router-rules.json used to carry its own copy of
+// both and had drifted for modernization, maintenance and incident-response, so
+// the same workflow came back STRICT when a keyword picked it and STANDARD when
+// it was named explicitly -- and this suite passed for as long as that was true,
+// because every case pinned one path and nothing compared the two.
+const routerRules=root=>JSON.parse(fs.readFileSync(path.join(root,'config','router-rules.json'),'utf8'));
+function declaresProfileOrOverlays(root){
+  const r=routerRules(root);
+  const offenders=[];
+  r.rules.forEach((rule,i)=>{for(const k of ['profile','overlays'])if(k in rule)offenders.push(`rules[${i}].${k}`);});
+  for(const k of ['profile','overlays'])if(k in (r.default||{}))offenders.push(`default.${k}`);
+  return offenders;
+}
+function configCopy(prefix,mutate){
+  const d=makeTempDir(prefix);
+  fs.mkdirSync(path.join(d,'config'));
+  const rules=routerRules(ROOT);
+  const workflows=JSON.parse(fs.readFileSync(path.join(ROOT,'config','workflows.json'),'utf8'));
+  mutate({rules,workflows});
+  fs.writeFileSync(path.join(d,'config','router-rules.json'),JSON.stringify(rules,null,2));
+  fs.writeFileSync(path.join(d,'config','workflows.json'),JSON.stringify(workflows,null,2));
+  return d;
+}
+test('router-profile-agrees-between-keyword-and-explicit-paths',()=>{
+  const sameSet=(a,b)=>JSON.stringify([...a].sort())===JSON.stringify([...b].sort());
+  const rules=routerRules(ROOT).rules;
+  const expected=rules.reduce((n,r)=>n+r.keywords.length,0);
+  let checked=0;
+  for(const rule of rules){
+    for(const k of rule.keywords){
+      const byKeyword=route(ROOT,k);
+      const byName=route(ROOT,k,byKeyword.workflow);
+      if(byKeyword.profile!==byName.profile||!sameSet(byKeyword.overlays,byName.overlays))
+        throw Error(`${rule.workflow} via ${JSON.stringify(k)}: keyword path ${JSON.stringify(byKeyword)} vs explicit ${JSON.stringify(byName)}`);
+      checked++;
+    }
+  }
+  if(checked!==expected)throw Error(`expected ${expected} keywords checked, checked ${checked}`);
+});
+test('router-rules-declares-no-profile-or-overlays',()=>{
+  const offenders=declaresProfileOrOverlays(ROOT);
+  if(offenders.length)throw Error(`config/router-rules.json still declares ${offenders.join(', ')}`);
+  // A guard nobody has seen fail is not a guard, so reintroduce both fields in a
+  // copy and require the same function to name them.
+  const d=configCopy('agent-sdlc-router-divergence-',({rules})=>{rules.rules[0].profile='FAST';rules.default.overlays=[];});
+  const found=declaresProfileOrOverlays(d);
+  if(!found.includes('rules[0].profile')||!found.includes('default.overlays'))
+    throw Error(`the guard missed a reintroduced field: ${JSON.stringify(found)}`);
+});
+test('router-rejects-a-rule-naming-an-undefined-workflow',()=>{
+  const d=configCopy('agent-sdlc-router-unknown-wf-',({rules})=>{
+    rules.rules=[{keywords:['ghost work'],workflow:'ghost-workflow'}];
+    rules.default={workflow:'new-feature'};
+  });
+  let msg=null;
+  try{route(d,'ghost work');}catch(e){msg=e.message;}
+  if(!/unknown workflow: ghost-workflow/.test(msg||''))
+    throw Error(`a rule naming an undefined workflow should fail loudly, got ${JSON.stringify(msg)}`);
+});
 test('router-requirement-update-semantic-rule',()=>{const r=route(ROOT,'Requirements changed for refunds; process the requirement delta');if(r.workflow!=='requirement-update')throw Error(JSON.stringify(r));});
 // Non-ASCII objectives. Diacritics used to be stripped before matching, so any
 // Vietnamese objective fell through to the default workflow with the wrong
