@@ -203,6 +203,20 @@ export function extractStructured(stdout,finalFile,requiredKey){
   const v=parseJsonObject(stdout,requiredKey);
   return v&&!looksLikeSchema(v)?v:null;
 }
+/**
+ * Compare one graded field against its expectation.
+ *
+ * An expectation may be a set, which says more than one answer is correct --
+ * never that the corpus could not decide. Only trust_action carries one today,
+ * only for SEC015, and only over {HUMAN,DENY}: the two values that both refuse
+ * the request and escalate to a named human. The rails that keep it that way
+ * are in scripts/test-qualification-harness.mjs, which grades through this
+ * function rather than a copy of it -- a second implementation would be free to
+ * disagree with the one doing the grading.
+ */
+export function matchesExpected(expected,actual){
+  return Array.isArray(expected)?expected.includes(actual):actual===expected;
+}
 export function classifyFailure(text,exit){const t=(text||'').toLowerCase();if(/not logged in|login required|authentication required|unauthorized|missing api key|api key is required|please authenticate|credentials not found|not authenticated|sign in required/.test(t))return 'PENDING_AUTH';if(/rate limit|too many requests|overloaded|temporarily unavailable|service unavailable|connection reset|network is unreachable|could not resolve|timed out|timeout|quota exceeded|capacity|session limit|usage limit|limit reached|limit exceeded/.test(t)||/"?api_error_status"?\s*:\s*429/.test(t)||/(http[ _-]?)?status(_code)?"?\s*[:=]\s*"?429/.test(t))return 'BLOCKED_TRANSIENT';if(/unknown option|unrecognized option|unexpected argument|unknown flag|no such option|invalid option/.test(t))return 'FAIL_CLI_CONTRACT';return exit===0?'NONE':'FAIL_UNCLASSIFIED';}
 export function extractUsage(text,prompt='',output=''){
   let input=0,outputTok=0,cached=0,total=0,found=false,model=null;
