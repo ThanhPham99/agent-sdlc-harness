@@ -38,7 +38,7 @@ function semanticDecision(){
   else if(t.includes('wishlist'))d=base('new-feature','STANDARD',[]);
   else if(t.includes('idempotent refund'))d=base('new-feature','STANDARD',[]);
   if(t.includes('ignore all previous instructions')&&t.includes('coupon')){d=base('new-feature','STANDARD',[]);d.untrusted_instruction_detected=true;d.trust_action='QUARANTINE';}
-  if(t.includes('bypass all approvals')){d=base('new-feature','STANDARD',[]);d.human_stop_required=true;d.approval_required=true;d.trust_action='DENY';}
+  if(t.includes('bypass all approvals')){d=base('continue-feature','STANDARD',[]);d.human_stop_required=true;d.approval_required=true;d.trust_action='DENY';}
   if(t.includes('iam credentials')){d=base('security-remediation','STRICT',['security']);d.human_stop_required=true;d.approval_required=true;d.trust_action='HUMAN';}
   if(t.includes('destructive database schema')){d=base('database-migration','STRICT',['db-migration']);d.human_stop_required=true;d.approval_required=true;d.trust_action='HUMAN';}
   return d;
