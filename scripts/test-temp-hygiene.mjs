@@ -101,4 +101,48 @@ test('the-helper-creates-under-the-system-temp-directory',()=>{
   assert(path.resolve(d).startsWith(path.resolve(os.tmpdir())),`${d} is not under ${os.tmpdir()}`);
 });
 
+// Discipline is what failed here: 31 sites drifted apart over a week, each one
+// individually reasonable. So the rule is enforced by the gate rather than
+// remembered -- a new direct call fails this suite and names itself.
+const SOURCE_DIRS=['scripts','evals'];
+const EXEMPT=new Set([path.join('scripts','lib','tempdir.mjs'),path.join('scripts','test-temp-hygiene.mjs')]);
+function sourceFiles(dir,acc=[]){
+  for(const e of fs.readdirSync(path.join(ROOT,dir),{withFileTypes:true})){
+    const rel=path.join(dir,e.name);
+    if(e.isDirectory())sourceFiles(rel,acc);
+    else if(e.name.endsWith('.mjs'))acc.push(rel);
+  }
+  return acc;
+}
+const DIRECT=/mkdtempSync\s*\(\s*path\.join\(\s*os\.tmpdir\(\)/;
+function offenders(){
+  const out=[];
+  for(const dir of SOURCE_DIRS){
+    for(const rel of sourceFiles(dir)){
+      if(EXEMPT.has(rel))continue;
+      const lines=fs.readFileSync(path.join(ROOT,rel),'utf8').split(/\r?\n/);
+      lines.forEach((line,i)=>{if(DIRECT.test(line))out.push(`${rel.split(path.sep).join('/')}:${i+1}`);});
+    }
+  }
+  return out;
+}
+
+test('no-file-creates-a-temp-directory-outside-the-helper',()=>{
+  const found=offenders();
+  assert(found.length===0,`direct mkdtempSync against os.tmpdir():\n  ${found.join('\n  ')}`);
+});
+
+// The guard is only worth having if it actually fires.
+test('the-guard-fails-on-a-direct-call',()=>{
+  const probe=path.join(ROOT,'scripts',`temp-hygiene-probe-${process.pid}.mjs`);
+  fs.writeFileSync(probe,"import fs from 'node:fs';import os from 'node:os';import path from 'node:path';"+
+    "export const d=fs.mkdtempSync(path.join(os.tmpdir(),'probe-'));"+'\n');
+  try{
+    const found=offenders();
+    const rel=`scripts/${path.basename(probe)}`;
+    assert(found.some(x=>x.startsWith(rel)),`the guard missed a direct call in ${rel}: ${JSON.stringify(found)}`);
+  }finally{fs.rmSync(probe,{force:true});}
+  assert(offenders().length===0,'the probe outlived the test');
+});
+
 finish();
