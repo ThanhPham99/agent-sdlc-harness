@@ -19,6 +19,7 @@ import {fileURLToPath,pathToFileURL} from 'node:url';
 import {spawn,spawnSync} from 'node:child_process';
 import {planScripts} from './lib/check-plan.mjs';
 import {writeReport} from './lib/report-io.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const FLOOR_FILE=path.join(ROOT,'evals','COVERAGE-FLOOR.json');
@@ -98,6 +99,7 @@ const NOT_MEASURED={
   'scripts/restore-tracked-reports.mjs':'local git-tree hygiene (git status/checkout on evals/); never enters runtime/',
   'scripts/test-restore-tracked-reports.mjs':'exercises restore-tracked-reports.mjs against a throwaway git fixture; never enters runtime/',
   'scripts/test-root-sync.mjs':'exercises validate-root-sync.mjs against a throwaway file tree; never enters runtime/',
+  'scripts/test-temp-hygiene.mjs':'spawns child processes to observe what a process leaves in the system temp directory when it ends; never enters runtime/',
   'scripts/validate-types.mjs':'validates type definitions; never enters runtime/',
   'scripts/run-check.mjs':'runs the other suites as child processes; never enters runtime/ itself, and each child is measured on its own'
 };
@@ -130,7 +132,7 @@ if(unclassified.length){
   process.exit(1);
 }
 
-const outDir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-cov-'));
+const outDir=makeTempDir('agent-sdlc-cov-');
 const concurrency=Math.max(1,Math.min(8,os.availableParallelism?.()??os.cpus().length));
 
 function runEntry(entry){

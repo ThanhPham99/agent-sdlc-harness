@@ -9,11 +9,11 @@
 //
 // Every check here speaks to a spawned server the way a host does.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync,spawn} from 'node:child_process';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const SERVER=path.join(ROOT,'runtime','mcp-server.mjs');
@@ -21,7 +21,7 @@ const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.jso
 const {test,assert,finish}=createSuite('agent-sdlc/mcp-validation/v1','MCP-VALIDATION.json');
 
 function project(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-mcp-'));
+  const d=makeTempDir('agent-sdlc-mcp-');
   execFileSync('git',['init','-q'],{cwd:d});
   fs.writeFileSync(path.join(d,'README.md'),'fixture\n');
   execFileSync('git',['add','.'],{cwd:d});

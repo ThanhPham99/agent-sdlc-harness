@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // Test suite for Dead Code, Unused Export, and Ghost Dependency Eliminator.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {findDeadCode, extractExportedSymbols, extractImportedSymbols} from '../runtime/dead-code.mjs';
 import {initProject} from '../runtime/store.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const {test, assert, finish} = createSuite('agent-sdlc/dead-code-validation/v1', 'DEAD-CODE-VALIDATION.json');
@@ -49,7 +49,7 @@ await test('extract-imported-symbols-scanner', () => {
 });
 
 await test('find-dead-code-unreachable-files-and-ghost-deps', () => {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sdlc-dead-'));
+  const d = makeTempDir('agent-sdlc-dead-');
   initProject(d, { schema: 'agent-sdlc/project/v1', project: 'dead-test' });
 
   // package.json with ghost dep

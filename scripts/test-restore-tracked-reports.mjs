@@ -3,11 +3,11 @@
 // exercised against a throwaway git fixture rather than this repository's own
 // working tree -- a bug here would otherwise discard real, uncommitted work.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const SCRIPT=path.join(ROOT,'scripts','restore-tracked-reports.mjs');
@@ -15,7 +15,7 @@ const {test,assert,finish}=createSuite('agent-sdlc/report-hygiene-validation/v1'
 
 /** A repo with one committed report and nothing else tracked under evals/. */
 function fixture(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-report-hygiene-'));
+  const d=makeTempDir('agent-sdlc-report-hygiene-');
   execFileSync('git',['init','-q'],{cwd:d});
   execFileSync('git',['config','user.email','a@b.c'],{cwd:d});
   execFileSync('git',['config','user.name','t'],{cwd:d});

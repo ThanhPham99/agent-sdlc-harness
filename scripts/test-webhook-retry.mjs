@@ -2,12 +2,12 @@
 // Test suite for Webhook Notifications & Exponential Backoff Retry.
 import http from 'node:http';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {sendWebhook, sendWebhookWithRetry, getWebhookDeliveries, computeWebhookSignature, matchesPattern, testWebhook} from '../runtime/webhook.mjs';
 import {initProject} from '../runtime/store.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const {test, assert, finish} = createSuite('agent-sdlc/webhook-validation/v1', 'WEBHOOK-VALIDATION.json');
@@ -117,7 +117,7 @@ await test('webhook-retry-fails-permanently-on-persistent-error', async () => {
 });
 
 await test('webhook-delivery-logging-to-disk', async () => {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sdlc-wh-'));
+  const d = makeTempDir('agent-sdlc-wh-');
   initProject(d, { schema: 'agent-sdlc/project/v1', project: 'wh-test' });
 
   const s = await startTestServer((REQ, RES) => {

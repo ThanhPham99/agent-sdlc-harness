@@ -7,7 +7,6 @@
 // Fully offline: a temporary git repository, project commands that are plain
 // `node -e` exits, and no model or host involvement anywhere.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {initProject,listTasks,loadTask,saveTask,loadTaskGraph,putArtifact,listTaskEvents,getTaskContextManifest,tasksDir} from '../runtime/store.mjs';
@@ -26,12 +25,13 @@ import {startTask,advanceTask,captureTaskDiff,taskCheckpoint,recordTaskUsage,res
 import {migrateRunToTaskRuntime} from '../runtime/task-migration.mjs';
 import {reportRunTaskUsage} from '../runtime/cost.mjs';
 import {taskMetrics} from '../runtime/telemetry.mjs';
+import {makeTempDir} from '../scripts/lib/tempdir.mjs';
 
 const gitq=(cwd,...a)=>execFileSync('git',a,{cwd,stdio:'ignore'});
 
 /** A throwaway git project with deterministic, always-passing commands. */
 export function makeFixture({failingTests=false,commands=null}={}){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-taskrt-'));
+  const d=makeTempDir('agent-sdlc-taskrt-');
   gitq(d,'init','-q');
   fs.mkdirSync(path.join(d,'src','auth'),{recursive:true});
   fs.mkdirSync(path.join(d,'src','notify'),{recursive:true});

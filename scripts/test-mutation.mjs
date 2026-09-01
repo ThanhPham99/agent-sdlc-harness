@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Test suite for Mutation Testing and Test Strength Analyzer.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
@@ -12,6 +11,7 @@ import {
 } from '../runtime/mutation.mjs';
 import {initProject} from '../runtime/store.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const {test, assert, finish} = createSuite('agent-sdlc/mutation-validation/v1', 'MUTATION-VALIDATION.json');
@@ -37,7 +37,7 @@ await test('generate-mutations-operator-coverage', () => {
 });
 
 await test('run-mutation-suite-on-target-file', () => {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sdlc-mut-'));
+  const d = makeTempDir('agent-sdlc-mut-');
   initProject(d, { schema: 'agent-sdlc/project/v1', project: 'mutation-test' });
 
   fs.writeFileSync(path.join(d, 'calc.mjs'), `
@@ -68,7 +68,7 @@ await test('run-mutation-suite-on-target-file', () => {
 });
 
 await test('analyze-repository-mutations-multimodule', () => {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sdlc-repo-mut-'));
+  const d = makeTempDir('agent-sdlc-repo-mut-');
   initProject(d, { schema: 'agent-sdlc/project/v1', project: 'repo-mut-test' });
 
   // Covered module

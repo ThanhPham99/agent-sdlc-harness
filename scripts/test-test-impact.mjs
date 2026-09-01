@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Test suite for Intelligent Test Impact Analysis (TIA).
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {initProject} from '../runtime/store.mjs';
@@ -10,12 +9,13 @@ import {analyzeTestImpact} from '../runtime/test-impact.mjs';
 import {openIntelligence,calculateGraphCentrality,getBlastRadiusAnalysis} from '../runtime/repo-intelligence.mjs';
 import {git} from '../runtime/util.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const {test,assert,finish}=createSuite('agent-sdlc/test-impact-validation/v1','TEST-IMPACT-VALIDATION.json');
 
 function fixture(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-tia-'));
+  const d=makeTempDir('agent-sdlc-tia-');
   git(['init'], d);
   git(['config', 'user.name', 'test'], d);
   git(['config', 'user.email', 'test@example.com'], d);

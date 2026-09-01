@@ -1,19 +1,19 @@
 #!/usr/bin/env node
 // Test suite for Semantic Memory & Failure Pattern Indexer.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {indexFailurePattern,lookupFailurePattern} from '../runtime/learning.mjs';
 import {initProject} from '../runtime/store.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const {test,assert,finish}=createSuite('agent-sdlc/failure-memory-validation/v1','FAILURE-MEMORY-VALIDATION.json');
 
 function fixture(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-mem-'));
+  const d=makeTempDir('agent-sdlc-mem-');
   execFileSync('git',['init','-q'],{cwd:d});
   fs.writeFileSync(path.join(d,'README.md'),'fixture\n');
   execFileSync('git',['add','.'],{cwd:d});

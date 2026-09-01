@@ -5,7 +5,6 @@
 // Shared by `npm test` and `scripts/validate-alpha6.mjs`, so the gate and the
 // release evidence describe the same run. Fully offline.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {initProject,listTasks,saveTask,putArtifact,listTaskEvents,loadRun} from '../runtime/store.mjs';
@@ -27,12 +26,13 @@ import {buildTaskContext,renderTaskPrompt,scopeIntelligence} from '../runtime/ta
 import {getTaskWorkspace} from '../runtime/workspace.mjs';
 import {planRequirementUpdate,loadRequirementUpdatePlan} from '../runtime/requirement-update.mjs';
 import {buildContext,renderPrompt} from '../runtime/context.mjs';
+import {makeTempDir} from '../scripts/lib/tempdir.mjs';
 
 const gitq=(cwd,...a)=>execFileSync('git',a,{cwd,stdio:'ignore'});
 
 /** A small but realistic repository: modules, tests, routes, entities, events. */
 export function makeRichFixture(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-a6-'));
+  const d=makeTempDir('agent-sdlc-a6-');
   gitq(d,'init','-q');
   const write=(rel,text)=>{
     const p=path.join(d,rel);
@@ -227,7 +227,7 @@ export function runAlpha6Suite(root){
       // SKIP_DIR. Capping the raw list BEFORE that filter spends the budget on
       // files that are never indexed: `dist/` sorts before `src/`, so a real
       // source file falls off the end of a repository well under the cap.
-      const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-vendorcap-'));
+      const dir=makeTempDir('agent-sdlc-vendorcap-');
       try{
         gitq(dir,'init','-q');
         const write=(rel,text)=>{
@@ -255,7 +255,7 @@ export function runAlpha6Suite(root){
     });
 
     t('regex-extracts-ruby-rust-csharp-php-kotlin',()=>{
-      const multiDir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-multilang-'));
+      const multiDir=makeTempDir('agent-sdlc-multilang-');
       try{
         gitq(multiDir,'init','-q');
         const write=(rel,text)=>{

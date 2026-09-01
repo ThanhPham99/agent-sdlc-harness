@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Test suite for Parallel Task Execution Engine and batch partitioning.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
@@ -10,12 +9,13 @@ import {initProject} from '../runtime/store.mjs';
 import {newRun} from '../runtime/orchestrator.mjs';
 import {route} from '../runtime/router.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const {test,assert,finish}=createSuite('agent-sdlc/parallel-execution-validation/v1','PARALLEL-EXECUTION-VALIDATION.json');
 
 function fixture(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-parallel-'));
+  const d=makeTempDir('agent-sdlc-parallel-');
   execFileSync('git',['init','-q'],{cwd:d});
   fs.writeFileSync(path.join(d,'README.md'),'fixture\n');
   execFileSync('git',['add','.'],{cwd:d});

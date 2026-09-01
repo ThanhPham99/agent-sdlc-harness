@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync,spawnSync} from 'node:child_process';
@@ -51,11 +50,12 @@ import {createFeature,loadFeature,updateFeature,listFeatures,createPhase,loadPha
 import {planGc,applyGc} from '../runtime/retention.mjs';
 import {jobBlock,jobScriptSequence} from '../scripts/lib/ci-workflow.mjs';
 import {writeReport} from '../scripts/lib/report-io.mjs';
+import {makeTempDir} from '../scripts/lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
 function test(name,fn){try{fn();pass++;rows.push({name,status:'PASS'});}catch(e){fail++;rows.push({name,status:'FAIL',error:e.message});}}
-function fixture(){const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-v3-'));execFileSync('git',['init','-q'],{cwd:d});fs.writeFileSync(path.join(d,'README.md'),'fixture\n');fs.writeFileSync(path.join(d,'src.js'),'export const value = 1;\n');execFileSync('git',['add','.'],{cwd:d});execFileSync('git',['-c','user.email=a@b.c','-c','user.name=t','commit','-qm','init'],{cwd:d});initProject(d,{schema:'agent-sdlc/project/v1',project:'fixture',// test_targeted takes the selector, so a case can observe that it was really
+function fixture(){const d=makeTempDir('agent-sdlc-v3-');execFileSync('git',['init','-q'],{cwd:d});fs.writeFileSync(path.join(d,'README.md'),'fixture\n');fs.writeFileSync(path.join(d,'src.js'),'export const value = 1;\n');execFileSync('git',['add','.'],{cwd:d});execFileSync('git',['-c','user.email=a@b.c','-c','user.name=t','commit','-qm','init'],{cwd:d});initProject(d,{schema:'agent-sdlc/project/v1',project:'fixture',// test_targeted takes the selector, so a case can observe that it was really
 // substituted. The old template ignored it, which is why an empty selector
 // producing `node ''` -- exit 0, no output, recorded as
 // targeted_verification_pass -- went unnoticed.
@@ -426,7 +426,7 @@ test('project-bootstrap-is-not-forced-on-other-workflows',()=>{
 // ---------------------------------------------------------------------------
 const CR=String.fromCharCode(13),LF=String.fromCharCode(10);
 function harnessRootWithEol(eol){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-eol-'));
+  const d=makeTempDir('agent-sdlc-eol-');
   for(const sub of ['config','policies','prompts','harness'])fs.cpSync(path.join(ROOT,sub),path.join(d,sub),{recursive:true});
   const skillDir=path.join(d,'harness','internal-skills');
   for(const f of fs.readdirSync(skillDir).filter(x=>x.endsWith('.md'))){
@@ -510,7 +510,7 @@ test('artifact-content-addressed-dedup-id',()=>{const a=putArtifact(tmp,{kind:'s
 // byte-identical, and run one's normalized-requirement silently became run
 // two's.
 test('a-second-run-storing-identical-content-does-not-take-over-the-first-runs-artifact',()=>{
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-artifact-share-'));
+  const d=makeTempDir('agent-sdlc-artifact-share-');
   initProject(d,{name:'x',language:'javascript',commands:{}});
   const content='# Normalized Input\n\nSupport password reset.\n';
   const first=putArtifact(d,{kind:'normalized-requirement',content,runId:'run_A',stage:'REQUIREMENTS',sourceRevision:'aaa'});
@@ -649,7 +649,7 @@ test('secret-scan-finding-redacts-value',()=>{fs.writeFileSync(path.join(tmp,'le
 // in runtime/telemetry.mjs and the scanner's own fixtures. A scanner that cries
 // wolf trains an operator to assert past it.
 test('secret-scan-ignores-an-identifier-named-token',()=>{
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-secret-'));
+  const d=makeTempDir('agent-sdlc-secret-');
   execFileSync('git',['init','-q'],{cwd:d});
   initProject(d,{schema:'agent-sdlc/project/v1',project:'idents',commands:{test_targeted:['node','-e','process.exit(0)']},providers:{preferred:['claude']}});
   fs.writeFileSync(path.join(d,'telemetry.js'),'const token={input_tokens:0,output_tokens:0};\nlet secret = {};\nexport const api_key = null;\n');
@@ -664,7 +664,7 @@ test('secret-scan-ignores-an-identifier-named-token',()=>{
 });
 
 test('secret-scan-still-catches-an-assigned-credential',()=>{
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-secret2-'));
+  const d=makeTempDir('agent-sdlc-secret2-');
   execFileSync('git',['init','-q'],{cwd:d});
   initProject(d,{schema:'agent-sdlc/project/v1',project:'leaky',commands:{test_targeted:['node','-e','process.exit(0)']},providers:{preferred:['claude']}});
   fs.writeFileSync(path.join(d,'conf.js'),'api_key = "sk-abcdefghijklmnopqrstuv"\n');
@@ -686,7 +686,7 @@ test('secret-scan-sees-a-file-the-task-created-and-never-staged',()=>{
   // stages it, and the scan returned PASS with the words "No tracked files
   // matched" while a credential sat in it. --untracked closes that and still
   // honours .gitignore, so build output stays out.
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-secret4-'));
+  const d=makeTempDir('agent-sdlc-secret4-');
   execFileSync('git',['init','-q'],{cwd:d});
   initProject(d,{schema:'agent-sdlc/project/v1',project:'leaky',commands:{test_targeted:['node','-e','process.exit(0)']},providers:{preferred:['claude']}});
   fs.writeFileSync(path.join(d,'.gitignore'),'node_modules/\n');
@@ -715,7 +715,7 @@ test('secret-scan-sees-a-file-the-task-created-and-never-staged',()=>{
 });
 
 test('secret-scan-honours-the-policy-allowlist',()=>{
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-secret3-'));
+  const d=makeTempDir('agent-sdlc-secret3-');
   execFileSync('git',['init','-q'],{cwd:d});
   initProject(d,{schema:'agent-sdlc/project/v1',project:'fixtures',commands:{test_targeted:['node','-e','process.exit(0)']},providers:{preferred:['claude']}});
   fs.mkdirSync(path.join(d,'evals'),{recursive:true});
@@ -733,7 +733,7 @@ test('secret-scan-honours-the-policy-allowlist',()=>{
 test('secret-scan-reports-a-missing-git-as-error-not-fail',()=>{
   // A scanner that cannot run is not a clean scan and is not a finding either.
   // Before the launcher change, a missing git surfaced as FAIL with git's stderr.
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-secret4-'));
+  const d=makeTempDir('agent-sdlc-secret4-');
   execFileSync('git',['init','-q'],{cwd:d});
   initProject(d,{schema:'agent-sdlc/project/v1',project:'nogit',commands:{test_targeted:['node','-e','process.exit(0)']},providers:{preferred:['claude']}});
   const policy=JSON.parse(fs.readFileSync(path.join(ROOT,'policies','security-policy.json'),'utf8'));
@@ -769,7 +769,7 @@ test('selectorless-command-is-unaffected',()=>{
 // recorded as targeted_verification_pass:FAIL, so an operator read "the suite
 // failed" when the truth was "npm is not spawnable here".
 test('gateway-missing-binary-is-error-not-fail',()=>{
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-enoent-'));
+  const d=makeTempDir('agent-sdlc-enoent-');
   execFileSync('git',['init','-q'],{cwd:d});
   initProject(d,{schema:'agent-sdlc/project/v1',project:'enoent',commands:{
     test_targeted:['definitely-not-a-real-binary-9f3','{selector}'],
@@ -791,7 +791,7 @@ test('gateway-missing-binary-is-error-not-fail',()=>{
 });
 
 test('gateway-real-failure-keeps-its-log',()=>{
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-realfail-'));
+  const d=makeTempDir('agent-sdlc-realfail-');
   execFileSync('git',['init','-q'],{cwd:d});
   initProject(d,{schema:'agent-sdlc/project/v1',project:'failing',commands:{
     test_targeted:['node','-e','console.log("2 passed, 1 failed");process.exit(1)'],
@@ -815,7 +815,7 @@ test('gateway-real-failure-keeps-its-log',()=>{
 test('gateway-honours-per-tool-return-limit',()=>{
   const registry=JSON.parse(fs.readFileSync(path.join(ROOT,'config','tools.json'),'utf8'));
   if(registry.tools['test.run_targeted'].max_return_bytes!==24000)throw Error('fixture assumption changed');
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-limits-'));
+  const d=makeTempDir('agent-sdlc-limits-');
   execFileSync('git',['init','-q'],{cwd:d});
   initProject(d,{schema:'agent-sdlc/project/v1',project:'chatty',commands:{
     test_targeted:['node','-e','console.log("x".repeat(40000));','{selector}'],
@@ -836,7 +836,7 @@ test('gateway-honours-per-tool-return-limit',()=>{
 test('gateway-caller-timeout-still-wins-when-larger',()=>{
   // args.timeout_ms raising the ceiling is existing behaviour (Math.max);
   // reading the registry must not remove it.
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-tmo-'));
+  const d=makeTempDir('agent-sdlc-tmo-');
   execFileSync('git',['init','-q'],{cwd:d});
   initProject(d,{schema:'agent-sdlc/project/v1',project:'brief',commands:{
     test_targeted:['node','-e','console.log("done");','{selector}'],
@@ -881,7 +881,7 @@ test('web-search-honours-registry-return-limit-not-hardcoded-24000',()=>{
 // this file, so this is the likely shape of an operator edit, not a
 // hypothetical. An unenforceable rule is not a satisfied rule.
 test('an-uncompilable-blocked-query-pattern-refuses-the-query-instead-of-ignoring-the-rule',()=>{
-  const fixture=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-webpolicy-'));
+  const fixture=makeTempDir('agent-sdlc-webpolicy-');
   fs.mkdirSync(path.join(fixture,'policies'),{recursive:true});
   const write=pats=>fs.writeFileSync(path.join(fixture,'policies','security-policy.json'),
     JSON.stringify({web_search_policy:{blocked_query_patterns:pats,blocked_host_patterns:[]}}));
@@ -920,7 +920,7 @@ test('every-shipped-blocked-query-pattern-compiles',()=>{
 // Pinned because it is the reason `sanitize_queries` does not need to exist: a
 // second switch for the same behaviour is a second thing to get out of step.
 test('an-empty-blocked_query_patterns-list-is-how-sanitization-is-turned-off',()=>{
-  const fixture=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-webpolicy-off-'));
+  const fixture=makeTempDir('agent-sdlc-webpolicy-off-');
   fs.mkdirSync(path.join(fixture,'policies'),{recursive:true});
   fs.writeFileSync(path.join(fixture,'policies','security-policy.json'),
     JSON.stringify({web_search_policy:{blocked_query_patterns:[],blocked_host_patterns:[]}}));
@@ -933,7 +933,7 @@ test('an-empty-blocked_query_patterns-list-is-how-sanitization-is-turned-off',()
 // parameter it never read; removing it cannot change this, and this case is
 // what says so.
 test('project-json-cannot-grant-a-tool-the-stage-denies',()=>{
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-projpolicy-'));
+  const d=makeTempDir('agent-sdlc-projpolicy-');
   execFileSync('git',['init','-q'],{cwd:d});
   initProject(d,{schema:'agent-sdlc/project/v1',project:'x',commands:{test_targeted:['node','-e','process.exit(0)']},providers:{preferred:['claude']}});
   // Every shape a project might hope grants itself something.
@@ -1191,7 +1191,7 @@ test('provider-probe-is-nonfatal',()=>{for(const h of ['claude','codex','antigra
 // every platform. These pin the properties that made the previous shell-out
 // implementation ship broken packages from Windows.
 function archiveFixture(){
-  const base=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-zip-'));
+  const base=makeTempDir('agent-sdlc-zip-');
   const src=path.join(base,'pkg');
   fs.mkdirSync(path.join(src,'inner','deep'),{recursive:true});
   fs.mkdirSync(path.join(src,'bin'),{recursive:true});
@@ -1566,7 +1566,7 @@ test('feature-and-phase-round-trip',()=>{
   if(!listPhases(tmp,f.feature_id).some(x=>x.phase_id===p.phase_id))throw Error('phase missing from listPhases');
 });
 test('feature-and-phase-listing-is-sorted-by-id',()=>{
-  const isolated=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-sorted-feat-'));
+  const isolated=makeTempDir('agent-sdlc-sorted-feat-');
   execFileSync('git',['init','-q'],{cwd:isolated});
   const f1=createFeature(isolated,{title:'Feature 1'});
   const f2=createFeature(isolated,{title:'Feature 2'});
@@ -1600,7 +1600,7 @@ test('attach-run-dedupes-into-the-phase',()=>{
   if(twice.run_ids.length!==1)throw Error(JSON.stringify(twice.run_ids));
 });
 test('resolve-active-feature-is-unambiguous-or-says-so',()=>{
-  const isolated=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-features-'));
+  const isolated=makeTempDir('agent-sdlc-features-');
   execFileSync('git',['init','-q'],{cwd:isolated});
   if(resolveActiveFeature(isolated,{})!==null)throw Error('a project with no features resolved one');
   const only=createFeature(isolated,{title:'Only active feature'});
@@ -1698,7 +1698,7 @@ test('run-completion-and-feature-completion-are-tracked-independently',()=>{
 // and `tmp` has accumulated hundreds of runs by this point in the suite.
 // ---------------------------------------------------------------------------
 function gcFixture(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-gc-'));
+  const d=makeTempDir('agent-sdlc-gc-');
   execFileSync('git',['init','-q'],{cwd:d});
   initProject(d,{schema:'agent-sdlc/project/v1',project:'gc-fixture',commands:{},providers:{preferred:['claude']}});
   return d;

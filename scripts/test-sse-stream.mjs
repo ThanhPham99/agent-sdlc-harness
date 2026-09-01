@@ -2,18 +2,18 @@
 // Test suite for Real-Time Live SSE Event Stream & Event Replay.
 import http from 'node:http';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {startServer, broadcastSseEvent} from '../runtime/server.mjs';
 import {initProject} from '../runtime/store.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const {test, assert, finish} = createSuite('agent-sdlc/sse-stream-validation/v1', 'SSE-STREAM-VALIDATION.json');
 
 function fixture() {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sdlc-sse-'));
+  const d = makeTempDir('agent-sdlc-sse-');
   initProject(d, { schema: 'agent-sdlc/project/v1', project: 'sse-test' });
   return d;
 }

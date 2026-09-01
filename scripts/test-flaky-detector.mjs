@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 // Test suite for Flaky Test Detector and Diagnostics.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {detectFlakyTests} from '../runtime/flaky-detector.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const {test,assert,finish}=createSuite('agent-sdlc/flaky-detector-validation/v1','FLAKY-DETECTOR-VALIDATION.json');
@@ -33,7 +33,7 @@ await test('detectFlakyTests-deterministic-fail',async ()=>{
 });
 
 await test('detectFlakyTests-detects-flaky-command',async ()=>{
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-flaky-'));
+  const d=makeTempDir('agent-sdlc-flaky-');
   const counterFile=path.join(d,'counter.txt');
   fs.writeFileSync(counterFile,'0\n','utf8');
 

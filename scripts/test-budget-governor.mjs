@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Test suite for Budget Circuit Breaker and Cost Governor.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
@@ -11,12 +10,13 @@ import {newRun} from '../runtime/orchestrator.mjs';
 import {route} from '../runtime/router.mjs';
 import {addUsage} from '../runtime/cost.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const {test,assert,finish}=createSuite('agent-sdlc/budget-governor-validation/v1','BUDGET-GOVERNOR-VALIDATION.json');
 
 function fixture(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-budget-'));
+  const d=makeTempDir('agent-sdlc-budget-');
   execFileSync('git',['init','-q'],{cwd:d});
   fs.writeFileSync(path.join(d,'README.md'),'fixture\n');
   execFileSync('git',['add','.'],{cwd:d});

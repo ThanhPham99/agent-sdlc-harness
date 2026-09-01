@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Test suite for Git Worktree isolation, commit, integration, and writer safety.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
@@ -10,12 +9,13 @@ import {initProject} from '../runtime/store.mjs';
 import {newRun} from '../runtime/orchestrator.mjs';
 import {route} from '../runtime/router.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const {test,assert,finish}=createSuite('agent-sdlc/worktree-isolation-validation/v1','WORKTREE-ISOLATION-VALIDATION.json');
 
 function fixture(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-worktree-'));
+  const d=makeTempDir('agent-sdlc-worktree-');
   execFileSync('git',['init','-q'],{cwd:d});
   fs.writeFileSync(path.join(d,'README.md'),'fixture\n');
   fs.writeFileSync(path.join(d,'src.js'),'export const base = 1;\n');
