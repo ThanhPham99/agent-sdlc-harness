@@ -16,6 +16,30 @@ Inspect the effective configuration with:
 
 Project config owns repository-local facts such as build/test commands, project invariants and provider preference. Security policy, stage gates and protocol schemas are versioned with the harness. Do not place API keys or production credentials in project config; use the host/provider credential mechanism or an external secret broker.
 
+## Verification commands
+
+`commands.test_targeted` is the command a task's own verification runs, and
+`{selector}` is replaced by the task's `verification.targeted_tests`. The
+selector has to actually narrow what runs. `init` writes the conventional
+default for the stack — for Node, `npm test -- {selector}` — which is right for
+a runner that filters on its argument and silently wrong for a bespoke runner
+that ignores it: the whole suite runs, every task takes the same minutes, and
+the evidence says `TARGETED` while nothing was targeted.
+
+If your `npm test` ignores its arguments, point the command at something that
+does not. Naming npm scripts is usually the least surprising choice:
+
+```json
+{ "commands": { "test_targeted": ["npm", "run", "{selector}"] } }
+```
+
+with each task declaring the script it needs in `verification.targeted_tests`.
+
+A task's verification also parses the JavaScript files in its own diff with
+`node --check`, whatever the test command does, so a file the task broke fails
+that task rather than surviving to the run's VERIFY stage. This is not
+configurable and costs nothing on a diff with no JavaScript in it.
+
 ## Auto-activation
 
 Auto-activation is on by default and resolved in its own precedence order:
