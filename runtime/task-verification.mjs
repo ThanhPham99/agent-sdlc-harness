@@ -7,6 +7,7 @@
 //
 // Escalation ladder: nearest targeted test -> affected integration/contract
 // tests -> a broader suite only when policy or risk requires it.
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
@@ -55,7 +56,7 @@ function substituteSelector(command,selectors){
 }
 
 /** Which project commands a strategy runs, in order. */
-export function plannedCommands(projectRoot,task,strategy,{root=null}={}){
+export function plannedCommands(projectRoot,task,strategy,{root=null,changedPaths=[],cwd=null}={}){
   const cfg=readJson(path.join(projectRoot,'.agent-sdlc','project.json'),{});
   const out=[];
   const selectors=arr(task.verification?.targeted_tests).map(String);
@@ -63,6 +64,29 @@ export function plannedCommands(projectRoot,task,strategy,{root=null}={}){
     if(!command.length)return;
     out.push({kind,...substituteSelector(command,selectors)});
   };
+  // Parse what the task changed, before running anything long.
+  //
+  // A task's verification runs the project's test command and nothing else, so
+  // a JavaScript file the task just broke is parsed only if some suite happens
+  // to import it. That is exactly how an unterminated string literal once
+  // reached a run's VERIFY stage: the configured suite passed, and the file it
+  // never loaded did not. `node --check` is parse-only -- it executes nothing
+  // -- and it takes one file at a time, so this is one command per changed
+  // file, over the task's own diff and never the repository.
+  //
+  // .mjs and .cjs declare their own module system, so they are always safe to
+  // parse. A bare .js does not: node decides from the nearest package.json, and
+  // without one an ESM .js parses as CommonJS and fails for a reason that has
+  // nothing to do with the task. So .js is only checked where a package.json
+  // exists to answer the question.
+  const workspace=cwd||projectRoot;
+  const hasPackageJson=fs.existsSync(path.join(workspace,'package.json'));
+  const parseable=rel=>/\.(mjs|cjs)$/i.test(rel)||(hasPackageJson&&/\.js$/i.test(rel));
+  for(const rel of arr(changedPaths).map(String).filter(parseable).sort()){
+    // A file the task deleted has nothing left to parse.
+    if(!fs.existsSync(path.join(workspace,rel)))continue;
+    out.push({kind:'syntax_check',command:['node','--check',rel],unsatisfied_selector:false});
+  }
   push('test_targeted',arr(cfg.commands?.test_targeted));
   if(strategy!=='TARGETED')push('build',arr(cfg.commands?.build));
   if(strategy==='BROAD_SUITE')push('test_full',arr(cfg.commands?.test_full));
@@ -154,7 +178,7 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
   const cwd=ws?.root||projectRoot;
   const diff=ws?workspaceDiff(projectRoot,ws):{base_revision:task.base_revision,changed_paths:[],diff_hash:task.diff_hash,diff_available:false};
   const strategy=verificationStrategy(task,{escalate});
-  const planned=commands||plannedCommands(projectRoot,task,strategy,{root});
+  const planned=commands||plannedCommands(projectRoot,task,strategy,{root,changedPaths:diff.changed_paths,cwd});
   const executed=[];
   let allPassed=true;
 
