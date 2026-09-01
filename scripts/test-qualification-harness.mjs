@@ -227,6 +227,36 @@ test('a-malformed-answer-fails-its-case-not-the-run',()=>{
   // and the array comparison itself no longer assumes the shape
   if(/\[\.\.\.\(a\?\.overlays\|\|\[\]\)\]/.test(src))throw Error('overlays is spread without an Array.isArray check');
 });
+// Antigravity echoes the schema back in its reply envelope, after the answer.
+// parseJsonObject scans for any object containing the required key and keeps
+// the last one -- and a schema's `properties` map contains every field name the
+// decision has, so the schema won and all 20 cases were graded against
+// {activate:{type:'boolean'}}. The declared structured output is now consulted
+// before any scanning, and a schema-shaped match is refused outright.
+test('the-reply-is-preferred-over-an-echoed-schema',()=>{
+  const envelope=JSON.stringify({
+    conversation_id:'x',
+    status:'SUCCESS',
+    structured_output:{activate:true,workflow:'bug-fix',profile:'STANDARD',overlays:[],human_stop_required:false,next_action:'RUN_SDLC_ORCHESTRATOR'},
+    json_schema:{type:'object',properties:{
+      activate:{type:'boolean'},
+      workflow:{anyOf:[{type:'string',enum:['bug-fix']},{type:'null'}]},
+      profile:{anyOf:[{type:'string',enum:['FAST']},{type:'null'}]}
+    }}
+  });
+  const got=extractStructured(envelope,null,'activate');
+  if(got?.activate!==true)throw Error(`extracted the wrong object: ${JSON.stringify(got).slice(0,200)}`);
+  if(got.workflow!=='bug-fix')throw Error(`expected the decision, got ${JSON.stringify(got).slice(0,200)}`);
+});
+test('a-bare-echoed-schema-yields-no-decision',()=>{
+  // No answer at all, only the schema: the honest result is null, which the
+  // caller records as NO_STRUCTURED_DECISION rather than grading a schema.
+  const onlySchema=JSON.stringify({json_schema:{type:'object',properties:{
+    activate:{type:'boolean'},workflow:{anyOf:[{type:'string',enum:['bug-fix']},{type:'null'}]}
+  }}});
+  const got=extractStructured(onlySchema,null,'activate');
+  if(got!==null)throw Error(`a schema was accepted as a decision: ${JSON.stringify(got).slice(0,200)}`);
+});
 // Pinning is only safe if it cannot forbid an answer the corpus asks for.
 test('decision-schema-enums-admit-every-expected-value',()=>{
   const sem=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8')).properties;

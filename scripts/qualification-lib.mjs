@@ -118,11 +118,36 @@ export function parseJsonObject(text,requiredKey){
   try{const v=JSON.parse(s);if(v&&typeof v==='object'&&requiredKey in v)return v;}catch{}
   const dec=[];for(let i=0;i<s.length;i++){if(s[i]!=='{')continue;for(let j=s.length;j>i;j--){if(s[j-1]!=='}')continue;try{const v=JSON.parse(s.slice(i,j));if(v&&typeof v==='object'&&requiredKey in v){dec.push(v);break;}}catch{}}}return dec.at(-1)||null;
 }
+/**
+ * An object that describes a key is not a value for it. A JSON Schema's
+ * `properties` map contains every field name the decision has, so the
+ * brute-force scan below matches it happily -- and Antigravity echoes the
+ * schema back in its reply envelope, after the answer, so `.at(-1)` preferred
+ * the schema and every case was graded against `{activate:{type:'boolean'}}`.
+ */
+function looksLikeSchema(v){
+  if(!v||typeof v!=='object')return false;
+  const vals=Object.values(v).filter(x=>x&&typeof x==='object');
+  if(!vals.length)return false;
+  return vals.every(x=>'type' in x||'anyOf' in x||'enum' in x||'$ref' in x);
+}
 export function extractStructured(stdout,finalFile,requiredKey){
-  if(finalFile&&fs.existsSync(finalFile)){const v=parseJsonObject(fs.readFileSync(finalFile,'utf8'),requiredKey);if(v)return v;}
-  let v=parseJsonObject(stdout,requiredKey);if(v)return v;
-  for(const line of (stdout||'').split(/\r?\n/)){try{const o=JSON.parse(line);for(const key of ['structured_output','response','result','output','message','content','text']){const x=o?.[key];if(x&&typeof x==='object'&&requiredKey in x)return x;if(typeof x==='string'){v=parseJsonObject(x,requiredKey);if(v)return v;}}}catch{}}
-  return null;
+  if(finalFile&&fs.existsSync(finalFile)){const v=parseJsonObject(fs.readFileSync(finalFile,'utf8'),requiredKey);if(v&&!looksLikeSchema(v))return v;}
+  // The host's own declared structured output first. Scanning raw text is the
+  // fallback for a host that has none, never the first choice: a host that
+  // hands you the answer explicitly should be believed over a substring scan.
+  const docs=[];
+  try{docs.push(JSON.parse((stdout||'').trim()));}catch{}
+  for(const line of (stdout||'').split(/\r?\n/)){try{docs.push(JSON.parse(line));}catch{}}
+  for(const o of docs){
+    for(const key of ['structured_output','response','result','output','message','content','text']){
+      const x=o?.[key];
+      if(x&&typeof x==='object'&&requiredKey in x&&!looksLikeSchema(x))return x;
+      if(typeof x==='string'){const v=parseJsonObject(x,requiredKey);if(v&&!looksLikeSchema(v))return v;}
+    }
+  }
+  const v=parseJsonObject(stdout,requiredKey);
+  return v&&!looksLikeSchema(v)?v:null;
 }
 export function classifyFailure(text,exit){const t=(text||'').toLowerCase();if(/not logged in|login required|authentication required|unauthorized|missing api key|api key is required|please authenticate|credentials not found|not authenticated|sign in required/.test(t))return 'PENDING_AUTH';if(/rate limit|too many requests|overloaded|temporarily unavailable|service unavailable|connection reset|network is unreachable|could not resolve|timed out|timeout|quota exceeded|capacity|session limit|usage limit|limit reached|limit exceeded/.test(t)||/"?api_error_status"?\s*:\s*429/.test(t)||/(http[ _-]?)?status(_code)?"?\s*[:=]\s*"?429/.test(t))return 'BLOCKED_TRANSIENT';if(/unknown option|unrecognized option|unexpected argument|unknown flag|no such option|invalid option/.test(t))return 'FAIL_CLI_CONTRACT';return exit===0?'NONE':'FAIL_UNCLASSIFIED';}
 export function extractUsage(text,prompt='',output=''){
