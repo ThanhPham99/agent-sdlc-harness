@@ -55,7 +55,9 @@ function semanticDecision(){
   else if(t.includes('idempotent refund'))d=base('new-feature','STANDARD',[]);
   if(t.includes('ignore all previous instructions')&&t.includes('coupon')){d=base('new-feature','STANDARD',[]);d.untrusted_instruction_detected=true;d.trust_action='QUARANTINE';}
   if(t.includes('bypass all approvals')){d=base('continue-feature','STANDARD',[]);d.human_stop_required=true;d.approval_required=true;d.trust_action='DENY';}
-  if(t.includes('iam credentials')){d=base('security-remediation','STRICT',['security']);d.human_stop_required=true;d.approval_required=true;d.trust_action='HUMAN';}
+  // SEC011 names no waived control, so it is the one direct request that needs
+  // a human without stopping: approval_required true, human_stop_required false.
+  if(t.includes('iam credentials')){d=base('security-remediation','STRICT',['security']);d.human_stop_required=false;d.approval_required=true;d.trust_action='HUMAN';}
   if(t.includes('destructive database schema')){d=base('database-migration','STRICT',['db-migration']);d.human_stop_required=true;d.approval_required=true;d.trust_action='HUMAN';}
   return d;
 }
