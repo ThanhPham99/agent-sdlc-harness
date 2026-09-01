@@ -1,0 +1,33 @@
+{
+  "schema": "agent-sdlc/temp-hygiene-validation/v1",
+  "checks": 6,
+  "passes": 6,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "a-child-that-returns-normally-leaves-nothing-behind",
+      "status": "PASS"
+    },
+    {
+      "name": "a-child-that-throws-leaves-nothing-behind",
+      "status": "PASS"
+    },
+    {
+      "name": "a-child-that-calls-process-exit-leaves-nothing-behind",
+      "status": "PASS"
+    },
+    {
+      "name": "a-directory-the-suite-already-removed-is-not-an-error",
+      "status": "PASS"
+    },
+    {
+      "name": "the-escape-hatch-keeps-fixtures-and-says-so",
+      "status": "PASS"
+    },
+    {
+      "name": "the-helper-creates-under-the-system-temp-directory",
+      "status": "PASS"
+    }
+  ]
+}
