@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // End-to-End Simulation & Dogfooding Test Suite for Agent SDLC Harness.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {initProject, saveRun, saveTask, putArtifact, loadRun, listTasks} from '../runtime/store.mjs';
@@ -11,12 +10,13 @@ import {materializeTaskGraph, transitionTask} from '../runtime/task-engine.mjs';
 import {verifyTask} from '../runtime/task-verification.mjs';
 import {generatePrBody} from '../runtime/pr-generator.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const {test, assert, finish} = createSuite('agent-sdlc/e2e-simulation-validation/v1', 'E2E-SIMULATION-VALIDATION.json');
 
 function fixture() {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sdlc-e2e-'));
+  const d = makeTempDir('agent-sdlc-e2e-');
   initProject(d, {
     schema: 'agent-sdlc/project/v1',
     project: 'e2e-dogfood-service',

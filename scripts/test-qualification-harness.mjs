@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {
@@ -9,10 +8,11 @@ import {
 } from './qualification-lib.mjs';
 import {writeReport} from './lib/report-io.mjs';
 import {route} from '../runtime/router.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 let pass=0,fail=0;const rows=[];
 function test(name,fn){try{fn();pass++;rows.push({name,status:'PASS'});}catch(e){fail++;rows.push({name,status:'FAIL',error:e.message});}}
-const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-qual-reg-'));
+const tmp=makeTempDir('agent-sdlc-qual-reg-');
 function fakeCli(name,missing=''){
   // A Node script rather than a /bin/sh script: qualification spawns host
   // binaries through `spawnHost`, so this fixture runs on Windows too.
@@ -301,7 +301,7 @@ test('output-that-exists-is-never-treated-as-silence',()=>{
 });
 
 test('a-written-final-answer-file-is-never-silence',()=>{
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-noanswer-'));
+  const dir=makeTempDir('agent-sdlc-noanswer-');
   const final=path.join(dir,'answer.json');
   fs.writeFileSync(final,'{"activate":true}');
   if(hostProducedNoAnswer('',final))throw Error('an answer delivered by file was read as silence');

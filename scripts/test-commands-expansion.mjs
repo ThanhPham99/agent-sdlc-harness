@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Test suite for expanded CLI commands, rewind engine, PR generator, webhook delivery, and edge-cases.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 import {fileURLToPath} from 'node:url';
@@ -18,12 +17,13 @@ import {normalizeInput} from '../runtime/normalize.mjs';
 import {commands as projectCmds} from '../runtime/commands/project.mjs';
 import {commands as deliveryCmds} from '../runtime/commands/delivery.mjs';
 import {commands as repoCmds} from '../runtime/commands/repo.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const {test,assert,finish}=createSuite('agent-sdlc/commands-expansion-validation/v1','COMMANDS-EXPANSION-VALIDATION.json');
 
 function fixture(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-cmd-exp-'));
+  const d=makeTempDir('agent-sdlc-cmd-exp-');
   execFileSync('git',['init','-q'],{cwd:d});
   fs.writeFileSync(path.join(d,'README.md'),'# Fixture\n');
   fs.writeFileSync(path.join(d,'.gitignore'),'dist/\nnode_modules/\n');

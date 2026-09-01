@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
@@ -11,6 +10,7 @@ import {
   activationProbeCases,activationExpectations,spawnHost,hostProducedNoAnswer,matchesExpected} from './qualification-lib.mjs';
 import {unzipTo} from './archive.mjs';
 import {getActivationMode,estimateBootstrapCost,bootstrapHash,getActivationPolicy} from '../runtime/activation.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const argv=process.argv.slice(2);
 const val=k=>{const i=argv.indexOf(k);return i>=0?argv[i+1]:null;};
@@ -170,7 +170,7 @@ try{const r=spawnSync(process.execPath,[path.join(ROOT,'scripts','verify-dist.mj
 let tempCleanup={status:'OK',path:null,code:null};
 const semRows=[],e2eRows=[],activationRows=[]; const probeCases=activationProbeCases(); const caseSets=loadCases();const kindById=new Map([...caseSets.activation.map(c=>[c.id,'activation']),...caseSets.semantic.map(c=>[c.id,'semantic']),...caseSets.security.map(c=>[c.id,'security'])]);
 if(packageOk&&pf.status==='READY'){
-  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),`agent-sdlc-live-${host}-`));
+  const tmp=makeTempDir(`agent-sdlc-live-${host}-`);
   try{const extracted=path.join(tmp,'exact-package');fs.mkdirSync(extracted,{recursive:true});try{unzipTo(packagePath(host),extracted);}catch(e){throw new Error(`cannot extract exact package: ${e.message}`);}const pkg=path.join(extracted,`agent-sdlc-${host}-${VERSION}`);const work=path.join(tmp,'workspace');fs.mkdirSync(work,{recursive:true});const semSchema=path.join(ROOT,'evals/live/semantic-decision.schema.json');for(const c of selected.semantic)semRows.push(withSilenceRetry(()=>runOne(kindById.get(c.id),c,pf,tmp,work,semSchema,pkg)));const e2eSchema=path.join(ROOT,'evals/live/repository-decision.schema.json');for(const c of selected.e2e)e2eRows.push(withSilenceRetry(()=>runE2E(c,pf,tmp,e2eSchema,pkg)));for(const c of probeCases)activationRows.push(withSilenceRetry(()=>runActivationProbe(c,pf,tmp,work,semSchema,pkg)));}finally{
   // Housekeeping must not be able to destroy the measurement. This rmSync
   // threw EPERM on Windows -- agy keeps a handle on the workspace it was

@@ -7,11 +7,11 @@
 // delete would follow the junction into the working tree and delete the
 // repository, so the fixture asserts the tree is still intact afterwards.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const SCRIPT=path.join(ROOT,'scripts','dev-link.mjs');
@@ -19,7 +19,7 @@ const {test,assert,finish}=createSuite('agent-sdlc/dev-link-validation/v1','DEV-
 
 /** A host root shaped like ~/.claude, with one recorded install. */
 function hostFixture(version='3.0.0-alpha4'){
-  const home=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-host-'));
+  const home=makeTempDir('agent-sdlc-host-');
   const installPath=path.join(home,'plugins','cache','agent-sdlc-github','agent-sdlc-harness',version);
   fs.mkdirSync(installPath,{recursive:true});
   fs.writeFileSync(path.join(installPath,'VERSION'),`${version}\n`);
@@ -76,7 +76,7 @@ test('revert-restores-the-cache-and-leaves-the-repo-intact',()=>{
 });
 
 test('refuses-a-path-outside-a-plugins-cache',()=>{
-  const home=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-host-'));
+  const home=makeTempDir('agent-sdlc-host-');
   const installPath=path.join(home,'somewhere','else');
   fs.mkdirSync(installPath,{recursive:true});
   fs.mkdirSync(path.join(home,'plugins'),{recursive:true});
@@ -90,7 +90,7 @@ test('refuses-a-path-outside-a-plugins-cache',()=>{
 });
 
 test('missing-host-record-is-reported-not-crashed',()=>{
-  const home=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-host-'));
+  const home=makeTempDir('agent-sdlc-host-');
   const out=run(home,['--apply']);
   if(out.host_record_present)throw Error('claimed a record exists');
   if(!out.note)throw Error('no explanation for the empty result');

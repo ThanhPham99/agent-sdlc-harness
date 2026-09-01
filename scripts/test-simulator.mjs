@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Test suite for Predictive Budgeting & Pre-Flight Cost Simulator.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
@@ -14,6 +13,7 @@ import {
 } from '../runtime/simulator.mjs';
 import {initProject, saveRun, saveTask} from '../runtime/store.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const {test, assert, finish} = createSuite('agent-sdlc/simulator-validation/v1', 'SIMULATOR-VALIDATION.json');
@@ -58,7 +58,7 @@ await test('calculate-prompt-cache-savings', () => {
 });
 
 await test('simulate-run-budget-end-to-end', () => {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sdlc-sim-'));
+  const d = makeTempDir('agent-sdlc-sim-');
   initProject(d, { schema: 'agent-sdlc/project/v1', project: 'sim-test' });
 
   execFileSync('git', ['init', '-q'], { cwd: d });

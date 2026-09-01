@@ -14,13 +14,14 @@ import {execFileSync,spawnSync} from 'node:child_process';
 import {detectProject} from '../runtime/init.mjs';
 import {resolveConfig} from '../runtime/config.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const CLI=path.join(ROOT,'runtime','cli.mjs');
 const {test,assert,finish}=createSuite('agent-sdlc/project-detection-validation/v1','PROJECT-DETECTION-VALIDATION.json');
 
 function repo(files={},{git=true}={}){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-detect-'));
+  const d=makeTempDir('agent-sdlc-detect-');
   if(git)execFileSync('git',['init','-q'],{cwd:d});
   for(const [rel,body] of Object.entries(files)){
     const abs=path.join(d,rel);
@@ -185,7 +186,7 @@ test('the-global-layer-is-read-from-AGENT_SDLC_HOME-and-the-project-layer-wins',
   // os.homedir(), so exercising it meant writing the real developer/CI home.
   const d=repo({});
   cli(['init'],d);
-  const home=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-global-'));
+  const home=makeTempDir('agent-sdlc-global-');
   fs.mkdirSync(path.join(home,'.agent-sdlc'),{recursive:true});
   fs.writeFileSync(path.join(home,'.agent-sdlc','config.json'),
     JSON.stringify({risk_profile:'STRICT',telemetry:{sink:'from-global'}}));

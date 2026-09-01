@@ -8,11 +8,11 @@
 // stale copy. So it is exercised here against a synthetic root
 // (AGENT_SDLC_ROOT_SYNC_ROOT), never the real checkout.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const VALIDATOR=path.join(ROOT,'scripts','validate-root-sync.mjs');
@@ -26,7 +26,7 @@ const COPY='hooks/pretool-guard.mjs';
 
 /** A throwaway root holding every file the validator reads. */
 function fixture({copyBody=null}={}){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-rootsync-'));
+  const d=makeTempDir('agent-sdlc-rootsync-');
   fs.mkdirSync(path.join(d,'evals'),{recursive:true});
   fs.writeFileSync(path.join(d,'agent-sdlc.manifest.json'),JSON.stringify({version:'0.0.0-fixture'}));
   for(const [src,dst] of [[SOURCE,COPY],['adapters/antigravity/hooks.json','hooks.json'],

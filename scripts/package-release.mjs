@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
@@ -8,6 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {zipDir} from './archive.mjs';
 import {BOOTSTRAP_TEXT,bootstrapHash,estimateBootstrapCost,getActivationPolicy} from '../runtime/activation.mjs';
 import {corpusDigest} from './qualification-lib.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const version=fs.readFileSync(path.join(ROOT,'VERSION'),'utf8').trim();
@@ -24,7 +24,7 @@ for(const host of ['claude','codex','antigravity']){
 // exclusions apply with either archiver (Info-ZIP or PowerShell Compress-Archive).
 const EXCLUDE=new Set(['.git','dist','release','node_modules']);
 function stage(dstName){
-  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-stage-'));
+  const tmp=makeTempDir('agent-sdlc-stage-');
   const dst=path.join(tmp,dstName);
   fs.cpSync(ROOT,dst,{recursive:true,filter:(src)=>{
     const rel=path.relative(ROOT,src).split(path.sep);
@@ -68,7 +68,7 @@ fs.writeFileSync(path.join(release,'AUTO-ACTIVATION-VALIDATION.md'),[
 
 // Evidence bundle: everything a reviewer needs without unpacking a host package.
 {
-  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-assets-'));
+  const tmp=makeTempDir('agent-sdlc-assets-');
   const dir=path.join(tmp,`agent-sdlc-harness-release-assets-${version}`);
   fs.mkdirSync(dir,{recursive:true});
   for(const f of fs.readdirSync(release).filter(x=>!x.endsWith('.zip')))fs.copyFileSync(path.join(release,f),path.join(dir,f));

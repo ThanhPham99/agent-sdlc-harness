@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Test suite for Live Dashboard Server, SSE streaming, and API endpoints.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import http from 'node:http';
 import {fileURLToPath} from 'node:url';
@@ -12,12 +11,13 @@ import {initProject} from '../runtime/store.mjs';
 import {newRun} from '../runtime/orchestrator.mjs';
 import {route} from '../runtime/router.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const {test,assert,finish}=createSuite('agent-sdlc/live-dashboard-validation/v1','LIVE-DASHBOARD-VALIDATION.json');
 
 function fixture(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-dash-'));
+  const d=makeTempDir('agent-sdlc-dash-');
   execFileSync('git',['init','-q'],{cwd:d});
   fs.writeFileSync(path.join(d,'README.md'),'fixture\n');
   execFileSync('git',['add','.'],{cwd:d});

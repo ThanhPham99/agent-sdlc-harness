@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 import fs from 'node:fs';import os from 'node:os';import path from 'node:path';import {spawnSync} from 'node:child_process';import {ROOT,VERSION,HOSTS} from './qualification-lib.mjs';
 import {writeReport} from './lib/report-io.mjs';
-let pass=0,fail=0;const rows=[];const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-transport-'));
+import {makeTempDir} from './lib/tempdir.mjs';
+let pass=0,fail=0;const rows=[];const tmp=makeTempDir('agent-sdlc-transport-');
 function test(name,fn){try{fn();pass++;rows.push({name,status:'PASS'});}catch(e){fail++;rows.push({name,status:'FAIL',error:e.message});}}
 for(const h of HOSTS){test(`smoke-transport-${h}`,()=>{const name=h==='antigravity'?'agy':h;const bin=path.join(tmp,name+'.mjs');fs.copyFileSync(path.join(ROOT,'evals','fake-host-cli.mjs'),bin);const out=path.join(tmp,`${h}.json`);const r=spawnSync(process.execPath,[path.join(ROOT,'scripts','qualify-host.mjs'),'--host',h,'--tier','SMOKE','--binary',bin,'--output',out],{cwd:ROOT,encoding:'utf8',timeout:120000,maxBuffer:20*1024*1024});if(r.status!==0)throw Error(`exit=${r.status} stderr=${(r.stderr||'').slice(-1000)} stdout=${(r.stdout||'').slice(-1000)}`);const d=JSON.parse(fs.readFileSync(out,'utf8'));if(d.status!=='QUALIFIED'||d.semantic_summary.PASS!==18||d.repository_e2e_summary.PASS!==2)throw Error(JSON.stringify({status:d.status,semantic:d.semantic_summary,e2e:d.repository_e2e_summary}));if(d.promotion_evidence!==false)throw Error('SMOKE must never be promotion evidence');if(d.token_usage.source!=='ACTUAL_HOST_REPORTED')throw Error(JSON.stringify(d.token_usage));});}
 // Silence is not a wrong answer, and the run must not be QUALIFIED either.

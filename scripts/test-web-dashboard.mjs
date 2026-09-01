@@ -2,7 +2,6 @@
 // Test suite for Built-in Live Web Dashboard & Server APIs.
 import http from 'node:http';
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {initProject, saveTask} from '../runtime/store.mjs';
@@ -10,12 +9,13 @@ import {startServer} from '../runtime/server.mjs';
 import {newRun} from '../runtime/orchestrator.mjs';
 import {route} from '../runtime/router.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const {test, assert, finish} = createSuite('agent-sdlc/web-dashboard-validation/v1', 'WEB-DASHBOARD-VALIDATION.json');
 
 function fixture() {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sdlc-web-dash-'));
+  const d = makeTempDir('agent-sdlc-web-dash-');
   initProject(d, { schema: 'agent-sdlc/project/v1', project: 'web-dash-test' });
   return d;
 }

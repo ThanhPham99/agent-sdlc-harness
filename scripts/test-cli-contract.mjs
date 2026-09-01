@@ -16,13 +16,14 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync,spawnSync} from 'node:child_process';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const CLI=path.join(ROOT,'runtime','cli.mjs');
 const {test,assert,finish}=createSuite('agent-sdlc/cli-contract-validation/v1','CLI-CONTRACT-VALIDATION.json');
 
 function fixture(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-cli-'));
+  const d=makeTempDir('agent-sdlc-cli-');
   execFileSync('git',['init','-q'],{cwd:d});
   fs.writeFileSync(path.join(d,'README.md'),'fixture\n');
   fs.mkdirSync(path.join(d,'src'),{recursive:true});
@@ -37,7 +38,7 @@ const PROJECT=fixture();
 // happens to have -- the results were machine-dependent, and the --global
 // branch wrote there for real. One empty fake home for the suite; the tests
 // that care about the layer point AGENT_SDLC_HOME somewhere of their own.
-const SUITE_HOME=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-suite-home-'));
+const SUITE_HOME=makeTempDir('agent-sdlc-suite-home-');
 
 /** Run the CLI the way an agent does and return {status, stdout, stderr}.
  *  `env` overlays the child environment; the provider commands use it to pin a
@@ -774,7 +775,7 @@ test('activation-enable-global-scope-writes-under-the-given-home',()=>{
   // %USERPROFILE% on Windows, so pinning $HOME left this branch writing the real
   // developer/CI ~/.agent-sdlc/config.json on the Windows leg. The harness owns
   // an explicit override so the fake home holds on every platform.
-  const fakeHome=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-home-'));
+  const fakeHome=makeTempDir('agent-sdlc-home-');
   const out=json(['activation','enable','--global'],PROJECT,{AGENT_SDLC_HOME:fakeHome});
   if(out.scope!=='global')throw new Error(JSON.stringify(out));
   if(!out.config_file.startsWith(fakeHome))throw new Error(`config file escaped the fake home: ${out.config_file}`);
@@ -791,7 +792,7 @@ test('activation-record-dry-run-then-a-real-write-to-the-activation-log',()=>{
 });
 
 test('activation-codex-bootstrap-install-and-uninstall-round-trip',()=>{
-  const home=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-codex-home-'));
+  const home=makeTempDir('agent-sdlc-codex-home-');
   const installed=json(['activation','codex-bootstrap','install','--codex-home',home]);
   if(installed.status!=='INSTALLED')throw new Error(JSON.stringify(installed));
   const status=json(['activation','codex-bootstrap','status','--codex-home',home]);

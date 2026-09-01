@@ -11,16 +11,16 @@
 // out to; where a tool is absent the parser's own PENDING status is asserted
 // instead of the parse result.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {zipDir} from './archive.mjs';
 import {normalizeInput,MAX_EXTRACTED_BYTES} from '../runtime/normalize.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const TMP=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-normalize-'));
+const TMP=makeTempDir('agent-sdlc-normalize-');
 const {test,assert,finish}=createSuite('agent-sdlc/normalize-validation/v1','NORMALIZE-VALIDATION.json');
 const has=bin=>{const r=spawnSync(bin,['--help'],{encoding:'utf8',timeout:3000});return !r.error;};
 const HAS_UNZIP=has('unzip');

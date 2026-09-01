@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 // Test suite for Architectural Linter & Module Boundary Enforcer.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
@@ -14,6 +13,7 @@ import {
 } from '../runtime/arch-linter.mjs';
 import {initProject} from '../runtime/store.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const {test, assert, finish} = createSuite('agent-sdlc/arch-linter-validation/v1', 'ARCH-LINTER-VALIDATION.json');
@@ -80,7 +80,7 @@ await test('arch-forbidden-imports-checker', () => {
 });
 
 await test('audit-architecture-end-to-end', () => {
-  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-sdlc-arch-'));
+  const d = makeTempDir('agent-sdlc-arch-');
   initProject(d, { schema: 'agent-sdlc/project/v1', project: 'arch-test' });
 
   fs.mkdirSync(path.join(d, 'domain'), { recursive: true });

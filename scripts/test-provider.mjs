@@ -11,12 +11,12 @@
 // spawn is injected for those contracts so they hold on every platform; the
 // real-binary checks need an executable shebang script and run on POSIX only.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {probeBin,probe,resetProbeCache,capabilities,buildInvocation,runHost,argvLimitProblem,DEFAULT_MAX_WALL_MS} from '../runtime/provider.mjs';
 import {resolveLaunch,resolveOnPath,describeSpawn} from '../runtime/launcher.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const POSIX=process.platform!=='win32';
@@ -278,7 +278,7 @@ test('the-wall-clock-budget-reaches-spawn',()=>{
 
 // --- real binaries (POSIX only: Node cannot spawn a shebang script on Windows)
 function shebang(name,body){
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-provider-'));
+  const dir=makeTempDir('agent-sdlc-provider-');
   const p=path.join(dir,name);
   fs.writeFileSync(p,body,{mode:0o755});
   return p;
@@ -323,7 +323,7 @@ test('a-real-binary-round-trips-through-runHost',()=>{
 });
 
 test('a-node-script-binary-probes-and-runs-across-platforms',()=>{
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-provider-script-'));
+  const dir=makeTempDir('agent-sdlc-provider-script-');
   const bin=path.join(dir,'fake-host.mjs');
   fs.writeFileSync(bin,
     'const args=process.argv.slice(2);\n'+
@@ -377,7 +377,7 @@ test('launcher-windows-unresolved-is-tool-not-executable',()=>{
 });
 
 test('launcher-windows-cmd-shim-goes-through-comspec',()=>{
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-launch-'));
+  const dir=makeTempDir('agent-sdlc-launch-');
   fs.writeFileSync(path.join(dir,'npm.CMD'),'@echo off\n');
   const env={...WIN.env,PATH:dir};
   const l=resolveLaunch(['npm','test'],{platform:'win32',env});
@@ -395,7 +395,7 @@ test('launcher-windows-cmd-shim-goes-through-comspec',()=>{
 });
 
 test('launcher-windows-shim-rejects-cmd-metacharacters',()=>{
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-launch-'));
+  const dir=makeTempDir('agent-sdlc-launch-');
   fs.writeFileSync(path.join(dir,'npm.CMD'),'@echo off\n');
   const l=resolveLaunch(['npm','test','--','a&calc.exe'],{platform:'win32',env:{...WIN.env,PATH:dir}});
   fs.rmSync(dir,{recursive:true,force:true});
@@ -408,7 +408,7 @@ test('launcher-posix-symlinked-script-stays-direct',()=>{
   // (Debian npm, nvm, Homebrew shims). Resolving through the symlink's real
   // target must not flip `via` from 'direct' to 'node' -- callers spawn the
   // PATH entry itself, not the interpreter plus its resolved script path.
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-launch-'));
+  const dir=makeTempDir('agent-sdlc-launch-');
   const target=path.join(dir,'real-target.js');
   fs.writeFileSync(target,'#!/usr/bin/env node\n');
   const link=path.join(dir,'thing');
@@ -421,7 +421,7 @@ test('launcher-posix-symlinked-script-stays-direct',()=>{
 });
 
 test('launcher-resolve-on-path-tries-pathext',()=>{
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-launch-'));
+  const dir=makeTempDir('agent-sdlc-launch-');
   fs.writeFileSync(path.join(dir,'thing.CMD'),'@echo off\n');
   const got=resolveOnPath('thing',{platform:'win32',env:{PATH:dir,PATHEXT:'.EXE;.CMD'}});
   fs.rmSync(dir,{recursive:true,force:true});
@@ -461,7 +461,7 @@ test('provider-probes-a-windows-shim-host',()=>{
   // including POSIX CI, which is case-sensitive and would otherwise ENOENT on
   // a candidate built from PATHEXT casing that the fixture's name doesn't
   // match -- not only on a real win32 box.
-  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-shim-'));
+  const dir=makeTempDir('agent-sdlc-shim-');
   fs.writeFileSync(path.join(dir,'claude.CMD'),'@echo off\n');
   const seen=[];
   const spawn=(bin,args)=>{seen.push({bin,args});return {status:0,stdout:'2.0.0 (Claude Code)',stderr:''};};
