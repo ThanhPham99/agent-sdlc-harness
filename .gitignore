@@ -5,3 +5,11 @@ node_modules/
 *.log
 .tmp/
 .claude/
+
+# Where scripts/qualify-host.mjs writes each measurement it takes. Working
+# output, not evidence: the deliberate artifact is the promoted copy under
+# evals/live/baseline/, which stays tracked and is committed on purpose. Leaving
+# this untracked cost real time -- in this harness a dirty tree is what makes
+# task verification report a scope violation, and a measurement is exactly the
+# kind of thing that gets run in the middle of one.
+evals/qualification/
