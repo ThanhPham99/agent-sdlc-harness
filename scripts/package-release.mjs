@@ -7,6 +7,7 @@ import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {zipDir} from './archive.mjs';
 import {BOOTSTRAP_TEXT,bootstrapHash,estimateBootstrapCost,getActivationPolicy} from '../runtime/activation.mjs';
+import {corpusDigest} from './qualification-lib.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const version=fs.readFileSync(path.join(ROOT,'VERSION'),'utf8').trim();
@@ -87,17 +88,36 @@ fs.writeFileSync(path.join(release,'SHA256SUMS.txt'),lines.join('\n')+'\n');
 // all. A host that has never been measured and one measured at 17/20 are not
 // the same kind of pending.
 const baselineDir=path.join(ROOT,'evals','live','baseline');
+// A baseline is a measurement of one exact corpus. Edit a case or a decision
+// schema and the numbers still parse, still look current, and no longer
+// describe anything that exists -- the very failure the digest binding was
+// added to prevent everywhere else. So the row is printed only while the
+// evidence's own bound corpus digest still matches; otherwise it says so and
+// names both digests, because "stale" without the pair is unactionable.
+const currentCorpus=corpusDigest();
 const liveRows=[];
+let anyStale=false;
 for(const h of ['claude','codex','antigravity']){
   const f=path.join(baselineDir,`${h}-smoke-${version}.json`);
   if(!fs.existsSync(f)){liveRows.push(`| ${h} | never measured | - | - |`);continue;}
   try{
     const e=JSON.parse(fs.readFileSync(f,'utf8'));
+    const bound=e.bound_inputs?.corpus_sha256||null;
+    if(bound!==currentCorpus){
+      anyStale=true;
+      liveRows.push(`| ${h} | ${e.preflight?.host_version||'-'} | **stale** — measured against corpus \`${(bound||'none').slice(0,12)}\`, current is \`${currentCorpus.slice(0,12)}\` | re-measure |`);
+      continue;
+    }
     const pass=(e.semantic_summary?.PASS||0)+(e.repository_e2e_summary?.PASS||0);
     const total=(e.required_semantic_case_count||0)+(e.required_repository_e2e_count||0);
     liveRows.push(`| ${h} | ${e.preflight?.host_version||'-'} | ${pass}/${total} SMOKE | ${e.status} |`);
   }catch{liveRows.push(`| ${h} | unreadable baseline | - | - |`);}
 }
+const staleNote=anyStale
+  ? ['A row marked **stale** was measured against a corpus that no longer exists: a case or a',
+     'decision schema changed after it was recorded, so its counts describe a question the harness',
+     'no longer asks. Re-run the host to replace it.','']
+  : [];
 
 fs.writeFileSync(path.join(release,'RELEASE-READINESS.md'),[
   `# Release Readiness — ${version}`,'',
@@ -114,6 +134,7 @@ fs.writeFileSync(path.join(release,'RELEASE-READINESS.md'),[
   'SMOKE tier only. SMOKE is not promotion-eligible by design -- see `promotion_eligible`',
   'in `evals/live/qualification-lock.json` -- so these numbers describe where the harness',
   'stands, not whether it may ship. Full evidence documents are in `evals/live/baseline/`.','',
+  ...staleNote,
   '| Host | CLI version | Measured | Status |',
   '|---|---|---|---|',
   ...liveRows,'',
