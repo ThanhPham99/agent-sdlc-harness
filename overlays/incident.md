@@ -3,7 +3,7 @@
 Apply to any base scenario driven by a live production incident: an outage, a
 severity-graded event, or a service the user reports as currently degraded.
 
-`config/router-rules.json` mandates this overlay for `incident-response`, and
+`config/workflows.json` mandates this overlay for `incident-response`, and
 `runtime/context.mjs` maps it to the `incident` internal skill. This file is the
 guidance those two references point at.
 
