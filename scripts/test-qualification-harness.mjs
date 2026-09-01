@@ -60,6 +60,18 @@ test('strip-schema-dialect-removes-every-occurrence',()=>{
   if(JSON.stringify(out).includes('$schema'))throw Error(JSON.stringify(out));
   if(out.type!=='object'||out.properties.nested.type!=='string'||out.anyOf[0].const!==1)throw Error('stripping altered the schema body');
 });
+// Nullability is expressed as an anyOf branch rather than a null inside the
+// enum, because Antigravity rejects the latter outright: with `null` in any
+// enum, `agy --json-schema` returns status ERROR for the whole document, and
+// removing it makes the identical schema succeed. Claude accepts both forms, so
+// anyOf is the encoding both hosts share. These helpers read either shape.
+const allowedValues=prop=>prop?.enum
+  ?? prop?.anyOf?.flatMap(b=>b.enum??(b.type==='null'?[null]:[]))
+  ?? null;
+const acceptsNull=prop=>Array.isArray(prop?.enum)
+  ? prop.enum.includes(null)
+  : !!prop?.anyOf?.some(b=>b.type==='null');
+
 // Every enum-constrained field in the decision schema came back correct in the
 // first live run; every unconstrained one came back invented -- workflow
 // "feature-development", overlay "production-change-control", next_action as a
@@ -70,17 +82,17 @@ test('strip-schema-dialect-removes-every-occurrence',()=>{
 test('decision-schema-workflow-enum-matches-the-registry',()=>{
   const schema=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8'));
   const registry=Object.keys(JSON.parse(fs.readFileSync(path.join(ROOT,'config','workflows.json'),'utf8')).workflows);
-  const allowed=schema.properties.workflow.enum.filter(x=>x!==null);
+  const allowed=allowedValues(schema.properties.workflow).filter(x=>x!==null);
   const missing=registry.filter(w=>!allowed.includes(w));
   const extra=allowed.filter(w=>!registry.includes(w));
   if(missing.length||extra.length)throw Error(`missing ${JSON.stringify(missing)} extra ${JSON.stringify(extra)}`);
-  if(!schema.properties.workflow.enum.includes(null))throw Error('an inactive decision must still be able to answer null');
+  if(!acceptsNull(schema.properties.workflow))throw Error('an inactive decision must still be able to answer null');
 });
 test('decision-schema-observed-state-enum-matches-the-state-machine',()=>{
   const schema=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','repository-decision.schema.json'),'utf8'));
   const sm=JSON.parse(fs.readFileSync(path.join(ROOT,'config','state-machine.json'),'utf8'));
   const states=[...new Set(sm.edges.flatMap(e=>[e.from,e.to]))];
-  const allowed=schema.properties.observed_state.enum.filter(x=>x!==null);
+  const allowed=allowedValues(schema.properties.observed_state).filter(x=>x!==null);
   const missing=states.filter(s=>!allowed.includes(s));
   if(missing.length)throw Error(`state machine has states the schema forbids: ${JSON.stringify(missing)}`);
 });
@@ -167,20 +179,41 @@ test('an-exhausted-quota-is-transient-not-a-failure',()=>{
   if(classifyFailure('unknown option --nope',1)!=='FAIL_CLI_CONTRACT')throw Error('CLI drift stopped being a failure');
   if(classifyFailure('assertion failed: expected 3 got 4',1)!=='FAIL_UNCLASSIFIED')throw Error('a genuine failure was reclassified');
 });
+// Antigravity rejects a schema with `null` inside any enum: `agy --json-schema`
+// returns status ERROR for the whole document, and the identical schema with
+// the null removed succeeds. Claude accepts either form. That asymmetry is
+// invisible until a host run fails wholesale, so the portable encoding is
+// pinned here rather than rediscovered. profile and trust_action carried
+// null-in-enum from the start, so Antigravity could never have been qualified
+// on this corpus.
+test('no-decision-schema-enum-contains-null',()=>{
+  for(const f of ['semantic-decision.schema.json','repository-decision.schema.json']){
+    const d=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live',f),'utf8'));
+    const offenders=[];
+    const walk=(node,where)=>{
+      if(Array.isArray(node))return node.forEach((x,i)=>walk(x,`${where}[${i}]`));
+      if(!node||typeof node!=='object')return;
+      if(Array.isArray(node.enum)&&node.enum.includes(null))offenders.push(where);
+      for(const [k,v] of Object.entries(node))walk(v,`${where}.${k}`);
+    };
+    walk(d,f);
+    if(offenders.length)throw Error(`null inside enum at ${offenders.join(', ')} -- use anyOf with a {"type":"null"} branch instead`);
+  }
+});
 // Pinning is only safe if it cannot forbid an answer the corpus asks for.
 test('decision-schema-enums-admit-every-expected-value',()=>{
   const sem=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8')).properties;
   for(const f of ['semantic-cases.json','security-cases.json','activation-cases.json']){
     for(const c of JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live',f),'utf8')).cases){
       const e=c.expected||{};
-      if(!sem.workflow.enum.includes(e.workflow??null))throw Error(`${f}: workflow ${e.workflow} is not in the enum`);
-      if(!sem.next_action.enum.includes(e.next_action??null))throw Error(`${f}: next_action ${e.next_action} is not in the enum`);
+      if(!allowedValues(sem.workflow).includes(e.workflow??null))throw Error(`${f}: workflow ${e.workflow} is not in the enum`);
+      if(!allowedValues(sem.next_action).includes(e.next_action??null))throw Error(`${f}: next_action ${e.next_action} is not in the enum`);
       for(const o of e.overlays||[])if(!sem.overlays.items.enum.includes(o))throw Error(`${f}: overlay ${o} is not in the enum`);
     }
   }
   const rep=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','repository-decision.schema.json'),'utf8')).properties;
   for(const c of JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','repository-e2e-cases.json'),'utf8')).cases){
-    if(!rep.observed_state.enum.includes(c.expected?.observed_state??null))throw Error(`observed_state ${c.expected?.observed_state} is not in the enum`);
+    if(!allowedValues(rep.observed_state).includes(c.expected?.observed_state??null))throw Error(`observed_state ${c.expected?.observed_state} is not in the enum`);
   }
 });
 // Stripping happens at the call site; the files keep their declared dialect so

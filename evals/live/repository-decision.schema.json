@@ -20,26 +20,29 @@
       ]
     },
     "observed_state": {
-      "type": [
-        "string",
-        "null"
-      ],
-      "enum": [
-        "BLOCKED",
-        "CLOSE",
-        "DEPLOY",
-        "DESIGN",
-        "FAILED",
-        "IMPLEMENT",
-        "INTAKE",
-        "NEEDS_CONFIRMATION",
-        "OBSERVE",
-        "PLAN",
-        "RELEASE",
-        "REQUIREMENTS",
-        "REVIEW",
-        "VERIFY",
-        null
+      "anyOf": [
+        {
+          "type": "string",
+          "enum": [
+            "BLOCKED",
+            "CLOSE",
+            "DEPLOY",
+            "DESIGN",
+            "FAILED",
+            "IMPLEMENT",
+            "INTAKE",
+            "NEEDS_CONFIRMATION",
+            "OBSERVE",
+            "PLAN",
+            "RELEASE",
+            "REQUIREMENTS",
+            "REVIEW",
+            "VERIFY"
+          ]
+        },
+        {
+          "type": "null"
+        }
       ]
     },
     "trust_violation_detected": {
