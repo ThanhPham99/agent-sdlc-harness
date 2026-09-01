@@ -363,16 +363,55 @@ production hotfix — contradicting an explicit list in front of it. So the caus
 is not that the profile was unavailable, and no further wording change should be
 attempted on that theory.
 
-### Two open leads, neither decided
+### Two leads: one now decided, one still open
 
-**The contract string may be causing the failures.** Asked `SEM007` and
-`SEM033` with a short prompt, Claude answered both correctly —
-`hotfix/STRICT/["hotfix"]` and `compliance-change/STRICT/[]` — where the full
-qualification prompt gets both wrong. The full prompt differs by carrying the
-long instruction contract. That makes the contract the leading suspect, and it
-is only a suspect: the probe changed more than one variable, so it is not
-evidence yet. Deciding it needs one run with the contract text as the only
-difference.
+**The contract was not causing the failures — and removing it made them worse.**
+The suspicion was that the long instruction contract, present in the full
+qualification prompt and absent from the short probe, was what turned `SEM007`
+and `SEM033` wrong. It has now been measured with the contract as the only
+variable. `scripts/experiment-contract-ab.mjs` lifts the contract literal and
+the semantic prompt template out of `scripts/qualify-host.mjs` rather than
+retyping them, so arm A *is* the shipped prompt; arm B is arm A with the
+guidance body deleted and the two output-format sentences kept, so extraction
+stays viable in both arms. The two prompts differ on exactly one line, and that
+diff is checked before any host call. Five repetitions per case per arm, because
+D4 had already shown one run per arm cannot decide anything here. Evidence:
+`evals/live/experiments/contract-ab-claude-3.0.0-rc1.json`.
+
+| Arm | `profile` correct | SEM007 | SEM023 | SEM033 |
+|---|---|---|---|---|
+| A — full contract (1700 chars) | 13/15 | 4/5 | 4/5 | 5/5 |
+| B — guidance removed (114 chars) | 9/15 | 2/5 | 2/5 | 5/5 |
+
+The hypothesis predicted arm B would be the better arm. It was the worse one, so
+the theory gets no support at all — and the difference is not significant either
+(Fisher exact, two-tailed, p = 0.21), so the honest reading is *the contract is
+not the cause*, not *the contract is load-bearing*. **No wording change should be
+attempted on the contract theory**, which now joins "the profile was unavailable"
+and "stating the mapping" as a disproved explanation.
+
+Two things the same run establishes, neither of which was the question:
+
+- **`SEM033` was not failing.** It answered `compliance-change/STRICT` on all
+  ten calls across both arms. The short-prompt probe read as informative because
+  it was compared against a failure this configuration does not reproduce.
+- **`workflow` was correct on all 30 calls; only `profile` moved.** Every wrong
+  answer named the right workflow and then chose a profile that workflow does not
+  have. That is the D4 variance, now quantified on one host: 2 of 15 with the
+  contract, 6 of 15 without it.
+
+Narrow, as measured: one host at 2.1.233, three cases, fifteen calls per arm,
+one session, subject content-isolated at `ca2b5e6b1da2`.
+
+**A new lead this opens, deliberately not decided.** The host picks the workflow
+correctly every time and then misstates the profile that follows from it, while
+the harness's own `config/workflows.json` already derives the profile from the
+workflow mechanically. So the corpus may be grading a model on re-deriving a
+deterministic lookup that no host should be asked for. Whether the prompt and
+schema should ask for `profile` at all, or whether the harness should derive it
+and grade only what a model actually decides, is a product question about the
+qualification contract. It is recorded here rather than answered, and no
+expectation moved on account of it.
 
 **`SEC009` may be the router failing open, not the host being wrong.** Claude
 answers `STRICT` in every configuration tried. The deterministic router answers:
