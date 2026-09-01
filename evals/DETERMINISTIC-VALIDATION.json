@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-rc1",
-  "checks": 396,
-  "passes": 396,
+  "checks": 398,
+  "passes": 398,
   "failures": 0,
   "results": [
     {
@@ -55,6 +55,14 @@
     },
     {
       "name": "router-rejects-a-rule-naming-an-undefined-workflow",
+      "status": "PASS"
+    },
+    {
+      "name": "router-skill-states-the-same-mapping-as-the-workflow-table",
+      "status": "PASS"
+    },
+    {
+      "name": "router-skill-mapping-check-fails-on-drift",
       "status": "PASS"
     },
     {
