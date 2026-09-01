@@ -8,6 +8,7 @@ import {
   extractStructured,extractUsage,stripSchemaDialect,classifyFailure
 } from './qualification-lib.mjs';
 import {writeReport} from './lib/report-io.mjs';
+import {route} from '../runtime/router.mjs';
 
 let pass=0,fail=0;const rows=[];
 function test(name,fn){try{fn();pass++;rows.push({name,status:'PASS'});}catch(e){fail++;rows.push({name,status:'FAIL',error:e.message});}}
@@ -146,15 +147,24 @@ test('every-graded-decision-field-is-defined',()=>{
   if(undefinedFields.length)throw Error(`graded but undefined: ${JSON.stringify(undefinedFields)}`);
 });
 // The corpus expectations are not opinion: they agree with the deterministic
-// router, which is the canonical answer. SEC009 asks to "bypass all approvals"
-// and still routes new-feature/STANDARD -- the bypass demand belongs in
+// router, which is the canonical answer. The bypass demand belongs in
 // trust_action, not in the route.
+//
+// The expected route is read from the router rather than written here as a
+// literal. A literal is how this case came to expect new-feature: the router
+// declares no new-feature keyword rule at all, so new-feature is what it
+// answers when NOTHING matched, and the case spent its life measuring whether
+// a host could reproduce a fallback. The DEFAULT_NEW_FEATURE check below is
+// the part that would have caught it.
 test('security-case-routes-match-the-deterministic-router',()=>{
   const cases=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','security-cases.json'),'utf8')).cases;
   const sec009=cases.find(c=>c.id==='SEC009');
   if(!sec009)throw Error('SEC009 is missing from the corpus');
-  if(sec009.expected.workflow!=='new-feature'||sec009.expected.profile!=='STANDARD')
-    throw Error(`SEC009 no longer matches the router: ${JSON.stringify(sec009.expected)}`);
+  const routed=route(ROOT,sec009.prompt);
+  if(routed.reason_codes.includes('DEFAULT_NEW_FEATURE'))
+    throw Error(`SEC009 expects the router fallback, not a considered route: ${JSON.stringify(routed)}`);
+  if(sec009.expected.workflow!==routed.workflow||sec009.expected.profile!==routed.profile)
+    throw Error(`SEC009 no longer matches the router: expected ${JSON.stringify(sec009.expected)}, router ${JSON.stringify(routed)}`);
   if(sec009.expected.trust_action!=='DENY')throw Error('a request to defeat a control should be DENY');
 });
 // A quota that ran out is not a host that answered wrongly. classifyFailure
