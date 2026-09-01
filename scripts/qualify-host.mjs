@@ -7,7 +7,8 @@ import {
   ROOT,VERSION,HOSTS,hostPreflight,selectedCases,packageDigest,packagePath,
   qualificationSubjectDigest,corpusDigest,evidenceInputs,environmentFingerprint,runtimeContract,runtimeContractDigest,stripSchemaDialect,
   extractStructured,classifyFailure,extractUsage,summarizeUsage,sanitizeDiagnostic,utcNow,exitCode,loadCases,loadLock,
-  activationProbeCases,activationExpectations,spawnHost,hostProducedNoAnswer,matchesExpected} from './qualification-lib.mjs';
+  activationProbeCases,activationExpectations,spawnHost,hostProducedNoAnswer,matchesExpected,
+  hostSkillSource,subjectIsolationFailure} from './qualification-lib.mjs';
 import {unzipTo} from './archive.mjs';
 import {getActivationMode,estimateBootstrapCost,bootstrapHash,getActivationPolicy} from '../runtime/activation.mjs';
 import {makeTempDir} from './lib/tempdir.mjs';
@@ -174,10 +175,14 @@ if(has('--preflight-only')){console.log(JSON.stringify(pf,null,2));process.exit(
 const selected=selectedCases(tier);let packageOk=false;let distVerify=null;
 try{const r=spawnSync(process.execPath,[path.join(ROOT,'scripts','verify-dist.mjs')],{cwd:ROOT,encoding:'utf8',timeout:120000,maxBuffer:20*1024*1024});packageOk=r.status===0;distVerify={status:packageOk?'PASS':'FAIL',exit_code:r.status};}catch(e){distVerify={status:'FAIL',error:e.message};}
 let tempCleanup={status:'OK',path:null,code:null};
+// Recorded from inside the case loop, because the packaged skills can only be
+// digested while the extracted package still exists; the finally below removes
+// it. A run that never got as far as extracting still reports the dev link.
+let skillSource=null;
 const semRows=[],e2eRows=[],activationRows=[]; const probeCases=activationProbeCases(); const caseSets=loadCases();const kindById=new Map([...caseSets.activation.map(c=>[c.id,'activation']),...caseSets.semantic.map(c=>[c.id,'semantic']),...caseSets.security.map(c=>[c.id,'security'])]);
 if(packageOk&&pf.status==='READY'){
   const tmp=makeTempDir(`agent-sdlc-live-${host}-`);
-  try{const extracted=path.join(tmp,'exact-package');fs.mkdirSync(extracted,{recursive:true});try{unzipTo(packagePath(host),extracted);}catch(e){throw new Error(`cannot extract exact package: ${e.message}`);}const pkg=path.join(extracted,`agent-sdlc-${host}-${VERSION}`);const work=path.join(tmp,'workspace');fs.mkdirSync(work,{recursive:true});const semSchema=path.join(ROOT,'evals/live/semantic-decision.schema.json');for(const c of selected.semantic)semRows.push(withSilenceRetry(()=>runOne(kindById.get(c.id),c,pf,tmp,work,semSchema,pkg)));const e2eSchema=path.join(ROOT,'evals/live/repository-decision.schema.json');for(const c of selected.e2e)e2eRows.push(withSilenceRetry(()=>runE2E(c,pf,tmp,e2eSchema,pkg)));for(const c of probeCases)activationRows.push(withSilenceRetry(()=>runActivationProbe(c,pf,tmp,work,semSchema,pkg)));}finally{
+  try{const extracted=path.join(tmp,'exact-package');fs.mkdirSync(extracted,{recursive:true});try{unzipTo(packagePath(host),extracted);}catch(e){throw new Error(`cannot extract exact package: ${e.message}`);}const pkg=path.join(extracted,`agent-sdlc-${host}-${VERSION}`);skillSource=await hostSkillSource(pkg);const work=path.join(tmp,'workspace');fs.mkdirSync(work,{recursive:true});const semSchema=path.join(ROOT,'evals/live/semantic-decision.schema.json');for(const c of selected.semantic)semRows.push(withSilenceRetry(()=>runOne(kindById.get(c.id),c,pf,tmp,work,semSchema,pkg)));const e2eSchema=path.join(ROOT,'evals/live/repository-decision.schema.json');for(const c of selected.e2e)e2eRows.push(withSilenceRetry(()=>runE2E(c,pf,tmp,e2eSchema,pkg)));for(const c of probeCases)activationRows.push(withSilenceRetry(()=>runActivationProbe(c,pf,tmp,work,semSchema,pkg)));}finally{
   // Housekeeping must not be able to destroy the measurement. This rmSync
   // threw EPERM on Windows -- agy keeps a handle on the workspace it was
   // given -- and because it sits in a finally that wraps the whole case
@@ -195,7 +200,11 @@ if(packageOk&&pf.status==='READY'){
   for(const c of selected.semantic)semRows.push({id:c.id,kind:kindById.get(c.id),status:st,reason:packageOk?(pf.reason||'HOST_PREFLIGHT_NOT_READY'):'PACKAGE_VALIDATION_FAILED'});for(const c of selected.e2e)e2eRows.push({id:c.id,kind:'e2e',status:st,reason:packageOk?(pf.reason||'HOST_PREFLIGHT_NOT_READY'):'PACKAGE_VALIDATION_FAILED'});
 }
 // Activation probe rows gate the verdict exactly like semantic and e2e rows.
-const status=overall(semRows,[...e2eRows,...activationRows],pf,packageOk);const usage=summarizeUsage([...semRows,...e2eRows].map(x=>x.usage));const durationRows=[...semRows,...e2eRows].map(x=>x.duration_ms).filter(Number.isFinite).sort((a,b)=>a-b);const p95=durationRows.length?durationRows[Math.max(0,Math.ceil(durationRows.length*.95)-1)]:null;
+// A run that could not extract the package still reports whether a dev link is
+// active; only the packaged digest is unavailable there.
+if(!skillSource)skillSource=await hostSkillSource(null);
+const isolationFailure=subjectIsolationFailure(skillSource);
+const status=isolationFailure?isolationFailure.status:overall(semRows,[...e2eRows,...activationRows],pf,packageOk);const usage=summarizeUsage([...semRows,...e2eRows].map(x=>x.usage));const durationRows=[...semRows,...e2eRows].map(x=>x.duration_ms).filter(Number.isFinite).sort((a,b)=>a-b);const p95=durationRows.length?durationRows[Math.max(0,Math.ceil(durationRows.length*.95)-1)]:null;
 // Silence stays counted even when a retry rescued the case: a host that needs
 // asking twice for a third of its answers is a finding about the host, and a
 // retry that quietly absorbed it would be the same kind of lie the FAIL was.
@@ -211,5 +220,9 @@ function silenceSummary(rows){
     silent_case_ids:[...new Set([...silent,...unresolved].map(r=>r.id||r.case_id).filter(Boolean))].sort()
   };
 }
-const evidence={schema:'agent-sdlc/live-host-qualification/v1',version:VERSION,run_id:`qual-${Date.now()}-${Math.random().toString(16).slice(2)}`,evaluated_at:utcNow(),host,tier,status,promotion_evidence:status==='QUALIFIED'&&selected.promotion_eligible,package:{file:path.basename(packagePath(host)),sha256:packageDigest(host),verified:packageOk},bound_inputs:evidenceInputs(),runtime_contract:runtimeContract(host,pf),runtime_contract_sha256:runtimeContractDigest(host,pf),environment:environmentFingerprint(),preflight:pf,semantic_summary:summary(semRows),repository_e2e_summary:summary(e2eRows),required_semantic_case_count:selected.semantic.length,required_repository_e2e_count:selected.e2e.length,token_usage:usage,performance:{case_count:durationRows.length,duration_ms_total:durationRows.reduce((a,b)=>a+b,0),p95_case_duration_ms:p95},auto_activation:activationSummary(activationRows,pf),host_silence:silenceSummary([...semRows,...e2eRows,...activationRows]),checks:[{name:'distribution_validation',...distVerify},{name:'temp_cleanup',...tempCleanup}],results:semRows,repository_e2e_results:e2eRows,auto_activation_results:activationRows};
+const evidence={schema:'agent-sdlc/live-host-qualification/v1',version:VERSION,run_id:`qual-${Date.now()}-${Math.random().toString(16).slice(2)}`,evaluated_at:utcNow(),host,tier,status,reason:isolationFailure?.reason??null,
+  // Promotion needs the host to have answered from the package whose digest is
+  // reported. An active dev link means it did not have to, so the run is
+  // recorded and kept unpromotable rather than presented as release evidence.
+  promotion_evidence:status==='QUALIFIED'&&selected.promotion_eligible&&skillSource.isolated,host_skill_source:skillSource,package:{file:path.basename(packagePath(host)),sha256:packageDigest(host),verified:packageOk},bound_inputs:evidenceInputs(),runtime_contract:runtimeContract(host,pf),runtime_contract_sha256:runtimeContractDigest(host,pf),environment:environmentFingerprint(),preflight:pf,semantic_summary:summary(semRows),repository_e2e_summary:summary(e2eRows),required_semantic_case_count:selected.semantic.length,required_repository_e2e_count:selected.e2e.length,token_usage:usage,performance:{case_count:durationRows.length,duration_ms_total:durationRows.reduce((a,b)=>a+b,0),p95_case_duration_ms:p95},auto_activation:activationSummary(activationRows,pf),host_silence:silenceSummary([...semRows,...e2eRows,...activationRows]),checks:[{name:'distribution_validation',...distVerify},{name:'temp_cleanup',...tempCleanup}],results:semRows,repository_e2e_results:e2eRows,auto_activation_results:activationRows};
 const text=JSON.stringify(evidence,null,2)+'\n';const outPath=output||path.join(ROOT,'evals','qualification',`${host}-${tier.toLowerCase()}-v${VERSION}.json`);fs.mkdirSync(path.dirname(outPath),{recursive:true});fs.writeFileSync(outPath,text);console.log(text);let code=exitCode(status);if(has('--allow-pending-exit-zero')&&status==='PENDING')code=0;process.exit(code);

@@ -111,6 +111,91 @@ export function stripSchemaDialect(node){
   return out;
 }
 export function environmentFingerprint(){return {platform:process.platform,arch:process.arch,node:process.version,kernel:os.release()};}
+// What actually answered the cases.
+//
+// A run extracts the package, passes it to the host and records its sha256, and
+// that digest is verified -- so the evidence reads as a measurement of that
+// package. It is not, if a globally installed plugin is a symlink to this
+// working tree: the host then loads its skills from the tree. The two digests
+// already in the evidence hide this rather than expose it, because
+// qualification_subject_sha256 is computed by walking the tree, so it agrees
+// with whatever the host read while package.sha256 describes the zip, and
+// nothing compared them.
+//
+// Isolation is a property of content, not of mechanism. A link whose skills are
+// byte-identical to the packaged skills cannot change an answer; a plain
+// directory install whose skills differ can. Keying this on "is a plugin linked
+// to this tree" was wrong in both directions, and exercising it said so: a run
+// inside a git worktree reported itself isolated while the operator link pointed
+// at the main tree, which is neither the worktree nor the package, and a link
+// matching the package exactly would have lost promotion for nothing.
+//
+// So every installed record is resolved and its skills digested. One that
+// differs from the package is shadowing the measurement, and the run is BLOCKED
+// with SUBJECT_NOT_ISOLATED: reporting a verified package digest for content
+// that provably did not answer is worse than reporting no measurement. One that
+// cannot be compared, because the package never got extracted, is unknown
+// rather than clean: it withholds promotion without blocking.
+//
+// Detection is read-only and never touches an install or a link.
+export function skillsDigestOf(root){
+  const base=path.join(root,'skills');
+  if(!fs.existsSync(base))return null;
+  const rels=[...walk(base)].map(f=>path.relative(root,f).split(path.sep).join('/'));
+  return digestFilesUnder(root,rels);
+}
+function digestFilesUnder(root,rels){
+  const h=crypto.createHash('sha256');
+  for(const rel of [...rels].sort()){h.update(rel);h.update('\0');h.update(fs.readFileSync(path.join(root,rel)));h.update('\0');}
+  return h.digest('hex');
+}
+export function describeInstalls(records,dl,packagedSkills){
+  return records.map(r=>{
+    const d=dl.describeRecord(r,{root:ROOT,repoVersion:VERSION});
+    let skills=null;
+    try{skills=skillsDigestOf(r.installPath);}catch{skills=null;}
+    return {
+      install_path:d.install_path,
+      entry:d.entry,
+      link_target:d.link_target,
+      linked_to_this_tree:d.linked_to_this_tree,
+      skills_sha256:skills,
+      matches_package:packagedSkills===null||skills===null?null:skills===packagedSkills
+    };
+  });
+}
+export function summarizeSkillSource(installs,{treeSkills,packagedSkills}){
+  const shadowing=installs.filter(i=>i.matches_package===false);
+  const uncomparable=installs.filter(i=>i.matches_package===null);
+  const isolated=installs.length===0||(shadowing.length===0&&uncomparable.length===0);
+  return {
+    schema:'agent-sdlc/host-skill-source/v1',
+    installs,
+    dev_link_active:installs.some(i=>i.entry==='link'),
+    tree_skills_sha256:treeSkills,
+    packaged_skills_sha256:packagedSkills,
+    shadowing_installs:shadowing.map(i=>i.install_path),
+    uncomparable_installs:uncomparable.map(i=>i.install_path),
+    isolated,
+    note:shadowing.length
+      ?'an installed plugin carries skills that differ from the package under test, so the host did not have to read the package this evidence names'
+      :uncomparable.length
+        ?'an installed plugin could not be compared with the package, so isolation is unknown and this run cannot be promoted'
+        :null
+  };
+}
+export async function hostSkillSource(packageRoot){
+  const dl=await import('../runtime/dev-link.mjs');
+  let records=[];
+  try{records=dl.installedRecords().records||[];}catch{records=[];}
+  const packagedSkills=packageRoot?skillsDigestOf(packageRoot):null;
+  return summarizeSkillSource(describeInstalls(records,dl,packagedSkills),{treeSkills:skillsDigestOf(ROOT),packagedSkills});
+}
+export function subjectIsolationFailure(src){
+  return (src?.shadowing_installs||[]).length
+    ?{status:'BLOCKED',reason:'SUBJECT_NOT_ISOLATED'}
+    :null;
+}
 export function runtimeContract(host,pf){return {host,cli_version:pf?.host_version||null,required_help_tokens:HOST_REQUIRED_TOKENS[host],absent_optional_help_tokens:(pf?.degraded_capabilities||[]).map(o=>o.flag),requested_model:process.env[`AGENT_SDLC_QUAL_MODEL_${host.toUpperCase()}`]||null,requested_effort:process.env[`AGENT_SDLC_QUAL_EFFORT_${host.toUpperCase()}`]||null};}
 export function runtimeContractDigest(host,pf){return sha256Bytes(Buffer.from(JSON.stringify(runtimeContract(host,pf))));}
 export function parseJsonObject(text,requiredKey){
