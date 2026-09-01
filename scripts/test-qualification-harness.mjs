@@ -214,6 +214,19 @@ test('temp-cleanup-cannot-destroy-a-run',()=>{
   if(!/tempCleanup=\{status:'LEAKED'/.test(fin))throw Error('a failed cleanup is not recorded');
   if(!/name:'temp_cleanup'/.test(src))throw Error('cleanup outcome never reaches the evidence');
 });
+// A host that answers badly must fail its case, never the run. Antigravity
+// returned `overlays` as something that is not an array; validateDecision
+// detected exactly that and grade() then spread it anyway, so one malformed
+// answer threw and discarded nineteen good ones. Measuring a second host is
+// how the harness learns it was only ever robust to the first.
+test('a-malformed-answer-fails-its-case-not-the-run',()=>{
+  const src=fs.readFileSync(path.join(ROOT,'scripts','qualify-host.mjs'),'utf8');
+  if(/const diffs=grade\(/.test(src))throw Error('grade() is called unguarded again');
+  if(/const diffs=gradeE2E\(/.test(src))throw Error('gradeE2E() is called unguarded again');
+  if(!/MALFORMED_DECISION/.test(src))throw Error('a malformed answer has no recorded reason');
+  // and the array comparison itself no longer assumes the shape
+  if(/\[\.\.\.\(a\?\.overlays\|\|\[\]\)\]/.test(src))throw Error('overlays is spread without an Array.isArray check');
+});
 // Pinning is only safe if it cannot forbid an answer the corpus asks for.
 test('decision-schema-enums-admit-every-expected-value',()=>{
   const sem=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8')).properties;
