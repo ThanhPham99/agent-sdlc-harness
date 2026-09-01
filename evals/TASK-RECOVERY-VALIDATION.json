@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/task-recovery-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc1",
   "retry_invariant": "No same-task retry without new concrete evidence, changed context, changed plan, changed implementation, or an explicit recovery decision.",
   "failure_classes": [
     "IMPLEMENTATION_DEFECT",

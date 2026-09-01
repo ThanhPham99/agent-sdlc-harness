@@ -14,6 +14,7 @@ import {now,readJson,truncateUtf8} from './util.mjs';
 import {putArtifact,emitTaskEvent,saveTask} from './store.mjs';
 import {secretScanFindings} from './tools.mjs';
 import {workspaceDiff,getTaskWorkspace} from './workspace.mjs';
+import {execFileSync} from 'node:child_process';
 import {resolveLaunch,describeSpawn} from './launcher.mjs';
 import {triageFailure} from './triage.mjs';
 
@@ -87,13 +88,18 @@ export function plannedCommands(projectRoot,task,strategy,{root=null}={}){
 }
 
 /** Paths a task changed that its approved write scope does not cover. */
-export function scopeAudit(task,changedPaths){
-  const allowed=arr(task.scope?.write).map(norm);
-  const forbidden=arr(task.scope?.forbidden).map(norm);
-  const covered=p=>allowed.some(a=>{
+/** True when a path falls inside the task's approved write scope. */
+export function coveredByWriteScope(task,p){
+  const target=norm(p);
+  return arr(task?.scope?.write).map(norm).some(a=>{
     const stem=a.split(/[*?]/)[0].replace(/\/+$/,'');
-    return p===a||p===stem||(stem&&p.startsWith(stem+'/'));
+    return target===a||target===stem||(stem&&target.startsWith(stem+'/'));
   });
+}
+
+export function scopeAudit(task,changedPaths){
+  const forbidden=arr(task.scope?.forbidden).map(norm);
+  const covered=p=>coveredByWriteScope(task,p);
   const hitsForbidden=p=>forbidden.some(f=>{
     const stem=f.split(/[*?]/)[0].replace(/\/+$/,'');
     return p===f||p===stem||(stem&&p.startsWith(stem+'/'));
@@ -101,6 +107,42 @@ export function scopeAudit(task,changedPaths){
   const paths=arr(changedPaths).map(norm);
   const out_of_scope_paths=paths.filter(p=>!covered(p)||hitsForbidden(p));
   return {changed_paths:paths,out_of_scope_paths,respected:out_of_scope_paths.length===0};
+}
+
+/**
+ * Undo what verification itself changed outside the task's write scope.
+ *
+ * verifyTask runs the project's own test command inside the task workspace, and
+ * a suite that rewrites a tracked report -- which is how most of this project's
+ * suites publish their results -- leaves the workspace dirty in paths the task
+ * never touched. The next diff capture then reads those paths as work outside
+ * the approved write scope and blocks the task for something verification did,
+ * with a SCOPE_EXPANSION recovery that no amount of re-running can clear.
+ *
+ * Only TRACKED files are restored: a file git has never seen has no previous
+ * content to return to, so an untracked artefact a command created is left
+ * where it is and still shows up in the next capture. That is the honest
+ * outcome -- it may be a genuine new file the task produced.
+ */
+function restoreVerificationSideEffects(cwd,task,before){
+  const seen=new Set(arr(before));
+  const after=(()=>{
+    try{return execFileSync('git',['status','--porcelain'],{cwd,encoding:'utf8'});}
+    catch{return null;}
+  })();
+  if(after===null)return [];
+  const restored=[];
+  for(const line of after.split(/\r?\n/)){
+    if(!line.trim())continue;
+    const code=line.slice(0,2);
+    if(code.includes('?'))continue; // untracked: nothing to restore it to
+    const rel=line.slice(3).trim().replace(/^"|"$/g,'');
+    if(!rel||seen.has(norm(rel)))continue;
+    if(coveredByWriteScope(task,rel))continue;
+    try{execFileSync('git',['checkout','--',rel],{cwd,stdio:'ignore'});restored.push(norm(rel));}
+    catch{/* leave it; the scope audit will report it rather than hide it */}
+  }
+  return restored.sort();
 }
 
 /**
@@ -168,6 +210,10 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
     executed.push({kind:c.kind,command:c.command,exit_code:exit,duration_ms:Date.now()-start,log_ref,summary:t.text||null});
   }
 
+  // Before the next capture reads the workspace, undo whatever the commands
+  // above changed outside the write scope. `diff` was taken before they ran,
+  // so it is exactly the set of paths that are the task's own work.
+  const restored_by_verification=dryRun?[]:restoreVerificationSideEffects(cwd,task,diff.changed_paths);
   const scope=scopeAudit(task,diff.changed_paths);
   // A task that must change behaviour but produced no diff has not been verified.
   const noWork=task.changes_behavior!==false&&arr(task.scope?.write).length>0&&!diff.changed_paths.length;
@@ -205,6 +251,9 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
       ?{required:true,status:executed.filter(c=>c.kind.startsWith('security')).every(c=>c.exit_code===0)?'PASS':'FAIL',new_high_findings:executed.filter(c=>c.kind.startsWith('security')&&c.exit_code!==0).length}
       :{required:false,status:'SKIPPED',new_high_findings:0},
     scope,
+    // Named, not silent: a reader has to be able to tell a clean workspace
+    // from one that was cleaned up on its behalf.
+    restored_by_verification,
     environment:environmentFingerprint(),
     status,
     reason,

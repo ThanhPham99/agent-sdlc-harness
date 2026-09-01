@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/task-review-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc1",
   "contracts": [
     "agent-sdlc/task-verification/v1",
     "agent-sdlc/spec-compliance-review/v1",
@@ -29,8 +29,8 @@
     "blocking_finding_blocks_done": true,
     "independence": "recorded truthfully; an achieved claim contradicting its mode is rejected, and an unachieved claim requires a recorded limitation"
   },
-  "checks": 26,
-  "passes": 26,
+  "checks": 28,
+  "passes": 28,
   "failures": 0,
   "results": [
     {
@@ -91,6 +91,14 @@
     },
     {
       "name": "verification-strategy-escalates-with-risk",
+      "status": "PASS"
+    },
+    {
+      "name": "verification-side-effects-outside-the-write-scope-are-restored",
+      "status": "PASS"
+    },
+    {
+      "name": "an-untracked-file-a-command-created-is-left-alone",
       "status": "PASS"
     },
     {
