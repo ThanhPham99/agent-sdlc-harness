@@ -5,7 +5,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {
   ROOT,VERSION,HOSTS,packageDigest,corpusDigest,qualificationSubjectDigest,hostPreflight,
-  extractStructured,extractUsage,stripSchemaDialect,classifyFailure
+  extractStructured,extractUsage,stripSchemaDialect,classifyFailure,hostProducedNoAnswer,CONTENT_KEYS
 } from './qualification-lib.mjs';
 import {writeReport} from './lib/report-io.mjs';
 import {route} from '../runtime/router.mjs';
@@ -268,6 +268,57 @@ test('a-bare-echoed-schema-yields-no-decision',()=>{
   if(got!==null)throw Error(`a schema was accepted as a decision: ${JSON.stringify(got).slice(0,200)}`);
 });
 // Pinning is only safe if it cannot forbid an answer the corpus asks for.
+// Silence is not a wrong answer.
+//
+// Both envelopes below are verbatim from Antigravity 1.1.23 during live SMOKE
+// qualification. Graded as NO_STRUCTURED_DECISION they made two consecutive
+// runs of the same corpus score 17/20 and 13/20, disagreeing on six of twenty
+// cases, where every single difference was the host returning nothing.
+test('an-empty-host-response-is-recognised-as-silence',()=>{
+  const canceled="{\"conversation_id\": \"17128cd5\", \"status\": \"CANCELED\", \"response\": \"\", \"duration_seconds\": 25.7, \"num_turns\": 1}";
+  const success="{\"conversation_id\": \"91daa426\", \"status\": \"SUCCESS\", \"response\": \"\", \"duration_seconds\": 39.0, \"num_turns\": 1}";
+  if(!hostProducedNoAnswer(canceled,null))throw Error('a CANCELED empty response was not recognised as silence');
+  if(!hostProducedNoAnswer(success,null))throw Error('an empty response reported as SUCCESS was not recognised as silence');
+  if(!hostProducedNoAnswer('',null))throw Error('no output at all was not recognised as silence');
+  if(!hostProducedNoAnswer('   \n  ',null))throw Error('whitespace-only output was not recognised as silence');
+});
+
+// A host that said something and got it wrong has failed the case. Only
+// silence changes class, so each of these must stay a failure.
+test('output-that-exists-is-never-treated-as-silence',()=>{
+  const cases={
+    prose:'I would route this as a hotfix, because the request mentions production.',
+    fenced:'```json\n{\"activate\":true,\"workflow\":\"hotfix\"}\n```',
+    wrong_shape:'{"verdict":"probably a hotfix"}',
+    envelope_with_no_content_field:JSON.stringify({status:'CANCELED',duration_seconds:25.7}),
+    envelope_with_prose:JSON.stringify({status:'SUCCESS',response:'a hotfix, I think'}),
+    envelope_with_json:JSON.stringify({status:'SUCCESS',response:'{"activate":true}'}),
+    quota:"{\"is_error\": true, \"result\": \"You've hit your session limit\", \"type\": \"result\", \"api_error_status\": 429}"
+  };
+  for(const [name,text] of Object.entries(cases)){
+    if(hostProducedNoAnswer(text,null))throw Error(`${name} was treated as silence`);
+  }
+});
+
+test('a-written-final-answer-file-is-never-silence',()=>{
+  const dir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-noanswer-'));
+  const final=path.join(dir,'answer.json');
+  fs.writeFileSync(final,'{"activate":true}');
+  if(hostProducedNoAnswer('',final))throw Error('an answer delivered by file was read as silence');
+  fs.writeFileSync(final,'   ');
+  if(!hostProducedNoAnswer('',final))throw Error('an empty answer file is still silence');
+  fs.rmSync(dir,{recursive:true,force:true});
+});
+
+// The extractor searches these fields for an answer and the silence predicate
+// reads them to establish there was none; two lists would eventually disagree.
+test('the-content-key-list-has-one-definition',()=>{
+  const src=fs.readFileSync(path.join(ROOT,'scripts','qualification-lib.mjs'),'utf8');
+  const literals=src.match(/\['structured_output'/g)||[];
+  if(literals.length!==1)throw Error(`the content-key list is written ${literals.length} times; it must be CONTENT_KEYS only`);
+  if(!CONTENT_KEYS.includes('response')||!CONTENT_KEYS.includes('result'))throw Error(JSON.stringify(CONTENT_KEYS));
+});
+
 test('decision-schema-enums-admit-every-expected-value',()=>{
   const sem=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8')).properties;
   for(const f of ['semantic-cases.json','security-cases.json','activation-cases.json']){

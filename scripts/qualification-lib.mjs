@@ -131,6 +131,60 @@ function looksLikeSchema(v){
   if(!vals.length)return false;
   return vals.every(x=>'type' in x||'anyOf' in x||'enum' in x||'$ref' in x);
 }
+// The fields a host may deliver its answer in. Defined once because
+// extractStructured reads them to find an answer and hostProducedNoAnswer
+// reads them to establish there was none: if the two lists drifted, a host
+// could be recorded as silent in a field the extractor was still searching,
+// or graded as wrong for a field the extractor never looked at.
+export const CONTENT_KEYS=['structured_output','response','result','output','message','content','text'];
+
+/**
+ * True when the host delivered nothing at all -- not a wrong answer, a
+ * non-answer.
+ *
+ * `NO_STRUCTURED_DECISION` used to cover both this and a host that emitted
+ * prose or a wrong shape. Those are not the same event. A host that answered
+ * in prose broke a contract it was given and has failed the case; a host that
+ * returned an empty string said nothing, which is the same class of outcome as
+ * a timeout or an exhausted quota, and grading it as a wrong answer produced
+ * host scores that moved by four points between two consecutive runs while
+ * every difference was silence.
+ *
+ * Deliberately conservative: silence has to be demonstrated. A content field
+ * that exists and is empty proves it. Output with no content field and no text
+ * outside the JSON envelopes proves it too. Anything else -- including output
+ * this function cannot interpret -- is left to fail as before.
+ */
+export function hostProducedNoAnswer(stdout,finalFile){
+  if(finalFile&&fs.existsSync(finalFile)&&fs.readFileSync(finalFile,'utf8').trim())return false;
+  const raw=(stdout||'');
+  const docs=[];
+  const whole=raw.trim();
+  try{docs.push(JSON.parse(whole));}catch{}
+  for(const line of raw.split(/\r?\n/)){
+    const t=line.trim();
+    if(!t)continue;
+    try{docs.push(JSON.parse(t));}catch{}
+  }
+  const contents=[];
+  for(const o of docs){
+    if(!o||typeof o!=='object')continue;
+    for(const key of CONTENT_KEYS){
+      if(!(key in o))continue;
+      const x=o[key];
+      if(typeof x==='string')contents.push(x);
+      else if(x&&typeof x==='object')contents.push(JSON.stringify(x));
+      else if(x===null)contents.push('');
+    }
+  }
+  if(contents.length)return contents.every(x=>!String(x).trim());
+  // No declared content field anywhere. Then silence means nothing came back
+  // at all: an envelope carrying any other field is a host that said
+  // something, even something useless, and a wrong-shaped object is a failed
+  // case rather than a non-answer.
+  return !docs.length&&!raw.trim();
+}
+
 export function extractStructured(stdout,finalFile,requiredKey){
   if(finalFile&&fs.existsSync(finalFile)){const v=parseJsonObject(fs.readFileSync(finalFile,'utf8'),requiredKey);if(v&&!looksLikeSchema(v))return v;}
   // The host's own declared structured output first. Scanning raw text is the
@@ -140,7 +194,7 @@ export function extractStructured(stdout,finalFile,requiredKey){
   try{docs.push(JSON.parse((stdout||'').trim()));}catch{}
   for(const line of (stdout||'').split(/\r?\n/)){try{docs.push(JSON.parse(line));}catch{}}
   for(const o of docs){
-    for(const key of ['structured_output','response','result','output','message','content','text']){
+    for(const key of CONTENT_KEYS){
       const x=o?.[key];
       if(x&&typeof x==='object'&&requiredKey in x&&!looksLikeSchema(x))return x;
       if(typeof x==='string'){const v=parseJsonObject(x,requiredKey);if(v&&!looksLikeSchema(v))return v;}
