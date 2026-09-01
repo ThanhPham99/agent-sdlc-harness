@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/temp-hygiene-validation/v1",
-  "checks": 6,
-  "passes": 6,
+  "checks": 8,
+  "passes": 8,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -27,6 +27,14 @@
     },
     {
       "name": "the-helper-creates-under-the-system-temp-directory",
+      "status": "PASS"
+    },
+    {
+      "name": "no-file-creates-a-temp-directory-outside-the-helper",
+      "status": "PASS"
+    },
+    {
+      "name": "the-guard-fails-on-a-direct-call",
       "status": "PASS"
     }
   ]
