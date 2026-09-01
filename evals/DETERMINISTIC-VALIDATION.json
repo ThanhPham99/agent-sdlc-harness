@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
-  "version": "3.0.0-alpha6",
-  "checks": 379,
-  "passes": 379,
+  "version": "3.0.0-rc1",
+  "checks": 384,
+  "passes": 384,
   "failures": 0,
   "results": [
     {
@@ -171,6 +171,10 @@
     },
     {
       "name": "side-state-wrong-resume-blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "implement-can-reenter-plan",
       "status": "PASS"
     },
     {
@@ -970,6 +974,14 @@
       "status": "PASS"
     },
     {
+      "name": "task-state_machine/an-amended-plan-redefines-a-task-that-has-not-started",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/an-amended-plan-reports-a-conflict-when-work-is-already-bound",
+      "status": "PASS"
+    },
+    {
       "name": "task-state_machine/implement-gate-closed-until-every-task-is-done",
       "status": "PASS"
     },
@@ -1235,6 +1247,14 @@
     },
     {
       "name": "task-migration_telemetry/workspace-cleanup-refuses-to-destroy-unpersisted-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "task-migration_telemetry/workspace-cleanup-allows-a-provably-empty-workspace",
+      "status": "PASS"
+    },
+    {
+      "name": "task-migration_telemetry/workspace-cleanup-refuses-when-emptiness-cannot-be-proven",
       "status": "PASS"
     },
     {
