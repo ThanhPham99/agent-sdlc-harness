@@ -4,7 +4,8 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {
   ROOT,VERSION,HOSTS,packageDigest,corpusDigest,qualificationSubjectDigest,hostPreflight,
-  extractStructured,extractUsage,stripSchemaDialect,classifyFailure,hostProducedNoAnswer,CONTENT_KEYS,matchesExpected
+  extractStructured,extractUsage,stripSchemaDialect,classifyFailure,hostProducedNoAnswer,CONTENT_KEYS,matchesExpected,
+  describeInstalls,summarizeSkillSource,subjectIsolationFailure,skillsDigestOf
 } from './qualification-lib.mjs';
 import {writeReport} from './lib/report-io.mjs';
 import {route} from '../runtime/router.mjs';
@@ -407,6 +408,82 @@ test('promotion-accepts-exact-fresh-qualified-evidence',()=>{const m=Object.from
 test('promotion-rejects-package-digest-tamper',()=>{const m=Object.fromEntries(HOSTS.map(h=>[h,evidence(h)]));m.codex=evidence('codex','QUALIFIED',new Date().toISOString(),'0'.repeat(64));const r=runAggregate(m,'tamper');if(r.code!==1||fs.existsSync(r.approval))throw Error(`code=${r.code}`);});
 test('promotion-rejects-stale-evidence',()=>{const m=Object.fromEntries(HOSTS.map(h=>[h,evidence(h)]));m.claude=evidence('claude','QUALIFIED',new Date(Date.now()-169*3600_000).toISOString());const r=runAggregate(m,'stale');if(r.code!==1||fs.existsSync(r.approval))throw Error(`code=${r.code}`);});
 test('promotion-preserves-pending-as-exit-2',()=>{const m=Object.fromEntries(HOSTS.map(h=>[h,evidence(h)]));m.antigravity=evidence('antigravity','PENDING');m.antigravity.semantic_summary={PASS:0,FAIL:0,SKIP:84,BLOCKED:0};m.antigravity.repository_e2e_summary={PASS:0,FAIL:0,SKIP:8,BLOCKED:0};const r=runAggregate(m,'pending');if(r.code!==2||fs.existsSync(r.approval))throw Error(`code=${r.code}`);const d=JSON.parse(fs.readFileSync(r.out,'utf8'));if(d.status!=='LIVE_HOST_PENDING')throw Error(JSON.stringify(d));});
+
+// Subject isolation. A run reports package.sha256 and verifies it, so the
+// evidence reads as a measurement of that package -- but a globally installed
+// plugin can carry different skills and answer instead, and until recently
+// nothing looked. The rules are keyed on content: identical skills cannot change
+// an answer whatever the install mechanism, differing skills provably did not
+// come from the package named, and an install that cannot be compared is unknown
+// rather than clean.
+//
+// Every case here builds its own install tree with a real symlink and passes a
+// fabricated record list, so nothing depends on how this machine is set up and
+// nothing reads or writes the operator's own install path.
+function installTree(label,skillBody){
+  const dir=path.join(tmp,`iso-${label}`);
+  const target=path.join(dir,'target');
+  fs.mkdirSync(path.join(target,'skills','sdlc-router'),{recursive:true});
+  fs.writeFileSync(path.join(target,'skills','sdlc-router','SKILL.md'),skillBody);
+  const link=path.join(dir,'installed');
+  let entryIsLink=true;
+  try{fs.symlinkSync(target,link,'junction');}
+  catch{fs.cpSync(target,link,{recursive:true});entryIsLink=false;}
+  return {dir,target,link,entryIsLink};
+}
+// describeRecord is the only thing needed from the real module, and it only
+// reads; a stub would let the cases pass while the production path was broken.
+const devLinkModule=await import('../runtime/dev-link.mjs');
+function sourceFor(label,installedSkill,packagedSkill){
+  const t=installTree(label,installedSkill);
+  const pkgRoot=path.join(t.dir,'package');
+  let packagedSkills=null;
+  if(packagedSkill!==null){
+    fs.mkdirSync(path.join(pkgRoot,'skills','sdlc-router'),{recursive:true});
+    fs.writeFileSync(path.join(pkgRoot,'skills','sdlc-router','SKILL.md'),packagedSkill);
+    packagedSkills=skillsDigestOf(pkgRoot);
+  }
+  const installs=describeInstalls([{key:'agent-sdlc-harness@test',installPath:t.link,version:VERSION}],devLinkModule,packagedSkills);
+  return {src:summarizeSkillSource(installs,{treeSkills:skillsDigestOf(ROOT),packagedSkills}),tree:t};
+}
+test('isolation-differing-install-blocks-with-subject-not-isolated',()=>{
+  const {src}=sourceFor('differs','installed copy\n','packaged copy\n');
+  if(src.isolated)throw Error(`differing skills reported as isolated: ${JSON.stringify(src)}`);
+  if(src.shadowing_installs.length!==1)throw Error(`expected one shadowing install, got ${JSON.stringify(src.shadowing_installs)}`);
+  const f=subjectIsolationFailure(src);
+  if(f?.status!=='BLOCKED'||f?.reason!=='SUBJECT_NOT_ISOLATED')throw Error(`expected BLOCKED/SUBJECT_NOT_ISOLATED, got ${JSON.stringify(f)}`);
+});
+test('isolation-identical-install-is-isolated-and-keeps-promotion',()=>{
+  const same='the very same bytes\n';
+  const {src,tree}=sourceFor('identical',same,same);
+  if(!src.isolated)throw Error(`identical skills reported as not isolated: ${JSON.stringify(src)}`);
+  if(subjectIsolationFailure(src))throw Error('identical skills must not block');
+  if(src.shadowing_installs.length)throw Error(JSON.stringify(src.shadowing_installs));
+  // The point of keying on content: a link is reported as a link, and is still
+  // isolated, because identical bytes cannot change an answer.
+  if(tree.entryIsLink&&src.dev_link_active!==true)throw Error('a symlinked install should be reported as a link');
+});
+test('isolation-uncomparable-install-withholds-promotion-without-blocking',()=>{
+  const {src}=sourceFor('unknown','installed copy\n',null);
+  if(src.isolated)throw Error('an install that cannot be compared is not isolated');
+  if(subjectIsolationFailure(src))throw Error('an uncomparable install must not block');
+  if(src.uncomparable_installs.length!==1)throw Error(JSON.stringify(src.uncomparable_installs));
+});
+test('isolation-no-install-leaves-the-verdict-untouched',()=>{
+  const src=summarizeSkillSource([],{treeSkills:skillsDigestOf(ROOT),packagedSkills:'a'.repeat(64)});
+  if(!src.isolated)throw Error('no install at all must be isolated');
+  if(subjectIsolationFailure(src))throw Error('no install at all must not block');
+  if(src.dev_link_active)throw Error('no install means no dev link');
+  if(src.note!==null)throw Error(`expected no note, got ${src.note}`);
+});
+test('isolation-cases-never-touch-the-operator-install',()=>{
+  // The install paths every case above reasoned about are inside this suite's
+  // own temp directory, which is what makes the cases independent of the machine.
+  const {src}=sourceFor('scoped','a\n','b\n');
+  for(const i of src.installs)
+    if(!path.resolve(i.install_path).startsWith(path.resolve(tmp)))
+      throw Error(`a case looked at an install outside its own fixture: ${i.install_path}`);
+});
 
 fs.rmSync(tmp,{recursive:true,force:true});
 const report={schema:'agent-sdlc/qualification-harness-regression/v1',version:VERSION,checks:rows.length,passes:pass,failures:fail,results:rows};fs.mkdirSync(path.join(ROOT,'evals'),{recursive:true});writeReport(path.join(ROOT,'evals','QUALIFICATION-HARNESS-REGRESSION.json'),report);console.log(JSON.stringify(report,null,2));process.exit(fail?1:0);
