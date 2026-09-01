@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
-  "version": "3.0.0-alpha6",
-  "checks": 379,
-  "passes": 379,
+  "version": "3.0.0-rc1",
+  "checks": 396,
+  "passes": 396,
   "failures": 0,
   "results": [
     {
@@ -43,6 +43,18 @@
     },
     {
       "name": "router-continue-feature-semantic-rule",
+      "status": "PASS"
+    },
+    {
+      "name": "router-profile-agrees-between-keyword-and-explicit-paths",
+      "status": "PASS"
+    },
+    {
+      "name": "router-rules-declares-no-profile-or-overlays",
+      "status": "PASS"
+    },
+    {
+      "name": "router-rejects-a-rule-naming-an-undefined-workflow",
       "status": "PASS"
     },
     {
@@ -171,6 +183,10 @@
     },
     {
       "name": "side-state-wrong-resume-blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "implement-can-reenter-plan",
       "status": "PASS"
     },
     {
@@ -966,7 +982,27 @@
       "status": "PASS"
     },
     {
+      "name": "task-state_machine/a-task-id-that-is-not-TASK-NNN-is-still-a-task",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/sidecars-are-never-returned-as-tasks",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/a-task-id-cannot-write-outside-its-run-directory",
+      "status": "PASS"
+    },
+    {
       "name": "task-state_machine/materialization-is-idempotent",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/an-amended-plan-redefines-a-task-that-has-not-started",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/an-amended-plan-reports-a-conflict-when-work-is-already-bound",
       "status": "PASS"
     },
     {
@@ -1126,6 +1162,30 @@
       "status": "PASS"
     },
     {
+      "name": "task-verification_review/a-task-that-breaks-the-file-it-changed-fails-its-own-verification",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/the-parse-check-covers-the-diff-and-nothing-else",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/a-bare-js-file-is-left-unparsed-where-nothing-declares-its-module-system",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/a-task-that-changed-no-javascript-adds-no-parse-check",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/verification-side-effects-outside-the-write-scope-are-restored",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/an-untracked-file-a-command-created-is-left-alone",
+      "status": "PASS"
+    },
+    {
       "name": "task-verification_review/verification-evidence-is-bound-to-a-revision-and-diff",
       "status": "PASS"
     },
@@ -1235,6 +1295,14 @@
     },
     {
       "name": "task-migration_telemetry/workspace-cleanup-refuses-to-destroy-unpersisted-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "task-migration_telemetry/workspace-cleanup-allows-a-provably-empty-workspace",
+      "status": "PASS"
+    },
+    {
+      "name": "task-migration_telemetry/workspace-cleanup-refuses-when-emptiness-cannot-be-proven",
       "status": "PASS"
     },
     {
