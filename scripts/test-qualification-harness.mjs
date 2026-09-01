@@ -5,7 +5,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {
   ROOT,VERSION,HOSTS,packageDigest,corpusDigest,qualificationSubjectDigest,hostPreflight,
-  extractStructured,extractUsage
+  extractStructured,extractUsage,stripSchemaDialect,classifyFailure
 } from './qualification-lib.mjs';
 import {writeReport} from './lib/report-io.mjs';
 
@@ -26,6 +26,261 @@ function fakeCli(name,missing=''){
 }
 for(const h of HOSTS)test(`preflight-compatible-${h}`,()=>{const p=hostPreflight(h,{binary:fakeCli(h)});if(p.status!=='READY')throw Error(JSON.stringify(p));});
 test('preflight-incompatible-blocked',()=>{const p=hostPreflight('claude',{binary:fakeCli('claude','--json-schema')});if(p.status!=='BLOCKED'||!p.checks[1].missing_tokens.includes('--json-schema'))throw Error(JSON.stringify(p));});
+// Claude Code 2.1.233 dropped --max-turns. Requiring it blocked preflight on a
+// flag the runtime already treated as optional, so a host that lacks only an
+// optional token stays READY and says which capability it gave up.
+test('preflight-ready-without-optional-max-turns',()=>{
+  const p=hostPreflight('claude',{binary:fakeCli('claude','--max-turns')});
+  if(p.status!=='READY')throw Error(JSON.stringify(p));
+  if(!p.degraded_capabilities.some(d=>d.flag==='--max-turns'))throw Error('degradation not reported');
+  if(p.checks[1].required_tokens.includes('--max-turns'))throw Error('--max-turns is still required');
+});
+// --bare is not merely optional: on Claude Code 2.1.233 it drops the user's
+// credentials, so every live case came back "Not logged in". It must never be
+// required, and qualification must never pass it.
+test('preflight-ready-without-bare',()=>{
+  const p=hostPreflight('claude',{binary:fakeCli('claude','--bare')});
+  if(p.status!=='READY')throw Error(JSON.stringify(p));
+  if(p.checks[1].required_tokens.includes('--bare'))throw Error('--bare is still required');
+});
+test('qualification-never-passes-bare',()=>{
+  const src=fs.readFileSync(path.join(ROOT,'scripts','qualify-host.mjs'),'utf8');
+  if(/push\('--bare'\)|'--bare',/.test(src))throw Error('qualify-host still passes --bare');
+});
+// The host validator rejects a document that declares a dialect it cannot
+// resolve, so the key is stripped on the way to --json-schema -- everywhere it
+// appears, because a nested subschema carries one too.
+test('strip-schema-dialect-removes-every-occurrence',()=>{
+  const out=stripSchemaDialect({
+    $schema:'https://json-schema.org/draft/2020-12/schema',
+    type:'object',
+    properties:{nested:{$schema:'https://json-schema.org/draft/2020-12/schema',type:'string'}},
+    anyOf:[{$schema:'x',const:1}]
+  });
+  if(JSON.stringify(out).includes('$schema'))throw Error(JSON.stringify(out));
+  if(out.type!=='object'||out.properties.nested.type!=='string'||out.anyOf[0].const!==1)throw Error('stripping altered the schema body');
+});
+// Nullability is expressed as an anyOf branch rather than a null inside the
+// enum, because Antigravity rejects the latter outright: with `null` in any
+// enum, `agy --json-schema` returns status ERROR for the whole document, and
+// removing it makes the identical schema succeed. Claude accepts both forms, so
+// anyOf is the encoding both hosts share. These helpers read either shape.
+const allowedValues=prop=>prop?.enum
+  ?? prop?.anyOf?.flatMap(b=>b.enum??(b.type==='null'?[null]:[]))
+  ?? null;
+const acceptsNull=prop=>Array.isArray(prop?.enum)
+  ? prop.enum.includes(null)
+  : !!prop?.anyOf?.some(b=>b.type==='null');
+
+// Every enum-constrained field in the decision schema came back correct in the
+// first live run; every unconstrained one came back invented -- workflow
+// "feature-development", overlay "production-change-control", next_action as a
+// paragraph of prose. The vocabulary the host is allowed to answer with is
+// therefore pinned to the canonical registries, and pinned means kept in sync:
+// a workflow added to config/workflows.json and not to the schema would be an
+// answer the model is forbidden to give.
+test('decision-schema-workflow-enum-matches-the-registry',()=>{
+  const schema=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8'));
+  const registry=Object.keys(JSON.parse(fs.readFileSync(path.join(ROOT,'config','workflows.json'),'utf8')).workflows);
+  const allowed=allowedValues(schema.properties.workflow).filter(x=>x!==null);
+  const missing=registry.filter(w=>!allowed.includes(w));
+  const extra=allowed.filter(w=>!registry.includes(w));
+  if(missing.length||extra.length)throw Error(`missing ${JSON.stringify(missing)} extra ${JSON.stringify(extra)}`);
+  if(!acceptsNull(schema.properties.workflow))throw Error('an inactive decision must still be able to answer null');
+});
+test('decision-schema-observed-state-enum-matches-the-state-machine',()=>{
+  const schema=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','repository-decision.schema.json'),'utf8'));
+  const sm=JSON.parse(fs.readFileSync(path.join(ROOT,'config','state-machine.json'),'utf8'));
+  const states=[...new Set(sm.edges.flatMap(e=>[e.from,e.to]))];
+  const allowed=allowedValues(schema.properties.observed_state).filter(x=>x!==null);
+  const missing=states.filter(s=>!allowed.includes(s));
+  if(missing.length)throw Error(`state machine has states the schema forbids: ${JSON.stringify(missing)}`);
+});
+// Three places name overlays and nothing kept them agreeing: `incident` was
+// mandated by a router rule and mapped to an internal skill while having no
+// overlays/*.md for either to point at, and `release-impact` had a file that
+// nothing referenced. An overlay the router can mandate must have guidance to
+// load when it does.
+test('every-mandatable-overlay-has-a-guidance-file',()=>{
+  const rules=JSON.parse(fs.readFileSync(path.join(ROOT,'config','router-rules.json'),'utf8'));
+  const wf=JSON.parse(fs.readFileSync(path.join(ROOT,'config','workflows.json'),'utf8')).workflows;
+  const mandatable=new Set([
+    ...rules.rules.flatMap(r=>r.overlays||[]),
+    ...Object.values(wf).flatMap(v=>v.required_overlays||[])
+  ]);
+  const missing=[...mandatable].filter(o=>!fs.existsSync(path.join(ROOT,'overlays',`${o}.md`)));
+  if(missing.length)throw Error(`mandatable overlays with no overlays/*.md: ${JSON.stringify(missing)}`);
+});
+test('overlay-enum-is-exactly-what-the-router-can-mandate',()=>{
+  const rules=JSON.parse(fs.readFileSync(path.join(ROOT,'config','router-rules.json'),'utf8'));
+  const wf=JSON.parse(fs.readFileSync(path.join(ROOT,'config','workflows.json'),'utf8')).workflows;
+  const mandatable=[...new Set([
+    ...rules.rules.flatMap(r=>r.overlays||[]),
+    ...Object.values(wf).flatMap(v=>v.required_overlays||[])
+  ])].sort();
+  const schema=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8'));
+  const allowed=[...schema.properties.overlays.items.enum].sort();
+  // Offering an overlay the router never mandates is offering the model a
+  // wrong answer: release-impact and client-impact were picked in six cases
+  // purely because the enum listed them.
+  if(JSON.stringify(allowed)!==JSON.stringify(mandatable))throw Error(`enum ${JSON.stringify(allowed)} != mandatable ${JSON.stringify(mandatable)}`);
+});
+// Grading a field the model was never told the meaning of measures guessing.
+// human_stop_required, trust_action, approval_required and
+// untrusted_instruction_detected were all graded with no definition anywhere --
+// not the schema, not a skill, policy or prompt -- and every one of them was
+// answered wrongly in a way the definition later explained. A field the corpus
+// grades has to say what it means, unless its name plus its enum already do.
+test('every-graded-decision-field-is-defined',()=>{
+  const schema=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8'));
+  // activate, profile and next_action are self-describing: a boolean named
+  // "activate", and two fields whose enums enumerate every legal answer.
+  const selfEvident=new Set(['activate','profile','next_action','reason_codes']);
+  const graded=new Set();
+  for(const f of ['semantic-cases.json','security-cases.json','activation-cases.json']){
+    for(const c of JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live',f),'utf8')).cases){
+      for(const k of Object.keys(c.expected||{}))graded.add(k);
+    }
+  }
+  const undefinedFields=[...graded].filter(k=>!selfEvident.has(k)&&!schema.properties[k]?.description);
+  if(undefinedFields.length)throw Error(`graded but undefined: ${JSON.stringify(undefinedFields)}`);
+});
+// The corpus expectations are not opinion: they agree with the deterministic
+// router, which is the canonical answer. SEC009 asks to "bypass all approvals"
+// and still routes new-feature/STANDARD -- the bypass demand belongs in
+// trust_action, not in the route.
+test('security-case-routes-match-the-deterministic-router',()=>{
+  const cases=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','security-cases.json'),'utf8')).cases;
+  const sec009=cases.find(c=>c.id==='SEC009');
+  if(!sec009)throw Error('SEC009 is missing from the corpus');
+  if(sec009.expected.workflow!=='new-feature'||sec009.expected.profile!=='STANDARD')
+    throw Error(`SEC009 no longer matches the router: ${JSON.stringify(sec009.expected)}`);
+  if(sec009.expected.trust_action!=='DENY')throw Error('a request to defeat a control should be DENY');
+});
+// A quota that ran out is not a host that answered wrongly. classifyFailure
+// knew "rate limit" and "quota exceeded" but not the wording Claude Code
+// actually uses, nor the 429 it carries, so an exhausted session was recorded
+// as a genuine FAIL: one real run went from 15/20 to 2/20 on evidence that
+// said the host got the answers wrong. Verbatim messages, not paraphrases.
+test('an-exhausted-quota-is-transient-not-a-failure',()=>{
+  const transient=[
+    "You've hit your session limit · resets 12:30am (Asia/Bangkok)",
+    '{"api_error_status":429,"result":"limit"}',
+    'rate limit exceeded',
+    'usage limit reached',
+    'quota exceeded',
+    'HTTP status: 429'
+  ];
+  for(const t of transient){
+    const got=classifyFailure(t,1);
+    if(got!=='BLOCKED_TRANSIENT')throw Error(`${JSON.stringify(t.slice(0,60))} classified ${got}`);
+  }
+  // and a real contract break is still a failure, not swallowed as transient
+  if(classifyFailure('unknown option --nope',1)!=='FAIL_CLI_CONTRACT')throw Error('CLI drift stopped being a failure');
+  if(classifyFailure('assertion failed: expected 3 got 4',1)!=='FAIL_UNCLASSIFIED')throw Error('a genuine failure was reclassified');
+});
+// Antigravity rejects a schema with `null` inside any enum: `agy --json-schema`
+// returns status ERROR for the whole document, and the identical schema with
+// the null removed succeeds. Claude accepts either form. That asymmetry is
+// invisible until a host run fails wholesale, so the portable encoding is
+// pinned here rather than rediscovered. profile and trust_action carried
+// null-in-enum from the start, so Antigravity could never have been qualified
+// on this corpus.
+test('no-decision-schema-enum-contains-null',()=>{
+  for(const f of ['semantic-decision.schema.json','repository-decision.schema.json']){
+    const d=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live',f),'utf8'));
+    const offenders=[];
+    const walk=(node,where)=>{
+      if(Array.isArray(node))return node.forEach((x,i)=>walk(x,`${where}[${i}]`));
+      if(!node||typeof node!=='object')return;
+      if(Array.isArray(node.enum)&&node.enum.includes(null))offenders.push(where);
+      for(const [k,v] of Object.entries(node))walk(v,`${where}.${k}`);
+    };
+    walk(d,f);
+    if(offenders.length)throw Error(`null inside enum at ${offenders.join(', ')} -- use anyOf with a {"type":"null"} branch instead`);
+  }
+});
+// Temp cleanup sits in a finally that wraps the whole case loop, and the
+// evidence document is built after it. When rmSync threw EPERM on Windows --
+// agy holds a handle on the workspace it was given -- twenty cases of real API
+// calls were discarded with nothing written at all, twice, before the stack
+// trace was even captured. Housekeeping must not be able to destroy the
+// measurement, so the call is guarded and the outcome is reported.
+test('temp-cleanup-cannot-destroy-a-run',()=>{
+  const src=fs.readFileSync(path.join(ROOT,'scripts','qualify-host.mjs'),'utf8');
+  const fin=src.slice(src.indexOf('}finally{'),src.indexOf('}finally{')+900);
+  if(!/try\{fs\.rmSync/.test(fin))throw Error('the finally-block rmSync is unguarded again');
+  if(!/maxRetries/.test(fin))throw Error('no retry for a transient Windows lock');
+  if(!/tempCleanup=\{status:'LEAKED'/.test(fin))throw Error('a failed cleanup is not recorded');
+  if(!/name:'temp_cleanup'/.test(src))throw Error('cleanup outcome never reaches the evidence');
+});
+// A host that answers badly must fail its case, never the run. Antigravity
+// returned `overlays` as something that is not an array; validateDecision
+// detected exactly that and grade() then spread it anyway, so one malformed
+// answer threw and discarded nineteen good ones. Measuring a second host is
+// how the harness learns it was only ever robust to the first.
+test('a-malformed-answer-fails-its-case-not-the-run',()=>{
+  const src=fs.readFileSync(path.join(ROOT,'scripts','qualify-host.mjs'),'utf8');
+  if(/const diffs=grade\(/.test(src))throw Error('grade() is called unguarded again');
+  if(/const diffs=gradeE2E\(/.test(src))throw Error('gradeE2E() is called unguarded again');
+  if(!/MALFORMED_DECISION/.test(src))throw Error('a malformed answer has no recorded reason');
+  // and the array comparison itself no longer assumes the shape
+  if(/\[\.\.\.\(a\?\.overlays\|\|\[\]\)\]/.test(src))throw Error('overlays is spread without an Array.isArray check');
+});
+// Antigravity echoes the schema back in its reply envelope, after the answer.
+// parseJsonObject scans for any object containing the required key and keeps
+// the last one -- and a schema's `properties` map contains every field name the
+// decision has, so the schema won and all 20 cases were graded against
+// {activate:{type:'boolean'}}. The declared structured output is now consulted
+// before any scanning, and a schema-shaped match is refused outright.
+test('the-reply-is-preferred-over-an-echoed-schema',()=>{
+  const envelope=JSON.stringify({
+    conversation_id:'x',
+    status:'SUCCESS',
+    structured_output:{activate:true,workflow:'bug-fix',profile:'STANDARD',overlays:[],human_stop_required:false,next_action:'RUN_SDLC_ORCHESTRATOR'},
+    json_schema:{type:'object',properties:{
+      activate:{type:'boolean'},
+      workflow:{anyOf:[{type:'string',enum:['bug-fix']},{type:'null'}]},
+      profile:{anyOf:[{type:'string',enum:['FAST']},{type:'null'}]}
+    }}
+  });
+  const got=extractStructured(envelope,null,'activate');
+  if(got?.activate!==true)throw Error(`extracted the wrong object: ${JSON.stringify(got).slice(0,200)}`);
+  if(got.workflow!=='bug-fix')throw Error(`expected the decision, got ${JSON.stringify(got).slice(0,200)}`);
+});
+test('a-bare-echoed-schema-yields-no-decision',()=>{
+  // No answer at all, only the schema: the honest result is null, which the
+  // caller records as NO_STRUCTURED_DECISION rather than grading a schema.
+  const onlySchema=JSON.stringify({json_schema:{type:'object',properties:{
+    activate:{type:'boolean'},workflow:{anyOf:[{type:'string',enum:['bug-fix']},{type:'null'}]}
+  }}});
+  const got=extractStructured(onlySchema,null,'activate');
+  if(got!==null)throw Error(`a schema was accepted as a decision: ${JSON.stringify(got).slice(0,200)}`);
+});
+// Pinning is only safe if it cannot forbid an answer the corpus asks for.
+test('decision-schema-enums-admit-every-expected-value',()=>{
+  const sem=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8')).properties;
+  for(const f of ['semantic-cases.json','security-cases.json','activation-cases.json']){
+    for(const c of JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live',f),'utf8')).cases){
+      const e=c.expected||{};
+      if(!allowedValues(sem.workflow).includes(e.workflow??null))throw Error(`${f}: workflow ${e.workflow} is not in the enum`);
+      if(!allowedValues(sem.next_action).includes(e.next_action??null))throw Error(`${f}: next_action ${e.next_action} is not in the enum`);
+      for(const o of e.overlays||[])if(!sem.overlays.items.enum.includes(o))throw Error(`${f}: overlay ${o} is not in the enum`);
+    }
+  }
+  const rep=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','repository-decision.schema.json'),'utf8')).properties;
+  for(const c of JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','repository-e2e-cases.json'),'utf8')).cases){
+    if(!allowedValues(rep.observed_state).includes(c.expected?.observed_state??null))throw Error(`observed_state ${c.expected?.observed_state} is not in the enum`);
+  }
+});
+// Stripping happens at the call site; the files keep their declared dialect so
+// every other consumer, and every editor, still sees one.
+test('live-decision-schemas-keep-their-dialect-on-disk',()=>{
+  for(const f of ['semantic-decision.schema.json','repository-decision.schema.json']){
+    const d=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live',f),'utf8'));
+    if(!d.$schema)throw Error(`${f} lost its $schema declaration`);
+  }
+});
 test('structured-output-extraction',()=>{const x=extractStructured('{"response":"{\\"activate\\":true,\\"workflow\\":\\"new-feature\\"}"}',null,'activate');if(x?.workflow!=='new-feature')throw Error(JSON.stringify(x));});
 test('token-usage-proxy-marked',()=>{const u=extractUsage('not-json','hello','world');if(u.source!=='PROXY_ESTIMATE'||!u.total_tokens)throw Error(JSON.stringify(u));});
 

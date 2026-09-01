@@ -957,7 +957,14 @@ test('task-workspace-clean-refuses-without-evidence-then-force-cleans',()=>{
   const at=runToImplement('Add refund workspace-clean check');
   const T=['--task-id','TASK-001'];
   json(['task','refresh',...at]);
-  json(['task','start',...at,...T]);
+  const started=json(['task','start',...at,...T]);
+  // The refusal is about work that no evidence captured, so the fixture has to
+  // contain some. It used to start a task and immediately ask to clean an
+  // untouched workspace, which asserted a refusal in the one case where nothing
+  // was at stake -- a provably empty workspace is now cleanable without --force.
+  const root=started.workspace?.root;
+  if(!root)throw new Error(`no workspace root in start output: ${JSON.stringify(started).slice(0,300)}`);
+  fs.writeFileSync(path.join(root,'uncaptured-work.txt'),'a worker wrote this and no evidence recorded it\n');
   const refused=json(['task','workspace-clean',...at,...T]);
   if(refused.status!=='REFUSED_EVIDENCE_NOT_PERSISTED')throw new Error(JSON.stringify(refused));
   const cleaned=json(['task','workspace-clean',...at,...T,'--force']);

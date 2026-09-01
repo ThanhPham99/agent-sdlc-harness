@@ -11,7 +11,7 @@
 // - a writer task gets exactly one writable workspace;
 // - two writer agents never share the same moving worktree;
 // - evidence binds to base SHA + workspace diff hash;
-// - cleanup refuses to run while evidence is unpersisted;
+// - cleanup refuses while the workspace holds work no evidence has captured;
 // - production credentials never become ambient writer workspace credentials.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -208,15 +208,28 @@ export function integrateTaskWorkspace(projectRoot,{run,task,targetRoot=null}){
 }
 
 /**
- * Remove the workspace. Refuses while the task still has no persisted evidence,
- * unless the caller explicitly accepts losing it.
+ * Remove the workspace. Refuses while the workspace holds work that no evidence
+ * has captured, unless the caller explicitly accepts losing it.
+ *
+ * The test is "is there anything to lose", not "is there evidence". Those differ
+ * for a workspace that was created and never written to: it has no evidence and
+ * nothing to protect, and refusing there guarded nothing while leaving a real
+ * worktree on disk that only `force` could remove.
+ *
+ * Emptiness must be proven, so `diff_available` is required: a worktree whose
+ * diff could not be read is not a worktree known to be clean, and that case
+ * keeps refusing. `workspaceDiff` counts untracked files too, so a task that
+ * created files and never staged them still has work worth protecting.
  */
 export function cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted=null,force=false,autoCommit=true}){
   let ws=record(projectRoot,run.run_id,task.task_id);
   if(!ws)return {status:'NO_WORKSPACE'};
   const hasEvidence=evidencePersisted??((task.evidence_refs||[]).length>0||(ws.checkpoints||[]).length>0);
+  let empty=false;
   if(ws.writable&&!hasEvidence&&!force){
-    return {status:'REFUSED_EVIDENCE_NOT_PERSISTED',workspace:ws};
+    const d=workspaceDiff(projectRoot,ws);
+    empty=d.diff_available===true&&d.changed_paths.length===0;
+    if(!empty)return {status:'REFUSED_EVIDENCE_NOT_PERSISTED',workspace:ws};
   }
   if(autoCommit&&ws.mode==='isolated-worktree'&&ws.root&&fs.existsSync(ws.root)){
     const res=commitTaskWorkspace(projectRoot,{run,task});
@@ -229,7 +242,7 @@ export function cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted=nul
   ws.status='CLEANED';ws.cleaned_at=now();
   writeJson(wsRecordPath(projectRoot,run.run_id,task.task_id),ws);
   emitTaskEvent(projectRoot,task,{type:'task.workspace_cleaned',payload:{mode:ws.mode,branch:ws.branch,checkpoints:(ws.checkpoints||[]).length}});
-  return {status:'CLEANED',workspace:ws};
+  return {status:'CLEANED',workspace:ws,reason:empty?'WORKSPACE_EMPTY':null};
 }
 
 /** Every workspace bound in one run; used to assert the one-writer invariant. */

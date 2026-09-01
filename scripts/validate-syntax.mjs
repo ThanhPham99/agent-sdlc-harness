@@ -27,13 +27,35 @@ function findMjsFiles(dir){
   return out;
 }
 
+/**
+ * Control characters a parser accepts and a human cannot see.
+ *
+ * A tool that wrote `\b` through a language where that escape means backspace
+ * put a real 0x08 inside a regex literal in qualification-lib.mjs. `node
+ * --check` passed, because a control character is legal there, and the regex
+ * silently stopped matching -- so a rate-limited qualification run was recorded
+ * as a genuine FAIL. Tab, newline and carriage return are the legitimate ones.
+ */
+function controlChars(abs){
+  const buf=fs.readFileSync(abs);
+  const found=new Set();
+  for(const b of buf){
+    if(b===0x09||b===0x0a||b===0x0d)continue;
+    if(b<0x20||b===0x7f)found.add('0x'+b.toString(16).padStart(2,'0'));
+  }
+  return [...found].sort();
+}
+
 const files=findMjsFiles(ROOT).map(f=>path.relative(ROOT,f).split(path.sep).join('/')).sort();
 const results=files.map(rel=>{
   // node --check is direct, static parsing -- always process.execPath, never
   // through resolveLaunch, since we are launching node itself, not a
   // configured project command.
   const r=spawnSync(process.execPath,['--check',rel],{cwd:ROOT,encoding:'utf8',timeout:10000});
-  return {file:rel,status:r.status===0?'PASS':'FAIL',error:r.status===0?null:(r.stderr||'').trim().split('\n').slice(0,5).join('\n')};
+  if(r.status!==0)return {file:rel,status:'FAIL',error:(r.stderr||'').trim().split('\n').slice(0,5).join('\n')};
+  const ctl=controlChars(path.join(ROOT,rel));
+  if(ctl.length)return {file:rel,status:'FAIL',error:`stray control character(s) in source: ${ctl.join(', ')}`};
+  return {file:rel,status:'PASS',error:null};
 });
 
 const failures=results.filter(r=>r.status==='FAIL');

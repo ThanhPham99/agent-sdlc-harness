@@ -21,6 +21,10 @@ function fixture(){
   execFileSync('git',['config','user.name','t'],{cwd:d});
   fs.mkdirSync(path.join(d,'evals'),{recursive:true});
   fs.writeFileSync(path.join(d,'evals','REPORT.json'),JSON.stringify({checks:1},null,2)+'\n');
+  // A hand-authored corpus file one level down. No suite writes this; it stands
+  // in for evals/live/qualification-lock.json and the live case sets.
+  fs.mkdirSync(path.join(d,'evals','live'),{recursive:true});
+  fs.writeFileSync(path.join(d,'evals','live','CORPUS.json'),JSON.stringify({version:'committed'},null,2)+'\n');
   execFileSync('git',['add','.'],{cwd:d});
   execFileSync('git',['commit','-qm','init'],{cwd:d});
   return d;
@@ -85,6 +89,20 @@ test('an-untracked-report-is-left-alone',()=>{
   const out=run(d);
   assert(out.action==='NOTHING_TO_RESTORE',JSON.stringify(out));
   assert(fs.existsSync(path.join(d,'evals','NEW-REPORT.json')),'an untracked report must not be deleted');
+});
+
+// `evals/*.json` as a plain pathspec let git's `*` cross `/`, so this step --
+// meant to undo generated reports -- also reverted hand-edited files under
+// evals/live and evals/activation. Those are digest-bound qualification inputs,
+// so an edit vanished silently and only surfaced as a mismatched evidence
+// digest much later.
+test('a-hand-edited-file-in-a-subdirectory-is-left-alone',()=>{
+  const d=fixture();
+  const corpus=path.join(d,'evals','live','CORPUS.json');
+  fs.writeFileSync(corpus,JSON.stringify({version:'edited-by-hand'},null,2)+'\n');
+  const out=run(d);
+  assert(!out.restored.some(f=>f.includes('evals/live/')),`subdirectory file was clobbered: ${JSON.stringify(out)}`);
+  assert(JSON.parse(fs.readFileSync(corpus,'utf8')).version==='edited-by-hand','the hand edit was reverted');
 });
 
 test('a-staged-modification-is-also-restored',()=>{

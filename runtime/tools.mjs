@@ -91,6 +91,22 @@ function pathAllowed(globs,rel){
   const p=String(rel||'').replaceAll('\\','/');
   return (globs||[]).some(g=>globToRegExp(g).test(p));
 }
+/**
+ * The secret-scan allowlist, as one implementation both callers share.
+ *
+ * runtime/task-verification.mjs used to run its own bare `git grep` and drop
+ * this filter entirely, so the per-task check reported findings the gateway had
+ * already classified as expected -- nine paths against six on this repository,
+ * which is exactly the drift the comment at that call site claimed could not
+ * happen. Exporting the filter is what makes that claim true: a second copy
+ * reading the same policy file would still be a second copy.
+ */
+export function secretScanFindings(root,paths){
+  const cfg=readJson(path.join(root,'policies','security-policy.json'),{}).secret_scan||{};
+  const all=(paths||[]).filter(Boolean);
+  const reported=all.filter(f=>!pathAllowed(cfg.allowlist_paths,f));
+  return {reported,allowlisted:all.length-reported.length};
+}
 
 // A finding has to be a credential-shaped VALUE. The previous pattern matched a
 // name followed by punctuation, so on this very repository it reported four

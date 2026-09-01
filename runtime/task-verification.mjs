@@ -12,6 +12,7 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {now,readJson,truncateUtf8} from './util.mjs';
 import {putArtifact,emitTaskEvent,saveTask} from './store.mjs';
+import {secretScanFindings} from './tools.mjs';
 import {workspaceDiff,getTaskWorkspace} from './workspace.mjs';
 import {resolveLaunch,describeSpawn} from './launcher.mjs';
 import {triageFailure} from './triage.mjs';
@@ -65,9 +66,12 @@ export function plannedCommands(projectRoot,task,strategy,{root=null}={}){
   if(strategy!=='TARGETED')push('build',arr(cfg.commands?.build));
   if(strategy==='BROAD_SUITE')push('test_full',arr(cfg.commands?.test_full));
   if((task.risk?.security==='HIGH'||arr(task.scope?.interfaces).length)&&strategy!=='TARGETED'){
-    // Patterns come from the same policy the tool gateway's scanner reads, so
-    // the two cannot drift apart. This path stays narrow on purpose: it is a
-    // per-task check, not the repository-wide scan.
+    // Patterns come from the same policy the tool gateway's scanner reads, and
+    // the hits are filtered through the gateway's own exported allowlist below,
+    // so the two cannot drift apart. This scan is repository-wide, not limited
+    // to the task's diff: a credential committed anywhere is a finding, and
+    // narrowing it to changed paths would let one slip in under an unrelated
+    // task. The comment here used to claim the opposite on both counts.
     //
     // --untracked for the same reason the gateway scanner needs it, and more
     // urgently: this runs inside the workspace of a task singled out as
@@ -140,9 +144,21 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
         summary:`${spawned.reason}: ${c.command.join(' ')}${spawned.signal?` (killed by ${spawned.signal})`:''}${detail?`\n${truncateUtf8(detail,4000).text}`:''}`});
       continue;
     }
-    const raw=(r.stdout||'')+(r.stderr||'');
+    let raw=(r.stdout||'')+(r.stderr||'');
     // `git grep -l` exits 1 when nothing matched, which is the clean outcome.
-    const exit=c.kind==='security_secret_scan'?(r.status===1?0:(r.status===0?1:r.status??1)):(r.status??1);
+    let exit=c.kind==='security_secret_scan'?(r.status===1?0:(r.status===0?1:r.status??1)):(r.status??1);
+    if(c.kind==='security_secret_scan'&&r.status===0&&root){
+      // Matched paths still have to clear the allowlist the tool gateway
+      // applies, through the gateway's own filter. Without this the per-task
+      // check failed on fixtures the project had already declared expected,
+      // which is a scanner that cries wolf -- and an operator who learns to
+      // assert past it.
+      const {reported,allowlisted}=secretScanFindings(root,(r.stdout||'').split('\n'));
+      exit=reported.length?1:0;
+      raw=reported.length
+        ?`${reported.join('\n')}${allowlisted?`\n(${allowlisted} further match(es) are allowlisted in policies/security-policy.json)`:''}`
+        :`No findings outside the configured allowlist (${allowlisted} allowlisted path(s) matched).`;
+    }
     const t=truncateUtf8(raw,4000);
     let log_ref=null;
     if(raw&&(exit!==0||t.truncated)){

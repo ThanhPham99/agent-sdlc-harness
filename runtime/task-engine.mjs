@@ -100,7 +100,10 @@ function taskFromPlanned(t,{runId,planId,profile}){
  * Task record per planned task. Refuses to run on an invalid plan: the plan
  * quality gate is upstream of the task runtime, not optional to it.
  *
- * Idempotent: an existing task record is preserved, never reset to CREATED.
+ * Re-materializing an amended plan reconciles it: a task that has not started
+ * takes the amended definition, a task with work bound to it keeps everything
+ * and is reported in `conflicts`. Status, attempt, history and evidence always
+ * belong to the engine -- no path here resets a task to CREATED.
  */
 export function materializeTaskGraph(root,projectRoot,run,plan,{planArtifactRef=null,sourceRevision=null,legacyStageEvidence=false}={}){
   const validation=validateTaskPlan(plan,{profile:plan?.profile||run.profile});
@@ -108,9 +111,35 @@ export function materializeTaskGraph(root,projectRoot,run,plan,{planArtifactRef=
     return {schema:'agent-sdlc/task-graph-record/v1',materialized:false,validation,graph:null,created:[],preserved:[]};
   }
   const planId=plan.plan_id;
-  const created=[];const preserved=[];
+  const created=[];const preserved=[];const updated=[];const conflicts=[];
   for(const planned of arr(plan.tasks)){
-    if(hasTask(projectRoot,run.run_id,planned.task_id)){preserved.push(planned.task_id);continue;}
+    if(hasTask(projectRoot,run.run_id,planned.task_id)){
+      // An amended plan used to be silently inert for a task that already
+      // existed: the task kept its original scope, and the operator got
+      // `preserved` with no hint that the amendment had not landed. The fix
+      // for a wrong scope is amending the plan, so an amendment that cannot
+      // be seen is the fix failing quietly.
+      //
+      // A task that has not started carries nothing worth protecting, so its
+      // definition is re-applied. One that has -- a captured diff, recorded
+      // evidence, a review, or any status past READY -- keeps everything:
+      // rewriting the scope under evidence already bound to it would make
+      // that evidence describe a task that no longer exists. Those are
+      // reported as conflicts instead of vanishing into `preserved`.
+      const existing=loadTask(projectRoot,run.run_id,planned.task_id);
+      const want=taskFromPlanned(planned,{runId:run.run_id,planId,profile:plan.profile||run.profile});
+      if(sameDefinition(existing,want)){preserved.push(planned.task_id);continue;}
+      if(!hasBoundWork(existing)){
+        const merged={...existing,...definitionFields(want),plan_id:planId,updated_at:now()};
+        saveTask(projectRoot,merged);
+        emitTaskEvent(projectRoot,merged,{type:'task.redefined',payload:{plan_id:planId,from_status:existing.status}});
+        updated.push(planned.task_id);
+      }else{
+        conflicts.push({task_id:planned.task_id,status:existing.status,reason:'DEFINITION_CHANGED_BUT_WORK_ALREADY_BOUND'});
+        preserved.push(planned.task_id);
+      }
+      continue;
+    }
     const task=taskFromPlanned(planned,{runId:run.run_id,planId,profile:plan.profile||run.profile});
     task.execution.max_retries=maxRetries(root,task);
     saveTask(projectRoot,task);
@@ -134,7 +163,28 @@ export function materializeTaskGraph(root,projectRoot,run,plan,{planArtifactRef=
     updated_at:now()
   };
   saveTaskGraph(projectRoot,graph);
-  return {schema:'agent-sdlc/task-graph-record/v1',materialized:true,validation,graph,created,preserved};
+  return {schema:'agent-sdlc/task-graph-record/v1',materialized:true,validation,graph,created,preserved,updated,conflicts};
+}
+
+/** The fields a plan owns. Status, attempt, history and evidence are the engine's. */
+const DEFINITION_FIELDS=['title','goal','category','depends_on','acceptance_criteria','design_decisions',
+  'changes_behavior','scope','verification','compatibility_obligations','rollback_obligations','done_conditions','risk'];
+function definitionFields(task){
+  const out={};
+  for(const k of DEFINITION_FIELDS)out[k]=task[k];
+  return out;
+}
+function sameDefinition(a,b){return JSON.stringify(definitionFields(a||{}))===JSON.stringify(definitionFields(b||{}));}
+/**
+ * Whether anything is bound to this task that a redefinition would invalidate.
+ * A captured diff, verification evidence or a review all describe the task as
+ * it was defined when they were produced.
+ */
+function hasBoundWork(task){
+  if(!task)return false;
+  if(task.diff_hash||task.base_revision)return true;
+  if(arr(task.evidence_refs).length||arr(task.review_refs).length||arr(task.artifact_refs).length)return true;
+  return !['CREATED','READY'].includes(task.status);
 }
 
 export function maxRetries(root,task){
