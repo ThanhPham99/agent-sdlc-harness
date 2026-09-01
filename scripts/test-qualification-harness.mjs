@@ -200,6 +200,20 @@ test('no-decision-schema-enum-contains-null',()=>{
     if(offenders.length)throw Error(`null inside enum at ${offenders.join(', ')} -- use anyOf with a {"type":"null"} branch instead`);
   }
 });
+// Temp cleanup sits in a finally that wraps the whole case loop, and the
+// evidence document is built after it. When rmSync threw EPERM on Windows --
+// agy holds a handle on the workspace it was given -- twenty cases of real API
+// calls were discarded with nothing written at all, twice, before the stack
+// trace was even captured. Housekeeping must not be able to destroy the
+// measurement, so the call is guarded and the outcome is reported.
+test('temp-cleanup-cannot-destroy-a-run',()=>{
+  const src=fs.readFileSync(path.join(ROOT,'scripts','qualify-host.mjs'),'utf8');
+  const fin=src.slice(src.indexOf('}finally{'),src.indexOf('}finally{')+900);
+  if(!/try\{fs\.rmSync/.test(fin))throw Error('the finally-block rmSync is unguarded again');
+  if(!/maxRetries/.test(fin))throw Error('no retry for a transient Windows lock');
+  if(!/tempCleanup=\{status:'LEAKED'/.test(fin))throw Error('a failed cleanup is not recorded');
+  if(!/name:'temp_cleanup'/.test(src))throw Error('cleanup outcome never reaches the evidence');
+});
 // Pinning is only safe if it cannot forbid an answer the corpus asks for.
 test('decision-schema-enums-admit-every-expected-value',()=>{
   const sem=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','live','semantic-decision.schema.json'),'utf8')).properties;
