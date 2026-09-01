@@ -12,11 +12,7 @@
         "security",
         "vulnerability"
       ],
-      "workflow": "security-remediation",
-      "profile": "STRICT",
-      "overlays": [
-        "security"
-      ]
+      "workflow": "security-remediation"
     },
     {
       "keywords": [
@@ -28,11 +24,7 @@
         "sev2",
         "sự cố"
       ],
-      "workflow": "incident-response",
-      "profile": "STRICT",
-      "overlays": [
-        "incident"
-      ]
+      "workflow": "incident-response"
     },
     {
       "keywords": [
@@ -41,11 +33,7 @@
         "urgent production",
         "vá nóng"
       ],
-      "workflow": "hotfix",
-      "profile": "STRICT",
-      "overlays": [
-        "hotfix"
-      ]
+      "workflow": "hotfix"
     },
     {
       "keywords": [
@@ -54,11 +42,7 @@
         "deprecate endpoint",
         "thay đổi phá vỡ"
       ],
-      "workflow": "api-breaking-change",
-      "profile": "STRICT",
-      "overlays": [
-        "api-breaking-change"
-      ]
+      "workflow": "api-breaking-change"
     },
     {
       "keywords": [
@@ -66,9 +50,7 @@
         "loại bỏ deprecated",
         "remove deprecated"
       ],
-      "workflow": "deprecation-removal",
-      "profile": "STRICT",
-      "overlays": []
+      "workflow": "deprecation-removal"
     },
     {
       "keywords": [
@@ -79,9 +61,7 @@
         "strangler",
         "viết lại"
       ],
-      "workflow": "modernization",
-      "profile": "STRICT",
-      "overlays": []
+      "workflow": "modernization"
     },
     {
       "keywords": [
@@ -93,9 +73,7 @@
         "tiếp tục phase",
         "tiếp tục tính năng"
       ],
-      "workflow": "continue-feature",
-      "profile": "STANDARD",
-      "overlays": []
+      "workflow": "continue-feature"
     },
     {
       "keywords": [
@@ -108,9 +86,7 @@
         "updated requirement",
         "yêu cầu mới"
       ],
-      "workflow": "requirement-update",
-      "profile": "STANDARD",
-      "overlays": []
+      "workflow": "requirement-update"
     },
     {
       "keywords": [
@@ -121,11 +97,7 @@
         "migration",
         "schema change"
       ],
-      "workflow": "database-migration",
-      "profile": "STRICT",
-      "overlays": [
-        "db-migration"
-      ]
+      "workflow": "database-migration"
     },
     {
       "keywords": [
@@ -136,9 +108,7 @@
         "nâng cấp thư viện",
         "upgrade package"
       ],
-      "workflow": "dependency-upgrade",
-      "profile": "STANDARD",
-      "overlays": []
+      "workflow": "dependency-upgrade"
     },
     {
       "keywords": [
@@ -152,9 +122,7 @@
         "throughput",
         "tối ưu"
       ],
-      "workflow": "performance",
-      "profile": "STANDARD",
-      "overlays": []
+      "workflow": "performance"
     },
     {
       "keywords": [
@@ -164,9 +132,7 @@
         "restructure",
         "tái cấu trúc"
       ],
-      "workflow": "refactor",
-      "profile": "STANDARD",
-      "overlays": []
+      "workflow": "refactor"
     },
     {
       "keywords": [
@@ -176,9 +142,7 @@
         "pipeline",
         "quy trình build"
       ],
-      "workflow": "ci-cd-change",
-      "profile": "STANDARD",
-      "overlays": []
+      "workflow": "ci-cd-change"
     },
     {
       "keywords": [
@@ -188,9 +152,7 @@
         "kubernetes",
         "terraform"
       ],
-      "workflow": "infrastructure-change",
-      "profile": "STRICT",
-      "overlays": []
+      "workflow": "infrastructure-change"
     },
     {
       "keywords": [
@@ -202,9 +164,7 @@
         "observability",
         "tracing"
       ],
-      "workflow": "observability-change",
-      "profile": "STANDARD",
-      "overlays": []
+      "workflow": "observability-change"
     },
     {
       "keywords": [
@@ -213,9 +173,7 @@
         "privacy control",
         "tuân thủ"
       ],
-      "workflow": "compliance-change",
-      "profile": "STRICT",
-      "overlays": []
+      "workflow": "compliance-change"
     },
     {
       "keywords": [
@@ -226,9 +184,7 @@
         "readme",
         "tài liệu"
       ],
-      "workflow": "documentation",
-      "profile": "FAST",
-      "overlays": []
+      "workflow": "documentation"
     },
     {
       "keywords": [
@@ -245,8 +201,6 @@
         "spike"
       ],
       "workflow": "technical-spike",
-      "profile": "FAST",
-      "overlays": [],
       "intent": "investigate"
     },
     {
@@ -257,9 +211,7 @@
         "test only",
         "thêm test"
       ],
-      "workflow": "test-only",
-      "profile": "FAST",
-      "overlays": []
+      "workflow": "test-only"
     },
     {
       "keywords": [
@@ -271,9 +223,7 @@
         "khắc phục lỗi",
         "sửa lỗi"
       ],
-      "workflow": "bug-fix",
-      "profile": "STANDARD",
-      "overlays": []
+      "workflow": "bug-fix"
     },
     {
       "keywords": [
@@ -283,14 +233,10 @@
         "nợ kỹ thuật",
         "tech debt"
       ],
-      "workflow": "maintenance",
-      "profile": "FAST",
-      "overlays": []
+      "workflow": "maintenance"
     }
   ],
   "default": {
-    "workflow": "new-feature",
-    "profile": "STANDARD",
-    "overlays": []
+    "workflow": "new-feature"
   }
 }

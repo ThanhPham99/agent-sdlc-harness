@@ -243,11 +243,13 @@
         "OBSERVE",
         "CLOSE"
       ],
-      "required_overlays": []
+      "required_overlays": [
+        "incident"
+      ]
     },
     "maintenance": {
       "id": "maintenance",
-      "default_profile": "STANDARD",
+      "default_profile": "FAST",
       "stages": [
         "INTAKE",
         "REQUIREMENTS",
@@ -261,7 +263,7 @@
     },
     "modernization": {
       "id": "modernization",
-      "default_profile": "STANDARD",
+      "default_profile": "STRICT",
       "stages": [
         "INTAKE",
         "REQUIREMENTS",
