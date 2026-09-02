@@ -33,6 +33,14 @@
     },
     "risk_flags": {
       "type": "array",
+      "description": "Confidence in this route, not danger in the request: HIGH_RISK_ROUTE when the chosen workflow is itself STRICT, AMBIGUOUS_ROUTE when a competing workflow scored close.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "bypass_language": {
+      "type": "array",
+      "description": "Waiver phrases found in the objective, as CATEGORY:phrase. Evidence, not a verdict: it authorises nothing, and an empty array means these phrases were not found, not that no bypass was demanded. Optional, so RouteDecisions produced before it existed stay valid.",
       "items": {
         "type": "string"
       }

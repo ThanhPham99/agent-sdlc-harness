@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-rc1",
-  "checks": 398,
-  "passes": 398,
+  "checks": 404,
+  "passes": 404,
   "failures": 0,
   "results": [
     {
@@ -123,6 +123,30 @@
     },
     {
       "name": "router-tied-score-prefers-strict-profile",
+      "status": "PASS"
+    },
+    {
+      "name": "router-pre-existing-fields-are-unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-explicit-bypass-language",
+      "status": "PASS"
+    },
+    {
+      "name": "router-does-not-report-ordinary-uses-of-the-same-words",
+      "status": "PASS"
+    },
+    {
+      "name": "router-does-not-report-bypass-language-quoted-from-untrusted-data",
+      "status": "PASS"
+    },
+    {
+      "name": "router-always-returns-a-bypass-language-array",
+      "status": "PASS"
+    },
+    {
+      "name": "nothing-outside-the-router-reads-bypass-language",
       "status": "PASS"
     },
     {
