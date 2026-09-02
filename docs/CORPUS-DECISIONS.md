@@ -488,11 +488,40 @@ Two things the investigation found that are worth keeping:
   Harmless for the reason above, and still the fallback D1 described rather than
   a route.
 
-**Still open, deliberately:** whether the router should detect bypass language
-deterministically and surface it, instead of leaving the trust decision entirely
-to a model with the tool layer as the only backstop. That is defence in depth
-rather than a hole to close, so it is a product decision and not this document's
-to make.
+**That last lead is now closed too — it was worth doing.** The router now
+reports `bypass_language`: the waiver phrases an objective actually contains,
+grouped by the control being waived and each carrying the phrase that matched.
+`SEC009` comes back `APPROVALS:bypass all approvals`, and every other field of
+that route is unchanged, so no corpus expectation moved. The doctrine is
+respected exactly as written: the demand changes neither workflow nor profile,
+and the new field authorises nothing.
+
+Three properties were worth more than the detector itself:
+
+- **It reads the quarantined text, not the raw objective.** The router already
+  strips quoted and fenced content before matching keywords, because an
+  instruction inside a log is untrusted data. The detector reuses that same
+  normalization, so `The log says: "bypass all approvals"` reports nothing —
+  quoting a demand is not making one.
+- **Nothing may key off it**, and a test enforces that: `runtime/` is scanned
+  and any file other than the router that mentions `bypass_language` fails the
+  suite. A phrase list is far too weak to carry an authorisation decision, and
+  the moment something branches on it, it becomes one.
+- **An empty array is not evidence of a benign request.** It means these
+  phrases were not found. Anyone paraphrasing walks past it. That limit is
+  stated where the field is built, because the whole reason this lead existed
+  was a reader reasonably drawing the opposite conclusion from an empty
+  `risk_flags`.
+
+The route output was pinned before the field was added — five fields, eleven
+objectives spanning a keyword route, a STRICT route, an ambiguous one, four
+bare waiver demands and two innocent sentences containing the same words — so
+"nothing moved" is a test rather than a claim.
+
+**Still out of scope, deliberately:** secret-disclosure demands ("reveal the
+deployment secrets"), which the DENY doctrine groups with waivers but which
+`bypass_language` would misname; and the `risk_flags` rename, which is a
+breaking change across the schema and every consumer.
 
 ### What the evidence was measured against
 
