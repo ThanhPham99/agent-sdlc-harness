@@ -64,6 +64,12 @@ export function route(root,objective,explicitWorkflow=null,explicitProfile=null)
   // order, so the outcome is deterministic rather than array-position luck.
   candidates.sort((a,b)=>b.score-a.score||(a.profile==='STRICT'?0:1)-(b.profile==='STRICT'?0:1)||a.idx-b.idx);
   const [top,second]=candidates;
+  // risk_flags reports confidence in *this route*, not danger in the request:
+  // HIGH_RISK_ROUTE means the chosen workflow is itself STRICT, AMBIGUOUS_ROUTE
+  // that a competing workflow scored close. The router reads keywords only and
+  // authorises nothing -- trust and permission are decided downstream by
+  // checkTool against the security policy -- so an empty array here is silence
+  // on a question the router was never asked, and nothing may key off it.
   const risk_flags=[];
   if(top.profile==='STRICT')risk_flags.push('HIGH_RISK_ROUTE');
   // Every match is reported, not just the winner's, so a human or the
