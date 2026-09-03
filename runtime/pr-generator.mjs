@@ -9,6 +9,14 @@ import {readJson} from './util.mjs';
 /**
  * Generate a comprehensive Pull Request body from a run's state, DAG tasks, and CI evidence.
  */
+// The governance section used to print a Risk Level derived from run.risk_flags.
+// No run record has ever carried that property: newRun copies exactly three
+// fields off the route decision -- workflow, profile and overlays -- and never
+// the flags, so nothing has ever written risk_flags onto a run in this repo's
+// history, and Run.schema.json has no such field. So the line was not stale, it was never live -- every PR body
+// ever generated said STANDARD / None, including for a STRICT run under a
+// security overlay, which is a governance section asserting the opposite of the
+// truth. It now reports what the run actually carries.
 export function generatePrBody(projectRoot, run, { format = 'markdown' } = {}) {
   const tasks = listTasks(projectRoot, run.run_id);
   const doneTasks = tasks.filter(t => t.status === 'DONE');
@@ -45,9 +53,10 @@ ${taskListMd || '- No completed tasks recorded.'}
 ${ciChecksMd}
 - **Traceability Graph**: ${traceGraph ? `${traceGraph.nodes?.length || 0} nodes, ${traceGraph.edges?.length || 0} edges verified` : 'Not built'}
 
-## 🛡️ Governance & Risk
-- **Risk Level**: \`${run.risk_flags?.length ? 'ELEVATED' : 'STANDARD'}\`
-- **Risk Flags**: ${run.risk_flags?.length ? run.risk_flags.join(', ') : 'None'}
+## 🛡️ Governance
+- **Scrutiny Profile**: \`${run.profile || 'STANDARD'}\`
+- **Mandatory Overlays**: ${run.overlays?.length ? run.overlays.join(', ') : 'None'}
+- **Approvals Recorded**: ${run.approvals?.length || 0}
 `;
 
   if (format === 'json') {

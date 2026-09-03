@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-rc1",
-  "checks": 404,
-  "passes": 404,
+  "checks": 421,
+  "passes": 421,
   "failures": 0,
   "results": [
     {
@@ -130,7 +130,7 @@
       "status": "PASS"
     },
     {
-      "name": "router-reports-explicit-bypass-language",
+      "name": "router-reports-explicit-deny-language",
       "status": "PASS"
     },
     {
@@ -138,15 +138,79 @@
       "status": "PASS"
     },
     {
-      "name": "router-does-not-report-bypass-language-quoted-from-untrusted-data",
+      "name": "router-does-not-report-deny-language-quoted-from-untrusted-data",
       "status": "PASS"
     },
     {
-      "name": "router-always-returns-a-bypass-language-array",
+      "name": "router-always-returns-a-deny-language-array",
       "status": "PASS"
     },
     {
-      "name": "nothing-outside-the-router-reads-bypass-language",
+      "name": "nothing-outside-the-router-reads-deny-language",
+      "status": "PASS"
+    },
+    {
+      "name": "router-does-not-quarantine-a-sentence-on-contractions",
+      "status": "PASS"
+    },
+    {
+      "name": "router-does-not-quarantine-on-unusual-contractions",
+      "status": "PASS"
+    },
+    {
+      "name": "router-keeps-keywords-between-a-contraction-and-a-possessive",
+      "status": "PASS"
+    },
+    {
+      "name": "router-does-not-turn-mask-characters-in-the-objective-into-quotes",
+      "status": "PASS"
+    },
+    {
+      "name": "router-still-quarantines-single-quoted-untrusted-text",
+      "status": "PASS"
+    },
+    {
+      "name": "router-quarantines-quotations-however-they-are-glued-to-the-sentence",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-secret-disclosure-demands",
+      "status": "PASS"
+    },
+    {
+      "name": "router-does-not-report-ordinary-work-on-secrets",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-the-phrases-even-in-defensive-sentences",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-demands-whose-justification-contains-a-negation",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-a-phrase-even-inside-a-longer-noun",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-demands-with-an-ordinary-tail",
+      "status": "PASS"
+    },
+    {
+      "name": "router-matches-across-a-line-break-but-not-across-a-full-stop",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-a-repeated-phrase-exactly-once",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-the-generated-secret-phrasings",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-override-and-idiomatic-waivers",
       "status": "PASS"
     },
     {
@@ -951,6 +1015,10 @@
     },
     {
       "name": "optimization/mutation-testing-engine-and-report",
+      "status": "PASS"
+    },
+    {
+      "name": "pr-body-governance-section-reports-the-runs-real-profile",
       "status": "PASS"
     },
     {

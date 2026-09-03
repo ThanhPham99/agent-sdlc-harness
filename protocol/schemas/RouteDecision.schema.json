@@ -31,16 +31,16 @@
         "type": "string"
       }
     },
-    "risk_flags": {
+    "route_flags": {
       "type": "array",
-      "description": "Confidence in this route, not danger in the request: HIGH_RISK_ROUTE when the chosen workflow is itself STRICT, AMBIGUOUS_ROUTE when a competing workflow scored close.",
+      "description": "Confidence in this route, not danger in the request: STRICT_WORKFLOW_ROUTE when the chosen workflow is itself STRICT, AMBIGUOUS_ROUTE when a competing workflow scored close.",
       "items": {
         "type": "string"
       }
     },
-    "bypass_language": {
+    "deny_language": {
       "type": "array",
-      "description": "Waiver phrases found in the objective, as CATEGORY:phrase. Evidence, not a verdict: it authorises nothing, and an empty array means these phrases were not found, not that no bypass was demanded. Optional, so RouteDecisions produced before it existed stay valid.",
+      "description": "Phrases from the DENY doctrine class - a control waived, switched off, or overridden despite its verdict, or secrets to be disclosed - found in the objective, as CATEGORY:phrase. Evidence, not a verdict: it authorises nothing, and an empty array means these exact phrases were not found, not that nothing was demanded - a paraphrase walks past it. It reports presence, not intent, and judges neither polarity nor grammar beyond requiring the phrase to lie inside one sentence: a defensive sentence, or a phrase inside a longer noun, is reported too. Two filters that tried to be cleverer were withdrawn for silently dropping real demands. Optional, so RouteDecisions produced before it existed stay valid.",
       "items": {
         "type": "string"
       }
