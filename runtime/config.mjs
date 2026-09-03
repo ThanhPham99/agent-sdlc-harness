@@ -33,3 +33,26 @@ export function resolveConfig(projectRoot,overrides={}){
     ...(unreadable.length?{problems:unreadable.map(l=>`${l.name} config at ${l.path} is unreadable and was skipped: ${l.error}`)}:{}),
     effective};
 }
+
+export function resolveWorkflows(root,projectRoot=null){
+  const canonicalPath=path.join(root,'config','workflows.json');
+  const base=fs.existsSync(canonicalPath)?JSON.parse(fs.readFileSync(canonicalPath,'utf8')).workflows:{};
+  if(!projectRoot)return base;
+  const customDir=path.join(projectRoot,'.agent-sdlc','workflows');
+  if(!fs.existsSync(customDir))return base;
+  try{
+    const files=fs.readdirSync(customDir).filter(f=>f.endsWith('.json'));
+    const merged={...base};
+    for(const f of files){
+      try{
+        const custom=JSON.parse(fs.readFileSync(path.join(customDir,f),'utf8'));
+        if(custom.id&&custom.stages){
+          merged[custom.id]=custom;
+        }
+      }catch{}
+    }
+    return merged;
+  }catch{
+    return base;
+  }
+}

@@ -55,6 +55,41 @@ function substituteSelector(command,selectors){
   return {command:out,unsatisfied_selector:false};
 }
 
+/**
+ * Attempt deterministic formatting or linting auto-fix if command failed on style/lint rules.
+ */
+export function attemptDeterministicMicroFix(cwd,projectRoot,task,{summary='',kind=''}={}){
+  if(!cwd||!fs.existsSync(cwd))return {attempted:false,success:false};
+  const isStyleOrLint=/prettier|eslint|stylelint|formatting error|trailing whitespace|prettier\/prettier|indent-error/i.test(summary);
+  if(!isStyleOrLint)return {attempted:false,success:false};
+
+  const projectPkgPath=path.join(projectRoot,'package.json');
+  let fixCmd=null;
+  if(fs.existsSync(projectPkgPath)){
+    try{
+      const pkg=JSON.parse(fs.readFileSync(projectPkgPath,'utf8'));
+      if(pkg.scripts?.['lint:fix'])fixCmd=['npm','run','lint:fix'];
+      else if(pkg.scripts?.['format'])fixCmd=['npm','run','format'];
+      else if(pkg.scripts?.['fix'])fixCmd=['npm','run','fix'];
+      else if(pkg.devDependencies?.prettier||pkg.dependencies?.prettier)fixCmd=['npx','prettier','--write','.'];
+      else if(pkg.devDependencies?.eslint||pkg.dependencies?.eslint)fixCmd=['npx','eslint','--fix','.'];
+    }catch{}
+  }
+  if(!fixCmd)return {attempted:false,success:false};
+
+  try{
+    const launch=resolveLaunch(fixCmd);
+    if(launch.status!=='OK')return {attempted:true,success:false,error:launch.reason};
+    const r=spawnSync(launch.bin,launch.args,{cwd,encoding:'utf8',timeout:30000,...launch.spawnOptions});
+    if(r.status===0){
+      return {attempted:true,success:true,command:fixCmd.join(' ')};
+    }
+    return {attempted:true,success:false,command:fixCmd.join(' '),exit_code:r.status};
+  }catch(e){
+    return {attempted:true,success:false,error:e.message};
+  }
+}
+
 /** Which project commands a strategy runs, in order. */
 export function plannedCommands(projectRoot,task,strategy,{root=null,changedPaths=[],cwd=null}={}){
   const cfg=readJson(path.join(projectRoot,'.agent-sdlc','project.json'),{});
@@ -229,6 +264,21 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
     let log_ref=null;
     if(raw&&(exit!==0||t.truncated)){
       log_ref=putArtifact(projectRoot,{kind:'task-verification-log',content:raw,runId:run.run_id,stage:run.state,filename:`${task.task_id}-${c.kind}.log`}).artifact_id;
+    }
+    if(exit!==0&&!dryRun){
+      const microFix=attemptDeterministicMicroFix(cwd,projectRoot,task,{summary:t.text,kind:c.kind});
+      if(microFix.success){
+        const retryLaunch=resolveLaunch(c.command);
+        if(retryLaunch.status==='OK'){
+          const retryRes=spawnSync(retryLaunch.bin,retryLaunch.args,{cwd,encoding:'utf8',timeout:timeoutMs,maxBuffer:20*1024*1024,...retryLaunch.spawnOptions});
+          const retrySpawn=describeSpawn(retryRes);
+          if(retrySpawn.status!=='ERROR'&&(retryRes.status===0||(c.kind==='security_secret_scan'&&retryRes.status===1))){
+            exit=0;
+            raw=(retryRes.stdout||'')+(retryRes.stderr||'')+'\n[agent-sdlc micro-fix applied: '+microFix.command+']';
+            t.text=truncateUtf8(raw,4000).text;
+          }
+        }
+      }
     }
     if(exit!==0)allPassed=false;
     executed.push({kind:c.kind,command:c.command,exit_code:exit,duration_ms:Date.now()-start,log_ref,summary:t.text||null});

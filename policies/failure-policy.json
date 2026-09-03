@@ -5,7 +5,8 @@
     "transient_provider": 3,
     "schema_repair": 1,
     "failed_tool_same_args": 0,
-    "failed_test_fix_cycles": 3
+    "failed_test_fix_cycles": 3,
+    "deterministic_micro_fix": 1
   },
   "circuit_breaker": {
     "provider_5xx_threshold": 5,

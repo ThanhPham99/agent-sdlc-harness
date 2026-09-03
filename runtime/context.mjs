@@ -85,8 +85,8 @@ export function condenseLog(rawLog,{maxLines=60,preserveHead=10,preserveTail=25}
   if(lines.length<=maxLines)return text;
 
   const errorIndices=new Set();
-  const errorPatterns=/(?:error|err|fail|fatal|exception|syntaxerror|typeerror|assertionerror|errno|stack|at\s+.*:\d+|\^|--- FAIL:|FAIL\s+|FAILED\s+|FAILURES|failures:|assertion failed:|short test summary info|expected:<.*> but was:<.*>|expected.*received|panicked at|panic:)/i;
-  const blockPatterns=/(?:short test summary info|FAILURES|failures:|=== FAILURES ===|AssertionError|Expected:|Received:|expected:<)/i;
+  const errorPatterns=/(?:error|err|fail|fatal|exception|syntaxerror|typeerror|assertionerror|errno|stack|at\s+.*:\d+|\^|--- FAIL:|FAIL\s+|FAILED\s+|FAILURES|failures:|assertion failed:|short test summary info|expected:<.*> but was:<.*>|expected.*received|panicked at|panic:|Traceback \(most recent call last\):|error TS\d+:|Biome|eslint|prettier|cargo:warning|rustc:)/i;
+  const blockPatterns=/(?:short test summary info|FAILURES|failures:|=== FAILURES ===|AssertionError|Expected:|Received:|expected:<|Traceback \(most recent call last\):)/i;
 
   for(let i=0;i<lines.length;i++){
     if(errorPatterns.test(lines[i])){
@@ -143,6 +143,35 @@ export function compactArtifactSummaries(artifacts,maxBudgetTokens,charsPerToken
   return compacted;
 }
 
+const PRIMARY_KINDS_BY_STAGE={
+  INTAKE:['intake','requirements','research'],
+  REQUIREMENTS:['intake','requirements','research'],
+  DESIGN:['requirements','architecture','design'],
+  PLAN:['requirements','architecture','design','plan'],
+  IMPLEMENT:['requirements','architecture','design','plan','task'],
+  VERIFY:['plan','task','test','verification'],
+  REVIEW:['plan','task','verification','review'],
+  RELEASE:['verification','review','release','manifest'],
+  DEPLOY:['release','deployment','manifest'],
+  OBSERVE:['deployment','monitoring','manifest'],
+  CLOSE:['requirements','release','documentation','summary']
+};
+
+export function projectArtifactsForStage(stage,artifacts){
+  if(!Array.isArray(artifacts)||!stage)return artifacts;
+  const primaryKinds=PRIMARY_KINDS_BY_STAGE[stage]||[];
+  if(!primaryKinds.length)return artifacts;
+  return artifacts.map(a=>{
+    if(!a||a.missing||!a.kind)return a;
+    const kindStr=String(a.kind).toLowerCase();
+    const isPrimary=primaryKinds.some(pk=>kindStr.includes(pk));
+    if(!isPrimary&&a.summary&&a.summary.length>300){
+      return {...a,summary:a.summary.slice(0,300)+`\n... [compacted for ${stage} stage relevance]`};
+    }
+    return a;
+  });
+}
+
 export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],constraints=[]}={}){
   const stagePolicy=readJson(path.join(root,'policies','stage-policy.json')).stages[run.state];
   if(!stagePolicy)throw new Error(`no stage policy for ${run.state}`);
@@ -164,7 +193,8 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
     }catch{artifacts.push({ref,missing:true});}
   }
   const maxArtifactTokens=Math.floor(maxContextTokens*0.45);
-  const finalArtifacts=compactArtifactSummaries(artifacts,maxArtifactTokens,charsPerToken);
+  const projectedArtifacts=projectArtifactsForStage(run.state,artifacts);
+  const finalArtifacts=compactArtifactSummaries(projectedArtifacts,maxArtifactTokens,charsPerToken);
   const skills=resolveSkills(root,projectRoot,run);
   const procedures=resolveProcedures(root,projectRoot,run);
   const manifest={
@@ -200,7 +230,7 @@ export function renderCacheablePrompt(root,manifest){
   const stagePrefix=`STAGE SKILLS\n${skillText||'(none)'}\n\nDETAILED PROCEDURES\n${procedureText||'(none)'}\n\nACTIVE ROLES\n${roleText||'(none)'}`;
   const dynamicSuffix=`OBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nFEATURE\n${featureText||'(standalone run, not attached to a feature)'}\n\nREQUIREMENT UPDATE\n${requirementUpdateText||'(none)'}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nReturn a compact StageResult JSON.`;
 
-  const fullPrompt=`${system}\n\nSTAGE SKILLS\n${skillText||'(none)'}\n\nDETAILED PROCEDURES\n${procedureText||'(none)'}\n\nOBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nFEATURE\n${featureText||'(standalone run, not attached to a feature)'}\n\nACTIVE ROLES\n${roleText||'(none)'}\n\nREQUIREMENT UPDATE\n${requirementUpdateText||'(none)'}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}\n\nReturn a compact StageResult JSON.`;
+  const fullPrompt=`${staticPrefix}\n\n${stagePrefix}\n\n${dynamicSuffix}`;
 
   const staticTokens=estimateTokens(staticPrefix,4);
   const stageTokens=estimateTokens(stagePrefix,4);

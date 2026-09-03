@@ -236,8 +236,12 @@ export function cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted=nul
     if(res.commit_sha)ws.commit_sha=res.commit_sha;
   }
   if(ws.mode==='isolated-worktree'&&ws.root&&ws.root!==projectRoot&&fs.existsSync(ws.root)){
-    const r=git(['worktree','remove','--force',ws.root],projectRoot);
-    if(r.code!==0)try{fs.rmSync(ws.root,{recursive:true,force:true});}catch{}
+    let r=git(['worktree','remove','--force',ws.root],projectRoot);
+    if(r.code!==0){
+      git(['worktree','prune'],projectRoot);
+      r=git(['worktree','remove','--force',ws.root],projectRoot);
+    }
+    if(r.code!==0)try{fs.rmSync(ws.root,{recursive:true,force:true,maxRetries:3,retryDelay:100});}catch{}
   }
   ws.status='CLEANED';ws.cleaned_at=now();
   writeJson(wsRecordPath(projectRoot,run.run_id,task.task_id),ws);

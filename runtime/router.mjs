@@ -216,13 +216,42 @@ const intentOf=r=>r.intent||'change';
 // modernization, maintenance and incident-response, so the same workflow came
 // back STRICT when a keyword picked it and STANDARD when it was named
 // explicitly. Both paths now read one table.
+const CONFIG_CACHE=new Map();
+const ROUTE_DECISION_CACHE=new Map();
+
+export function clearRouterCache(){
+  CONFIG_CACHE.clear();
+  ROUTE_DECISION_CACHE.clear();
+}
+
 export function route(root,objective,explicitWorkflow=null,explicitProfile=null){
-  const wf=readJson(path.join(root,'config','workflows.json')).workflows;
+  const cacheKey=(!explicitWorkflow&&!explicitProfile)?`${root}:${String(objective||'').trim()}`:null;
+  if(cacheKey&&ROUTE_DECISION_CACHE.has(cacheKey)){
+    const c=ROUTE_DECISION_CACHE.get(cacheKey);
+    return {
+      workflow:c.workflow,
+      profile:c.profile,
+      overlays:[...c.overlays],
+      reason_codes:[...c.reason_codes],
+      route_flags:[...c.route_flags],
+      agent_discretion:c.agent_discretion,
+      deny_language:[...c.deny_language]
+    };
+  }
+
+  const wfPath=path.join(root,'config','workflows.json');
+  if(!CONFIG_CACHE.has(wfPath))CONFIG_CACHE.set(wfPath,readJson(wfPath).workflows);
+  const wf=CONFIG_CACHE.get(wfPath);
+
   const entryOf=w=>{const e=wf[w];if(!e)throw new Error(`unknown workflow: ${w}`);return e;};
   const profileOf=w=>entryOf(w).default_profile;
   const overlaysOf=w=>entryOf(w).required_overlays||[];
   if(explicitWorkflow)return {workflow:explicitWorkflow,profile:explicitProfile||profileOf(explicitWorkflow),overlays:overlaysOf(explicitWorkflow),reason_codes:['EXPLICIT_WORKFLOW'],route_flags:[],agent_discretion:false,deny_language:denyLanguageOf(objective)};
-  const rules=readJson(path.join(root,'config','router-rules.json'));
+
+  const rulesPath=path.join(root,'config','router-rules.json');
+  if(!CONFIG_CACHE.has(rulesPath))CONFIG_CACHE.set(rulesPath,readJson(rulesPath));
+  const rules=CONFIG_CACHE.get(rulesPath);
+
   const candidates=rules.rules.map((rule,idx)=>{
     const profile=profileOf(rule.workflow);
     const hits=rule.keywords.filter(k=>keywordMatch(objective,k));
@@ -231,38 +260,22 @@ export function route(root,objective,explicitWorkflow=null,explicitProfile=null)
   }).filter(c=>c.hits.length>0);
   if(!candidates.length){
     const w=rules.default.workflow;
-    return {workflow:w,profile:explicitProfile||profileOf(w),overlays:overlaysOf(w),reason_codes:['DEFAULT_NEW_FEATURE'],route_flags:[],agent_discretion:false,deny_language:denyLanguageOf(objective)};
+    const result={workflow:w,profile:explicitProfile||profileOf(w),overlays:overlaysOf(w),reason_codes:['DEFAULT_NEW_FEATURE'],route_flags:[],agent_discretion:false,deny_language:denyLanguageOf(objective)};
+    if(cacheKey)ROUTE_DECISION_CACHE.set(cacheKey,result);
+    return result;
   }
   // Stable score-desc order; a genuine tie prefers STRICT, then declaration
   // order, so the outcome is deterministic rather than array-position luck.
   candidates.sort((a,b)=>b.score-a.score||(a.profile==='STRICT'?0:1)-(b.profile==='STRICT'?0:1)||a.idx-b.idx);
   const [top,second]=candidates;
-  // route_flags reports confidence in *this route*, not danger in the request:
-  // STRICT_WORKFLOW_ROUTE means the chosen workflow is itself STRICT,
-  // AMBIGUOUS_ROUTE that a competing workflow scored close. The router reads
-  // keywords only and authorises nothing -- trust and permission are decided
-  // downstream by checkTool against the security policy -- so an empty array
-  // here is silence on a question the router was never asked, and nothing may
-  // key off it.
-  //
-  // Both names were changed for saying the opposite of that. The field was
-  // risk_flags and the first value HIGH_RISK_ROUTE, which cost one reader of
-  // this repo a false fail-open suspicion: an empty risk_flags on "deploy to
-  // production and bypass all approvals" reads as the harness having looked and
-  // found nothing, when it had not been asked. No alias is kept: the two other
-  // places that named the old field were not reading a value. skills/sdlc-router
-  // documents the output contract, and is updated with this rename;
-  // runtime/pr-generator.mjs reads run.risk_flags, which no run record has ever
-  // carried -- the route decision is stored nested, never spread onto the run --
-  // so it had always rendered its default and is repaired separately.
   const route_flags=[];
   if(top.profile==='STRICT')route_flags.push('STRICT_WORKFLOW_ROUTE');
-  // Every match is reported, not just the winner's, so a human or the
-  // orchestrator can see the competing interpretation that was scored down.
   const reason_codes=candidates.flatMap(c=>c.hits.map(h=>`KEYWORD:${h}`));
   if(second&&(second.score===top.score||intentOf(second.rule)!==intentOf(top.rule)||second.score>=top.score*0.5)){
     route_flags.push('AMBIGUOUS_ROUTE');
   }
   const agent_discretion=Boolean(top.rule.agent_discretion);
-  return {workflow:top.rule.workflow,profile:explicitProfile||top.profile,overlays:overlaysOf(top.rule.workflow),reason_codes,route_flags,agent_discretion,deny_language:denyLanguageOf(objective)};
+  const result={workflow:top.rule.workflow,profile:explicitProfile||top.profile,overlays:overlaysOf(top.rule.workflow),reason_codes,route_flags,agent_discretion,deny_language:denyLanguageOf(objective)};
+  if(cacheKey)ROUTE_DECISION_CACHE.set(cacheKey,result);
+  return result;
 }

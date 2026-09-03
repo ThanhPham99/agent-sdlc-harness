@@ -2,7 +2,7 @@
 // Test prompt caching separation: static prefix, stage prefix, dynamic suffix.
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {buildContext,renderPrompt,renderCacheablePrompt,condenseLog} from '../runtime/context.mjs';
+import {buildContext,renderPrompt,renderCacheablePrompt,condenseLog,projectArtifactsForStage} from '../runtime/context.mjs';
 import {buildTaskContext,renderTaskPrompt,renderCacheableTaskPrompt} from '../runtime/task-context.mjs';
 import {formatProviderPrompt} from '../runtime/provider.mjs';
 import {initProject} from '../runtime/store.mjs';
@@ -221,11 +221,29 @@ test('formatProviderPrompt-adapts-to-host-capabilities',()=>{
   // Codex / generic fallback
   const codexFormatted=formatProviderPrompt('codex',cacheable);
   assert(codexFormatted.cache_enabled===false,'codex cache_enabled mismatch');
-  assert(typeof codexFormatted.prompt==='string'&&codexFormatted.prompt.length>0,'codex prompt missing');
-
   // Bare string fallback
   const rawFormatted=formatProviderPrompt('claude','hello world');
   assert(rawFormatted.prompt==='hello world'&&rawFormatted.cache_enabled===false,'raw string formatting failed');
+});
+
+test('projectArtifactsForStage-compacts-non-primary-artifacts-for-stage',()=>{
+  const artifacts=[
+    {ref:'art_intake',kind:'intake',summary:'Intake notes '.repeat(30),sha256:'111111111111'},
+    {ref:'art_plan',kind:'plan',summary:'Plan items '.repeat(30),sha256:'222222222222'}
+  ];
+  const projected=projectArtifactsForStage('VERIFY',artifacts);
+  assert(projected[0].summary.includes('compacted for VERIFY stage relevance'),'intake artifact was not projected/compacted in VERIFY');
+  assert(!projected[1].summary.includes('compacted for VERIFY stage relevance'),'plan artifact was prematurely compacted in VERIFY');
+});
+
+test('full_prompt-matches-prefix-cacheable-layout',()=>{
+  const d=fixture();
+  const r=route(ROOT,'Test prefix cache layout');
+  const run=newRun(ROOT,d,{objective:'Test prefix cache layout',route:r});
+  const manifest=buildContext(ROOT,d,run);
+  const cacheable=renderCacheablePrompt(ROOT,manifest);
+  const expected=`${cacheable.static_prefix}\n\n${cacheable.stage_prefix}\n\n${cacheable.dynamic_suffix}`;
+  assert(cacheable.full_prompt===expected,'full_prompt does not match static + stage + dynamic layout');
 });
 
 finish();

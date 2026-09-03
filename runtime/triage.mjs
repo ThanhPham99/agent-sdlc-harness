@@ -25,6 +25,7 @@ export function classifyFailureType(raw){
   if(/error\[E\d+\]|cannot find module|cannot find symbol|TS\d+|compilation error|build failed|fatal error/i.test(text))return 'COMPILATION_ERROR';
   if(/AssertionError|assert|expected|received|assertion failed|FAILED/i.test(text))return 'ASSERTION_FAILURE';
   if(/unauthorized|forbidden|secret|permission denied/i.test(text))return 'SECURITY_OR_PERMISSION_FAILURE';
+  if(/prettier|eslint|stylelint|formatting error|trailing whitespace|prettier\/prettier/i.test(text))return 'STYLE_OR_LINT_FAILURE';
   return 'COMMAND_FAILURE';
 }
 
