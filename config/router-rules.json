@@ -28,9 +28,13 @@
     },
     {
       "keywords": [
+        "fix khẩn cấp",
+        "hot fix",
         "hotfix",
         "rollback fix",
+        "sửa gấp",
         "urgent production",
+        "vá gấp",
         "vá nóng"
       ],
       "workflow": "hotfix"
@@ -97,7 +101,11 @@
         "database",
         "di chuyển dữ liệu",
         "migration",
-        "schema change"
+        "schema change",
+        "sửa schema",
+        "tạo migration",
+        "thêm bảng",
+        "thêm cột"
       ],
       "workflow": "database-migration"
     },
@@ -135,9 +143,13 @@
         "dọn dẹp code",
         "làm sạch code",
         "refactor",
+        "refactor code",
         "restructure",
+        "tách module",
+        "tách service",
         "tái cấu trúc",
-        "tinh gọn code"
+        "tinh gọn code",
+        "tối ưu code"
       ],
       "workflow": "refactor",
       "agent_discretion": true
@@ -236,7 +248,10 @@
     {
       "keywords": [
         "add tests",
+        "bộ test",
         "chạy test",
+        "e2e test",
+        "integration test",
         "kiểm thử",
         "kiểm thử lại",
         "re-test",
@@ -244,7 +259,10 @@
         "test coverage",
         "test only",
         "test suite",
-        "thêm test"
+        "thêm test",
+        "unit test",
+        "viết test",
+        "viết thêm test"
       ],
       "workflow": "test-only",
       "agent_discretion": true

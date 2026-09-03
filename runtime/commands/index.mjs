@@ -26,7 +26,8 @@ const GROUPS={
   feature:()=>import("./feature.mjs"),
   delivery:()=>import("./delivery.mjs"),
   completion:()=>import("./completion.mjs"),
-  dashboard:()=>import("./dashboard.mjs")
+  dashboard:()=>import("./dashboard.mjs"),
+  auto:()=>import("./auto.mjs")
 };
 
 /** Command name -> its group, and the subcommands it dispatches.
@@ -41,7 +42,7 @@ export const COMMANDS={
   diff:{group:"run"},
   next:{group:"run"},
   transition:{group:"run"},
-  approval:{group:"run",subcommands:["status","grant","revoke"]},
+  approval:{group:"run",subcommands:["status","tickets","request","grant-ticket","grant","revoke"]},
   gate:{group:"run",subcommands:["status","explain"]},
   knowledge:{group:"project",subcommands:["status"]},
   context:{group:"run"},
@@ -87,7 +88,10 @@ export const COMMANDS={
   dashboard:{group:"dashboard"},
   serve:{group:"dashboard"},
   rewind:{group:"run"},
-  webhook:{group:"project",subcommands:["list","test"]}
+  webhook:{group:"project",subcommands:["list","test"]},
+  auto:{group:"auto"},
+  "auto-task":{group:"auto"},
+  "ci-check":{group:"auto"}
 };
 
 export const COMMAND_NAMES=Object.keys(COMMANDS);
@@ -113,7 +117,7 @@ export async function loadCommand(name){
 const START_FLAGS=[
   "--objective","--workflow","--profile","--feature-id","--phase-id","--feature-title",
   "--track-feature (auto-create a feature for a plain new-feature start)",
-  "--parent-run-id","--run-kind"
+  "--parent-run-id","--run-kind","--semantic (model-assisted semantic classification)"
 ];
 
 /** The help text, derived from the table above so it cannot drift from it. */

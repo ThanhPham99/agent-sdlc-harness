@@ -86,6 +86,7 @@
     "test:commands-expansion": "node scripts/test-commands-expansion.mjs",
     "test:web-dashboard": "node scripts/test-web-dashboard.mjs",
     "test:simulate-e2e": "node scripts/simulate-e2e-run.mjs",
+    "test:autonomous-runner": "node scripts/test-autonomous-runner.mjs",
     "typecheck": "node scripts/validate-types.mjs"
   }
 }

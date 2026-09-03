@@ -128,16 +128,28 @@ const keywordWords=k=>normalize(k).split(' ').filter(Boolean).length;
 // api keys", carried "credentials" but no "token" at all, and the holes were
 // accidents of typing rather than decisions. Generating the product makes the
 // coverage a property of two short lists that can be read and argued with.
-const SECRET_VERBS=['reveal','print','dump','echo','show me','send me','give me','tell me','paste','hand me'];
-const SECRET_OBJECTS=['the secrets','the deployment secrets','the credentials','the production credentials','the api key','the api keys','the access token','the auth token','the private key','the deploy key','the password','the env file'];
+const SECRET_VERBS=['reveal','print','dump','echo','show me','send me','give me','tell me','paste','hand me','in ra','hien thi','xem','lay','gui cho toi','cho toi'];
+const SECRET_OBJECTS=['the secrets','the deployment secrets','the credentials','the production credentials','the api key','the api keys','the access token','the auth token','the private key','the deploy key','the password','the env file','mat khau','khoa bi mat','khoa deploy','credentials','file env','file .env'];
 const DENY_PHRASES={
-  APPROVALS:['bypass all approvals','bypass approvals','bypass the approval','skip approvals','skip approval','skip the approval','without approval','without approvals','without asking anyone','without asking permission','without sign off','no approval needed','no sign off needed','waive approval','waive approvals','waive the approval','auto approve this','approve it yourself','do not wait for the approver'],
-  VERIFICATION:['skip verification','skip the verification','disable verification','disable the verification gate','turn off verification','without verification','even if verification failed','even if full verification failed','even if the tests fail','ignore the failing tests'],
-  REVIEW:['skip review','skip the review','skip code review','bypass review','bypass the review','without review','without code review','no review needed','without a second pair of eyes'],
+  APPROVALS:[
+    'bypass all approvals','bypass approvals','bypass the approval','skip approvals','skip approval','skip the approval','without approval','without approvals','without asking anyone','without asking permission','without sign off','no approval needed','no sign off needed','waive approval','waive approvals','waive the approval','auto approve this','approve it yourself','do not wait for the approver',
+    'bo qua duyet','bo qua phe duyet','bo qua toan bo buoc duyet','bo qua buoc duyet','khong can duyet','khong can phe duyet','khong can sign off','khong can xin phep','tu approve','tu duyet','tu minh duyet'
+  ],
+  VERIFICATION:[
+    'skip verification','skip the verification','disable verification','disable the verification gate','turn off verification','without verification','even if verification failed','even if full verification failed','even if the tests fail','ignore the failing tests',
+    'bo qua test','bo qua kiem thu','tat gate kiem tra','tat gate test','ke ca khi test fail','ke ca khi kiem thu that bai','bo qua verify','bo qua xac minh','khong can chay test'
+  ],
+  REVIEW:[
+    'skip review','skip the review','skip code review','bypass review','bypass the review','without review','without code review','no review needed','without a second pair of eyes',
+    'bo qua review','khong can review','bo qua duyet code','khong can duyet code','merge luon','merge luon vao main','khong can ai review'
+  ],
   // "overridden despite its verdict" is one of the three forms the DENY doctrine
   // names, and the first version of this table had only the switched-off and
   // waived forms.
-  SECURITY_CONTROL:['disable the compliance gate','disable the security gate','disable the gate','turn off the gate','turn off the compliance gate','override the compliance gate','override the gate','override the verification gate','bypass the security','bypass security','disable the guardrails','turn off the guardrails'],
+  SECURITY_CONTROL:[
+    'disable the compliance gate','disable the security gate','disable the gate','turn off the gate','turn off the compliance gate','override the compliance gate','override the gate','override the verification gate','bypass the security','bypass security','disable the guardrails','turn off the guardrails',
+    'tat bao mat','tat gate bao mat','bo qua bao mat','bo qua security','tat gate','tat kiem tra bao mat','tat guardrails','bo qua guardrails'
+  ],
   SECRETS:SECRET_VERBS.flatMap(v=>SECRET_OBJECTS.map(o=>`${v} ${o}`))
 };
 // Normalized once at module load: route() runs on every objective and the
@@ -279,3 +291,71 @@ export function route(root,objective,explicitWorkflow=null,explicitProfile=null)
   if(cacheKey)ROUTE_DECISION_CACHE.set(cacheKey,result);
   return result;
 }
+
+export async function routeSemantic(root,objective,explicitWorkflow=null,explicitProfile=null,options={}){
+  const floor=route(root,objective,explicitWorkflow,explicitProfile);
+  if(explicitWorkflow)return floor;
+
+  const forceSemantic=Boolean(options.semantic||options.ai);
+  const isAmbiguous=floor.route_flags.includes('AMBIGUOUS_ROUTE');
+  const isDefault=floor.reason_codes.includes('DEFAULT_NEW_FEATURE');
+  const normalizedObj=normalize(objective);
+  const hasNegation=/\b(khong duoc|tuyet doi khong|dung|khong nen|cam|do not|never|dont)\b/.test(normalizedObj);
+
+  if(!forceSemantic&&!isAmbiguous&&!isDefault&&!hasNegation){
+    return floor;
+  }
+
+  const {classifySemanticIntent}=await import('./semantic-classifier.mjs');
+  const modelRes=await classifySemanticIntent(root,objective,options);
+  if(modelRes.status!=='PASS'||!modelRes.decision){
+    return floor;
+  }
+
+  const d=modelRes.decision;
+  const wfPath=path.join(root,'config','workflows.json');
+  if(!CONFIG_CACHE.has(wfPath))CONFIG_CACHE.set(wfPath,readJson(wfPath).workflows);
+  const wfMap=CONFIG_CACHE.get(wfPath);
+
+  const chosenWf=(d.workflow&&wfMap[d.workflow])?d.workflow:floor.workflow;
+  const chosenProfileDefault=wfMap[chosenWf]?.default_profile||'STANDARD';
+  const chosenOverlays=wfMap[chosenWf]?.required_overlays||[];
+
+  let effectiveProfile=explicitProfile||floor.profile;
+  if(floor.profile==='STRICT'){
+    effectiveProfile='STRICT';
+  }else if(d.profile==='STRICT'){
+    effectiveProfile='STRICT';
+  }else if(d.profile&&['FAST','STANDARD','STRICT'].includes(d.profile)){
+    effectiveProfile=d.profile;
+  }else{
+    effectiveProfile=chosenProfileDefault;
+  }
+
+  const route_flags=[];
+  if(effectiveProfile==='STRICT')route_flags.push('STRICT_WORKFLOW_ROUTE');
+  route_flags.push('SEMANTIC_MODEL_ASSISTED');
+
+  const reason_codes=[
+    `MODEL:${modelRes.provider}`,
+    ...(d.reason_codes||[]),
+    ...floor.reason_codes
+  ];
+
+  return {
+    workflow:chosenWf,
+    profile:effectiveProfile,
+    overlays:chosenOverlays,
+    reason_codes,
+    route_flags,
+    agent_discretion:Boolean(floor.agent_discretion),
+    deny_language:floor.deny_language,
+    semantic_decision:{
+      provider:modelRes.provider,
+      trust_action:d.trust_action||'NONE',
+      human_stop_required:Boolean(d.human_stop_required),
+      wall_ms:modelRes.wall_ms
+    }
+  };
+}
+

@@ -12,8 +12,15 @@ import {truthy} from '../util.mjs';
 export const commands={
   route:async ctx=>{
     const {args,ROOT,print}=ctx;
-    const {route}=await import('../router.mjs');
-    print(route(ROOT,args.objective||args._.slice(1).join(' '),args.workflow||null,args.profile||null));
+    const objective=args.objective||args._.slice(1).join(' ');
+    const isSemantic=truthy(args.semantic)||truthy(args.ai);
+    if(isSemantic){
+      const {routeSemantic}=await import('../router.mjs');
+      print(await routeSemantic(ROOT,objective,args.workflow||null,args.profile||null,{semantic:true,provider:args.provider||'auto'}));
+    }else{
+      const {route}=await import('../router.mjs');
+      print(route(ROOT,objective,args.workflow||null,args.profile||null));
+    }
   },
   start:async ctx=>{
     const {args,ROOT,projectRoot,print}=ctx;
@@ -21,11 +28,14 @@ export const commands={
     if(!objective)throw new Error('objective required');
     const {detectProject}=await import('../init.mjs');
     const {initProject}=await import('../store.mjs');
-    const {route}=await import('../router.mjs');
+    const {route,routeSemantic}=await import('../router.mjs');
     const {newRun}=await import('../orchestrator.mjs');
     const {resolveFeatureBinding}=await import('../features.mjs');
     if(!fs.existsSync(path.join(projectRoot,'.agent-sdlc','project.json')))initProject(projectRoot,detectProject(projectRoot));
-    const r=route(ROOT,objective,args.workflow||null,args.profile||null);
+    const isSemantic=truthy(args.semantic)||truthy(args.ai);
+    const r=isSemantic
+      ?await routeSemantic(ROOT,objective,args.workflow||null,args.profile||null,{semantic:true,provider:args.provider||'auto'})
+      :route(ROOT,objective,args.workflow||null,args.profile||null);
     // Binding is always resolved for continue-feature/requirement-update
     // (they refuse to run unbound) and whenever --feature-id is given. For
     // plain new-feature starts it stays opt-in via --track-feature so the
@@ -86,10 +96,36 @@ export const commands={
   approval:async ctx=>{
     const {args,ROOT,projectRoot,print,needRun}=ctx;
     const sub=args._[1]||'status';
-    const {recordApproval,revokeApproval,listApprovals}=await import('../approvals.mjs');
+    const {recordApproval,revokeApproval,listApprovals,requestApprovalTicket,grantApprovalTicket,listApprovalTickets}=await import('../approvals.mjs');
     if(sub==='status'){
       const run=await needRun();
       print(listApprovals(run));
+    }
+    else if(sub==='tickets'){
+      const run=await needRun();
+      print(listApprovalTickets(run));
+    }
+    else if(sub==='request'){
+      const run=await needRun();
+      const capability=args.capability;
+      if(!capability)throw new Error('--capability required');
+      const ticket=requestApprovalTicket(projectRoot,run,{
+        capability,
+        reason:args.reason||null,
+        expiresInMinutes:args['expires-in']?Number(args['expires-in']):60
+      });
+      print(ticket);
+    }
+    else if(sub==='grant-ticket'){
+      const run=await needRun();
+      const ticketId=args.ticket||args['ticket-id'];
+      if(!ticketId)throw new Error('--ticket <ticketId> required');
+      const rec=grantApprovalTicket(ROOT,projectRoot,run,{
+        ticketId,
+        actor:args.actor||os.userInfo().username,
+        reason:args.reason||null
+      });
+      print(rec);
     }
     else if(sub==='grant'){
       const run=await needRun();

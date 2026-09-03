@@ -13,8 +13,9 @@ import {buildContext} from './context.mjs';
 import {checkTool} from './policy.mjs';
 import {invokeTool} from './tools.mjs';
 import {routeModel} from './model-router.mjs';
-import {listApprovals} from './approvals.mjs';
+import {listApprovals,requestApprovalTicket,grantApprovalTicket,listApprovalTickets} from './approvals.mjs';
 import {evaluateGate} from './gates.mjs';
+import {runAutoPipeline,runAutoTaskLoop} from './autonomous-runner.mjs';
 
 const ROOT=rootFrom(import.meta.url);
 const MANIFEST_VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
@@ -39,14 +40,14 @@ const toolDefs=[
   {name:'agent_sdlc_status',description:'Read current run state.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'}}}},
   {name:'agent_sdlc_context',description:'Compile bounded stage context with on-demand internal skill instructions and evidence requirements.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},artifact_refs:{type:'array',items:{type:'string'}},symbols:{type:'array',items:{type:'string'}}}}},
   {name:'agent_sdlc_transition',description:'Transition a run only when gate evidence is satisfied. There is no force/bypass parameter and none is honoured; a privileged capability is authorized only through a trusted approval recorded outside this tool (see agent_sdlc_approval_status, and `agent-sdlc approval grant` run interactively by a human).',inputSchema:{type:'object',required:['run_id','to'],properties:{project_root:{type:'string'},run_id:{type:'string'},to:{type:'string'},evidence:{type:'array',items:{type:'string'}}}}},
-  {name:'agent_sdlc_approval_status',description:'Read the approval records on a run: capability, authority, and whether each is ACTIVE, EXPIRED or REVOKED. Read-only; approvals can only be granted through the interactive, TTY-gated `agent-sdlc approval grant` CLI command, never over MCP.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'}}}},
+  {name:'agent_sdlc_approval_status',description:'Read the approval records on a run: capability, authority, and whether each is ACTIVE, EXPIRED or REVOKED. Supports tickets, request, or grant_ticket.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},op:{type:'string',enum:['status','tickets','request','grant_ticket']},capability:{type:'string'},ticket_id:{type:'string'},reason:{type:'string'},expires_in:{type:'number'},actor:{type:'string'}}}},
   {name:'agent_sdlc_gate_status',description:'Explain the gate for the run\'s current stage: which required evidence is satisfied, missing, or stale for the current workspace.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'}}}},
   {name:'agent_sdlc_tool_check',description:'Check canonical stage/tool policy before execution.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id','tool'],properties:{project_root:{type:'string'},run_id:{type:'string'},tool:{type:'string'}}}},
   {name:'agent_sdlc_tool_run',description:'Run a deterministic built-in project tool through stage policy and bounded-output handling.',inputSchema:{type:'object',required:['run_id','tool'],properties:{project_root:{type:'string'},run_id:{type:'string'},tool:{type:'string'},args:{type:'object'}}}},
   {name:'agent_sdlc_artifact_put',description:'Store durable external memory as a content-addressed artifact and attach it to a run.',inputSchema:{type:'object',required:['run_id','kind','content'],properties:{project_root:{type:'string'},run_id:{type:'string'},kind:{type:'string'},content:{type:'string'}}}},
   {name:'agent_sdlc_model_route',description:'Choose deterministic vs model execution and the cheapest qualified model tier subject to risk floor.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},task:{type:'string'},provider:{type:'string'},require_structured:{type:'boolean'}}}},
   // Unified task operation for token-aware / compact hosts.
-  {name:'agent_sdlc_task',description:'Unified task operations: list, status, ready, schedule, context, evidence, or graph.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id','op'],properties:{project_root:{type:'string'},run_id:{type:'string'},op:{type:'string',enum:['list','status','ready','schedule','context','evidence','graph']},task_id:{type:'string'},outer_stage:{type:'string'},remaining_model_calls:{type:'number'},prompt:{type:'boolean'},mermaid:{type:'boolean'}}}},
+  {name:'agent_sdlc_task',description:'Unified task operations: list, status, ready, schedule, context, evidence, graph, auto, or pipeline.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id','op'],properties:{project_root:{type:'string'},run_id:{type:'string'},op:{type:'string',enum:['list','status','ready','schedule','context','evidence','graph','auto','pipeline']},task_id:{type:'string'},outer_stage:{type:'string'},remaining_model_calls:{type:'number'},prompt:{type:'boolean'},mermaid:{type:'boolean'},skip_ci:{type:'boolean'}}}},
   // Granular task runtime tools for full profile and backward compatibility.
   {name:'agent_sdlc_task_list',description:'List the persistent task records for a run with status, category and dependencies.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'}}}},
   {name:'agent_sdlc_task_status',description:'Read one task record, or the whole run task progress when task_id is omitted.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},task_id:{type:'string'}}}},
@@ -184,7 +185,12 @@ export function execute(name,a={}){
     }
     return transition(ROOT,projectRoot,run,a.to,{evidence:arrayArg(a.evidence,'evidence')});
   }
-  if(name==='agent_sdlc_approval_status')return listApprovals(run);
+  if(name==='agent_sdlc_approval_status'){
+    if(a.op==='tickets')return listApprovalTickets(run);
+    if(a.op==='request')return requestApprovalTicket(projectRoot,run,{capability:a.capability,reason:a.reason||null,expiresInMinutes:a.expires_in?Number(a.expires_in):60});
+    if(a.op==='grant_ticket')return grantApprovalTicket(ROOT,projectRoot,run,{ticketId:a.ticket_id,actor:a.actor||'USER_INTERACTIVE',reason:a.reason||null});
+    return listApprovals(run);
+  }
   if(name==='agent_sdlc_gate_status')return evaluateGate(ROOT,projectRoot,run,run.state);
   if(name==='agent_sdlc_tool_check')return checkTool(ROOT,run,a.tool);
   if(name==='agent_sdlc_tool_run')return invokeTool(ROOT,projectRoot,run,a.tool,a.args||{});
@@ -193,6 +199,8 @@ export function execute(name,a={}){
   }
   if(name==='agent_sdlc_model_route')return routeModel(ROOT,projectRoot,run,{task:a.task||'stage',provider:a.provider||'auto',requireStructured:!!a.require_structured});
   if(name==='agent_sdlc_task'){
+    if(a.op==='auto')return runAutoTaskLoop(ROOT,projectRoot,run);
+    if(a.op==='pipeline')return runAutoPipeline(ROOT,projectRoot,run,{skipCiCheck:!!a.skip_ci});
     if(a.op==='list')return execute('agent_sdlc_task_list',a);
     if(a.op==='status')return execute('agent_sdlc_task_status',a);
     if(a.op==='ready')return execute('agent_sdlc_task_ready',a);
