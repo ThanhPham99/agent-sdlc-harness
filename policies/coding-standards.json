@@ -1,0 +1,73 @@
+{
+  "schema": "agent-sdlc/coding-standards-policy/v1",
+  "version": "3.0.0-rc1",
+  "naming_conventions": {
+    "variables_and_properties": {
+      "style": "snake_case",
+      "applies_to": ["variables", "object_properties", "database_columns", "json_keys"],
+      "examples": ["user_id", "items_list", "config_options"]
+    },
+    "booleans": {
+      "style": "snake_case",
+      "required_prefixes": ["is_", "has_", "can_", "should_"],
+      "examples": ["is_valid", "has_permission", "can_execute", "should_retry"]
+    },
+    "functions_and_methods": {
+      "style": "camelCase",
+      "rule": "Must always start with a verb indicating an action",
+      "examples": ["getUserData", "calcTotal", "validatePayload", "executeHook"]
+    },
+    "classes_and_types": {
+      "style": "PascalCase",
+      "rule": "Use nouns or noun phrases",
+      "examples": ["UserController", "UserType", "HookContext", "PluginAdapter"]
+    },
+    "constants_global": {
+      "style": "SCREAMING_SNAKE",
+      "rule": "Only for global or static module-level constants",
+      "examples": ["MAX_RETRIES", "TIMEOUT_MS", "DEFAULT_BUFFER_SIZE"]
+    },
+    "files_and_directories": {
+      "style": "kebab-case",
+      "rule": "Ensures cross-OS compatibility across Windows, Linux, and macOS",
+      "examples": ["user-controller.ts", "session-start.mjs", "hooks/"]
+    }
+  },
+  "clean_code_and_solid": {
+    "solid_principles": {
+      "single_responsibility": "A class or module should have only one reason to change.",
+      "open_closed": "Extend functionality via inheritance, adapters, or middleware; do not modify working core code.",
+      "liskov_substitution": "Derived classes must be fully substitutable for their base classes without breaking logic.",
+      "interface_segregation": "Segregate interfaces; do not force systems to depend on methods they do not use.",
+      "dependency_inversion": "Depend on abstractions (interfaces), not concrete implementations."
+    },
+    "guidelines": {
+      "single_source_of_truth": "Logic and configuration must exist in only one place. Refactor immediately on 3rd duplicate.",
+      "readability_over_cleverness": "Write code so that maintainers can easily reason about it. Avoid over-engineering.",
+      "max_function_parameters": 3,
+      "parameter_encapsulation": "If more than 3 parameters are needed, encapsulate them in an Object/Interface DTO.",
+      "prefer_pure_functions": "Functions should ideally have no side effects, with output strictly dependent on input."
+    }
+  },
+  "security_and_data": {
+    "input_validation": "Sanitize and validate all data at the system boundary (CLI args, stdin, DTOs, configs).",
+    "secrets_management": "Never commit .env files; no ambient production credentials; no hardcoded tokens.",
+    "least_privilege": "Default scopes and access permissions must be strictly restricted; read-only default.",
+    "path_traversal_protection": "Always normalize and verify target paths stay within allowed directories.",
+    "command_injection_protection": "Do not concatenate unsanitized user inputs into child processes or shell commands."
+  },
+  "performance_and_resources": {
+    "big_o_optimization": "Prefer Hash Maps / Sets O(1) over array iteration O(n) for lookups.",
+    "resource_release": "Explicitly close connections, streams, and file handles in finally blocks.",
+    "concurrency": "Use Promise.all() for independent asynchronous operations instead of sequential await.",
+    "runtime_footprint": "Zero-runtime-dependencies for hooks; fast cold start latency < 20ms."
+  },
+  "testing_and_typing": {
+    "unit_test_coverage_target_percent": 80,
+    "strict_typing": "Strict TypeScript or Python type hints; avoid the any type completely; use unknown with type guards.",
+    "immutability": "Prefer const over let; use spread operators or structuredClone for state updates."
+  },
+  "ci_cd_policy": {
+    "mandatory_precommit_check": "All offline suites and integrity checks must pass before commit or pushing to remote."
+  }
+}

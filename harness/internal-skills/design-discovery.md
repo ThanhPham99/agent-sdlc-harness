@@ -27,13 +27,14 @@ The returned `mode` is authoritative. Do not perform a heavier mode than selecte
 1. Inspect only the minimum relevant project context. Prefer symbol/search/diff over broad reads.
 2. Summarize the confirmed objective, constraints and acceptance criteria you are designing against.
 3. List the smallest set of material unknowns. Resolve from repository evidence whatever repository evidence can answer.
-4. For genuinely user-owned unknowns, ask **one focused question at a time**. Never batch a questionnaire. Never ask what the repository already answers.
-5. Produce 2–3 materially distinct approaches. Distinct means different architecture or different risk profile, not the same design renamed.
-6. For each approach record: architecture/flow, benefits, drawbacks, complexity, compatibility impact, operational/security/data risk, migration implications, expected verification burden.
-7. Recommend exactly one approach and say why, in terms of the recorded constraints.
-8. If only one legitimate solution exists, do not manufacture filler options. Record the considered-and-rejected alternatives with concrete rejection evidence in `rejected_alternatives`.
-9. When `human_approval_required` is true, stop and obtain explicit user approval. Transition to `NEEDS_CONFIRMATION` rather than assuming approval. Never write your own approval.
-10. Persist the structured decision, then hand back to the orchestrator for `PLAN`.
+4. When the objective involves external technologies, libraries, third-party APIs, or `EXTERNAL_TECH_OR_INTEGRATION` matched: perform targeted `web.search` and `web.fetch_url` to confirm official documentation, current stable release, and breaking changes before brainstorming options. Record consulted sources in `external_references`.
+5. For genuinely user-owned unknowns, ask **one focused question at a time**. Never batch a questionnaire. Never ask what the repository already answers.
+6. Produce 2–3 materially distinct approaches. Distinct means different architecture or different risk profile, not the same design renamed.
+7. For each approach record: architecture/flow, benefits, drawbacks, complexity, compatibility impact, operational/security/data risk, migration implications, expected verification burden.
+8. Recommend exactly one approach and say why, in terms of the recorded constraints.
+9. If only one legitimate solution exists, do not manufacture filler options. Record the considered-and-rejected alternatives with concrete rejection evidence in `rejected_alternatives`.
+10. When `human_approval_required` is true, stop and obtain explicit user approval. Transition to `NEEDS_CONFIRMATION` rather than assuming approval. Never write your own approval.
+11. Persist the structured decision, then hand back to the orchestrator for `PLAN`.
 
 ## Artifact
 

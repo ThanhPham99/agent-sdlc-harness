@@ -26,7 +26,8 @@
     "traceability_graph_schema": "protocol/schemas/TraceabilityGraph.schema.json",
     "procedure_registry": "config/procedures.json",
     "feature_schema": "protocol/schemas/Feature.schema.json",
-    "phase_schema": "protocol/schemas/Phase.schema.json"
+    "phase_schema": "protocol/schemas/Phase.schema.json",
+    "coding_standards_policy": "policies/coding-standards.json"
   },
   "runtime": {
     "entrypoint": "bin/agent-sdlc",

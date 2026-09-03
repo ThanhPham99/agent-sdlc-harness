@@ -1,0 +1,37 @@
+{
+  "schema": "agent-sdlc/coding-standards-validation/v1",
+  "checks": 7,
+  "passes": 7,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "coding-standards-policy-loads-and-valid",
+      "status": "PASS"
+    },
+    {
+      "name": "linter-detects-var-declaration",
+      "status": "PASS"
+    },
+    {
+      "name": "linter-detects-any-type",
+      "status": "PASS"
+    },
+    {
+      "name": "linter-detects-excessive-parameters",
+      "status": "PASS"
+    },
+    {
+      "name": "linter-detects-boolean-naming-violation",
+      "status": "PASS"
+    },
+    {
+      "name": "linter-detects-kebab-case-violation",
+      "status": "PASS"
+    },
+    {
+      "name": "plugin-core-files-audit",
+      "status": "PASS"
+    }
+  ]
+}
