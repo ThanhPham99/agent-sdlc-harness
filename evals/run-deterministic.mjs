@@ -78,6 +78,19 @@ test('router-refactor',()=>{const r=route(ROOT,'refactor service boundaries');if
 test('router-default-feature',()=>{const r=route(ROOT,'Add refund capability');if(r.workflow!=='new-feature')throw Error(JSON.stringify(r));});
 test('router-explicit-workflow',()=>{const r=route(ROOT,'continue prior work','continue-feature');if(r.workflow!=='continue-feature'||!r.reason_codes.includes('EXPLICIT_WORKFLOW'))throw Error(JSON.stringify(r));});
 test('router-continue-feature-semantic-rule',()=>{const r=route(ROOT,'Continue phase 2 of the existing feature');if(r.workflow!=='continue-feature')throw Error(JSON.stringify(r));});
+test('router-technical-spike-vietnamese-audit',()=>{const r=route(ROOT,'Kiểm tra xem plugin có lỗi logic hay chỗ nào không chạy đúng workflow không');if(r.workflow!=='technical-spike'||r.profile!=='FAST')throw Error(JSON.stringify(r));});
+test('router-bug-fix-vietnamese-logic-error',()=>{const r=route(ROOT,'Sửa lỗi logic trong hàm xử lý giỏ hàng');if(r.workflow!=='bug-fix'||r.profile!=='STANDARD')throw Error(JSON.stringify(r));});
+test('router-test-only-vietnamese-retest',()=>{const r=route(ROOT,'Chạy test lại toàn bộ hệ thống');if(r.workflow!=='test-only'||r.profile!=='FAST')throw Error(JSON.stringify(r));});
+test('router-refactor-vietnamese-clean-code',()=>{const r=route(ROOT,'Clean code và tinh gọn code xử lý thanh toán');if(r.workflow!=='refactor'||r.profile!=='STANDARD')throw Error(JSON.stringify(r));});
+test('router-spike-vietnamese-overall-check',()=>{const r=route(ROOT,'Rà soát hệ thống và kiểm tra toàn bộ luồng plugin');if(r.workflow!=='technical-spike'||r.profile!=='FAST')throw Error(JSON.stringify(r));});
+test('router-agent-discretion-flag',()=>{
+  const refactorRoute=route(ROOT,'refactor service boundaries');
+  if(refactorRoute.agent_discretion!==true)throw Error('refactor should have agent_discretion: true');
+  const cveRoute=route(ROOT,'Fix CVE vulnerability in auth');
+  if(cveRoute.agent_discretion!==false)throw Error('security-remediation should have agent_discretion: false');
+  const defaultRoute=route(ROOT,'Add refund capability');
+  if(defaultRoute.agent_discretion!==false)throw Error('default new-feature should have agent_discretion: false');
+});
 // The profile and the overlay set belong to the workflow, not to the keyword
 // rule that selected it. config/router-rules.json used to carry its own copy of
 // both and had drifted for modernization, maintenance and incident-response, so

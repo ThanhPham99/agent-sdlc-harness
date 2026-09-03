@@ -1,4 +1,4 @@
-// TypeScript Type Definitions for Agent SDLC Harness (v3.0.0-alpha6)
+// TypeScript Type Definitions for Agent SDLC Harness (v3.0.0-rc1)
 
 export type SDLCStage =
   | 'INTAKE'
@@ -10,6 +10,7 @@ export type SDLCStage =
   | 'REVIEW'
   | 'RELEASE'
   | 'DEPLOY'
+  | 'OBSERVE'
   | 'CLOSE';
 
 export type TaskStatus =
@@ -27,6 +28,16 @@ export type TaskStatus =
 
 export type RiskProfile = 'FAST' | 'STANDARD' | 'STRICT';
 export type RiskLevel = 'LOW' | 'MEDIUM' | 'HIGH';
+
+export interface RouteDecision {
+  workflow: string;
+  profile: RiskProfile;
+  overlays: string[];
+  reason_codes: string[];
+  route_flags: string[];
+  agent_discretion?: boolean;
+  deny_language?: string[];
+}
 
 export interface TaskScope {
   write?: string[];

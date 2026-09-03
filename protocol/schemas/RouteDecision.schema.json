@@ -44,6 +44,10 @@
       "items": {
         "type": "string"
       }
+    },
+    "agent_discretion": {
+      "type": "boolean",
+      "description": "True when the matched rule explicitly allows the agent to exercise semantic discretion to select or adjust the workflow (e.g. non-STRICT workflows). False or omitted for STRICT workflows where safety invariants prohibit downgrade."
     }
   }
 }

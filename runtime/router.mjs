@@ -221,7 +221,7 @@ export function route(root,objective,explicitWorkflow=null,explicitProfile=null)
   const entryOf=w=>{const e=wf[w];if(!e)throw new Error(`unknown workflow: ${w}`);return e;};
   const profileOf=w=>entryOf(w).default_profile;
   const overlaysOf=w=>entryOf(w).required_overlays||[];
-  if(explicitWorkflow)return {workflow:explicitWorkflow,profile:explicitProfile||profileOf(explicitWorkflow),overlays:overlaysOf(explicitWorkflow),reason_codes:['EXPLICIT_WORKFLOW'],route_flags:[],deny_language:denyLanguageOf(objective)};
+  if(explicitWorkflow)return {workflow:explicitWorkflow,profile:explicitProfile||profileOf(explicitWorkflow),overlays:overlaysOf(explicitWorkflow),reason_codes:['EXPLICIT_WORKFLOW'],route_flags:[],agent_discretion:false,deny_language:denyLanguageOf(objective)};
   const rules=readJson(path.join(root,'config','router-rules.json'));
   const candidates=rules.rules.map((rule,idx)=>{
     const profile=profileOf(rule.workflow);
@@ -231,7 +231,7 @@ export function route(root,objective,explicitWorkflow=null,explicitProfile=null)
   }).filter(c=>c.hits.length>0);
   if(!candidates.length){
     const w=rules.default.workflow;
-    return {workflow:w,profile:explicitProfile||profileOf(w),overlays:overlaysOf(w),reason_codes:['DEFAULT_NEW_FEATURE'],route_flags:[],deny_language:denyLanguageOf(objective)};
+    return {workflow:w,profile:explicitProfile||profileOf(w),overlays:overlaysOf(w),reason_codes:['DEFAULT_NEW_FEATURE'],route_flags:[],agent_discretion:false,deny_language:denyLanguageOf(objective)};
   }
   // Stable score-desc order; a genuine tie prefers STRICT, then declaration
   // order, so the outcome is deterministic rather than array-position luck.
@@ -263,5 +263,6 @@ export function route(root,objective,explicitWorkflow=null,explicitProfile=null)
   if(second&&(second.score===top.score||intentOf(second.rule)!==intentOf(top.rule)||second.score>=top.score*0.5)){
     route_flags.push('AMBIGUOUS_ROUTE');
   }
-  return {workflow:top.rule.workflow,profile:explicitProfile||top.profile,overlays:overlaysOf(top.rule.workflow),reason_codes,route_flags,deny_language:denyLanguageOf(objective)};
+  const agent_discretion=Boolean(top.rule.agent_discretion);
+  return {workflow:top.rule.workflow,profile:explicitProfile||top.profile,overlays:overlaysOf(top.rule.workflow),reason_codes,route_flags,agent_discretion,deny_language:denyLanguageOf(objective)};
 }

@@ -23,7 +23,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {installedRecords,linkKind,linkTarget,sameTree,describeRecord,driftStatus,BACKUP_SUFFIX} from '../runtime/dev-link.mjs';
+import {installedRecords,antigravityPluginPath,linkKind,linkTarget,sameTree,describeRecord,driftStatus,BACKUP_SUFFIX} from '../runtime/dev-link.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const argv=process.argv.slice(2);
@@ -35,7 +35,9 @@ const describe=record=>describeRecord(record,{root:ROOT,repoVersion});
 /** The cache path we are allowed to touch, or a reason we are not. */
 function guard(installPath){
   const segments=installPath.split(path.sep);
-  if(!segments.includes('plugins')||!segments.includes('cache')){
+  const isClaudeCache=segments.includes('plugins')&&segments.includes('cache');
+  const isAntigravity=path.resolve(installPath).toLowerCase()===path.resolve(antigravityPluginPath()).toLowerCase()||(segments.includes('plugins')&&segments.includes('agent-sdlc-harness'));
+  if(!isClaudeCache&&!isAntigravity){
     return `refusing to modify ${installPath}: not inside a host plugins cache`;
   }
   if(path.resolve(installPath).toLowerCase()===ROOT.toLowerCase()){
@@ -53,7 +55,13 @@ function apply(record){
   if(fs.existsSync(backup))return {action:'REFUSED',reason:`${backup} already exists; run --revert first`};
   const existed=linkKind(installPath);
   if(existed==='link')removeLink(installPath);
-  else if(existed==='directory')fs.renameSync(installPath,backup);
+  else if(existed==='directory'){
+    fs.renameSync(installPath,backup);
+    const backupPluginJson=path.join(backup,'plugin.json');
+    if(fs.existsSync(backupPluginJson)){
+      try{fs.renameSync(backupPluginJson,backupPluginJson+'.disabled');}catch{}
+    }
+  }
   fs.mkdirSync(path.dirname(installPath),{recursive:true});
   // 'junction' works on Windows without developer mode or elevation; it is
   // ignored on other platforms, where a directory symlink is created.
@@ -77,7 +85,14 @@ function revert(record){
   if(linkKind(installPath)!=='link')return {action:'NOT_LINKED'};
   const backup=installPath+BACKUP_SUFFIX;
   removeLink(installPath);
-  if(fs.existsSync(backup)){fs.renameSync(backup,installPath);return {action:'RESTORED',from:backup};}
+  if(fs.existsSync(backup)){
+    const disabledPluginJson=path.join(backup,'plugin.json.disabled');
+    if(fs.existsSync(disabledPluginJson)){
+      try{fs.renameSync(disabledPluginJson,path.join(backup,'plugin.json'));}catch{}
+    }
+    fs.renameSync(backup,installPath);
+    return {action:'RESTORED',from:backup};
+  }
   return {action:'UNLINKED',note:'no backup existed; reinstall the plugin to restore a cached copy'};
 }
 
@@ -99,7 +114,7 @@ function main(){
   if(!records.length){
     report.note=present
       ?`no agent-sdlc-harness install recorded for this host; install it once, then re-run with --apply`
-      :`no host record at ${recordPath}; set CLAUDE_CONFIG_DIR if the host config lives elsewhere`;
+      :`no host record at ${recordPath}; set CLAUDE_CONFIG_DIR or AGENT_SDLC_ANTIGRAVITY_HOME if the host config lives elsewhere`;
   }
   console.log(JSON.stringify(report,null,2));
   const refused=report.plugins.some(p=>p.result?.action==='REFUSED');

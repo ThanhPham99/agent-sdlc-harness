@@ -73,7 +73,8 @@
         "tiếp tục phase",
         "tiếp tục tính năng"
       ],
-      "workflow": "continue-feature"
+      "workflow": "continue-feature",
+      "agent_discretion": true
     },
     {
       "keywords": [
@@ -86,7 +87,8 @@
         "updated requirement",
         "yêu cầu mới"
       ],
-      "workflow": "requirement-update"
+      "workflow": "requirement-update",
+      "agent_discretion": true
     },
     {
       "keywords": [
@@ -108,7 +110,8 @@
         "nâng cấp thư viện",
         "upgrade package"
       ],
-      "workflow": "dependency-upgrade"
+      "workflow": "dependency-upgrade",
+      "agent_discretion": true
     },
     {
       "keywords": [
@@ -122,27 +125,36 @@
         "throughput",
         "tối ưu"
       ],
-      "workflow": "performance"
+      "workflow": "performance",
+      "agent_discretion": true
     },
     {
       "keywords": [
+        "clean code",
         "cleanup",
         "dọn dẹp code",
+        "làm sạch code",
         "refactor",
         "restructure",
-        "tái cấu trúc"
+        "tái cấu trúc",
+        "tinh gọn code"
       ],
-      "workflow": "refactor"
+      "workflow": "refactor",
+      "agent_discretion": true
     },
     {
       "keywords": [
         "build workflow",
         "ci",
+        "github action",
         "github actions",
         "pipeline",
-        "quy trình build"
+        "pipeline ci",
+        "quy trình build",
+        "quy trình ci"
       ],
-      "workflow": "ci-cd-change"
+      "workflow": "ci-cd-change",
+      "agent_discretion": true
     },
     {
       "keywords": [
@@ -164,7 +176,8 @@
         "observability",
         "tracing"
       ],
-      "workflow": "observability-change"
+      "workflow": "observability-change",
+      "agent_discretion": true
     },
     {
       "keywords": [
@@ -184,56 +197,92 @@
         "readme",
         "tài liệu"
       ],
-      "workflow": "documentation"
+      "workflow": "documentation",
+      "agent_discretion": true
     },
     {
       "keywords": [
         "assess",
+        "audit",
+        "audit workflow",
         "đánh giá",
         "điều tra",
+        "điều tra lỗi",
         "evaluate",
         "feasibility",
+        "inspect",
         "investigate",
         "khảo sát",
+        "khảo sát mã nguồn",
+        "kiểm tra",
+        "kiểm tra hệ thống",
+        "kiểm tra luồng",
+        "kiểm tra toàn bộ",
+        "kiểm tra tổng thể",
         "nghiên cứu",
+        "phân tích luồng",
         "proof of concept",
+        "rà soát",
+        "rà soát hệ thống",
+        "rà soát plugin",
         "research prototype",
-        "spike"
+        "spike",
+        "thẩm định"
       ],
       "workflow": "technical-spike",
-      "intent": "investigate"
+      "intent": "investigate",
+      "agent_discretion": true
     },
     {
       "keywords": [
         "add tests",
+        "chạy test",
         "kiểm thử",
+        "kiểm thử lại",
+        "re-test",
+        "run tests",
         "test coverage",
         "test only",
+        "test suite",
         "thêm test"
       ],
-      "workflow": "test-only"
+      "workflow": "test-only",
+      "agent_discretion": true
     },
     {
       "keywords": [
         "báo lỗi",
+        "bắt lỗi",
         "bug",
         "defect",
         "error",
         "fix",
+        "fix bug",
         "khắc phục lỗi",
-        "sửa lỗi"
+        "lỗi",
+        "lỗi logic",
+        "sửa bug",
+        "sửa lỗi",
+        "tìm lỗi",
+        "vá lỗi",
+        "xử lý lỗi"
       ],
-      "workflow": "bug-fix"
+      "workflow": "bug-fix",
+      "agent_discretion": true
     },
     {
       "keywords": [
         "bảo trì",
+        "bảo trì hệ thống",
+        "cập nhật định kỳ",
         "chore",
+        "dọn dẹp",
         "maintenance",
         "nợ kỹ thuật",
         "tech debt"
       ],
-      "workflow": "maintenance"
+      "workflow": "maintenance",
+      "agent_discretion": true
     }
   ],
   "default": {
