@@ -70,6 +70,18 @@ export function validateSpecComplianceReview(review,task){
   };
 }
 
+export const MAX_REPORTED_NITS=5;
+
+export function capReviewNits(findings,maxNits=MAX_REPORTED_NITS){
+  const nonNits=[];const nits=[];
+  for(const f of arr(findings)){
+    if(String(f.severity||'').toUpperCase()==='NIT')nits.push(f);
+    else nonNits.push(f);
+  }
+  if(nits.length<=maxNits)return {findings:arr(findings),nit_count_omitted:0};
+  return {findings:[...nonNits,...nits.slice(0,maxNits)],nit_count_omitted:nits.length-maxNits};
+}
+
 export function validateCodeQualityReview(review,task){
   const errors=[];const warnings=[];
   const r=review||{};
@@ -88,6 +100,9 @@ export function validateCodeQualityReview(review,task){
       errors.push('BLOCKING_CORRECTNESS_FINDING_WITHOUT_FAILURE_SCENARIO');
     }
   }
+  const nits=arr(r.findings).filter(f=>String(f.severity||'').toUpperCase()==='NIT');
+  const nit_count_omitted=Math.max(0,nits.length-MAX_REPORTED_NITS);
+  if(nit_count_omitted>0)warnings.push(`NITS_CAPPED_AT_${MAX_REPORTED_NITS}:${nit_count_omitted}_OMITTED`);
   const ind=validateIndependence(r,task);
   errors.push(...ind.errors);warnings.push(...ind.warnings);
   return {
@@ -97,6 +112,7 @@ export function validateCodeQualityReview(review,task){
     clean:errors.length===0&&r.verdict==='ACCEPTED'&&blocking.length===0,
     independent:ind.independent,
     independence_limitation:ind.limitation,
+    nit_count_omitted,
     errors,warnings
   };
 }
@@ -104,11 +120,18 @@ export function validateCodeQualityReview(review,task){
 /** Persist a validated review and attach its ref to the task. */
 export function recordTaskReview(projectRoot,run,task,review,{kind}={}){
   if(!['spec','quality'].includes(kind))throw new Error(`unknown review kind ${kind}`);
-  const validation=kind==='spec'?validateSpecComplianceReview(review,task):validateCodeQualityReview(review,task);
+  let targetReview=review;
+  if(kind==='quality'&&Array.isArray(review?.findings)){
+    const capped=capReviewNits(review.findings);
+    if(capped.nit_count_omitted>0){
+      targetReview={...review,findings:capped.findings,nit_count_omitted:capped.nit_count_omitted};
+    }
+  }
+  const validation=kind==='spec'?validateSpecComplianceReview(targetReview,task):validateCodeQualityReview(targetReview,task);
   const ref=putArtifact(projectRoot,{
     kind:kind==='spec'?'spec-compliance-review':'code-quality-review',
-    content:JSON.stringify(review,null,2)+'\n',
-    runId:run.run_id,stage:run.state,sourceRevision:review?.base_revision??task.base_revision,
+    content:JSON.stringify(targetReview,null,2)+'\n',
+    runId:run.run_id,stage:run.state,sourceRevision:targetReview?.base_revision??task.base_revision,
     filename:`${task.task_id}-${kind}-review-attempt${task.attempt||0}.json`
   }).artifact_id;
   task.review_refs=[...new Set([...(task.review_refs||[]),ref])];
@@ -116,9 +139,9 @@ export function recordTaskReview(projectRoot,run,task,review,{kind}={}){
   emitTaskEvent(projectRoot,task,{
     type:kind==='spec'?'task.spec_reviewed':'task.quality_reviewed',
     artifact_refs:[ref],
-    payload:{verdict:review?.verdict??null,valid:validation.valid,clean:validation.clean,
+    payload:{verdict:targetReview?.verdict??null,valid:validation.valid,clean:validation.clean,
       blocking_findings:validation.blocking_findings,independent:validation.independent,
-      independence_limitation:validation.independence_limitation,errors:validation.errors}
+      independence_limitation:validation.independence_limitation,nit_count_omitted:validation.nit_count_omitted??0,errors:validation.errors}
   });
   return {schema:'agent-sdlc/task-review-record/v1',kind,recorded:true,artifact_ref:ref,validation,recorded_at:now()};
 }

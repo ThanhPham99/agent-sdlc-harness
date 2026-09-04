@@ -21,6 +21,15 @@
     "artifact_refs": { "type": "array", "items": { "type": "string" } },
     "open_questions": { "type": "array", "items": { "type": "string" } },
     "deferred_items": { "type": "array", "items": { "type": "string" } },
-    "resume": { "type": ["object", "null"] }
+    "resume": { "type": ["object", "null"] },
+    "external_tracker": {
+      "type": ["object", "null"],
+      "properties": {
+        "system": { "type": "string" },
+        "issue_id": { "type": "string" },
+        "url": { "type": "string" },
+        "sync_mode": { "enum": ["repo_authoritative", "legacy_authoritative", "bidirectional_linkage"] }
+      }
+    }
   }
 }

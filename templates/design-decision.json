@@ -26,5 +26,6 @@
   "affected_interfaces": [],
   "affected_data": [],
   "verification_obligations": [],
+  "flagged_policy_concerns": [],
   "approval": {"required": false, "status": "NOT_REQUIRED"}
 }

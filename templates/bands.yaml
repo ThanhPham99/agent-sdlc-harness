@@ -1,0 +1,40 @@
+# Statistical Control Bands Configuration
+# Aligns with Anthropic AI-Native SDLC Playbook Stage 6: Maintain
+version: 1
+metrics:
+  - id: ci_test_failure_rate
+    description: Rolling failure rate of CI pipeline test suites
+    baseline_window_days: 30
+    rules: western_electric
+    unit: ratio
+    tiers:
+      1sigma:
+        action: log
+        description: Log anomaly telemetry for tracking
+      2sigma:
+        action: diagnose
+        permission_mode: read_only
+        description: Run read-only diagnostic investigation
+      3sigma:
+        action: propose
+        trigger_workflow: bug-fix
+        auto_intent: true
+        output_path: .agent-sdlc/intent/anomaly-ci-test-failure.md
+        description: Trigger autonomous SDLC intake and propose remediation PR
+
+  - id: post_deploy_5xx_rate
+    description: Ratio of 5xx HTTP server responses in production
+    baseline_window_days: 7
+    rules: western_electric
+    unit: percent
+    tiers:
+      1sigma:
+        action: log
+      2sigma:
+        action: diagnose
+        permission_mode: read_only
+      3sigma:
+        action: propose
+        trigger_workflow: incident
+        auto_intent: true
+        output_path: .agent-sdlc/intent/incident-5xx-breach.md

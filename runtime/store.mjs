@@ -3,7 +3,24 @@ import path from 'node:path';
 import {appendJsonl,ensureDir,now,readJson,sha256,uuid,writeJson,rootFrom} from './util.mjs';
 const HARNESS_VERSION=readJson(path.join(rootFrom(import.meta.url),'agent-sdlc.manifest.json')).version;
 export function stateDir(projectRoot){return path.join(projectRoot,'.agent-sdlc');}
-export function initProject(projectRoot,config){const d=stateDir(projectRoot); ensureDir(path.join(d,'runs'));ensureDir(path.join(d,'artifacts','objects'));ensureDir(path.join(d,'artifacts','meta'));ensureDir(path.join(d,'events'));ensureDir(path.join(d,'cost'));ensureDir(path.join(d,'handoffs'));ensureDir(path.join(d,'tasks'));ensureDir(path.join(d,'task-events'));ensureDir(path.join(d,'task-evidence'));ensureDir(path.join(d,'task-context')); writeJson(path.join(d,'project.json'),config);const statePath=path.join(d,'state.json');if(!fs.existsSync(statePath))writeJson(statePath,{schema:'agent-sdlc/state/v1',harness_version:HARNESS_VERSION,created_at:now()}); return d;}
+export function initProject(projectRoot,config){
+  const ROOT=rootFrom(import.meta.url);
+  const d=stateDir(projectRoot);
+  ensureDir(path.join(d,'runs'));ensureDir(path.join(d,'artifacts','objects'));ensureDir(path.join(d,'artifacts','meta'));
+  ensureDir(path.join(d,'events'));ensureDir(path.join(d,'cost'));ensureDir(path.join(d,'handoffs'));ensureDir(path.join(d,'tasks'));
+  ensureDir(path.join(d,'task-events'));ensureDir(path.join(d,'task-evidence'));ensureDir(path.join(d,'task-context'));
+  ensureDir(path.join(d,'intent'));
+  const intentTemplate=path.join(ROOT,'templates','intent.md');
+  const targetIntent=path.join(d,'intent','template.md');
+  if(fs.existsSync(intentTemplate)&&!fs.existsSync(targetIntent)){try{fs.copyFileSync(intentTemplate,targetIntent);}catch{}}
+  const reviewTemplate=path.join(ROOT,'templates','REVIEW.md');
+  const targetReview=path.join(projectRoot,'REVIEW.md');
+  if(fs.existsSync(reviewTemplate)&&!fs.existsSync(targetReview)){try{fs.copyFileSync(reviewTemplate,targetReview);}catch{}}
+  writeJson(path.join(d,'project.json'),config);
+  const statePath=path.join(d,'state.json');
+  if(!fs.existsSync(statePath))writeJson(statePath,{schema:'agent-sdlc/state/v1',harness_version:HARNESS_VERSION,created_at:now()});
+  return d;
+}
 export function projectConfig(projectRoot){return readJson(path.join(stateDir(projectRoot),'project.json'));}
 export function runPath(projectRoot,runId){return path.join(stateDir(projectRoot),'runs',`${runId}.json`);}
 // The run document is read-modify-write on every transition. Two writers that

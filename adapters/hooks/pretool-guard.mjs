@@ -32,10 +32,13 @@ const name=p.tool_name||p.toolName||p.toolCall?.name||'';
 const input=p.tool_input||p.toolInput||p.toolCall?.args||{};
 const command=String(input.command||input.CommandLine||input.script||input.cmd||'');
 
-// Shell-capable tool names across hosts: Bash, PowerShell, Codex's
-// local_shell/exec_command, Antigravity's run-command surfaces.
 const SHELL_TOOL=/bash|shell|powershell|pwsh|cmd|command|exec|terminal|process|run/i;
-if(!command||!(SHELL_TOOL.test(name)||name===''))process.exit(0);
+const EDIT_TOOL=/edit|write|replace|patch/i;
+const targetFile=String(input.file_path||input.filePath||input.TargetFile||input.path||input.filename||input.file||'');
+
+if(!command&&!targetFile)process.exit(0);
+if(command&&!(SHELL_TOOL.test(name)||name===''))process.exit(0);
+if(!command&&targetFile&&!EDIT_TOOL.test(name))process.exit(0);
 
 // Quotes carry no meaning for classification: `rm -rf "$HOME"` and `rm -rf $HOME`
 // are the same command. Strip them once so every rule below sees one form.
@@ -81,6 +84,28 @@ const hasFlag=(flags,short,long)=>flags.some(f=>
 
 const findings=[];
 const flag=(decision,rule,detail)=>findings.push({decision,rule,detail});
+
+// Test file detector and test preservation guard
+const TEST_FILE_PATTERN=/(?:^|[/\\])(?:tests?|__tests?__)[/\\]|(?:\.|\b)(?:test|spec)\.[a-z0-9]+$|_test\.[a-z0-9]+$|[A-Z][a-zA-Z0-9]*Test\.[a-z0-9]+$/i;
+const isTestFile=t=>TEST_FILE_PATTERN.test(String(t||'').replace(/\\/g,'/'));
+
+const testProtectionActive=process.env.AGENT_SDLC_TEST_PROTECTION==='1'||
+  ['bug-fix','hotfix'].includes(process.env.AGENT_SDLC_WORKFLOW);
+
+if(testProtectionActive&&targetFile&&isTestFile(targetFile)){
+  flag('deny','test-file-mutation-denied',`modifying test file ${targetFile} is denied during fix task; fix implementation code instead`);
+}
+
+// Plan scope guard (advisory warning requiring confirmation)
+const planScopeEnv=process.env.AGENT_SDLC_TASK_FILES;
+if(planScopeEnv&&targetFile){
+  const allowed=planScopeEnv.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
+  const normTarget=targetFile.toLowerCase().replace(/\\/g,'/');
+  const inScope=allowed.some(f=>normTarget.endsWith(f)||f.endsWith(normTarget));
+  if(!inScope&&allowed.length>0){
+    flag('ask','plan-scope-drift',`file ${targetFile} is outside declared task plan scope; confirm modification or update plan`);
+  }
+}
 
 // --- whole-command rules ----------------------------------------------------
 // These read the command as one string because the risk lives in the shape of
@@ -155,13 +180,15 @@ for(const rawSeg of norm.split(/(?:\|\||&&|[;|&\n])/)){
   const targets=rest.filter(t=>!isFlag(t));
   const sub=(rest[0]||'').toLowerCase();
 
-  if(cmd==='rm'){
+  if(cmd==='rm'||cmd==='unlink'){
     const recursive=hasFlag(flags,'[rR]','recursive')||flags.some(f=>/^--recursive$/i.test(f));
     const force=hasFlag(flags,'f','force');
     if(recursive&&targets.some(catastrophic))
       flag('deny','rm-recursive-catastrophic-target',`rm would recursively delete ${targets.find(catastrophic)}`);
     else if(recursive&&force&&targets.some(t=>/^\*$/.test(t)))
       flag('ask','rm-recursive-wildcard','recursive delete of every entry in the working directory');
+    else if(testProtectionActive&&targets.some(isTestFile))
+      flag('deny','test-file-mutation-denied',`deleting test file ${targets.find(isTestFile)} is denied during fix task; fix implementation code instead`);
   }
   // `find <root> -delete` and `find <root> -exec rm -rf {} \;` destroy exactly
   // what `rm -rf <root>` does, and `find` was not a verb this guard knew at all.

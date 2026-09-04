@@ -25,6 +25,7 @@
     "cost_context_governance_policy": "policies/cost-context-governance.json",
     "traceability_graph_schema": "protocol/schemas/TraceabilityGraph.schema.json",
     "procedure_registry": "config/procedures.json",
+    "control_bands_policy": "policies/control-bands.json",
     "feature_schema": "protocol/schemas/Feature.schema.json",
     "phase_schema": "protocol/schemas/Phase.schema.json"
   },

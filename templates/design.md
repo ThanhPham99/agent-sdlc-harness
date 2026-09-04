@@ -10,5 +10,6 @@
 ## Compatibility strategy
 ## Security considerations
 ## Alternatives considered
+## Flagged policy concerns
 ## Rollout / migration / rollback
 ## Open decisions

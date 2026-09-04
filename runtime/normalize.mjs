@@ -142,6 +142,7 @@ export function normalizeInput(file,{maxBytes=20*1024*1024}={}){
     r={status:'PENDING',reason:'NORMALIZATION_FAILED',detail:String(e.message).slice(0,300),text:''};
   }
   const source_sha256=sha256(fs.readFileSync(abs));
+  const is_intent=Boolean((r.text&&/^#\s*Intent\b/im.test(r.text))||path.basename(abs).toLowerCase().includes('intent'));
   const header=[
     '# Normalized Input', '',
     `- source_file: ${path.basename(abs)}`,
@@ -150,7 +151,8 @@ export function normalizeInput(file,{maxBytes=20*1024*1024}={}){
     `- source_sha256: ${source_sha256}`,
     `- normalization_status: ${r.status}`,
     `- normalization_reason: ${r.reason||'none'}`,
+    `- is_intent: ${is_intent}`,
     '', '---', ''
   ].join('\n');
-  return {schema:'agent-sdlc/normalized-input/v1',source_file:abs,source_type:ext||null,source_bytes:st.size,source_sha256,status:r.status,reason:r.reason||null,detail:r.detail||null,markdown:header+(r.text||'')+(r.text?'\n':'')};
+  return {schema:'agent-sdlc/normalized-input/v1',source_file:abs,source_type:ext||null,source_bytes:st.size,source_sha256,status:r.status,reason:r.reason||null,detail:r.detail||null,is_intent,markdown:header+(r.text||'')+(r.text?'\n':'')};
 }

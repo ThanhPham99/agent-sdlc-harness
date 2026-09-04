@@ -175,6 +175,7 @@ export function scaffoldDesignDecision(selection,{objective='',decisionId=null}=
     decision:null,options:[],recommended_option:null,rejected_alternatives:[],
     skip_reason:null,
     affected_interfaces:[],affected_data:[],verification_obligations:[],
+    flagged_policy_concerns:[],
     approval:{required:selection.human_approval_required,status:selection.human_approval_required?'PENDING':'NOT_REQUIRED'}
   };
   if(selection.mode==='SKIP'){
@@ -226,6 +227,14 @@ export function validateDesignDecision(decision,{policy=getDesignDiscoveryPolicy
   }
   if((d.affected_data||[]).length&&!(d.verification_obligations||[]).length){
     errors.push('DATA_CHANGE_WITHOUT_VERIFICATION_OBLIGATION');
+  }
+  const concerns=Array.isArray(d.flagged_policy_concerns)?d.flagged_policy_concerns:[];
+  for(const c of concerns){
+    if(!c.policy)errors.push('FLAGGED_CONCERN_MISSING_POLICY');
+    if(!c.concern)errors.push(`FLAGGED_CONCERN_MISSING_DESCRIPTION:${c.policy||'?'}`);
+    if(c.severity==='BLOCKING'&&d.approval?.required!==true){
+      errors.push(`BLOCKING_POLICY_CONCERN_REQUIRES_HUMAN_APPROVAL:${c.policy}`);
+    }
   }
   if(!(d.requirements||[]).length)warnings.push('NO_LINKED_REQUIREMENTS');
   return {

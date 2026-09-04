@@ -1,0 +1,51 @@
+{
+  "schema": "agent-sdlc/control-bands-policy/v1",
+  "version": "3.0.0-alpha6",
+  "description": "Deterministic statistical process control policy for Stage 6: Maintain closed-loop re-entry.",
+  "default_rule": "western_electric",
+  "tiers": {
+    "1sigma": {
+      "name": "INFORMATIONAL",
+      "action": "log",
+      "threshold_sigma": 1.0,
+      "requires_human": false
+    },
+    "2sigma": {
+      "name": "DIAGNOSE",
+      "action": "diagnose",
+      "threshold_sigma": 2.0,
+      "permission_mode": "read_only",
+      "requires_human": false
+    },
+    "3sigma": {
+      "name": "ACTIONABLE_BREACH",
+      "action": "propose",
+      "threshold_sigma": 3.0,
+      "trigger_intake": true,
+      "default_workflow": "incident",
+      "requires_human": true
+    }
+  },
+  "western_electric_rules": [
+    {
+      "id": "RULE_1_OUTLIER",
+      "description": "One point beyond 3 sigma from centerline",
+      "tier": "3sigma"
+    },
+    {
+      "id": "RULE_2_ZONE_A",
+      "description": "Two out of three consecutive points in Zone A or beyond (2 sigma)",
+      "tier": "2sigma"
+    },
+    {
+      "id": "RULE_3_ZONE_B",
+      "description": "Four out of five consecutive points in Zone B or beyond (1 sigma)",
+      "tier": "1sigma"
+    },
+    {
+      "id": "RULE_4_RUN",
+      "description": "Eight consecutive points on one side of the centerline",
+      "tier": "1sigma"
+    }
+  ]
+}

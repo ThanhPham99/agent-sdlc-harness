@@ -37,6 +37,7 @@ import {legacyReachableSkillIds} from '../runtime/context.mjs';
 import {createFeature,loadFeature,updateFeature,listFeatures,createPhase,loadPhase,updatePhase,listPhases,attachRun,resolveActiveFeature,resolveActivePhase,resolveFeatureBinding} from '../runtime/features.mjs';
 import {planGc,applyGc} from '../runtime/retention.mjs';
 import {jobBlock,jobScriptSequence} from '../scripts/lib/ci-workflow.mjs';
+import {calculateStats,evaluateControlBand,formatAnomalyIntent,processMetricAnomaly} from '../runtime/control-bands.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
@@ -1505,6 +1506,41 @@ test('job-block-throws-on-an-unknown-job-name',()=>{
   let ok=false;
   try{jobBlock(SYNTHETIC_WORKFLOW,'does-not-exist');}catch(e){ok=/no top-level job named/.test(e.message);}
   if(!ok)throw Error('an unknown job name should fail loudly, not return an empty/wrong block silently');
+});
+
+// Control bands unit tests (Stage 6: Maintain closed-loop monitoring)
+test('control-bands-calculates-mean-and-stddev',()=>{
+  const stats=calculateStats([10,20,30,40,50]);
+  if(stats.mean!==30)throw Error(`expected mean 30, got ${stats.mean}`);
+  if(Math.round(stats.stddev)!==16)throw Error(`expected stddev ~15.8, got ${stats.stddev}`);
+  if(stats.count!==5)throw Error(`expected count 5, got ${stats.count}`);
+});
+
+test('control-bands-handles-empty-and-single-point-baseline',()=>{
+  const empty=calculateStats([]);
+  if(empty.count!==0||empty.mean!==0||empty.stddev!==0)throw Error('empty stats should be 0');
+  const single=calculateStats([42]);
+  if(single.count!==1||single.mean!==42||single.stddev!==0)throw Error('single stats mismatch');
+});
+
+test('control-bands-classifies-normal-under-one-sigma',()=>{
+  const res=evaluateControlBand({metric:'ci_failures',baseline:[1,2,1,2,1,2],current:1.5});
+  if(res.tier!=='NORMAL'||res.action!=='none'||res.breach!==false)throw Error(`expected NORMAL none, got ${res.tier} ${res.action}`);
+});
+
+test('control-bands-classifies-diagnose-at-two-sigma',()=>{
+  const res=evaluateControlBand({metric:'ci_failures',baseline:[1,2,1,2,1,2],current:3.0});
+  if(res.tier!=='2sigma'||res.action!=='diagnose'||res.breach!==false)throw Error(`expected 2sigma diagnose, got ${res.tier} ${res.action}`);
+});
+
+test('control-bands-classifies-breach-at-three-sigma-and-generates-intent',()=>{
+  const scratch=fs.mkdtempSync(path.join(os.tmpdir(),'cb-test-'));
+  const res=processMetricAnomaly(scratch,{metric:'5xx_rate',baseline:[0.01,0.01,0.01,0.02,0.01],current:0.25,workflow:'incident'});
+  if(res.tier!=='3sigma'||res.action!=='propose'||res.breach!==true)throw Error(`expected 3sigma propose, got ${res.tier} ${res.action}`);
+  if(!res.intent_path||!fs.existsSync(res.intent_path))throw Error('expected intent.md to be created');
+  const text=fs.readFileSync(res.intent_path,'utf8');
+  if(!text.includes('# Intent: Automated Anomaly Remediation for 5xx_rate'))throw Error('intent header missing');
+  if(!text.includes('Affected metric: `5xx_rate`'))throw Error('intent metric missing');
 });
 
 // ---------------------------------------------------------------------------

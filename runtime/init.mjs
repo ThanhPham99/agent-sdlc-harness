@@ -97,6 +97,7 @@ export function detectProject(projectRoot){
     commands,
     context:{project_invariants:[],hot_paths:[]},
     approval:{mode:'risk-based'},
+    source_of_truth_mode:'repo_authoritative',
     providers:{preferred:['claude','codex','antigravity']}
   };
 }
