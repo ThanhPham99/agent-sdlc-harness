@@ -420,14 +420,28 @@ export function buildIndex(projectRoot,{force=false,maxFiles=20000}={}){
   };
   ensureDir(indexDir(projectRoot));
   writeJson(indexPath(projectRoot),index);
+  try{
+    const stat=fs.statSync(indexPath(projectRoot));
+    memoryIndexCache.set(indexPath(projectRoot),{mtimeMs:stat.mtimeMs,data:index});
+  }catch{}
   return index;
 }
+
+const memoryIndexCache=new Map();
 
 export function loadIndex(projectRoot,{build=true}={}){
   const p=indexPath(projectRoot);
   if(fs.existsSync(p)){
-    const idx=readJson(p,null);
-    if(idx&&idx.schema==='agent-sdlc/repo-index/v1')return idx;
+    try{
+      const stat=fs.statSync(p);
+      const cached=memoryIndexCache.get(p);
+      if(cached&&cached.mtimeMs===stat.mtimeMs)return cached.data;
+      const idx=readJson(p,null);
+      if(idx&&idx.schema==='agent-sdlc/repo-index/v1'){
+        memoryIndexCache.set(p,{mtimeMs:stat.mtimeMs,data:idx});
+        return idx;
+      }
+    }catch{}
   }
   return build?buildIndex(projectRoot):null;
 }

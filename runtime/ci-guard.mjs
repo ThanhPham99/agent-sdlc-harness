@@ -6,14 +6,18 @@ import {spawnSync} from 'node:child_process';
 import {gitSha,readJson,truthy} from './util.mjs';
 import {recordCiEvidence,ciEvidenceCurrent,loadCiEvidence} from './ci-evidence.mjs';
 import {resolveLaunch,describeSpawn} from './launcher.mjs';
+import {detectProject} from './init.mjs';
 
 /**
  * Detect CI/CD configurations in the target project.
- * Checks for GitHub Actions workflows, package.json scripts, or Makefile.
+ * Checks for GitHub Actions workflows, package.json scripts, Makefile, or auto-detects stack.
  */
 export function detectProjectCi(projectRoot){
   const ghWorkflowsDir=path.join(projectRoot,'.github','workflows');
-  const has_gh_workflows=fs.existsSync(ghWorkflowsDir)&&fs.readdirSync(ghWorkflowsDir).some(f=>/\.(ya?ml)$/i.test(f));
+  let has_gh_workflows=false;
+  try{
+    has_gh_workflows=fs.existsSync(ghWorkflowsDir)&&fs.readdirSync(ghWorkflowsDir).some(f=>/\.(ya?ml)$/i.test(f));
+  }catch{}
 
   let package_json_scripts=[];
   const pkgPath=path.join(projectRoot,'package.json');
@@ -30,6 +34,16 @@ export function detectProjectCi(projectRoot){
     try{
       const cfg=readJson(projectCfgPath);
       test_commands=cfg.test_commands||cfg.commands||null;
+    }catch{/* ignore */}
+  }
+
+  let detectedProject=null;
+  if(!test_commands&&projectRoot&&fs.existsSync(projectRoot)){
+    try{
+      detectedProject=detectProject(projectRoot);
+      if(detectedProject?.commands&&Object.keys(detectedProject.commands).length){
+        test_commands=detectedProject.commands;
+      }
     }catch{/* ignore */}
   }
 
@@ -51,7 +65,8 @@ export function detectProjectCi(projectRoot){
     has_ci,
     has_github_workflows:has_gh_workflows,
     available_scripts:package_json_scripts,
-    recommended_command
+    recommended_command,
+    stack:detectedProject?.stack||null
   };
 }
 

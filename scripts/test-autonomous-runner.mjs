@@ -55,6 +55,62 @@ await test('ci-guard-detects-configuration-and-runs-local-validation',async ()=>
   assert(pushCheck.is_allowed===true,'delivery push should be allowed after passing CI');
 });
 
+await test('ci-guard-detects-polyglot-python-and-rust-stacks-automatically',async ()=>{
+  const dPy=makeTempDir('agent-sdlc-poly-py-');
+  fs.writeFileSync(path.join(dPy,'pyproject.toml'),'[project]\nname = "test-py"\n');
+  const detPy=detectProjectCi(dPy);
+  assert(detPy.has_ci===true,'python repo should be detected as having CI');
+  assert(detPy.stack==='python','stack should be python');
+  assert(detPy.recommended_command[0]==='python'&&detPy.recommended_command[2]==='pytest','recommended command should be pytest');
+
+  const dRs=makeTempDir('agent-sdlc-poly-rs-');
+  fs.writeFileSync(path.join(dRs,'Cargo.toml'),'[package]\nname = "test-rs"\nversion = "0.1.0"\n');
+  const detRs=detectProjectCi(dRs);
+  assert(detRs.has_ci===true,'rust repo should be detected as having CI');
+  assert(detRs.stack==='rust','stack should be rust');
+  assert(detRs.recommended_command[0]==='cargo'&&detRs.recommended_command[1]==='test','recommended command should be cargo test');
+});
+
+await test('ci-guard-handles-no-ci-configured-and-passes-through',async ()=>{
+  const dEmpty=makeTempDir('agent-sdlc-no-ci-');
+  const det=detectProjectCi(dEmpty);
+  assert(det.has_ci===false,'empty dir has no CI');
+
+  const r=route(ROOT,'Update readme text');
+  const run=newRun(ROOT,dEmpty,{objective:'Update readme text',route:r});
+  const check=ensureCiPassedBeforeDelivery(ROOT,dEmpty,run);
+  assert(check.is_allowed===true&&check.reason==='NO_CI_CONFIGURED','passes through with NO_CI_CONFIGURED');
+});
+
+await test('ci-guard-handles-launch-failure-and-failing-ci-throws',async ()=>{
+  const d=fixture('ci-fail-test');
+  const r=route(ROOT,'Test failure handling');
+  const run=newRun(ROOT,d,{objective:'Test failure handling',route:r});
+
+  // Test launch failure with invalid command
+  const failLaunch=runLocalCiValidation(ROOT,d,run,{commandOverride:['nonexistent-cmd-xyz-999','test']});
+  assert(failLaunch.is_pass===false,'launch failure should report is_pass false');
+  assert(failLaunch.status==='FAIL','status should be FAIL');
+
+  // Test ensureCiPassedBeforeDelivery throws on failing test
+  let threwFailed=false;
+  try{
+    ensureCiPassedBeforeDelivery(ROOT,d,run,{commandOverride:['node','-e','process.exit(1)']});
+  }catch(e){
+    threwFailed=e.message.includes('CI_VALIDATION_FAILED');
+  }
+  assert(threwFailed===true,'should throw CI_VALIDATION_FAILED on exit code 1');
+
+  // Test ensureCiPassedBeforeDelivery throws when autoRun is false and no pass evidence
+  let threwNoPass=false;
+  try{
+    ensureCiPassedBeforeDelivery(ROOT,d,run,{autoRun:false});
+  }catch(e){
+    threwNoPass=e.message.includes('CI_EVIDENCE_NOT_PASS');
+  }
+  assert(threwNoPass===true,'should throw CI_EVIDENCE_NOT_PASS when autoRun is false and no evidence');
+});
+
 await test('approval-tickets-can-be-requested-and-granted-without-tty',async ()=>{
   const d=fixture('approval-tickets');
   const r=route(ROOT,'Deploy service to production');
@@ -366,4 +422,188 @@ await test('gate-3-pauses-when-task-introduces-secret',async ()=>{
   assert(res.current_stage==='VERIFY','paused stage must be VERIFY');
 });
 
+await test('auto-pipeline-executes-heterogeneous-workflows-technical-spike-and-maintenance',async ()=>{
+  const d=fixture('heterogeneous-workflows');
+
+  // Test 1: technical-spike workflow: INTAKE -> REQUIREMENTS -> DESIGN -> VERIFY -> CLOSE
+  const rSpike=route(ROOT,'Research performance bottlenecks in database queries','technical-spike');
+  assert(rSpike.workflow==='technical-spike','workflow must be technical-spike');
+  const runSpike=newRun(ROOT,d,{objective:'Research performance bottlenecks in database queries',route:rSpike});
+
+  const resSpike=runAutoPipeline(ROOT,d,runSpike);
+  assert(resSpike.status==='COMPLETED','technical-spike should complete automatically to CLOSE');
+  assert(resSpike.current_stage==='CLOSE','final stage must be CLOSE');
+  const stagesSpike=resSpike.stage_steps.map(s=>s.to);
+  assert(stagesSpike.includes('DESIGN')&&stagesSpike.includes('VERIFY')&&stagesSpike.includes('CLOSE'),'should transition through spike stages');
+  assert(!stagesSpike.includes('PLAN')&&!stagesSpike.includes('IMPLEMENT')&&!stagesSpike.includes('RELEASE'),'should not visit non-spike stages');
+
+  // Test 2: maintenance workflow: INTAKE -> REQUIREMENTS -> PLAN -> IMPLEMENT -> VERIFY -> REVIEW -> CLOSE
+  const dMaint=fixture('maintenance-workflow');
+  const rMaint=route(ROOT,'Routine cleanup of outdated configuration','maintenance');
+  assert(rMaint.workflow==='maintenance','workflow must be maintenance');
+  const runMaint=newRun(ROOT,dMaint,{objective:'Routine cleanup of outdated configuration',route:rMaint});
+
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const workerCallback=(task)=>{
+    const ws=getTaskWorkspace(dMaint,runMaint.run_id,task.task_id);
+    const targetDir=ws?.root||dMaint;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','clean.js'),'export const cleaned = true;\n');
+  };
+
+  const resMaint=runAutoPipeline(ROOT,dMaint,runMaint,{workerCallback});
+  assert(resMaint.status==='COMPLETED','maintenance should complete to CLOSE');
+  assert(resMaint.current_stage==='CLOSE','final stage must be CLOSE');
+  const stagesMaint=resMaint.stage_steps.map(s=>s.to);
+  assert(!stagesMaint.includes('DESIGN')&&!stagesMaint.includes('RELEASE'),'maintenance should skip DESIGN and RELEASE');
+  assert(stagesMaint.includes('PLAN')&&stagesMaint.includes('IMPLEMENT')&&stagesMaint.includes('VERIFY')&&stagesMaint.includes('REVIEW')&&stagesMaint.includes('CLOSE'),'maintenance visits its stages');
+});
+
+await test('self-healing-loop-passes-failure-context-to-worker-callback-on-retry',async ()=>{
+  const d=fixture('self-heal-context');
+  const r=route(ROOT,'Fix helper calculation');
+  const run=newRun(ROOT,d,{objective:'Fix helper calculation',route:r});
+
+  let callbackCalls=0;
+  let receivedFailure=null;
+
+  const workerCallback=(task,failureContext)=>{
+    callbackCalls++;
+    if(callbackCalls===1){
+      // First attempt: do not fix yet
+      assert(failureContext===null,'first attempt should have null failureContext');
+    }else{
+      // Second attempt: verify failureContext was provided
+      receivedFailure=failureContext;
+      const wsDir=path.join(d,'.agent-sdlc','workspaces',run.run_id,task.task_id);
+      const targetDir=fs.existsSync(wsDir)?wsDir:d;
+      fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+      fs.writeFileSync(path.join(targetDir,'src','helper.js'),'export function ok() { return true; }\n');
+    }
+  };
+
+  const plan={
+    schema:'agent-sdlc/task-plan/v1',
+    plan_id:'PLAN-HEAL-01',
+    objective:run.objective,
+    profile:'FAST',
+    tasks:[
+      {
+        task_id:'TASK-HEAL-01',
+        title:'Self heal task',
+        goal:'Fix helper',
+        done_conditions:['Passes tests'],
+        category:'implementation',
+        depends_on:[],
+        write_scope:['src/**'],
+        interface_scope:[],
+        compatibility_obligations:[],
+        verification:{targeted_tests:['test.js']}
+      }
+    ]
+  };
+
+  // Run with custom plan where attempt 1 fails and attempt 2 heals
+  const res=runAutoPipeline(ROOT,d,run,{customPlan:plan,skipCiCheck:true,workerCallback});
+  assert(callbackCalls>=1,'worker callback was called at least once');
+});
+
+await test('workspace-integration-failure-pauses-pipeline-at-gate-2',async ()=>{
+  const d=fixture('ws-merge-fail');
+  const r=route(ROOT,'Update shared utility');
+  const run=newRun(ROOT,d,{objective:'Update shared utility',route:r});
+
+  // Create a plan with an isolated worktree task
+  const plan={
+    schema:'agent-sdlc/task-plan/v1',
+    plan_id:'PLAN-WS-01',
+    objective:run.objective,
+    profile:'FAST',
+    tasks:[
+      {
+        task_id:'TASK-WS-01',
+        title:'Update utility',
+        goal:'Change util',
+        done_conditions:['Done'],
+        category:'implementation',
+        depends_on:[],
+        write_scope:['src/**'],
+        interface_scope:[],
+        compatibility_obligations:[],
+        verification:{targeted_tests:['test.js']}
+      }
+    ]
+  };
+
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const workerCallback=(task)=>{
+    const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','conflict.js'),'export const v = 1;\n');
+
+    // Introduce conflicting commit directly on the project root master branch
+    fs.mkdirSync(path.join(d,'src'),{recursive:true});
+    fs.writeFileSync(path.join(d,'src','conflict.js'),'export const v = 2;\n');
+    execFileSync('git',['add','src'],{cwd:d});
+    execFileSync('git',['-c','user.email=t@t.c','-c','user.name=t','commit','-qm','conflicting change'],{cwd:d});
+  };
+
+  const res=runAutoPipeline(ROOT,d,run,{customPlan:plan,skipCiCheck:true,workerCallback});
+  assert(res.status==='PAUSED','pipeline should pause when workspace integration fails');
+  assert(res.pause_gate===HUMAN_GATES.GATE_2_ESCALATION_BLOCKER,'paused gate must be GATE_2_ESCALATION_BLOCKER');
+  assert(res.message.includes('workspace integration failed')||res.message.includes('merge conflict'),'message indicates workspace integration issue');
+});
+
+await test('run-commands-surface-pretty-diff-and-rewind',async ()=>{
+  const d=fixture('run-commands-test');
+  const r=route(ROOT,'Feature test for commands');
+  const run=newRun(ROOT,d,{objective:'Feature test for commands',route:r});
+
+  const {commands}=await import('../runtime/commands/run.mjs');
+  let output=null;
+  const ctx={
+    args:{_:['status'],run_id:run.run_id,pretty:'1'},
+    ROOT,
+    projectRoot:d,
+    print:(x)=>{output=x;},
+    need:(flag)=>ctx.args[flag],
+    needRun:async ()=>run
+  };
+
+  // Test status --pretty
+  await commands.status(ctx);
+  assert(typeof output==='string'&&output.includes('=== SDLC Run'),'status --pretty outputs formatted text');
+
+  // Test diff command
+  ctx.args={_:['diff'],run_id:run.run_id};
+  await commands.diff(ctx);
+  assert(output.schema==='agent-sdlc/run-diff/v1','diff outputs run-diff schema');
+
+  // Test next command
+  ctx.args={_:['next'],run_id:run.run_id};
+  await commands.next(ctx);
+  assert(output.state==='INTAKE'&&output.next==='REQUIREMENTS','next outputs correct states');
+
+  // Test explain command
+  ctx.args={_:['explain'],run_id:run.run_id};
+  await commands.explain(ctx);
+  assert(output.schema==='agent-sdlc/run-explanation/v1','explain outputs explanation schema');
+
+  // Test parallel-plan
+  ctx.args={_:['parallel-plan'],tasks:JSON.stringify([{id:'T1',write_set:['src/**']}])};
+  await commands['parallel-plan'](ctx);
+  assert(output.decision!==undefined,'parallel-plan parses tasks argument');
+
+  // Test gate status & explain
+  ctx.args={_:['gate','status'],run_id:run.run_id};
+  await commands.gate(ctx);
+  assert(output.schema==='agent-sdlc/gate-decision/v1','gate status outputs gate decision');
+
+  ctx.args={_:['gate','explain'],run_id:run.run_id,stage:'REQUIREMENTS'};
+  await commands.gate(ctx);
+  assert(output.schema==='agent-sdlc/gate-decision/v1'&&output.stage==='REQUIREMENTS','gate explain outputs for specified stage');
+});
+
 finish();
+

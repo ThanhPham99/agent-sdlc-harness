@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {now,uuid,readJson,gitSha} from './util.mjs';
-import {loadRun,saveRun,listTasks,loadTask,emit} from './store.mjs';
+import {loadRun,saveRun,listTasks,loadTask,saveTask,emit} from './store.mjs';
 import {transition,recordDesignDecision,recordTaskPlan,materializeRunTasks,recordImplementationComplete,nextState} from './orchestrator.mjs';
 import {refreshReadiness} from './task-engine.mjs';
 import {selectDesignDiscoveryMode,scaffoldDesignDecision as builtinScaffoldDesignDecision} from './design-discovery.mjs';
@@ -104,6 +104,7 @@ export function scaffoldTaskPlan(run,projectRoot=null){
 export function runAutoTaskLoop(root,projectRoot,run,{customWriter=null,workerCallback=null}={}){
   let loops=0;
   const steps=[];
+  const failureContexts=new Map();
 
   while(loops++ < 50){
     refreshReadiness(root,projectRoot,run.run_id);
@@ -126,7 +127,8 @@ export function runAutoTaskLoop(root,projectRoot,run,{customWriter=null,workerCa
       }
 
       if(workerCallback){
-        workerCallback(currentTask);
+        const prevFailure=failureContexts.get(currentTask.task_id)||null;
+        workerCallback(currentTask,prevFailure);
       }
 
       // First capture diff so currentTask has diff_hash for reviews
@@ -168,13 +170,24 @@ export function runAutoTaskLoop(root,projectRoot,run,{customWriter=null,workerCa
 
       if(currentTask.status==='DONE'){
         try{
-          integrateTaskWorkspace(projectRoot,{run,task:currentTask});
+          const intRes=integrateTaskWorkspace(projectRoot,{run,task:currentTask});
+          if(intRes&&intRes.integrated===false){
+            return {
+              is_complete:false,
+              is_paused:true,
+              pause_gate:HUMAN_GATES.GATE_2_ESCALATION_BLOCKER,
+              task_id:currentTask.task_id,
+              steps,
+              message:`Task ${currentTask.task_id} completed but workspace integration failed: ${intRes.output||'merge conflict'}`
+            };
+          }
         }catch{/* ignore */}
       }
 
       if(adv.failure||currentTask.status==='FAILED'||currentTask.status==='BLOCKED'){
         const attempt_count=currentTask.attempt||1;
-        if(attempt_count>=MAX_SELF_HEAL_ATTEMPTS||currentTask.status==='FAILED'||currentTask.status==='BLOCKED'){
+        const isTerminal=attempt_count>=MAX_SELF_HEAL_ATTEMPTS||currentTask.status==='BLOCKED'||adv.failure?.class==='PERMISSION_DENIED'||adv.failure?.class==='BUDGET_EXHAUSTED';
+        if(isTerminal){
           return {
             is_complete:false,
             is_paused:true,
@@ -185,6 +198,17 @@ export function runAutoTaskLoop(root,projectRoot,run,{customWriter=null,workerCa
             steps,
             message:`Task ${currentTask.task_id} failed verification or review after ${attempt_count} attempts. Human intervention required.`
           };
+        }
+        failureContexts.set(currentTask.task_id,{
+          task_id:currentTask.task_id,
+          attempt:attempt_count,
+          failure:adv.failure||null,
+          verification:adv.verification||null,
+          findings:[...(specReview?.findings||[]),...(qualityReview?.findings||[])]
+        });
+        if(currentTask.status==='FAILED'){
+          currentTask.status='READY';
+          saveTask(projectRoot,currentTask);
         }
         // If not max attempts, retry
         steps.push({task_id:currentTask.task_id,action:'SELF_HEAL_RETRY',attempt:attempt_count});
@@ -220,29 +244,23 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
 
     // --- STAGE: INTAKE ---
     if(stage==='INTAKE'){
-      currentRun=transition(root,projectRoot,currentRun,'REQUIREMENTS',{internal:true});
-      stageSteps.push({from:'INTAKE',to:'REQUIREMENTS'});
+      const next=nextState(currentRun);
+      if(!next)break;
+      currentRun=transition(root,projectRoot,currentRun,next,{internal:true});
+      stageSteps.push({from:'INTAKE',to:next});
       continue;
     }
 
     // --- STAGE: REQUIREMENTS ---
     if(stage==='REQUIREMENTS'){
       const next=nextState(currentRun);
-      if(next==='DESIGN'){
-        currentRun=transition(root,projectRoot,currentRun,'DESIGN',{
-          evidence:['requirements_confirmed'],
-          internal:true
-        });
-        stageSteps.push({from:'REQUIREMENTS',to:'DESIGN'});
-        continue;
-      } else if(next==='PLAN'){
-        currentRun=transition(root,projectRoot,currentRun,'PLAN',{
-          evidence:['requirements_confirmed'],
-          internal:true
-        });
-        stageSteps.push({from:'REQUIREMENTS',to:'PLAN'});
-        continue;
-      }
+      if(!next)break;
+      currentRun=transition(root,projectRoot,currentRun,next,{
+        evidence:['requirements_confirmed'],
+        internal:true
+      });
+      stageSteps.push({from:'REQUIREMENTS',to:next});
+      continue;
     }
 
     // --- STAGE: DESIGN ---
@@ -265,7 +283,7 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
           mode_result:modeResult,
           run:currentRun,
           stage_steps:stageSteps,
-          message:'Human approval required for architecture/design before entering PLAN. Please review and approve design direction.'
+          message:'Human approval required for architecture/design before entering next stage. Please review and approve design direction.'
         };
       }
 
@@ -276,11 +294,13 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
         throw new Error(`Failed to record design decision: ${JSON.stringify(rec.validation.errors)}`);
       }
 
-      currentRun=transition(root,projectRoot,currentRun,'PLAN',{
+      const next=nextState(currentRun);
+      if(!next)break;
+      currentRun=transition(root,projectRoot,currentRun,next,{
         evidence:['design_or_skip_decision'],
         internal:true
       });
-      stageSteps.push({from:'DESIGN',to:'PLAN',mode:modeResult.mode});
+      stageSteps.push({from:'DESIGN',to:next,mode:modeResult.mode});
       continue;
     }
 
@@ -293,11 +313,16 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
       }
       materializeRunTasks(root,projectRoot,currentRun,plan);
 
-      currentRun=transition(root,projectRoot,currentRun,'IMPLEMENT',{
-        evidence:['plan_artifact_created','plan_schema_valid','plan_graph_valid','plan_acceptance_coverage_valid','plan_scope_conflicts_resolved'],
+      const next=nextState(currentRun);
+      if(!next)break;
+      const ev=['plan_artifact_created','plan_schema_valid','plan_graph_valid','plan_acceptance_coverage_valid','plan_scope_conflicts_resolved'];
+      if(next==='CLOSE')ev.push('handoff_written','docs_reconciled');
+      currentRun=transition(root,projectRoot,currentRun,next,{
+        evidence:ev,
         internal:true
       });
-      stageSteps.push({from:'PLAN',to:'IMPLEMENT'});
+      stageSteps.push({from:'PLAN',to:next});
+      if(next==='CLOSE')break;
       continue;
     }
 
@@ -326,15 +351,28 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
       const doneTasks=listTasks(projectRoot,currentRun.run_id).filter(t=>t.status==='DONE');
       for(const t of doneTasks){
         try{
-          integrateTaskWorkspace(projectRoot,{run:currentRun,task:t});
+          const intRes=integrateTaskWorkspace(projectRoot,{run:currentRun,task:t});
+          if(intRes&&intRes.integrated===false){
+            return {
+              status:'PAUSED',
+              current_stage:'IMPLEMENT',
+              pause_gate:HUMAN_GATES.GATE_2_ESCALATION_BLOCKER,
+              run:currentRun,
+              task_id:t.task_id,
+              stage_steps:stageSteps,
+              message:`Failed to integrate workspace for task ${t.task_id}: ${intRes.output||'merge conflict'}`
+            };
+          }
         }catch{/* ignore */}
       }
 
-      currentRun=transition(root,projectRoot,currentRun,'VERIFY',{
+      const next=nextState(currentRun);
+      if(!next)break;
+      currentRun=transition(root,projectRoot,currentRun,next,{
         evidence:['implementation_artifact','task_graph_complete'],
         internal:true
       });
-      stageSteps.push({from:'IMPLEMENT',to:'VERIFY'});
+      stageSteps.push({from:'IMPLEMENT',to:next});
       continue;
     }
 
@@ -354,23 +392,31 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
         }
       }catch{/* ignore if policy not configured */}
 
-      // Transition to REVIEW with verification evidence
-      currentRun=transition(root,projectRoot,currentRun,'REVIEW',{
-        evidence:['targeted_verification_pass','no_new_high_security_findings'],
+      const next=nextState(currentRun);
+      if(!next)break;
+      const ev=['targeted_verification_pass','no_new_high_security_findings'];
+      if(next==='CLOSE')ev.push('handoff_written','docs_reconciled');
+      currentRun=transition(root,projectRoot,currentRun,next,{
+        evidence:ev,
         internal:true
       });
-      stageSteps.push({from:'VERIFY',to:'REVIEW'});
+      stageSteps.push({from:'VERIFY',to:next});
+      if(next==='CLOSE')break;
       continue;
     }
 
     // --- STAGE: REVIEW ---
     if(stage==='REVIEW'){
-      // Auto transition to RELEASE
-      currentRun=transition(root,projectRoot,currentRun,'RELEASE',{
-        evidence:['required_reviews_resolved'],
+      const next=nextState(currentRun);
+      if(!next)break;
+      const ev=['required_reviews_resolved'];
+      if(next==='CLOSE')ev.push('handoff_written','docs_reconciled');
+      currentRun=transition(root,projectRoot,currentRun,next,{
+        evidence:ev,
         internal:true
       });
-      stageSteps.push({from:'REVIEW',to:'RELEASE'});
+      stageSteps.push({from:'REVIEW',to:next});
+      if(next==='CLOSE')break;
       continue;
     }
 
@@ -399,21 +445,16 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
       }
 
       const next=nextState(currentRun);
-      if(next==='DEPLOY'){
-        currentRun=transition(root,projectRoot,currentRun,'DEPLOY',{
-          evidence:['release_evidence_current'],
-          internal:true
-        });
-        stageSteps.push({from:'RELEASE',to:'DEPLOY'});
-        continue;
-      } else if(next==='CLOSE'){
-        currentRun=transition(root,projectRoot,currentRun,'CLOSE',{
-          evidence:['release_evidence_current','handoff_written','docs_reconciled'],
-          internal:true
-        });
-        stageSteps.push({from:'RELEASE',to:'CLOSE'});
-        break;
-      }
+      if(!next)break;
+      const ev=['release_evidence_current'];
+      if(next==='CLOSE')ev.push('handoff_written','docs_reconciled');
+      currentRun=transition(root,projectRoot,currentRun,next,{
+        evidence:ev,
+        internal:true
+      });
+      stageSteps.push({from:'RELEASE',to:next});
+      if(next==='CLOSE')break;
+      continue;
     }
 
     // --- STAGE: DEPLOY ---
@@ -431,21 +472,28 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
         };
       }
 
-      currentRun=transition(root,projectRoot,currentRun,'OBSERVE',{
-        evidence:['deployment_receipt'],
+      const next=nextState(currentRun);
+      if(!next)break;
+      const ev=['deployment_receipt'];
+      if(next==='CLOSE')ev.push('handoff_written','docs_reconciled');
+      currentRun=transition(root,projectRoot,currentRun,next,{
+        evidence:ev,
         internal:true
       });
-      stageSteps.push({from:'DEPLOY',to:'OBSERVE'});
+      stageSteps.push({from:'DEPLOY',to:next});
+      if(next==='CLOSE')break;
       continue;
     }
 
     // --- STAGE: OBSERVE ---
     if(stage==='OBSERVE'){
-      currentRun=transition(root,projectRoot,currentRun,'CLOSE',{
+      const next=nextState(currentRun);
+      if(!next)break;
+      currentRun=transition(root,projectRoot,currentRun,next,{
         evidence:['production_health_verified','handoff_written','docs_reconciled'],
         internal:true
       });
-      stageSteps.push({from:'OBSERVE',to:'CLOSE'});
+      stageSteps.push({from:'OBSERVE',to:next});
       break;
     }
 
