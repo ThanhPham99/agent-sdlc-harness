@@ -27,9 +27,11 @@ const LANG_BY_EXT={
   '.js':'javascript','.mjs':'javascript','.cjs':'javascript','.jsx':'javascript',
   '.ts':'typescript','.tsx':'typescript',
   '.py':'python','.go':'go','.java':'java','.rb':'ruby','.rs':'rust','.cs':'csharp','.php':'php','.kt':'kotlin',
+  '.c':'c','.h':'c','.cpp':'cpp','.hpp':'cpp','.cc':'cpp','.cxx':'cpp',
+  '.swift':'swift','.scala':'scala','.sh':'shell','.bash':'shell','.zsh':'shell',
   '.sql':'sql','.json':'json','.yml':'yaml','.yaml':'yaml','.md':'markdown'
 };
-const CODE_LANGS=new Set(['javascript','typescript','python','go','java','ruby','rust','csharp','php','kotlin']);
+const CODE_LANGS=new Set(['javascript','typescript','python','go','java','ruby','rust','csharp','php','kotlin','c','cpp','swift','scala','shell']);
 
 const TEST_PATTERNS=[
   /(^|\/)tests?\//i,/(^|\/)__tests__\//,/(^|\/)spec\//i,
@@ -112,6 +114,59 @@ const RX={
     symbols:[/^\s*(?:fun|class|interface|object|enum\s+class)\s+([A-Za-z_]\w*)/gm],
     exports:[/^\s*(?:public\s+)?(?:fun|class|interface|object|enum\s+class)\s+([A-Za-z_]\w*)/gm],
     imports:[/^\s*import\s+([\w.*]+)/gm]
+  },
+  c:{
+    symbols:[
+      /^\s*(?:typedef\s+)?(?:struct|enum|union)\s+([A-Za-z_]\w*)/gm,
+      /^\s*(?:[A-Za-z_][\w*]*\s+)+([A-Za-z_]\w*)\s*\([^)]*\)\s*[{;]/gm
+    ],
+    exports:[
+      /^\s*(?:typedef\s+)?(?:struct|enum|union)\s+([A-Za-z_]\w*)/gm,
+      /^\s*(?:[A-Za-z_][\w*]*\s+)+([A-Za-z_]\w*)\s*\([^)]*\)\s*[{;]/gm
+    ],
+    imports:[/^\s*#\s*include\s*[<"]([^>"]+)[>"]/gm]
+  },
+  cpp:{
+    symbols:[
+      /^\s*(?:class|struct|enum(?:\s+class)?)\s+([A-Za-z_]\w*)/gm,
+      /^\s*(?:template\s*<[^>]*>\s*)?(?:[A-Za-z_][\w:*&<>\s]*?)\s+([A-Za-z_]\w*)\s*\([^)]*\)\s*(?:const)?\s*[{;]/gm
+    ],
+    exports:[
+      /^\s*(?:class|struct|enum(?:\s+class)?)\s+([A-Za-z_]\w*)/gm,
+      /^\s*(?:template\s*<[^>]*>\s*)?(?:[A-Za-z_][\w:*&<>\s]*?)\s+([A-Za-z_]\w*)\s*\([^)]*\)\s*(?:const)?\s*[{;]/gm
+    ],
+    imports:[/^\s*#\s*include\s*[<"]([^>"]+)[>"]/gm,/^\s*import\s+([\w.:]+);/gm]
+  },
+  swift:{
+    symbols:[
+      /^\s*(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+)?(?:protocol|struct|class|enum|actor)\s+([A-Za-z_]\w*)/gm,
+      /^\s*(?:public\s+|private\s+|internal\s+|fileprivate\s+|open\s+)?func\s+([A-Za-z_]\w*)/gm
+    ],
+    exports:[
+      /^\s*(?:public\s+|open\s+)(?:protocol|struct|class|enum|actor)\s+([A-Za-z_]\w*)/gm,
+      /^\s*(?:public\s+|open\s+)func\s+([A-Za-z_]\w*)/gm
+    ],
+    imports:[/^\s*import\s+([A-Za-z_]\w*)/gm]
+  },
+  scala:{
+    symbols:[
+      /^\s*(?:def|class|object|trait|enum|case\s+class)\s+([A-Za-z_]\w*)/gm
+    ],
+    exports:[
+      /^\s*(?:def|class|object|trait|enum|case\s+class)\s+([A-Za-z_]\w*)/gm
+    ],
+    imports:[/^\s*import\s+([\w._]+)/gm]
+  },
+  shell:{
+    symbols:[
+      /^\s*(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\s*\)\s*\{/gm,
+      /^\s*function\s+([A-Za-z_][\w-]*)/gm
+    ],
+    exports:[
+      /^\s*(?:function\s+)?([A-Za-z_][\w-]*)\s*\(\s*\)\s*\{/gm,
+      /^\s*function\s+([A-Za-z_][\w-]*)/gm
+    ],
+    imports:[/^\s*(?:\.|source)\s+([^\s;]+)/gm]
   }
 };
 RX.typescript={
@@ -288,12 +343,19 @@ export function buildIndex(projectRoot,{force=false,maxFiles=20000}={}){
   const previous=new Map((cached?.files||[]).map(f=>[f.path,f]));
   const entries=trackedEntries(projectRoot);
   const fileList=entries.size?[...entries.keys()]:trackedFiles(projectRoot);
-  const totalDiscovered=fileList.length;
+  // SKIP_DIR first, then the cap. The other order spent the budget on files
+  // that are dropped a line later: `git ls-files` is sorted, and a committed
+  // dist/ (published JS packages, browser extensions) or vendor/ (Go) sorts
+  // before src/, so a repository well under maxFiles could index nothing at
+  // all. It also made the counts describe the wrong set -- `omitted_files`
+  // and `is_truncated` were reporting never-indexable files as dropped work.
+  const indexable=fileList.filter(rel=>!SKIP_DIR.test(`/${rel}/`));
+  const excludedDirs=fileList.length-indexable.length;
+  const totalDiscovered=indexable.length;
   const omittedFiles=Math.max(0,totalDiscovered-maxFiles);
   const isTruncated=omittedFiles>0;
-  const files=[];let reused=0,parsed=0,skipped=0,truncated=0;
-  for(const rel of fileList.slice(0,maxFiles)){
-    if(SKIP_DIR.test(`/${rel}/`)){skipped++;continue;}
+  const files=[];let reused=0,parsed=0,skipped=excludedDirs,truncated=0;
+  for(const rel of indexable.slice(0,maxFiles)){
     const abs=path.join(projectRoot,rel);
     let stat;try{stat=fs.statSync(abs);}catch{skipped++;continue;}
     if(!stat.isFile()){skipped++;continue;}
@@ -376,10 +438,16 @@ export function indexStale(projectRoot,index=null){
   if(!idx)return {stale:true,reason:'NO_INDEX'};
   const rev=gitSha(projectRoot);
   if(idx.revision!==rev)return {stale:true,reason:'REVISION_CHANGED',indexed:idx.revision,current:rev};
-  const dirty=git(['status','--porcelain','--untracked-files=no'],projectRoot);
+  // Untracked files included: a module the task just wrote is exactly what the
+  // index does not describe, and `--untracked-files=no` reported such a tree as
+  // current. `.agent-sdlc/` is dropped because it is the harness's own state --
+  // a project that has not gitignored it would otherwise never see a fresh
+  // index again. .gitignore is honoured, so build output stays out.
+  const dirty=git(['status','--porcelain','--untracked-files=all'],projectRoot);
   if(dirty.code===0&&dirty.stdout.trim()){
-    const changed=dirty.stdout.split('\n').map(s=>s.trim()).filter(Boolean);
-    return {stale:true,reason:'DIRTY_WORKING_TREE',dirty_count:changed.length,dirty_files:changed.slice(0,20)};
+    const changed=dirty.stdout.split('\n').map(s=>s.trim()).filter(Boolean)
+      .filter(l=>!/^\?\?\s+\.agent-sdlc\//.test(l));
+    if(changed.length)return {stale:true,reason:'DIRTY_WORKING_TREE',dirty_count:changed.length,dirty_files:changed.slice(0,20)};
   }
   return {stale:false,reason:null};
 }

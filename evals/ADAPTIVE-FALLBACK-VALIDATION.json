@@ -1,0 +1,21 @@
+{
+  "schema": "agent-sdlc/adaptive-fallback-validation/v1",
+  "checks": 3,
+  "passes": 3,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "failover-first-candidate-succeeds",
+      "status": "PASS"
+    },
+    {
+      "name": "failover-switches-to-secondary-on-failure",
+      "status": "PASS"
+    },
+    {
+      "name": "failover-reports-failure-when-all-fail",
+      "status": "PASS"
+    }
+  ]
+}

@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {zipDir} from './archive.mjs';
 import {BOOTSTRAP_TEXT,bootstrapHash,estimateBootstrapCost,getActivationPolicy} from '../runtime/activation.mjs';
+import {corpusDigest} from './qualification-lib.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const version=fs.readFileSync(path.join(ROOT,'VERSION'),'utf8').trim();
@@ -23,7 +24,7 @@ for(const host of ['claude','codex','antigravity']){
 // exclusions apply with either archiver (Info-ZIP or PowerShell Compress-Archive).
 const EXCLUDE=new Set(['.git','dist','release','node_modules']);
 function stage(dstName){
-  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-stage-'));
+  const tmp=makeTempDir('agent-sdlc-stage-');
   const dst=path.join(tmp,dstName);
   fs.cpSync(ROOT,dst,{recursive:true,filter:(src)=>{
     const rel=path.relative(ROOT,src).split(path.sep);
@@ -67,7 +68,7 @@ fs.writeFileSync(path.join(release,'AUTO-ACTIVATION-VALIDATION.md'),[
 
 // Evidence bundle: everything a reviewer needs without unpacking a host package.
 {
-  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-assets-'));
+  const tmp=makeTempDir('agent-sdlc-assets-');
   const dir=path.join(tmp,`agent-sdlc-harness-release-assets-${version}`);
   fs.mkdirSync(dir,{recursive:true});
   for(const f of fs.readdirSync(release).filter(x=>!x.endsWith('.zip')))fs.copyFileSync(path.join(release,f),path.join(dir,f));
@@ -81,6 +82,43 @@ const lines=[];
 for(const f of files){const b=fs.readFileSync(path.join(release,f));lines.push(`${crypto.createHash('sha256').update(b).digest('hex')}  ${f}`);}
 fs.writeFileSync(path.join(release,'SHA256SUMS.txt'),lines.join('\n')+'\n');
 
+// Measured live status, read from the committed baseline. The readiness page
+// used to list only the offline gates plus a flat LIVE_HOST_PENDING, which was
+// true and useless: it said nothing about whether a host had ever been run at
+// all. A host that has never been measured and one measured at 17/20 are not
+// the same kind of pending.
+const baselineDir=path.join(ROOT,'evals','live','baseline');
+// A baseline is a measurement of one exact corpus. Edit a case or a decision
+// schema and the numbers still parse, still look current, and no longer
+// describe anything that exists -- the very failure the digest binding was
+// added to prevent everywhere else. So the row is printed only while the
+// evidence's own bound corpus digest still matches; otherwise it says so and
+// names both digests, because "stale" without the pair is unactionable.
+const currentCorpus=corpusDigest();
+const liveRows=[];
+let anyStale=false;
+for(const h of ['claude','codex','antigravity']){
+  const f=path.join(baselineDir,`${h}-smoke-${version}.json`);
+  if(!fs.existsSync(f)){liveRows.push(`| ${h} | never measured | - | - |`);continue;}
+  try{
+    const e=JSON.parse(fs.readFileSync(f,'utf8'));
+    const bound=e.bound_inputs?.corpus_sha256||null;
+    if(bound!==currentCorpus){
+      anyStale=true;
+      liveRows.push(`| ${h} | ${e.preflight?.host_version||'-'} | **stale** — measured against corpus \`${(bound||'none').slice(0,12)}\`, current is \`${currentCorpus.slice(0,12)}\` | re-measure |`);
+      continue;
+    }
+    const pass=(e.semantic_summary?.PASS||0)+(e.repository_e2e_summary?.PASS||0);
+    const total=(e.required_semantic_case_count||0)+(e.required_repository_e2e_count||0);
+    liveRows.push(`| ${h} | ${e.preflight?.host_version||'-'} | ${pass}/${total} SMOKE | ${e.status} |`);
+  }catch{liveRows.push(`| ${h} | unreadable baseline | - | - |`);}
+}
+const staleNote=anyStale
+  ? ['A row marked **stale** was measured against a corpus that no longer exists: a case or a',
+     'decision schema changed after it was recorded, so its counts describe a question the harness',
+     'no longer asks. Re-run the host to replace it.','']
+  : [];
+
 fs.writeFileSync(path.join(release,'RELEASE-READINESS.md'),[
   `# Release Readiness — ${version}`,'',
   '| Gate | Status |',
@@ -92,6 +130,14 @@ fs.writeFileSync(path.join(release,'RELEASE-READINESS.md'),[
   '| Distribution validation (extracted bytes) | see `DISTRIBUTION-VALIDATION.md` |',
   '| Live host qualification | **LIVE_HOST_PENDING** until fresh FULL evidence exists per host |',
   '| Strong auto-activation claim | **not established offline**; requires live evidence |','',
+  '## Live measurement','',
+  'SMOKE tier only. SMOKE is not promotion-eligible by design -- see `promotion_eligible`',
+  'in `evals/live/qualification-lock.json` -- so these numbers describe where the harness',
+  'stands, not whether it may ship. Full evidence documents are in `evals/live/baseline/`.','',
+  ...staleNote,
+  '| Host | CLI version | Measured | Status |',
+  '|---|---|---|---|',
+  ...liveRows,'',
   '## Artifacts','',
   ...lines.map(x=>`- \`${x}\``),'',
   'Promotion to `rc1` is blocked until `scripts/qualify-release.mjs` aggregates fresh, digest-bound',

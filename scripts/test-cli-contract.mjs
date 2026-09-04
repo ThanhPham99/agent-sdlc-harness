@@ -16,13 +16,14 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync,spawnSync} from 'node:child_process';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const CLI=path.join(ROOT,'runtime','cli.mjs');
 const {test,assert,finish}=createSuite('agent-sdlc/cli-contract-validation/v1','CLI-CONTRACT-VALIDATION.json');
 
 function fixture(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-cli-'));
+  const d=makeTempDir('agent-sdlc-cli-');
   execFileSync('git',['init','-q'],{cwd:d});
   fs.writeFileSync(path.join(d,'README.md'),'fixture\n');
   fs.mkdirSync(path.join(d,'src'),{recursive:true});
@@ -32,6 +33,12 @@ function fixture(){
   return d;
 }
 const PROJECT=fixture();
+// Every command resolves the global config layer, so without this the whole
+// suite reads whatever ~/.agent-sdlc/config.json the developer or runner
+// happens to have -- the results were machine-dependent, and the --global
+// branch wrote there for real. One empty fake home for the suite; the tests
+// that care about the layer point AGENT_SDLC_HOME somewhere of their own.
+const SUITE_HOME=makeTempDir('agent-sdlc-suite-home-');
 
 /** Run the CLI the way an agent does and return {status, stdout, stderr}.
  *  `env` overlays the child environment; the provider commands use it to pin a
@@ -39,7 +46,7 @@ const PROJECT=fixture();
 function raw(args,cwd=PROJECT,env=null){
   const r=spawnSync(process.execPath,[CLI,...args,'--project',cwd],
     {cwd,encoding:'utf8',timeout:120000,maxBuffer:32*1024*1024,
-     ...(env?{env:{...process.env,...env}}:{})});
+     env:{...process.env,AGENT_SDLC_HOME:SUITE_HOME,...(env||{})}});
   return {status:r.status,stdout:r.stdout||'',stderr:r.stderr||''};
 }
 /** Expect success and JSON on stdout. */
@@ -191,6 +198,19 @@ test('approval-status-starts-empty',()=>{
   const r=json(['start','--objective','Add loyalty tiers']);
   const status=json(['approval','status','--run-id',r.run_id]);
   if(!Array.isArray(status)||status.length!==0)throw new Error(JSON.stringify(status));
+});
+test('explain-reports-run-explanation-and-recommendations',()=>{
+  const r=json(['start','--objective','Add explain test case']);
+  const exp=json(['explain','--run-id',r.run_id]);
+  if(exp.schema!=='agent-sdlc/run-explanation/v1')throw new Error(JSON.stringify(exp));
+  if(exp.run_id!==r.run_id||exp.current_stage!=='INTAKE')throw new Error(JSON.stringify(exp));
+  if(typeof exp.recommendation!=='string')throw new Error('missing recommendation string');
+});
+test('diff-reports-run-diff-summary',()=>{
+  const r=json(['start','--objective','Add diff test case']);
+  const d=json(['diff','--run-id',r.run_id]);
+  if(d.schema!=='agent-sdlc/run-diff/v1')throw new Error(JSON.stringify(d));
+  if(d.run_id!==r.run_id||typeof d.artifacts_count!=='number')throw new Error(JSON.stringify(d));
 });
 test('gate-status-and-explain-report-missing-evidence',()=>{
   const r=json(['start','--objective','Add gate-status capability']);
@@ -751,10 +771,12 @@ test('activation-enable-and-disable-toggle-project-config',()=>{
 });
 
 test('activation-enable-global-scope-writes-under-the-given-home',()=>{
-  // os.homedir() reads $HOME on POSIX, so pinning it keeps this off the real
-  // developer/CI home directory while still exercising the --global branch.
-  const fakeHome=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-home-'));
-  const out=json(['activation','enable','--global'],PROJECT,{HOME:fakeHome});
+  // AGENT_SDLC_HOME, not $HOME: os.homedir() reads $HOME on POSIX but
+  // %USERPROFILE% on Windows, so pinning $HOME left this branch writing the real
+  // developer/CI ~/.agent-sdlc/config.json on the Windows leg. The harness owns
+  // an explicit override so the fake home holds on every platform.
+  const fakeHome=makeTempDir('agent-sdlc-home-');
+  const out=json(['activation','enable','--global'],PROJECT,{AGENT_SDLC_HOME:fakeHome});
   if(out.scope!=='global')throw new Error(JSON.stringify(out));
   if(!out.config_file.startsWith(fakeHome))throw new Error(`config file escaped the fake home: ${out.config_file}`);
   if(!fs.existsSync(out.config_file))throw new Error('global config file not written');
@@ -770,7 +792,7 @@ test('activation-record-dry-run-then-a-real-write-to-the-activation-log',()=>{
 });
 
 test('activation-codex-bootstrap-install-and-uninstall-round-trip',()=>{
-  const home=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-codex-home-'));
+  const home=makeTempDir('agent-sdlc-codex-home-');
   const installed=json(['activation','codex-bootstrap','install','--codex-home',home]);
   if(installed.status!=='INSTALLED')throw new Error(JSON.stringify(installed));
   const status=json(['activation','codex-bootstrap','status','--codex-home',home]);
@@ -936,7 +958,14 @@ test('task-workspace-clean-refuses-without-evidence-then-force-cleans',()=>{
   const at=runToImplement('Add refund workspace-clean check');
   const T=['--task-id','TASK-001'];
   json(['task','refresh',...at]);
-  json(['task','start',...at,...T]);
+  const started=json(['task','start',...at,...T]);
+  // The refusal is about work that no evidence captured, so the fixture has to
+  // contain some. It used to start a task and immediately ask to clean an
+  // untouched workspace, which asserted a refusal in the one case where nothing
+  // was at stake -- a provably empty workspace is now cleanable without --force.
+  const root=started.workspace?.root;
+  if(!root)throw new Error(`no workspace root in start output: ${JSON.stringify(started).slice(0,300)}`);
+  fs.writeFileSync(path.join(root,'uncaptured-work.txt'),'a worker wrote this and no evidence recorded it\n');
   const refused=json(['task','workspace-clean',...at,...T]);
   if(refused.status!=='REFUSED_EVIDENCE_NOT_PERSISTED')throw new Error(JSON.stringify(refused));
   const cleaned=json(['task','workspace-clean',...at,...T,'--force']);
@@ -972,6 +1001,98 @@ test('task-implementation-complete-reports-unfinished-tasks',()=>{
   const doc=JSON.parse(r.stdout);
   if(doc.recorded!==false)throw new Error(JSON.stringify(doc));
   if(!doc.problems.some(p=>p.startsWith('TASKS_NOT_DONE')))throw new Error(JSON.stringify(doc.problems));
+});
+
+test('completion-bash-generates-script', ()=>{
+  const r=raw(['completion','bash']);
+  if(r.status!==0)throw new Error(`exit ${r.status}: ${r.stderr}`);
+  if(!r.stdout.includes('_agent_sdlc()')||!r.stdout.includes('complete -F _agent_sdlc'))throw new Error(`unexpected output: ${r.stdout}`);
+});
+
+test('completion-zsh-generates-script', ()=>{
+  const r=raw(['completion','zsh']);
+  if(r.status!==0)throw new Error(`exit ${r.status}: ${r.stderr}`);
+  if(!r.stdout.includes('#compdef agent-sdlc'))throw new Error(`unexpected output: ${r.stdout}`);
+});
+
+test('completion-pwsh-generates-script', ()=>{
+  const r=raw(['completion','pwsh']);
+  if(r.status!==0)throw new Error(`exit ${r.status}: ${r.stderr}`);
+  if(!r.stdout.includes('Register-ArgumentCompleter'))throw new Error(`unexpected output: ${r.stdout}`);
+});
+
+test('completion-rejects-unknown-shell', ()=>{
+  const err=failure(['completion','fish']);
+  if(!err.error.includes('unsupported shell'))throw new Error(JSON.stringify(err));
+});
+
+test('status-pretty-prints-human-readable-summary', ()=>{
+  const run=json(['start','--objective','build feature']);
+  const r=raw(['status','--run-id',run.run_id,'--pretty']);
+  if(r.status!==0)throw new Error(`exit ${r.status}: ${r.stderr}`);
+  if(!r.stdout.includes('=== SDLC Run')||!r.stdout.includes(run.run_id))throw new Error(`unexpected output: ${r.stdout}`);
+});
+
+test('task-graph-mermaid-prints-mermaid-flowchart', ()=>{
+  const run=json(['start','--objective','build feature']);
+  const r=raw(['task','graph','--run-id',run.run_id,'--mermaid']);
+  if(r.status!==0)throw new Error(`exit ${r.status}: ${r.stderr}`);
+  if(!r.stdout.includes('graph TD'))throw new Error(`unexpected output: ${r.stdout}`);
+});
+
+test('feature-lifecycle-create-list-update-phase', ()=>{
+  const f=json(['feature','create','--title','User Authentication','--workflow','new-feature']);
+  if(!f.feature_id||f.title!=='User Authentication')throw new Error(JSON.stringify(f));
+  const list=json(['feature','list']);
+  if(!Array.isArray(list)||!list.some(x=>x.feature_id===f.feature_id))throw new Error(JSON.stringify(list));
+  const shown=json(['feature','show','--feature-id',f.feature_id]);
+  if(shown.feature_id!==f.feature_id)throw new Error(JSON.stringify(shown));
+  const updated=json(['feature','update','--feature-id',f.feature_id,'--status','BLOCKED','--open-questions','q1,q2','--deferred-items','d1']);
+  if(updated.status!=='BLOCKED'||updated.open_questions?.length!==2)throw new Error(JSON.stringify(updated));
+  const phase=json(['feature','phase-create','--feature-id',f.feature_id,'--name','Phase 1','--objective','Design API']);
+  if(!phase.phase_id)throw new Error(JSON.stringify(phase));
+  const phases=json(['feature','phase-list','--feature-id',f.feature_id]);
+  if(!Array.isArray(phases)||!phases.length)throw new Error(JSON.stringify(phases));
+  const pshown=json(['feature','phase-show','--feature-id',f.feature_id,'--phase-id',phase.phase_id]);
+  if(pshown.phase_id!==phase.phase_id)throw new Error(JSON.stringify(pshown));
+  const pcompleted=json(['feature','phase-complete','--feature-id',f.feature_id,'--phase-id',phase.phase_id]);
+  if(pcompleted.status!=='COMPLETE')throw new Error(JSON.stringify(pcompleted));
+});
+
+test('repo-and-trace-subcommands-sweep', ()=>{
+  const sym=json(['repo','symbol','--name','charge']);
+  if(!sym.locations||!sym.symbol)throw new Error(JSON.stringify(sym));
+  const tests=json(['repo','tests','--paths','src/service.js']);
+  if(!tests)throw new Error(JSON.stringify(tests));
+  const recent=json(['repo','recent','--since','30','--limit','10']);
+  if(!recent)throw new Error(JSON.stringify(recent));
+  const surf=json(['repo','surface','--objective','charge amount']);
+  if(!surf)throw new Error(JSON.stringify(surf));
+  const kinds=json(['trace','kinds']);
+  if(!kinds.node_kinds||!kinds.edge_kinds)throw new Error(JSON.stringify(kinds));
+  const closure=json(['trace','closure','--node','TASK:TASK-001',...ENGINE]);
+  if(!closure)throw new Error(JSON.stringify(closure));
+  const dryInv=json(['trace','invalidate','--node','TASK:TASK-001','--dry-run',...ENGINE]);
+  if(!dryInv)throw new Error(JSON.stringify(dryInv));
+  const inv=json(['trace','invalidate','--node','TASK:TASK-001','--reason','spec change',...ENGINE]);
+  if(!inv)throw new Error(JSON.stringify(inv));
+});
+
+test('model-route-and-usage-report', ()=>{
+  const run=json(['start','--objective','calculate tax']);
+  const route=json(['model-route','--run-id',run.run_id,'--task','code']);
+  if(!route.mode)throw new Error(JSON.stringify(route));
+  const usage=json(['usage-report','--run-id',run.run_id]);
+  if(usage.run_id!==run.run_id)throw new Error(JSON.stringify(usage));
+});
+
+test('start-with-track-feature-and-context-prompt-and-parallel-tasks', ()=>{
+  const tracked=json(['start','--objective','add dark mode','--track-feature']);
+  if(!tracked.feature_id)throw new Error(JSON.stringify(tracked));
+  const r=raw(['context','--run-id',tracked.run_id,'--prompt']);
+  if(r.status!==0||!r.stdout.includes('SDLC execution agent'))throw new Error(r.stdout);
+  const plan=json(['parallel-plan','--tasks',JSON.stringify([{id:'t1',write_set:['a.js']},{id:'t2',write_set:['b.js']}])]);
+  if(!plan.decision)throw new Error(JSON.stringify(plan));
 });
 
 // --- shim execution: bin/agent-sdlc.cmd and bin/agent-sdlc.ps1 on Windows ---

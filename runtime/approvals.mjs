@@ -5,7 +5,7 @@
 // scope are refused outright rather than accepted and audited after the fact.
 import path from 'node:path';
 import {now,readJson,uuid} from './util.mjs';
-import {emit,saveRun} from './store.mjs';
+import {emit,saveRun,loadRun} from './store.mjs';
 
 export const TRUSTED_AUTHORITIES=['HOST_PERMISSION','USER_INTERACTIVE','ORG_POLICY','EXTERNAL_APPROVAL_PROVIDER'];
 export const UNTRUSTED_AUTHORITIES=['AGENT_SELF','DATA_ONLY','UNKNOWN'];
@@ -52,6 +52,21 @@ export function findValidApproval(run,capability){
   return candidates.at(-1);
 }
 
+/**
+ * The capabilities this run currently has authority for.
+ *
+ * Three callers built their own list with `(run.approvals||[]).map(a=>a.approval)`
+ * -- every record ever written, revoked and expired ones included. So
+ * `approval revoke` had no effect on the delivery push gate or the DESIGN
+ * human-approval gate, and a lapsed grant kept authorizing indefinitely.
+ * findValidApproval already encoded the rule; this is it applied to the whole
+ * set, so a gate cannot accidentally ask the weaker question.
+ */
+export function activeCapabilities(run){
+  const caps=new Set((run?.approvals||[]).map(a=>a.capability||a.approval).filter(Boolean));
+  return [...caps].filter(c=>findValidApproval(run,c));
+}
+
 export function approvalStatus(a){
   if(a.revoked_at)return 'REVOKED';
   if(a.expires_at&&a.expires_at<=now())return 'EXPIRED';
@@ -60,4 +75,59 @@ export function approvalStatus(a){
 
 export function listApprovals(run){
   return (run.approvals||[]).map(a=>({...a,status:approvalStatus(a)}));
+}
+
+export function requestApprovalTicket(projectRoot,run,{capability,reason=null,expiresInMinutes=60}={}){
+  if(!capability)throw new Error('capability is required');
+  const currentRun=loadRun(projectRoot,run.run_id);
+  const ticketId=uuid('ticket');
+  const expiresAt=new Date(Date.now()+Number(expiresInMinutes)*60000).toISOString();
+  const ticket={
+    ticket_id:ticketId,
+    capability,
+    reason,
+    status:'PENDING',
+    requested_at:now(),
+    expires_at:expiresAt,
+    decision_at:null,
+    actor:null
+  };
+  currentRun.approval_tickets=[...(currentRun.approval_tickets||[]),ticket];
+  saveRun(projectRoot,currentRun);
+  run.approval_tickets=currentRun.approval_tickets;
+  run.revision=currentRun.revision;
+  emit(projectRoot,currentRun,{type:'approval.ticket_requested',payload:{ticket_id:ticketId,capability}});
+  return ticket;
+}
+
+export function grantApprovalTicket(root,projectRoot,run,{ticketId,actor='USER_INTERACTIVE',reason=null}={}){
+  const currentRun=loadRun(projectRoot,run.run_id);
+  const tickets=currentRun.approval_tickets||[];
+  const t=tickets.find(x=>x.ticket_id===ticketId);
+  if(!t)throw new Error(`approval ticket not found: ${ticketId}`);
+  if(t.status!=='PENDING')throw new Error(`approval ticket is ${t.status}, not PENDING`);
+
+  const rec=recordApproval(root,projectRoot,currentRun,{
+    capability:t.capability,
+    authority:'USER_INTERACTIVE',
+    actor,
+    reason:reason||t.reason||'Granted interactive ticket',
+    expiresAt:t.expires_at
+  });
+
+  t.status='GRANTED';
+  t.decision_at=now();
+  t.actor=actor;
+  saveRun(projectRoot,currentRun);
+  run.approvals=currentRun.approvals;
+  run.approval_tickets=currentRun.approval_tickets;
+  run.revision=currentRun.revision;
+  return rec;
+}
+
+export function listApprovalTickets(run){
+  return (run.approval_tickets||[]).map(t=>({
+    ...t,
+    is_expired:t.expires_at?t.expires_at<=now():false
+  }));
 }

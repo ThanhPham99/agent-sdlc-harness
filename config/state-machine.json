@@ -111,6 +111,12 @@
     },
     {
       "from": "IMPLEMENT",
+      "to": "PLAN",
+      "kind": "reentry",
+      "reason": "plan is wrong: a diff outside an approved write scope, or a task scope implementation proved unworkable"
+    },
+    {
+      "from": "IMPLEMENT",
       "to": "REQUIREMENTS",
       "kind": "reentry",
       "reason": "authoritative requirement changed"

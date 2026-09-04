@@ -1,0 +1,89 @@
+{
+  "schema": "agent-sdlc/commands-expansion-validation/v1",
+  "checks": 20,
+  "passes": 20,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "commands-project-doctor-fix-appends-tmp-to-gitignore",
+      "status": "PASS"
+    },
+    {
+      "name": "commands-project-knowledge-and-gc-and-webhook",
+      "status": "PASS"
+    },
+    {
+      "name": "rewind-run-handles-stages-and-error-branches",
+      "status": "PASS"
+    },
+    {
+      "name": "rewind-run-with-tasks-and-preserve-evidence",
+      "status": "PASS"
+    },
+    {
+      "name": "pr-generator-creates-pr-body-and-changelog-and-release-notes",
+      "status": "PASS"
+    },
+    {
+      "name": "webhook-system-delivers-and-retries-and-records",
+      "status": "PASS"
+    },
+    {
+      "name": "normalize-inputs-on-various-formats",
+      "status": "PASS"
+    },
+    {
+      "name": "commands-delivery-and-ci-and-repo-handlers",
+      "status": "PASS"
+    },
+    {
+      "name": "commands-run-status-pretty-and-next-and-gate",
+      "status": "PASS"
+    },
+    {
+      "name": "commands-govern-learn-review-handlers",
+      "status": "PASS"
+    },
+    {
+      "name": "commands-run-context-explain-diff-metrics",
+      "status": "PASS"
+    },
+    {
+      "name": "commands-repo-intelligence-and-trace-deep",
+      "status": "PASS"
+    },
+    {
+      "name": "commands-delivery-deep",
+      "status": "PASS"
+    },
+    {
+      "name": "commands-repo-queries",
+      "status": "PASS"
+    },
+    {
+      "name": "commands-run-rewind-and-approval-revoke",
+      "status": "PASS"
+    },
+    {
+      "name": "task-scheduler-edge-cases-and-caps-and-mermaid",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-server-prompts-resources-and-unified-tasks",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification-deep-branches",
+      "status": "PASS"
+    },
+    {
+      "name": "task-migration-deep-branches",
+      "status": "PASS"
+    },
+    {
+      "name": "webhook-system-deep-branches",
+      "status": "PASS"
+    }
+  ]
+}

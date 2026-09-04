@@ -1,0 +1,17 @@
+{
+  "schema": "agent-sdlc/pr-synthesizer-validation/v1",
+  "checks": 2,
+  "passes": 2,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "generatePrBody-produces-markdown-summary",
+      "status": "PASS"
+    },
+    {
+      "name": "generateSemanticReleaseNotes-produces-release-package",
+      "status": "PASS"
+    }
+  ]
+}

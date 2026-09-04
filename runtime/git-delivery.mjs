@@ -7,7 +7,7 @@
 import path from 'node:path';
 import {git,gitSha,now,readJson,writeJson} from './util.mjs';
 import {stateDir} from './store.mjs';
-import {loadCiEvidence} from './ci-evidence.mjs';
+import {loadCiEvidence,ciEvidenceState} from './ci-evidence.mjs';
 
 export const DELIVERY_TARGETS=['PR_READY','MERGED','RELEASE_READY'];
 const arr=x=>Array.isArray(x)?x:[];
@@ -25,7 +25,32 @@ export function branchFor(runId,taskId=null){
 }
 
 const PROTECTED=[/^main$/,/^master$/,/^release\/.+/,/^prod(uction)?$/,/^develop$/];
-export function isProtectedBranch(name){return PROTECTED.some(p=>p.test(String(name||'')));}
+
+/**
+ * The spellings one branch actually arrives in, all reduced to the bare name.
+ *
+ * The patterns are anchored, and `--branch` is caller-supplied and unvalidated,
+ * so a default-deny gate was allowing exactly the forms an agent writes by
+ * habit: `git push origin main` gives `origin/main`, a rev-parse gives
+ * `refs/heads/main`, and neither matched `^main$`. Case differences slipped
+ * through the same way.
+ *
+ * One leading segment is dropped, not all of them: that turns `origin/main`
+ * into `main` while leaving `a/b/c/main` alone, and `release/1.2` is still
+ * matched by the full form. `feature/main` does end up protected, which costs
+ * an operator approval on an oddly named branch -- the failure in the other
+ * direction is an unapproved push to production.
+ */
+function refSpellings(name){
+  const base=String(name||'').trim().replace(/\\/g,'/').replace(/\/+$/,'').toLowerCase()
+    .replace(/^refs\/(?:heads|remotes)\//,'');
+  const withoutRemote=base.includes('/')?base.slice(base.indexOf('/')+1):null;
+  return withoutRemote?[base,withoutRemote]:[base];
+}
+export function isProtectedBranch(name){
+  const forms=refSpellings(name);
+  return PROTECTED.some(p=>forms.some(f=>p.test(f)));
+}
 
 /**
  * Push authorization. Protected branches are denied by default and no policy
@@ -75,9 +100,17 @@ export function recordDelivery(projectRoot,run,{
 
   if(!head)problems.push('NO_HEAD_REVISION');
   if(drift.drifted)problems.push('TARGET_BASE_DRIFTED');
-  if(ciEvidence&&ciEvidence.revision&&head&&ciEvidence.revision!==head)problems.push('CI_EVIDENCE_REVISION_MISMATCH');
-  if(ciEvidence&&ciEvidence.status!=='PASS')problems.push(`CI_${ciEvidence.status||'UNKNOWN'}`);
+  // ci-evidence.mjs owns the currency rule; this used to restate it, and the
+  // restatement was guarded on the record having a revision -- so a record with
+  // none skipped the check and produced a READY delivery with no problems at all.
   if(!ciEvidence)problems.push('NO_CI_EVIDENCE');
+  else{
+    const ci=ciEvidenceState(ciEvidence,head);
+    if(ci.reason==='EVIDENCE_NOT_REVISION_BOUND')problems.push('CI_EVIDENCE_NOT_REVISION_BOUND');
+    // Currency is unjudgeable without a head; NO_HEAD_REVISION already says so.
+    else if(head&&ci.reason==='REVISION_CHANGED')problems.push('CI_EVIDENCE_REVISION_MISMATCH');
+    if(ciEvidence.status!=='PASS')problems.push(`CI_${ciEvidence.status||'UNKNOWN'}`);
+  }
   if(target==='MERGED'&&!mergeCommit)problems.push('MERGED_CLAIMED_WITHOUT_MERGE_COMMIT');
   if(target==='RELEASE_READY'&&!mergeCommit)problems.push('RELEASE_READY_WITHOUT_MERGE');
 

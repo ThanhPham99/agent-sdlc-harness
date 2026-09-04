@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {BOOTSTRAP_TEXT} from '../runtime/activation.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const tmp=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-install-test-'));
+const tmp=makeTempDir('agent-sdlc-install-test-');
 const bin=path.join(tmp,'bin');fs.mkdirSync(bin);
 const log=path.join(tmp,'calls.log');
 // Windows paths have to be handed to the POSIX shell in that shell's own

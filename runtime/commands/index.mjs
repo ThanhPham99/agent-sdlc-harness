@@ -24,7 +24,10 @@ const GROUPS={
   task:()=>import("./task.mjs"),
   repo:()=>import("./repo.mjs"),
   feature:()=>import("./feature.mjs"),
-  delivery:()=>import("./delivery.mjs")
+  delivery:()=>import("./delivery.mjs"),
+  completion:()=>import("./completion.mjs"),
+  dashboard:()=>import("./dashboard.mjs"),
+  auto:()=>import("./auto.mjs")
 };
 
 /** Command name -> its group, and the subcommands it dispatches.
@@ -35,9 +38,11 @@ export const COMMANDS={
   route:{group:"run"},
   start:{group:"run"},
   status:{group:"run"},
+  explain:{group:"run"},
+  diff:{group:"run"},
   next:{group:"run"},
   transition:{group:"run"},
-  approval:{group:"run",subcommands:["status","grant","revoke"]},
+  approval:{group:"run",subcommands:["status","tickets","request","grant-ticket","grant","revoke"]},
   gate:{group:"run",subcommands:["status","explain"]},
   knowledge:{group:"project",subcommands:["status"]},
   context:{group:"run"},
@@ -67,17 +72,26 @@ export const COMMANDS={
   design:{group:"design",subcommands:["mode","policy","validate","scaffold","record"]},
   plan:{group:"design",subcommands:["validate","graph","record"]},
   task:{group:"task",subcommands:["list","show","graph","events","progress","state-machine","materialize","migrate","refresh","ready","schedule","transition","context","context-show","start","capture","verify","review","advance","checkpoint","usage-add","usage","metrics","workspaces","workspace-clean","failure-policy","classify","replay","fallback","resume","implementation-complete"]},
-  repo:{group:"repo",subcommands:["index","status","capability","symbol","references","tests","module","dependents","interfaces","entities","events","recent","surface"]},
+  repo:{group:"repo",subcommands:["index","status","capability","symbol","references","tests","impact","impacted-tests","module","dependents","interfaces","entities","events","recent","surface","mutate","dead-code"]},
   trace:{group:"repo",subcommands:["build","show","kinds","validate","coverage","closure","invalidate","history"]},
   feature:{group:"feature",subcommands:["create","show","list","active","update","phase-create","phase-show","phase-list","phase-complete"]},
   "requirement-update":{group:"feature",subcommands:["plan","show"]},
-  delivery:{group:"delivery",subcommands:["status","targets","branch","push-check","drift","group","record"]},
-  ci:{group:"delivery",subcommands:["record","status","show","history"]},
-  govern:{group:"delivery",subcommands:["policy","report","complexity","task"]},
+  delivery:{group:"delivery",subcommands:["status","targets","branch","push-check","drift","group","record","pr-body","changelog"]},
+  ci:{group:"delivery",subcommands:["record","status","show","history","verify-chain","quarantine"]},
+  govern:{group:"delivery",subcommands:["policy","report","complexity","task","boundaries","simulate"]},
   fallback:{group:"provider"},
   learn:{group:"delivery",subcommands:["sources","candidate"]},
+  review:{group:"delivery",subcommands:["audit"]},
   doctor:{group:"project"},
-  gc:{group:"project",subcommands:["status","apply"]}
+  gc:{group:"project",subcommands:["status","apply"]},
+  completion:{group:"completion"},
+  dashboard:{group:"dashboard"},
+  serve:{group:"dashboard"},
+  rewind:{group:"run"},
+  webhook:{group:"project",subcommands:["list","test"]},
+  auto:{group:"auto"},
+  "auto-task":{group:"auto"},
+  "ci-check":{group:"auto"}
 };
 
 export const COMMAND_NAMES=Object.keys(COMMANDS);
@@ -103,7 +117,7 @@ export async function loadCommand(name){
 const START_FLAGS=[
   "--objective","--workflow","--profile","--feature-id","--phase-id","--feature-title",
   "--track-feature (auto-create a feature for a plain new-feature start)",
-  "--parent-run-id","--run-kind"
+  "--parent-run-id","--run-kind","--semantic (model-assisted semantic classification)"
 ];
 
 /** The help text, derived from the table above so it cannot drift from it. */

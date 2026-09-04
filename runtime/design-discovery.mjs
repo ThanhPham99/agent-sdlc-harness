@@ -176,6 +176,7 @@ export function scaffoldDesignDecision(selection,{objective='',decisionId=null}=
     skip_reason:null,
     affected_interfaces:[],affected_data:[],verification_obligations:[],
     flagged_policy_concerns:[],
+    external_references:[],
     approval:{required:selection.human_approval_required,status:selection.human_approval_required?'PENDING':'NOT_REQUIRED'}
   };
   if(selection.mode==='SKIP'){

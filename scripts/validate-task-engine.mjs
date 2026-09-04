@@ -10,11 +10,12 @@ import {TASK_STATUSES,getTaskStateMachine} from '../runtime/task-engine.mjs';
 import {FAILURE_CLASSES,getTaskFailurePolicy} from '../runtime/task-recovery.mjs';
 import {WORKSPACE_MODES} from '../runtime/workspace.mjs';
 import {EXCLUDED_BY_DEFAULT} from '../runtime/task-context.mjs';
+import {writeReport} from './lib/report-io.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const rj=p=>JSON.parse(fs.readFileSync(path.join(ROOT,p),'utf8'));
 const VERSION=rj('agent-sdlc.manifest.json').version;
-const out=(file,obj)=>fs.writeFileSync(path.join(ROOT,'evals',file),JSON.stringify(obj,null,2)+'\n');
+const out=(file,obj)=>writeReport(path.join(ROOT,'evals',file),obj);
 
 const suite=runTaskRuntimeSuite(ROOT);
 const byGroup=Object.fromEntries(suite.groups.map(g=>[g.group,g]));
@@ -27,6 +28,21 @@ const block=(group)=>{
   const g=byGroup[group]||{checks:0,passes:0,failures:0,results:[]};
   return {checks:g.checks,passes:g.passes,failures:g.failures,results:g.results,
     status:g.failures?'FAIL':'PASS'};
+};
+/**
+ * Counters covering every group a report file contains.
+ *
+ * TASK-ENGINE-VALIDATION.json spreads one group at the top level and nests
+ * another under `migration`, so its top-level summary described only the first:
+ * a failing migration case left the file reading `failures: 0, status: PASS`
+ * while the process exited 1. The exit code was right and the artifact CI
+ * uploads was not, which is the wrong way round for the one that gets read.
+ */
+const rollup=(...groups)=>{
+  const gs=groups.map(n=>byGroup[n]||{checks:0,passes:0,failures:0});
+  const sum=k=>gs.reduce((a,g)=>a+(g[k]||0),0);
+  const failures=sum('failures');
+  return {checks:sum('checks'),passes:sum('passes'),failures,status:failures?'FAIL':'PASS'};
 };
 
 out('TASK-ENGINE-VALIDATION.json',{
@@ -56,6 +72,9 @@ out('TASK-ENGINE-VALIDATION.json',{
   },
   ...block('state_machine'),
   migration:block('migration_telemetry'),
+  // Overwrites the spread counters above so they cover both groups in this file.
+  ...rollup('state_machine','migration_telemetry'),
+  results:block('state_machine').results,
   live_qualification:'PENDING_LIVE_QUALIFICATION'
 });
 

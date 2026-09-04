@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {execFileSync,spawnSync} from 'node:child_process';
 import {unzipTo} from './archive.mjs';
 import {BOOTSTRAP_TEXT,bootstrapHash,getActivationPolicy,estimateBootstrapCost} from '../runtime/activation.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const DIST=path.join(ROOT,'dist');
@@ -41,7 +41,7 @@ const packageDigests={};
 for(const host of hosts){
   const zip=path.join(DIST,`agent-sdlc-${host}-${version}.zip`);
   check(host,'zip-exists',()=>{if(!fs.existsSync(zip))throw Error('missing zip');packageDigests[path.basename(zip)]=sha256File(zip);return {bytes:fs.statSync(zip).size,sha256:packageDigests[path.basename(zip)]};});
-  const tmp=fs.mkdtempSync(path.join(os.tmpdir(),`agent-sdlc-dist-${host}-`));
+  const tmp=makeTempDir(`agent-sdlc-dist-${host}-`);
   try{
     unzipTo(zip,tmp);
     const root=path.join(tmp,`agent-sdlc-${host}-${version}`);
@@ -119,7 +119,7 @@ for(const host of hosts){
     });
     check(host,'activation-status-smoke',()=>{
       // A throwaway CODEX_HOME keeps the check independent of the developer's own bootstrap state.
-      const codexHome=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-verify-codex-'));
+      const codexHome=makeTempDir('agent-sdlc-verify-codex-');
       const out=cli(root,['activation','status','--host',host,'--codex-home',codexHome],root);
       fs.rmSync(codexHome,{recursive:true,force:true});
       if(out.schema!=='agent-sdlc/activation-status/v1')throw Error(JSON.stringify(out));
@@ -135,7 +135,7 @@ for(const host of hosts){
       return {workflow:out.workflow,profile:out.profile};
     });
     check(host,'cli-context-smoke',()=>{
-      const proj=fs.mkdtempSync(path.join(os.tmpdir(),`agent-sdlc-proj-${host}-`));
+      const proj=makeTempDir(`agent-sdlc-proj-${host}-`);
       execFileSync('git',['init','-q'],{cwd:proj});
       fs.writeFileSync(path.join(proj,'README.md'),'fixture\n');
       execFileSync('git',['add','.'],{cwd:proj});

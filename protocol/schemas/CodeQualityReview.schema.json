@@ -37,7 +37,8 @@
       "type": [
         "string",
         "null"
-      ]
+      ],
+      "description": "The diff this review was performed against. Required whenever the task has a diff_hash, which is every task that reached review with a captured diff; a review that omits it is rejected as REVIEW_NOT_BOUND_TO_A_DIFF, and one naming a different diff as REVIEW_NOT_BOUND_TO_CURRENT_DIFF. Not listed in `required` because a task with no diff -- an investigation or documentation task -- has no diff for its review to name."
     },
     "verdict": {
       "enum": [

@@ -1,0 +1,29 @@
+{
+  "schema": "agent-sdlc/root-sync-suite/v1",
+  "checks": 5,
+  "passes": 5,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "an-in-sync-root-passes",
+      "status": "PASS"
+    },
+    {
+      "name": "a-stale-root-copy-fails-and-names-the-fix-command",
+      "status": "PASS"
+    },
+    {
+      "name": "fix-rewrites-the-stale-copy-from-its-source-and-leaves-the-source-alone",
+      "status": "PASS"
+    },
+    {
+      "name": "fix-is-idempotent-and-a-second-plain-run-passes",
+      "status": "PASS"
+    },
+    {
+      "name": "fix-does-not-invent-a-copy-when-the-source-is-missing",
+      "status": "PASS"
+    }
+  ]
+}

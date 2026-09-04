@@ -31,11 +31,23 @@
         "type": "string"
       }
     },
-    "risk_flags": {
+    "route_flags": {
       "type": "array",
+      "description": "Confidence in this route, not danger in the request: STRICT_WORKFLOW_ROUTE when the chosen workflow is itself STRICT, AMBIGUOUS_ROUTE when a competing workflow scored close.",
       "items": {
         "type": "string"
       }
+    },
+    "deny_language": {
+      "type": "array",
+      "description": "Phrases from the DENY doctrine class - a control waived, switched off, or overridden despite its verdict, or secrets to be disclosed - found in the objective, as CATEGORY:phrase. Evidence, not a verdict: it authorises nothing, and an empty array means these exact phrases were not found, not that nothing was demanded - a paraphrase walks past it. It reports presence, not intent, and judges neither polarity nor grammar beyond requiring the phrase to lie inside one sentence: a defensive sentence, or a phrase inside a longer noun, is reported too. Two filters that tried to be cleverer were withdrawn for silently dropping real demands. Optional, so RouteDecisions produced before it existed stay valid.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "agent_discretion": {
+      "type": "boolean",
+      "description": "True when the matched rule explicitly allows the agent to exercise semantic discretion to select or adjust the workflow (e.g. non-STRICT workflows). False or omitted for STRICT workflows where safety invariants prohibit downgrade."
     }
   }
 }

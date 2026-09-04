@@ -11,11 +11,11 @@
 // - a writer task gets exactly one writable workspace;
 // - two writer agents never share the same moving worktree;
 // - evidence binds to base SHA + workspace diff hash;
-// - cleanup refuses to run while evidence is unpersisted;
+// - cleanup refuses while the workspace holds work no evidence has captured;
 // - production credentials never become ambient writer workspace credentials.
 import fs from 'node:fs';
 import path from 'node:path';
-import {ensureDir,git,gitSha,now,readJson,sha256,writeJson} from './util.mjs';
+import {ensureDir,git,gitSha,now,readJson,sha256,untrackedDigest,untrackedFiles,writeJson} from './util.mjs';
 import {stateDir,emitTaskEvent} from './store.mjs';
 
 export const WORKSPACE_MODES=['shared-readonly','isolated-worktree','provider-sandbox'];
@@ -99,7 +99,13 @@ export function createTaskWorkspace(projectRoot,{run,task,writer=null,mode=null,
       // base revision is still the honest thing to branch from. What they do
       // affect is what the workspace can see, so record the exclusion instead
       // of silently dropping isolation.
-      const modified=git(['status','--porcelain','--untracked-files=no'],projectRoot).stdout.trim();
+      // Untracked included: `uncommitted_changes_excluded` is what the worktree
+      // cannot see, and a file that exists only in the project root is exactly
+      // as invisible from a tree at the base revision as an unstaged edit is.
+      // `.agent-sdlc/` is the harness's own state, not work being excluded.
+      const modified=git(['status','--porcelain','--untracked-files=all'],projectRoot).stdout
+        .split('\n').map(l=>l.trim()).filter(Boolean)
+        .filter(l=>!/^\?\?\s+\.agent-sdlc\//.test(l)).join('\n');
       const existingBranch=git(['branch','--list',branch],projectRoot);
       const branchExists=existingBranch.code===0&&existingBranch.stdout.trim().length>0;
       const worktreeArgs=branchExists
@@ -127,15 +133,19 @@ export function workspaceDiff(projectRoot,ws){
   const base=ws.base_revision;
   const diff=base?git(['diff','--binary',base],cwd):git(['diff','--binary'],cwd);
   const namesRaw=base?git(['diff','--name-only',base],cwd):git(['diff','--name-only'],cwd);
-  const untracked=git(['ls-files','--others','--exclude-standard'],cwd);
+  // Listed once and reused for both the path list and the content digest.
+  const untrackedList=untrackedFiles(cwd)??[];
   const changed=[...new Set([
     ...namesRaw.stdout.split('\n').map(s=>s.trim()).filter(Boolean),
-    ...untracked.stdout.split('\n').map(s=>s.trim()).filter(Boolean)
+    ...untrackedList
   ])].sort();
   return {
     base_revision:base,
     changed_paths:changed,
-    diff_hash:diff.code===0?sha256(diff.stdout+changed.join('\n')):null,
+    // The untracked digest, not just the untracked NAMES: `git diff` never
+    // shows a file that was created and never staged, so without it a task
+    // could rewrite every module it added and keep the same binding.
+    diff_hash:diff.code===0?sha256(diff.stdout+changed.join('\n')+'\n'+untrackedDigest(cwd,untrackedList)):null,
     diff_available:diff.code===0
   };
 }
@@ -152,24 +162,91 @@ export function checkpointTaskWorkspace(projectRoot,{run,task,label='checkpoint'
 }
 
 /**
- * Remove the workspace. Refuses while the task still has no persisted evidence,
- * unless the caller explicitly accepts losing it.
+ * Commit all uncommitted changes inside the task workspace to its task branch.
+ * Safe to call multiple times; if clean, returns existing commit SHA.
  */
-export function cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted=null,force=false}){
+export function commitTaskWorkspace(projectRoot,{run,task,message=null}){
   const ws=record(projectRoot,run.run_id,task.task_id);
+  if(!ws||!ws.writable||ws.mode!=='isolated-worktree'||!ws.root||!fs.existsSync(ws.root)){
+    return {committed:false,reason:'NOT_AN_ISOLATED_WORKTREE',commit_sha:null};
+  }
+  const cwd=ws.root;
+  const status=git(['status','--porcelain'],cwd);
+  if(status.code===0&&!status.stdout.trim()){
+    const headSha=gitSha(cwd);
+    return {committed:false,reason:'WORKING_TREE_CLEAN',commit_sha:headSha};
+  }
+  git(['add','-A'],cwd);
+  const commitMsg=message||`chore(sdlc): commit changes for ${task.task_id} [${task.goal||task.title||'task'}]`;
+  const r=git(['-c','user.email=agent-sdlc@localhost','-c','user.name=Agent SDLC','commit','-m',commitMsg],cwd);
+  const commitSha=gitSha(cwd);
+  ws.commit_sha=commitSha;
+  ws.last_committed_at=now();
+  writeJson(wsRecordPath(projectRoot,run.run_id,task.task_id),ws);
+  emitTaskEvent(projectRoot,task,{type:'task.workspace_committed',payload:{branch:ws.branch,commit_sha:commitSha}});
+  return {committed:r.code===0,commit_sha:commitSha,output:r.stdout||r.stderr};
+}
+
+/**
+ * Safely integrate task workspace changes into the target repository root.
+ * Applies the task branch commits/diff to the primary workspace.
+ */
+export function integrateTaskWorkspace(projectRoot,{run,task,targetRoot=null}){
+  const ws=record(projectRoot,run.run_id,task.task_id);
+  if(!ws)return {integrated:false,reason:'NO_WORKSPACE'};
+  const dest=targetRoot||projectRoot;
+  if(ws.mode==='isolated-worktree'&&ws.root&&fs.existsSync(ws.root)){
+    commitTaskWorkspace(projectRoot,{run,task});
+  }
+  if(ws.mode==='isolated-worktree'&&ws.branch){
+    const r=git(['-c','user.email=agent-sdlc@localhost','-c','user.name=Agent SDLC','merge','--no-ff','-m',`Merge task ${task.task_id} from ${ws.branch}`,ws.branch],dest);
+    const integrated=r.code===0;
+    emitTaskEvent(projectRoot,task,{type:'task.workspace_integrated',payload:{branch:ws.branch,integrated,target:dest}});
+    return {integrated,branch:ws.branch,commit_sha:ws.commit_sha,output:r.stdout||r.stderr};
+  }
+  return {integrated:true,mode:ws.mode,reason:'NON_ISOLATED_WORKSPACE'};
+}
+
+/**
+ * Remove the workspace. Refuses while the workspace holds work that no evidence
+ * has captured, unless the caller explicitly accepts losing it.
+ *
+ * The test is "is there anything to lose", not "is there evidence". Those differ
+ * for a workspace that was created and never written to: it has no evidence and
+ * nothing to protect, and refusing there guarded nothing while leaving a real
+ * worktree on disk that only `force` could remove.
+ *
+ * Emptiness must be proven, so `diff_available` is required: a worktree whose
+ * diff could not be read is not a worktree known to be clean, and that case
+ * keeps refusing. `workspaceDiff` counts untracked files too, so a task that
+ * created files and never staged them still has work worth protecting.
+ */
+export function cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted=null,force=false,autoCommit=true}){
+  let ws=record(projectRoot,run.run_id,task.task_id);
   if(!ws)return {status:'NO_WORKSPACE'};
   const hasEvidence=evidencePersisted??((task.evidence_refs||[]).length>0||(ws.checkpoints||[]).length>0);
+  let empty=false;
   if(ws.writable&&!hasEvidence&&!force){
-    return {status:'REFUSED_EVIDENCE_NOT_PERSISTED',workspace:ws};
+    const d=workspaceDiff(projectRoot,ws);
+    empty=d.diff_available===true&&d.changed_paths.length===0;
+    if(!empty)return {status:'REFUSED_EVIDENCE_NOT_PERSISTED',workspace:ws};
+  }
+  if(autoCommit&&ws.mode==='isolated-worktree'&&ws.root&&fs.existsSync(ws.root)){
+    const res=commitTaskWorkspace(projectRoot,{run,task});
+    if(res.commit_sha)ws.commit_sha=res.commit_sha;
   }
   if(ws.mode==='isolated-worktree'&&ws.root&&ws.root!==projectRoot&&fs.existsSync(ws.root)){
-    const r=git(['worktree','remove','--force',ws.root],projectRoot);
-    if(r.code!==0)try{fs.rmSync(ws.root,{recursive:true,force:true});}catch{}
+    let r=git(['worktree','remove','--force',ws.root],projectRoot);
+    if(r.code!==0){
+      git(['worktree','prune'],projectRoot);
+      r=git(['worktree','remove','--force',ws.root],projectRoot);
+    }
+    if(r.code!==0)try{fs.rmSync(ws.root,{recursive:true,force:true,maxRetries:3,retryDelay:100});}catch{}
   }
   ws.status='CLEANED';ws.cleaned_at=now();
   writeJson(wsRecordPath(projectRoot,run.run_id,task.task_id),ws);
   emitTaskEvent(projectRoot,task,{type:'task.workspace_cleaned',payload:{mode:ws.mode,branch:ws.branch,checkpoints:(ws.checkpoints||[]).length}});
-  return {status:'CLEANED',workspace:ws};
+  return {status:'CLEANED',workspace:ws,reason:empty?'WORKSPACE_EMPTY':null};
 }
 
 /** Every workspace bound in one run; used to assert the one-writer invariant. */

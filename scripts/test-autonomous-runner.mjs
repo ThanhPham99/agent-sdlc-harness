@@ -1,0 +1,312 @@
+#!/usr/bin/env node
+// Test suite for Autonomous SDLC Runner, CI Guard, and Human Confirmation Gates.
+import fs from 'node:fs';
+import path from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {initProject,saveRun,loadRun,putArtifact,listTasks,saveTask} from '../runtime/store.mjs';
+import {newRun} from '../runtime/orchestrator.mjs';
+import {route} from '../runtime/router.mjs';
+import {runAutoPipeline,runAutoTaskLoop,HUMAN_GATES} from '../runtime/autonomous-runner.mjs';
+import {detectProjectCi,runLocalCiValidation,ensureCiPassedBeforeDelivery} from '../runtime/ci-guard.mjs';
+import {requestApprovalTicket,grantApprovalTicket,listApprovalTickets} from '../runtime/approvals.mjs';
+import {execFileSync} from 'node:child_process';
+import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
+
+const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const {test,assert,finish}=createSuite('agent-sdlc/autonomous-runner-validation/v1','AUTONOMOUS-RUNNER-VALIDATION.json');
+
+function fixture(name='auto-test-service'){
+  const d=makeTempDir(`agent-sdlc-${name}-`);
+  execFileSync('git',['init','-q'],{cwd:d});
+  fs.writeFileSync(path.join(d,'README.md'),'# fixture\n');
+  execFileSync('git',['add','.'],{cwd:d});
+  execFileSync('git',['-c','user.email=test@test.local','-c','user.name=test','commit','-qm','init'],{cwd:d});
+  initProject(d,{
+    schema:'agent-sdlc/project/v1',
+    project:name,
+    commands:{
+      test_targeted:['node','-e','process.exit(0)'],
+      test_full:['node','-e','process.exit(0)']
+    },
+    test_commands:{
+      test_targeted:['node','-e','process.exit(0)'],
+      test_full:['node','-e','process.exit(0)']
+    }
+  });
+  return d;
+}
+
+await test('ci-guard-detects-configuration-and-runs-local-validation',async ()=>{
+  const d=fixture('ci-detection');
+  const det=detectProjectCi(d);
+  assert(det.has_ci===true,'fixture with test_commands should have has_ci true');
+  assert(Array.isArray(det.recommended_command),'recommended_command should be an array');
+
+  const r=route(ROOT,'Routine maintenance test');
+  const run=newRun(ROOT,d,{objective:'Routine maintenance test',route:r});
+
+  const ciRes=runLocalCiValidation(ROOT,d,run);
+  assert(ciRes.is_pass===true,'local CI run should pass with fixture exit(0)');
+  assert(ciRes.status==='PASS','status must be PASS');
+  assert(ciRes.checks.length===1,'one check recorded');
+
+  const pushCheck=ensureCiPassedBeforeDelivery(ROOT,d,run);
+  assert(pushCheck.is_allowed===true,'delivery push should be allowed after passing CI');
+});
+
+await test('approval-tickets-can-be-requested-and-granted-without-tty',async ()=>{
+  const d=fixture('approval-tickets');
+  const r=route(ROOT,'Deploy service to production');
+  const run=newRun(ROOT,d,{objective:'Deploy service to production',route:r});
+
+  // Request ticket
+  const ticket=requestApprovalTicket(d,run,{
+    capability:'deploy.production',
+    reason:'Production release required'
+  });
+  assert(ticket.ticket_id.startsWith('ticket_'),'ticket_id should start with ticket_');
+  assert(ticket.status==='PENDING','ticket initial status should be PENDING');
+
+  const tickets=listApprovalTickets(run);
+  assert(tickets.length===1&&tickets[0].ticket_id===ticket.ticket_id,'listed tickets should match');
+
+  // Grant ticket interactively via UI/Bridge
+  const grantRec=grantApprovalTicket(ROOT,d,run,{
+    ticketId:ticket.ticket_id,
+    actor:'lead-engineer',
+    reason:'Verified staging environment'
+  });
+  assert(grantRec.capability==='deploy.production','granted capability should match');
+  assert(grantRec.authority==='USER_INTERACTIVE','authority must be USER_INTERACTIVE');
+
+  // Verify ticket status updated
+  const updatedTickets=listApprovalTickets(run);
+  assert(updatedTickets[0].status==='GRANTED','ticket status should now be GRANTED');
+});
+
+await test('gate-1-pauses-for-human-approval-on-strict-workflow',async ()=>{
+  const d=fixture('gate-1-strict');
+  // Security remediation is a STRICT workflow
+  const r=route(ROOT,'Fix high severity CVE security vulnerability in auth module');
+  assert(r.profile==='STRICT','workflow profile must be STRICT');
+
+  const run=newRun(ROOT,d,{objective:'Fix high severity CVE security vulnerability in auth module',route:r});
+
+  const res=runAutoPipeline(ROOT,d,run);
+  assert(res.status==='PAUSED','pipeline should pause at Gate 1');
+  assert(res.pause_gate===HUMAN_GATES.GATE_1_SCOPE_AND_ARCHITECTURE,'paused gate must be GATE_1_SCOPE_AND_ARCHITECTURE');
+  assert(res.current_stage==='DESIGN','paused stage must be DESIGN');
+});
+
+await test('auto-pipeline-executes-low-risk-tasks-until-gate-4-pre-commit',async ()=>{
+  const d=fixture('auto-low-risk');
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const workerCallback=(task)=>{
+    const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','helper.js'),'export function format() { return "date"; }\n');
+  };
+
+  const res=runAutoPipeline(ROOT,d,run,{workerCallback});
+  // Low-risk FAST/STANDARD skips Gate 1, executes PLAN and IMPLEMENT, and pauses at Gate 4 before commit/push
+  assert(res.status==='PAUSED','pipeline should pause at Gate 4');
+  assert(res.pause_gate===HUMAN_GATES.GATE_4_PRE_COMMIT_PUSH_APPROVAL,'paused gate must be GATE_4_PRE_COMMIT_PUSH_APPROVAL');
+  assert(res.current_stage==='RELEASE','paused stage must be RELEASE');
+  assert(typeof res.pr_body==='string'&&res.pr_body.length>0,'pr_body should be generated');
+
+  // Once user grants delivery_commit_approved, pipeline completes to CLOSE
+  const freshRun=loadRun(d,run.run_id);
+  const ticket=requestApprovalTicket(d,freshRun,{capability:'delivery_commit_approved'});
+  grantApprovalTicket(ROOT,d,freshRun,{
+    ticketId:ticket.ticket_id,
+    actor:'operator'
+  });
+
+  const finalRes=runAutoPipeline(ROOT,d,freshRun,{skipCiCheck:true});
+  assert(finalRes.status==='COMPLETED','pipeline should finish to COMPLETED');
+  assert(finalRes.current_stage==='CLOSE','final stage must be CLOSE');
+});
+
+await test('gate-2-escalates-when-task-fails-verification-exceeding-attempts',async ()=>{
+  const d=makeTempDir('agent-sdlc-fail-task-');
+  execFileSync('git',['init','-q'],{cwd:d});
+  fs.writeFileSync(path.join(d,'README.md'),'# failing fixture\n');
+  execFileSync('git',['add','.'],{cwd:d});
+  execFileSync('git',['-c','user.email=test@test.local','-c','user.name=test','commit','-qm','init'],{cwd:d});
+  initProject(d,{
+    schema:'agent-sdlc/project/v1',
+    project:'failing-service',
+    commands:{
+      test_targeted:['node','-e','process.exit(1)'],
+      test_full:['node','-e','process.exit(1)']
+    },
+    test_commands:{
+      test_targeted:['node','-e','process.exit(1)'],
+      test_full:['node','-e','process.exit(1)']
+    }
+  });
+
+  const r=route(ROOT,'Fix math calculation');
+  const run=newRun(ROOT,d,{objective:'Fix math calculation',route:r});
+
+  // Create a plan with a failing task
+  const plan={
+    schema:'agent-sdlc/task-plan/v1',
+    plan_id:'PLAN-FAIL-01',
+    objective:run.objective,
+    profile:'FAST',
+    tasks:[
+      {
+        task_id:'TASK-FAIL-01',
+        title:'Failing task',
+        goal:'Try to fix math',
+        done_conditions:['Passes tests'],
+        category:'implementation',
+        depends_on:[],
+        write_scope:['src/**'],
+        interface_scope:[],
+        compatibility_obligations:[],
+        verification:{targeted_tests:['test.js']}
+      }
+    ]
+  };
+
+  const workerCallback=(task)=>{
+    const wsDir=path.join(d,'.agent-sdlc','workspaces',run.run_id,task.task_id);
+    const targetDir=fs.existsSync(wsDir)?wsDir:d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','math.js'),'export function calc() { return 1; }\n');
+  };
+
+  const res=runAutoPipeline(ROOT,d,run,{customPlan:plan,skipCiCheck:true,workerCallback});
+  assert(res.status==='PAUSED','pipeline should pause');
+  assert(res.pause_gate===HUMAN_GATES.GATE_2_ESCALATION_BLOCKER,'paused gate must be GATE_2_ESCALATION_BLOCKER');
+  assert(res.task_id==='TASK-FAIL-01','failing task id identified');
+});
+
+await test('gate-5-pauses-on-privileged-production-deployment-until-approved',async ()=>{
+  const d=fixture('gate-5-deploy');
+  // new-feature workflow includes DEPLOY stage
+  const r=route(ROOT,'Build and deploy new billing microservice');
+  const run=newRun(ROOT,d,{objective:'Build and deploy new billing microservice',route:r});
+
+  // Pre-approve delivery commit to reach DEPLOY
+  grantApprovalTicket(ROOT,d,run,{
+    ticketId:requestApprovalTicket(d,run,{capability:'delivery_commit_approved'}).ticket_id,
+    actor:'lead'
+  });
+
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const workerCallback=(task)=>{
+    const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','service.js'),'export const billing = 1;\n');
+  };
+
+  const res=runAutoPipeline(ROOT,d,run,{skipCiCheck:true,workerCallback});
+  assert(res.status==='PAUSED','pipeline should pause at Gate 5');
+  assert(res.pause_gate===HUMAN_GATES.GATE_5_PRIVILEGED_ACTION,'paused gate must be GATE_5_PRIVILEGED_ACTION');
+  assert(res.current_stage==='DEPLOY','paused stage must be DEPLOY');
+
+  // Grant production deployment approval
+  const freshRun=loadRun(d,run.run_id);
+  const ticket=requestApprovalTicket(d,freshRun,{capability:'deploy.production',expiresInMinutes:30});
+  grantApprovalTicket(ROOT,d,freshRun,{
+    ticketId:ticket.ticket_id,
+    actor:'infra-admin'
+  });
+
+  const afterDeploy=runAutoPipeline(ROOT,d,freshRun,{skipCiCheck:true});
+  assert(afterDeploy.status==='COMPLETED','pipeline finishes after deploy and observe');
+  assert(afterDeploy.current_stage==='CLOSE','final stage is CLOSE');
+});
+
+await test('semantic-classifier-and-route-semantic-with-host',async ()=>{
+  const {classifySemanticIntent}=await import('../runtime/semantic-classifier.mjs');
+  const {routeSemantic}=await import('../runtime/router.mjs');
+
+  // Test missing schema
+  const failRes=await classifySemanticIntent('/tmp/nonexistent-root-'+Date.now(),'test objective');
+  assert(failRes.status==='FAIL'&&failRes.reason==='SCHEMA_NOT_FOUND','schema not found on bad root');
+
+  // Test unavailable provider
+  const unavailRes=await classifySemanticIntent(ROOT,'test objective',{provider:'nonexistent-host-999'});
+  assert(unavailRes.status==='UNAVAILABLE'&&unavailRes.reason==='NO_HOST_AVAILABLE','unvailable host reported');
+
+  // Test with fake host binary
+  const prevHost=process.env.AI_SDLC_CLAUDE_BIN;
+  try{
+    process.env.AI_SDLC_CLAUDE_BIN=path.join(ROOT,'evals','fake-host-cli.mjs');
+    const res=await classifySemanticIntent(ROOT,'login bug in auth module',{provider:'claude'});
+    assert(res.status==='PASS','fake host classification should PASS');
+    assert(res.decision&&res.decision.workflow==='bug-fix','decision workflow must be bug-fix');
+
+    const routed=await routeSemantic(ROOT,'login bug in auth module',null,null,{semantic:true,provider:'claude'});
+    assert(routed.workflow==='bug-fix','routed workflow must be bug-fix');
+    assert(routed.route_flags.includes('SEMANTIC_MODEL_ASSISTED'),'must have SEMANTIC_MODEL_ASSISTED flag');
+  }finally{
+    if(prevHost)process.env.AI_SDLC_CLAUDE_BIN=prevHost;
+    else delete process.env.AI_SDLC_CLAUDE_BIN;
+  }
+});
+
+await test('auto-cli-commands-dispatch',async ()=>{
+  const {commands}=await import('../runtime/commands/auto.mjs');
+  const d=fixture('auto-cli-dispatch');
+  const r=route(ROOT,'Routine maintenance chore');
+  const run=newRun(ROOT,d,{objective:'Routine maintenance chore',route:r});
+
+  let printed=null;
+  const print=(val)=>{printed=val;};
+
+  // ci-check detect
+  await commands['ci-check']({
+    args:{detect:true},
+    ROOT,
+    projectRoot:d,
+    print,
+    needRun:async()=>run
+  });
+  assert(printed&&printed.has_ci===true,'detect output has_ci true');
+
+  // ci-check validation
+  printed=null;
+  await commands['ci-check']({
+    args:{},
+    ROOT,
+    projectRoot:d,
+    print,
+    needRun:async()=>run
+  });
+  assert(printed&&printed.status==='PASS','ci-check run should pass');
+
+  // auto-task loop
+  printed=null;
+  await commands['auto-task']({
+    args:{writer:null},
+    ROOT,
+    projectRoot:d,
+    print,
+    needRun:async()=>run
+  });
+  assert(printed&&printed.steps!==undefined,'auto-task returns result with steps');
+
+  // auto pipeline
+  printed=null;
+  await commands['auto']({
+    args:{'skip-ci':true},
+    ROOT,
+    projectRoot:d,
+    print,
+    needRun:async()=>run
+  });
+  assert(printed&&printed.status!==undefined,'auto pipeline returns status');
+});
+
+finish();

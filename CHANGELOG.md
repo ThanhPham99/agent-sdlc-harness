@@ -15,6 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Tri-pass review protocol & nit capping: added `templates/REVIEW.md` (Pass 1 Bugs, Pass 2 Security, Pass 3 Compliance) and implemented nit capping (max 5 nits, reporting remainder in `nit_count_omitted`) in `runtime/task-review.mjs`.
   - Statistical control bands: added `templates/bands.yaml`, `policies/control-bands.json`, and `runtime/control-bands.mjs` to calculate metric baselines, classify anomalies (1-sigma normal, 2-sigma diagnose, 3-sigma breach), and automatically generate anomaly intent proto-specs.
   - Coexistence architecture: added `source_of_truth_mode` (`local_primary`, `external_primary`, `bi_directional_sync`) to `detectProject`/`initProject`, added `external_tracker` metadata to `protocol/schemas/Feature.schema.json`, and documented synchronization models in `docs/architecture/ARTIFACT-MODEL.md`.
+
+## [3.0.0-rc1] - 2026-08-31
+
+### Added
+- Comprehensive test expansion suite (`scripts/test-commands-expansion.mjs`) covering:
+  - All command handlers: `commands/project.mjs` (doctor fix, knowledge, gc, webhooks), `commands/delivery.mjs` (drift, push checks, CI evidence chains), `commands/repo.mjs` (symbols, references, tests, mutation, dead-code, traceability closures, Mermaid diagram generation), and `commands/run.mjs` (rewind, approval revocation, context metrics, explanations).
+  - Time-travel rollback & rewind engine (`runtime/rewind.mjs`) with stage/task target rewinding, evidence preservation options, and monotonic state transition checks.
+  - Pull Request & Release Note generation (`runtime/pr-generator.mjs`) with structured changelog grouping and semantic release notes.
+  - Resilient Webhook delivery engine (`runtime/webhook.mjs`) with HMAC-SHA256 signature verification, exponential backoff retries, and dead-letter audit logging.
+  - Multi-format input normalization (`runtime/normalize.mjs`) across CSV, TSV, JSON, text, and multimodal image requirements.
+- V8 block test coverage ratcheted to 92.6% overall (with `runtime/commands/` exceeding 91% and core subsystems >95%).
+- Complete release candidate verification across Claude Code, OpenAI Codex, and Google Antigravity platforms.
 - `hooks/test-output-guard.mjs` (`adapters/hooks/test-output-guard.mjs`): a second PreToolUse guard, wired alongside `pretool-guard.mjs` on Claude Code and Codex, that denies known-verbose unfiltered test-runner and log-dump commands (`npm test`, `pytest`, `cat *.log`, `docker/kubectl logs` without `--tail`, ...) and asks for a bounded form instead, so raw output does not reach the model's context uninspected. Already-bounded commands pass through untouched. Corpus and matcher-coverage checks: `scripts/validate-test-output-guard.mjs` / `npm run test:test-output-guard`, wired into `test:integrity`.
 - `hooks/statusline.mjs` (`adapters/hooks/statusline.mjs`): opt-in Claude Code status line showing model, context %, cost and git branch, wired manually via `settings.json` since a status line is a per-user/per-project preference, not something a plugin manifest can impose. Smoke-tested by `scripts/test-statusline.mjs` / `npm run test:statusline`.
 - `scripts/validate-ci-coverage.mjs`: every suite reachable from `npm run check` must be run by CI, directly or through an aggregate; wired into `test:integrity`.

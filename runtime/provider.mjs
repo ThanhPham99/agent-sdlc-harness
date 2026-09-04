@@ -182,3 +182,81 @@ export function runHost(host,prompt,schemaPath,budget={},{spawn=spawnSync,launch
     status:r?.status===0?'PASS':'FAIL'
   };
 }
+
+/**
+ * Execute an LLM host turn with adaptive dynamic failover across candidates.
+ * Automatically tries candidates in order; if candidate A fails or times out,
+ * attempts candidate B while recording the fallback event.
+ */
+export function executeWithAdaptiveFailover(prompt, schemaPath, budget = {}, {
+  candidates = ['claude', 'codex', 'antigravity'],
+  spawn = spawnSync,
+  launch = resolveLaunch
+} = {}) {
+  const attempts = [];
+  let successfulResult = null;
+
+  for (const host of candidates) {
+    const res = runHost(host, prompt, schemaPath, budget, { spawn, launch });
+    attempts.push({ host, status: res.status, error: res.error, timed_out: res.timed_out });
+    if (res.status === 'PASS') {
+      successfulResult = {
+        ...res,
+        host,
+        failover_occurred: attempts.length > 1,
+        attempts
+      };
+      break;
+    }
+  }
+
+  if (successfulResult) return successfulResult;
+
+  return {
+    status: 'FAIL',
+    reason: 'ALL_CANDIDATES_FAILED',
+    attempts,
+    failover_occurred: attempts.length > 1
+  };
+}
+
+/**
+ * Format a cacheable prompt package for a specific provider/host CLI.
+ * If host supports structured prompt caching blocks, outputs the multi-part structure;
+ * otherwise returns the unified full_prompt string.
+ */
+export function formatProviderPrompt(host, cacheablePrompt) {
+  if (typeof cacheablePrompt === 'string') return { prompt: cacheablePrompt, cache_enabled: false };
+  const fullPrompt = cacheablePrompt.full_prompt || '';
+  if (!cacheablePrompt.cache_blocks) {
+    return { prompt: fullPrompt, cache_enabled: false };
+  }
+
+  if (host === 'claude') {
+    return {
+      prompt: fullPrompt,
+      cache_enabled: true,
+      provider: 'anthropic',
+      cache_control: { type: 'ephemeral' },
+      blocks: cacheablePrompt.cache_blocks
+    };
+  }
+
+  if (host === 'antigravity') {
+    return {
+      prompt: fullPrompt,
+      cache_enabled: true,
+      provider: 'google-antigravity',
+      cache_control: { type: 'context_cache' },
+      blocks: cacheablePrompt.cache_blocks
+    };
+  }
+
+  return {
+    prompt: fullPrompt,
+    cache_enabled: false,
+    provider: host || 'generic',
+    blocks: cacheablePrompt.cache_blocks
+  };
+}
+

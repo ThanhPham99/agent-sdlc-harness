@@ -19,7 +19,10 @@ npm install # if dependencies exist
 Before submitting a PR, make sure all test suites and integrity gates pass:
 
 ```bash
-# Run all offline verification gates and tests
+# Run all offline verification gates and tests. Independent suites run
+# concurrently, and a failing stage reports every suite that broke in it,
+# not just the first. Add --serial for one-at-a-time with live output,
+# or -- --update to keep the freshly written evals/ reports.
 npm run check
 
 # Or run specific test suites
@@ -31,9 +34,11 @@ npm run build                 # Build provider distributions
 npm run verify:dist           # Verify packaged distributions
 ```
 
-CI runs everything reachable from `npm run check`; `scripts/validate-ci-coverage.mjs`
-fails if a suite in that chain is missing from `.github/workflows/ci.yml`, so add
-new suites to both.
+`npm run check` executes the stages declared in `scripts/lib/check-plan.mjs` --
+that file, not a shell chain, is where a new suite and its ordering constraint
+go. CI runs everything the plan reaches; `scripts/validate-ci-coverage.mjs`
+fails if a suite is missing from `.github/workflows/ci.yml`, or if CI runs a
+later stage's suite before an earlier stage's, so add new suites to both.
 
 Coverage is measured with `NODE_V8_COVERAGE` over the deterministic suite and
 ratcheted in `evals/COVERAGE-FLOOR.json`. A drop fails CI; when coverage

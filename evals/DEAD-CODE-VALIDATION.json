@@ -1,0 +1,21 @@
+{
+  "schema": "agent-sdlc/dead-code-validation/v1",
+  "checks": 3,
+  "passes": 3,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "extract-exported-symbols-scanner",
+      "status": "PASS"
+    },
+    {
+      "name": "extract-imported-symbols-scanner",
+      "status": "PASS"
+    },
+    {
+      "name": "find-dead-code-unreachable-files-and-ghost-deps",
+      "status": "PASS"
+    }
+  ]
+}

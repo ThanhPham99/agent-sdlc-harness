@@ -24,6 +24,13 @@
     "profile": {
       "type": "string"
     },
+    "overlays": {
+      "type": "array",
+      "description": "The overlays the chosen workflow mandates. newRun copies it from the route decision onto every run, alongside workflow and profile, and every record on disk carries it - but this schema did not declare it, so a reader checking which run fields exist would not have found it. Nothing validates run records against this schema today; the declaration is documentation.",
+      "items": {
+        "type": "string"
+      }
+    },
     "state": {
       "type": "string"
     },

@@ -8,7 +8,9 @@
 //      emits a *candidate* that deterministic or live eval must validate before
 //      anyone adopts it.
 import path from 'node:path';
-import {now,sha256} from './util.mjs';
+import fs from 'node:fs';
+import {now,sha256,redactHighEntropySecrets} from './util.mjs';
+import {stateDir} from './store.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -36,6 +38,9 @@ const SECRET_PATTERNS=[
   [/-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----[\s\S]*?-----END (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g,'[REDACTED_PRIVATE_KEY]'],
   [/\b(?:gh[pousr]|github_pat)_[A-Za-z0-9_]{16,}/g,'[REDACTED_TOKEN]'],
   [/\bsk-[A-Za-z0-9]{16,}/g,'[REDACTED_TOKEN]'],
+  [/\b(?:sk|pk|rk)_(?:live|test)_[0-9a-zA-Z]{24,}\b/g,'[REDACTED_STRIPE_KEY]'],
+  [/\b(?:postgres(?:ql)?|mysql|mongodb(?:\+srv)?|redis|amqp):\/\/[^/\s:@]+:[^/\s:@]+@[^\s/:]+(?::\d+)?\/[^\s?]*/gi,'[REDACTED_DATABASE_URL]'],
+  [/\b(?:Bearer)\s+[A-Za-z0-9._~+/-]{20,}\b/gi,'Bearer [REDACTED_TOKEN]'],
   [/\bey[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g,'[REDACTED_JWT]'],
   [/\b(?:xox[baprs]-)[A-Za-z0-9-]{10,}/g,'[REDACTED_TOKEN]'],
   [/((?:api[_-]?key|secret|token|password|passwd|pwd|authorization|bearer)\s*[:=]\s*)(["']?)[^\s"',;]+\2/gi,'$1[REDACTED]'],
@@ -50,6 +55,7 @@ const SECRET_PATTERNS=[
 export function sanitizeText(text,{maxChars=1200}={}){
   let out=String(text??'');
   for(const [rx,rep] of SECRET_PATTERNS)out=out.replace(rx,rep);
+  out=redactHighEntropySecrets(out);
   if(out.length>maxChars)out=out.slice(0,maxChars)+'…[TRUNCATED]';
   return out;
 }
@@ -153,3 +159,60 @@ export function toEvalCase(candidate){
     status:'CANDIDATE_PENDING_VALIDATION'
   };
 }
+
+function memoryPath(projectRoot) {
+  return path.join(stateDir(projectRoot), 'memory', 'failure-index.json');
+}
+
+/**
+ * Record a failure pattern and its verified resolution.
+ * Automatically sanitizes text content before indexing.
+ */
+export function indexFailurePattern(projectRoot, { signature, hint, category = 'VERIFICATION_FAILURE', resolution = '' } = {}) {
+  const p = memoryPath(projectRoot);
+  let db = { schema: 'agent-sdlc/failure-index/v1', patterns: [] };
+  if (fs.existsSync(p)) {
+    try { db = JSON.parse(fs.readFileSync(p, 'utf8')); } catch {}
+  }
+  const cleanSignature = sanitizeText(signature, { maxChars: 200 });
+  const cleanHint = sanitizeText(hint, { maxChars: 500 });
+  const cleanResolution = sanitizeText(resolution, { maxChars: 500 });
+
+  const existingIdx = (db.patterns || []).findIndex(x => x.signature === cleanSignature);
+  const entry = {
+    signature: cleanSignature,
+    hint: cleanHint,
+    category,
+    resolution: cleanResolution,
+    indexed_at: now()
+  };
+
+  if (existingIdx >= 0) {
+    db.patterns[existingIdx] = entry;
+  } else {
+    db.patterns = [...(db.patterns || []), entry];
+  }
+
+  fs.mkdirSync(path.dirname(p), { recursive: true });
+  fs.writeFileSync(p, JSON.stringify(db, null, 2), 'utf8');
+  return entry;
+}
+
+/**
+ * Look up matching failure patterns to provide hints for current errors.
+ */
+export function lookupFailurePattern(projectRoot, querySignature) {
+  const p = memoryPath(projectRoot);
+  if (!fs.existsSync(p)) return [];
+  try {
+    const db = JSON.parse(fs.readFileSync(p, 'utf8'));
+    const q = String(querySignature || '').toLowerCase();
+    return (db.patterns || []).filter(item => {
+      const sig = String(item.signature || '').toLowerCase();
+      return sig.includes(q) || q.includes(sig);
+    });
+  } catch {
+    return [];
+  }
+}
+

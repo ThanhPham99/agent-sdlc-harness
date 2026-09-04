@@ -66,8 +66,23 @@ function gitBranch(startDir){
   return null;
 }
 
+function activeSdlcStage(startDir){
+  try{
+    const runsDir=path.join(startDir,'.agent-sdlc','runs');
+    if(!fs.existsSync(runsDir))return null;
+    const files=fs.readdirSync(runsDir).filter(x=>x.endsWith('.json')).sort();
+    if(!files.length)return null;
+    const run=JSON.parse(fs.readFileSync(path.join(runsDir,files[files.length-1]),'utf8'));
+    if(run&&run.workflow&&run.state){
+      return `sdlc:${run.workflow}@${run.state}`;
+    }
+  }catch{}
+  return null;
+}
+
 const cwd=p.workspace?.current_dir||p.workspace?.project_dir||p.cwd||process.cwd();
 const branch=gitBranch(cwd);
+const sdlc=activeSdlcStage(cwd);
 
-const parts=[model,ctx,costText,branch?`branch ${branch}`:null].filter(Boolean);
+const parts=[model,ctx,costText,branch?`branch ${branch}`:null,sdlc].filter(Boolean);
 console.log(parts.length?parts.join(' | '):'agent-sdlc');

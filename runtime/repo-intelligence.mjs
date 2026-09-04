@@ -13,11 +13,19 @@ import {git} from './util.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 const norm=p=>String(p||'').replace(/\\/g,'/').replace(/^\.\//,'');
+const graphCache=new Map();
 
 /** Open (and cache per call site) the intelligence view of a project. */
 export function openIntelligence(projectRoot,{refresh=false}={}){
   const index=refresh?buildIndex(projectRoot,{force:true}):loadIndex(projectRoot);
-  const graph=buildSymbolGraph(projectRoot,{index});
+  const cacheKey=`${projectRoot}:${index?.revision||'no-rev'}:${index?.counts?.files||0}`;
+  let graph;
+  if(!refresh&&graphCache.has(cacheKey)){
+    graph=graphCache.get(cacheKey);
+  }else{
+    graph=buildSymbolGraph(projectRoot,{index});
+    graphCache.set(cacheKey,graph);
+  }
   return {
     schema:'agent-sdlc/repo-intelligence/v1',
     project_root:projectRoot,
@@ -220,4 +228,229 @@ export function changeSurfaceSummary(intel,objective,opts={}){
     data_entities:s.data_entities,
     empty_reason:s.empty_reason
   };
+}
+
+/**
+ * Find transitive dependency closure and blast radius for modified files or symbols.
+ */
+export function findTransitiveImpact(intel,{paths=[],symbols=[],maxDepth=10}={}){
+  const normPaths=arr(paths).map(norm).filter(Boolean);
+  const symbolLocations=arr(symbols).flatMap(s=>arr(intel.graph.symbols.get(s)).map(l=>l.path));
+  const seeds=[...new Set([...normPaths,...symbolLocations])];
+
+  const directDependents=new Set();
+  const transitiveDependents=new Map();
+
+  for(const seed of seeds){
+    const closure=dependentClosure(intel.graph,seed,{maxDepth});
+    for(const item of closure){
+      if(!seeds.includes(item.path)){
+        if(item.depth===1)directDependents.add(item.path);
+        const existing=transitiveDependents.get(item.path);
+        if(existing===undefined||item.depth<existing){
+          transitiveDependents.set(item.path,item.depth);
+        }
+      }
+    }
+  }
+
+  const sortedTransitive=[...transitiveDependents.entries()]
+    .map(([p,depth])=>({path:p,depth,direct:directDependents.has(p)}))
+    .sort((a,b)=>a.depth-b.depth||a.path.localeCompare(b.path));
+
+  return withCapability(intel,{
+    query:'findTransitiveImpact',
+    seeds,
+    direct_dependents:[...directDependents].sort(),
+    transitive_dependents:sortedTransitive,
+    total_impacted_files:sortedTransitive.length
+  });
+}
+
+/**
+ * Smart Test Selection: calculate exactly which tests need to run for modified files/symbols.
+ */
+export function findImpactedTests(intel,{paths=[],symbols=[],maxDepth=10}={}){
+  const impact=findTransitiveImpact(intel,{paths,symbols,maxDepth});
+  const allAffectedFiles=[...new Set([...impact.seeds,...impact.transitive_dependents.map(d=>d.path)])];
+
+  const candidateTests=testsForFiles(intel.graph,allAffectedFiles,{maxDepth});
+  const symbolTests=arr(symbols).flatMap(s=>testsForSymbol(intel.graph,s));
+
+  const mergedTests=new Map();
+  for(const t of candidateTests){
+    mergedTests.set(t.path,{
+      path:t.path,
+      depth:t.depth,
+      reason:t.reason||(impact.seeds.includes(t.path)?'MODIFIED_TEST':'TRANSITIVE_DEPENDENCY'),
+      strength:t.depth===0?'STRONG':(t.depth===1?'STRONG':'MEDIUM')
+    });
+  }
+
+  for(const st of symbolTests){
+    if(!mergedTests.has(st.path)){
+      mergedTests.set(st.path,{
+        path:st.path,
+        depth:1,
+        reason:'SYMBOL_REFERENCE',
+        strength:st.strength
+      });
+    }
+  }
+
+  const sortedTests=[...mergedTests.values()]
+    .sort((a,b)=>{
+      const rank={STRONG:0,MEDIUM:1,WEAK:2};
+      return rank[a.strength]-rank[b.strength]||a.depth-b.depth||a.path.localeCompare(b.path);
+    });
+
+  const totalRepoTests=[...intel.graph.files.values()].filter(f=>f.is_test).length;
+  const coverageRatio=totalRepoTests>0?(sortedTests.length/totalRepoTests):1;
+
+  return withCapability(intel,{
+    query:'findImpactedTests',
+    modified_seeds:impact.seeds,
+    impacted_files_count:allAffectedFiles.length,
+    impacted_tests:sortedTests,
+    impacted_tests_count:sortedTests.length,
+    total_repo_tests:totalRepoTests,
+    test_selection_ratio:Number(coverageRatio.toFixed(3)),
+    recommended_test_files:sortedTests.map(t=>t.path)
+  });
+}
+
+/**
+ * Calculate graph centrality (in-degree, out-degree, PageRank score) for all repository files.
+ * Identifies core hotspot modules that carry high blast radius across the codebase.
+ */
+export function calculateGraphCentrality(intel, { iterations = 20, dampingFactor = 0.85 } = {}) {
+  const fileNodes = [...intel.graph.files.keys()];
+  const n = fileNodes.length;
+  if (n === 0) {
+    return withCapability(intel, {
+      query: 'calculateGraphCentrality',
+      total_files: 0,
+      critical_core_count: 0,
+      critical_core_files: [],
+      centrality_ranking: []
+    });
+  }
+
+  const inDegreeMap = new Map();
+  const outDegreeMap = new Map();
+  const outgoingLinks = new Map();
+
+  for (const f of fileNodes) {
+    inDegreeMap.set(f, 0);
+    outDegreeMap.set(f, 0);
+    outgoingLinks.set(f, []);
+  }
+
+  for (const [src, deps] of intel.graph.dependencies) {
+    outDegreeMap.set(src, arr(deps).length);
+    outgoingLinks.set(src, arr(deps));
+    for (const target of arr(deps)) {
+      if (inDegreeMap.has(target)) {
+        inDegreeMap.set(target, inDegreeMap.get(target) + 1);
+      }
+    }
+  }
+
+  let scores = new Map();
+  for (const f of fileNodes) scores.set(f, 1 / n);
+
+  for (let iter = 0; iter < iterations; iter++) {
+    const nextScores = new Map();
+    const baseRank = (1 - dampingFactor) / n;
+
+    for (const f of fileNodes) nextScores.set(f, baseRank);
+
+    for (const [src, targets] of outgoingLinks) {
+      const rank = scores.get(src);
+      if (targets.length > 0) {
+        const share = (rank * dampingFactor) / targets.length;
+        for (const target of targets) {
+          if (nextScores.has(target)) {
+            nextScores.set(target, nextScores.get(target) + share);
+          }
+        }
+      } else {
+        const share = (rank * dampingFactor) / n;
+        for (const f of fileNodes) {
+          nextScores.set(f, nextScores.get(f) + share);
+        }
+      }
+    }
+    scores = nextScores;
+  }
+
+  const ranking = fileNodes.map(f => {
+    const score = Number((scores.get(f) || 0).toFixed(6));
+    const inDegree = inDegreeMap.get(f) || 0;
+    const outDegree = outDegreeMap.get(f) || 0;
+    const fileMeta = intel.graph.files.get(f);
+    return {
+      path: f,
+      module: fileMeta?.module || null,
+      is_test: fileMeta?.is_test || false,
+      pagerank_score: score,
+      in_degree: inDegree,
+      out_degree: outDegree,
+      is_critical_core: false
+    };
+  }).sort((a, b) => b.pagerank_score - a.pagerank_score || b.in_degree - a.in_degree || a.path.localeCompare(b.path));
+
+  const coreCutoff = Math.max(3, Math.ceil(n * 0.15));
+  const coreFiles = [];
+
+  ranking.forEach((r, idx) => {
+    if (!r.is_test && (idx < coreCutoff || r.in_degree >= 5)) {
+      r.is_critical_core = true;
+      coreFiles.push(r.path);
+    }
+  });
+
+  return withCapability(intel, {
+    query: 'calculateGraphCentrality',
+    total_files: n,
+    critical_core_count: coreFiles.length,
+    critical_core_files: coreFiles,
+    centrality_ranking: ranking
+  });
+}
+
+/**
+ * Perform Blast Radius Analysis for proposed file changes.
+ * Evaluates impact severity, touches on critical core modules, and affected dependent surface.
+ */
+export function getBlastRadiusAnalysis(intel, { paths = [], symbols = [], maxDepth = 5 } = {}) {
+  const transitive = findTransitiveImpact(intel, { paths, symbols, maxDepth });
+  const centrality = calculateGraphCentrality(intel);
+  const coreSet = new Set(centrality.critical_core_files);
+
+  const directSeeds = transitive.seeds;
+  const directCoreHit = directSeeds.filter(p => coreSet.has(p));
+  const transitiveCoreHit = transitive.transitive_dependents.filter(d => coreSet.has(d.path)).map(d => d.path);
+
+  const totalAffected = transitive.total_impacted_files + directSeeds.length;
+  let riskLevel = 'LOW';
+  if (directCoreHit.length > 0 || totalAffected > 15) {
+    riskLevel = 'CRITICAL';
+  } else if (transitiveCoreHit.length > 0 || totalAffected > 8) {
+    riskLevel = 'HIGH';
+  } else if (totalAffected > 3) {
+    riskLevel = 'MEDIUM';
+  }
+
+  return withCapability(intel, {
+    query: 'getBlastRadiusAnalysis',
+    seeds: directSeeds,
+    risk_level: riskLevel,
+    total_affected_count: totalAffected,
+    direct_core_hits: directCoreHit,
+    transitive_core_hits: transitiveCoreHit,
+    transitive_dependents_count: transitive.total_impacted_files,
+    direct_dependents: transitive.direct_dependents,
+    transitive_dependents: transitive.transitive_dependents
+  });
 }

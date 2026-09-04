@@ -11,11 +11,12 @@ import {NODE_KINDS,EDGE_KINDS,DELTA_CLASSES} from '../runtime/traceability.mjs';
 import {DELIVERY_TARGETS} from '../runtime/git-delivery.mjs';
 import {CI_STATUSES} from '../runtime/ci-evidence.mjs';
 import {LEARNING_SOURCES} from '../runtime/learning.mjs';
+import {writeReport} from './lib/report-io.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const rj=p=>JSON.parse(fs.readFileSync(path.join(ROOT,p),'utf8'));
 const VERSION=rj('agent-sdlc.manifest.json').version;
-const out=(file,obj)=>fs.writeFileSync(path.join(ROOT,'evals',file),JSON.stringify(obj,null,2)+'\n');
+const out=(file,obj)=>writeReport(path.join(ROOT,'evals',file),obj);
 
 const suite=runAlpha6Suite(ROOT);
 const byGroup=Object.fromEntries(suite.groups.map(g=>[g.group,g]));

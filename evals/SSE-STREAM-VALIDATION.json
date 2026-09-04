@@ -1,0 +1,29 @@
+{
+  "schema": "agent-sdlc/sse-stream-validation/v1",
+  "checks": 5,
+  "passes": 5,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "sse-stream-connection-and-heartbeat",
+      "status": "PASS"
+    },
+    {
+      "name": "sse-stream-broadcasts-live-events",
+      "status": "PASS"
+    },
+    {
+      "name": "sse-stream-event-filtering-by-type",
+      "status": "PASS"
+    },
+    {
+      "name": "sse-stream-replays-backlog-via-last-event-id",
+      "status": "PASS"
+    },
+    {
+      "name": "sse-stream-publish-and-webhook-deliveries-endpoints",
+      "status": "PASS"
+    }
+  ]
+}

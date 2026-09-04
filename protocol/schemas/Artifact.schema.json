@@ -43,6 +43,45 @@
         "string",
         "null"
       ]
+    },
+    "bindings": {
+      "type": "array",
+      "description": "One entry per distinct put of this content. The object store is content-addressed and shared across runs, so identical bytes are one object that more than one run may have stored; the top-level kind/run_id/stage/source_revision mirror the first binding.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "run_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stage": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "type": "string"
+          },
+          "source_revision": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "filename": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "created_at": {
+            "type": "string"
+          }
+        }
+      }
     }
   }
 }

@@ -30,8 +30,16 @@ const DETECTORS=[
     const pkg=readJsonFile(path.join(root,'package.json'),warnings,'package.json');
     if(!pkg)return {};
     const c={};
-    if(pkg.scripts?.test){c.test_full=['npm','test'];c.test_targeted=['npm','test','--','{selector}'];}
-    if(pkg.scripts?.build)c.build=['npm','run','build'];
+    const hasPnpmLock=fs.existsSync(path.join(root,'pnpm-lock.yaml'));
+    const hasYarnLock=fs.existsSync(path.join(root,'yarn.lock'));
+    const pm=hasPnpmLock?'pnpm':hasYarnLock?'yarn':'npm';
+    if(pkg.scripts?.test){
+      c.test_full=[pm,'test'];
+      c.test_targeted=pm==='yarn'?[pm,'test','{selector}']:[pm,'test','--','{selector}'];
+    }
+    if(pkg.scripts?.build){
+      c.build=pm==='yarn'?[pm,'build']:[pm,'run','build'];
+    }
     return c;
   }},
   {stack:'python',markers:['pyproject.toml','pytest.ini','setup.py','requirements.txt','tox.ini'],commands(){
@@ -53,8 +61,74 @@ const DETECTORS=[
   }},
   {stack:'dotnet',markers:['*.sln','*.csproj','*.fsproj'],commands(){
     return {test_full:['dotnet','test'],test_targeted:['dotnet','test','--filter','{selector}'],build:['dotnet','build']};
+  }},
+  {stack:'php',markers:['composer.json'],commands(root,warnings){
+    const composer=readJsonFile(path.join(root,'composer.json'),warnings,'composer.json');
+    const c={};
+    if(composer?.scripts?.test){c.test_full=['composer','test'];c.test_targeted=['composer','test','--','{selector}'];}
+    else{c.test_full=['vendor/bin/phpunit'];c.test_targeted=['vendor/bin/phpunit','--filter','{selector}'];}
+    return c;
+  }},
+  {stack:'ruby',markers:['Gemfile','Rakefile'],commands(){
+    return {test_full:['bundle','exec','rspec'],test_targeted:['bundle','exec','rspec','{selector}']};
+  }},
+  {stack:'elixir',markers:['mix.exs'],commands(){
+    return {test_full:['mix','test'],test_targeted:['mix','test','{selector}'],build:['mix','compile']};
+  }},
+  {stack:'bun',markers:['bunfig.toml','bun.lockb','bun.lock'],commands(){
+    return {test_full:['bun','test'],test_targeted:['bun','test','{selector}'],build:['bun','build']};
+  }},
+  {stack:'deno',markers:['deno.json','deno.jsonc'],commands(){
+    return {test_full:['deno','test'],test_targeted:['deno','test','{selector}']};
+  }},
+  {stack:'cmake',markers:['CMakeLists.txt'],commands(){
+    return {test_full:['ctest','--output-on-failure'],test_targeted:['ctest','--output-on-failure','-R','{selector}'],build:['cmake','--build','build']};
+  }},
+  {stack:'swift',markers:['Package.swift'],commands(){
+    return {test_full:['swift','test'],test_targeted:['swift','test','--filter','{selector}'],build:['swift','build']};
+  }},
+  {stack:'dart',markers:['pubspec.yaml'],commands(root){
+    const isFlutter=fs.existsSync(path.join(root,'pubspec.yaml'))&&fs.readFileSync(path.join(root,'pubspec.yaml'),'utf8').includes('flutter:');
+    const bin=isFlutter?'flutter':'dart';
+    return {test_full:[bin,'test'],test_targeted:[bin,'test','{selector}'],build:[bin,'build']};
+  }},
+  {stack:'zig',markers:['build.zig'],commands(){
+    return {test_full:['zig','build','test'],test_targeted:['zig','build','test','--','{selector}'],build:['zig','build']};
+  }},
+  {stack:'make',markers:['Makefile'],commands(){
+    return {test_full:['make','test'],test_targeted:['make','test','TEST={selector}'],build:['make']};
   }}
 ];
+
+const MONOREPO_MARKERS=[
+  {type:'pnpm-workspace',file:'pnpm-workspace.yaml'},
+  {type:'lerna',file:'lerna.json'},
+  {type:'turborepo',file:'turbo.json'},
+  {type:'nx',file:'nx.json'}
+];
+
+function detectMonorepo(projectRoot){
+  for(const m of MONOREPO_MARKERS){
+    if(fs.existsSync(path.join(projectRoot,m.file))){
+      return {is_monorepo:true,type:m.type};
+    }
+  }
+  const pkgPath=path.join(projectRoot,'package.json');
+  if(fs.existsSync(pkgPath)){
+    try{
+      const pkg=JSON.parse(fs.readFileSync(pkgPath,'utf8'));
+      if(pkg.workspaces)return {is_monorepo:true,type:'npm-workspaces'};
+    }catch{}
+  }
+  const cargoPath=path.join(projectRoot,'Cargo.toml');
+  if(fs.existsSync(cargoPath)){
+    try{
+      const cargo=fs.readFileSync(cargoPath,'utf8');
+      if(cargo.includes('[workspace]'))return {is_monorepo:true,type:'cargo-workspace'};
+    }catch{}
+  }
+  return {is_monorepo:false,type:null};
+}
 
 /** Markers may be a literal name or a `*.ext` pattern at the repository root. */
 function markerPresent(root,marker){
@@ -85,12 +159,14 @@ export function detectProject(projectRoot){
     warnings.push(`no test command could be derived from ${detected.map(d=>d.stack).join(', ')}; set commands.test_targeted in .agent-sdlc/project.json before relying on targeted verification`);
   }
   if(!detected.length)warnings.push('no known project marker at the repository root; set commands in .agent-sdlc/project.json');
+  const monorepo=detectMonorepo(projectRoot);
   return {
     schema:'agent-sdlc/project/v1',
     project:path.basename(projectRoot),
     created_from_git_sha:gitSha(projectRoot),
     stack,
     stacks:detected.map(d=>d.stack),
+    monorepo,
     detection_warnings:warnings,
     risk_profile:'STANDARD',
     default_provider:'auto',

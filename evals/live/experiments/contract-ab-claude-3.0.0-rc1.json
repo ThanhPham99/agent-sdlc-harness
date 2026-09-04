@@ -1,0 +1,562 @@
+{
+  "schema": "agent-sdlc/contract-ab-experiment/v1",
+  "version": "3.0.0-rc1",
+  "experiment": "the instruction contract as the only variable, graded on profile",
+  "evaluated_at": "2026-09-01T16:56:02.792Z",
+  "host": "claude",
+  "host_version": "2.1.233 (Claude Code)",
+  "resolved_binary": "claude",
+  "package": {
+    "file": "agent-sdlc-claude-3.0.0-rc1.zip",
+    "sha256": "31564bc0219a2ac8cc0e48595708d43721f7bec018b666122d1ca07369c52a7e"
+  },
+  "host_skill_source": {
+    "schema": "agent-sdlc/host-skill-source/v1",
+    "installs": [
+      {
+        "install_path": "C:\\Users\\phamt\\.claude\\plugins\\cache\\agent-sdlc-github\\agent-sdlc-harness\\3.0.0-alpha4",
+        "entry": "link",
+        "link_target": "D:\\Data\\Moevuive\\Projects\\Developing\\agent-sdlc-harness",
+        "linked_to_this_tree": true,
+        "skills_sha256": "ca2b5e6b1da2b315157d3f33683447f8c30b89028bdecb85a8a159c2eb4c3418",
+        "matches_package": true
+      }
+    ],
+    "dev_link_active": true,
+    "tree_skills_sha256": "ca2b5e6b1da2b315157d3f33683447f8c30b89028bdecb85a8a159c2eb4c3418",
+    "packaged_skills_sha256": "ca2b5e6b1da2b315157d3f33683447f8c30b89028bdecb85a8a159c2eb4c3418",
+    "shadowing_installs": [],
+    "uncomparable_installs": [],
+    "isolated": true,
+    "note": null
+  },
+  "reps_per_case_per_arm": 5,
+  "cases": [
+    "SEM007",
+    "SEM023",
+    "SEM033"
+  ],
+  "arms": {
+    "A": {
+      "label": "shipped prompt, full contract",
+      "contract_sha256": "3307461056b6ef7a0dd163251190484f5cae6468fbfba10fc6ecfaca1eab11ee",
+      "contract_chars": 1700
+    },
+    "B": {
+      "label": "guidance body removed, output-format sentences kept",
+      "contract_sha256": "7247212fb691f5928593bc3627f2b42b83c8b328404442f483aa1766b19adb08",
+      "contract_chars": 114
+    }
+  },
+  "removed_guidance": {
+    "sha256": "941f7f69c3a0014d241c7039d8a5222906448e1c94abdf3c73c2142112e13cb4",
+    "chars": 1586
+  },
+  "graded_field": "profile",
+  "tally": {
+    "A": {
+      "calls": 15,
+      "answered": 15,
+      "not_answered": 0,
+      "profile_correct": 13,
+      "per_case": {
+        "SEM007": {
+          "answered": 5,
+          "profile_correct": 4,
+          "profiles": [
+            "STRICT",
+            "STRICT",
+            "STRICT",
+            "FAST",
+            "STRICT"
+          ]
+        },
+        "SEM023": {
+          "answered": 5,
+          "profile_correct": 4,
+          "profiles": [
+            "STRICT",
+            "STRICT",
+            "STANDARD",
+            "STRICT",
+            "STRICT"
+          ]
+        },
+        "SEM033": {
+          "answered": 5,
+          "profile_correct": 5,
+          "profiles": [
+            "STRICT",
+            "STRICT",
+            "STRICT",
+            "STRICT",
+            "STRICT"
+          ]
+        }
+      }
+    },
+    "B": {
+      "calls": 15,
+      "answered": 15,
+      "not_answered": 0,
+      "profile_correct": 9,
+      "per_case": {
+        "SEM007": {
+          "answered": 5,
+          "profile_correct": 2,
+          "profiles": [
+            "STRICT",
+            "FAST",
+            "FAST",
+            "STRICT",
+            "FAST"
+          ]
+        },
+        "SEM023": {
+          "answered": 5,
+          "profile_correct": 2,
+          "profiles": [
+            "STANDARD",
+            "STANDARD",
+            "STANDARD",
+            "STRICT",
+            "STRICT"
+          ]
+        },
+        "SEM033": {
+          "answered": 5,
+          "profile_correct": 5,
+          "profiles": [
+            "STRICT",
+            "STRICT",
+            "STRICT",
+            "STRICT",
+            "STRICT"
+          ]
+        }
+      }
+    }
+  },
+  "results": [
+    {
+      "rep": 1,
+      "arm": "A",
+      "case_id": "SEM007",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "hotfix",
+      "actual_workflow": "hotfix",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 9729,
+      "prompt_sha256": "ce4ac66da29b1f159fde0f3edac85e4c5e2d6a618f5b17c48ff45e81bd9b9ae1"
+    },
+    {
+      "rep": 1,
+      "arm": "B",
+      "case_id": "SEM007",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "hotfix",
+      "actual_workflow": "hotfix",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 17501,
+      "prompt_sha256": "838b1b2f43cdfd3519f9a25db46b18fa5122d8e71dbf87f427d2697030157a0a"
+    },
+    {
+      "rep": 1,
+      "arm": "A",
+      "case_id": "SEM023",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "infrastructure-change",
+      "actual_workflow": "infrastructure-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 21731,
+      "prompt_sha256": "7ad5432687367400a6c4a31aae018f99dc76bca18972ec67b05e5077b8a64075"
+    },
+    {
+      "rep": 1,
+      "arm": "B",
+      "case_id": "SEM023",
+      "expected_profile": "STRICT",
+      "actual_profile": "STANDARD",
+      "profile_correct": false,
+      "expected_workflow": "infrastructure-change",
+      "actual_workflow": "infrastructure-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 16407,
+      "prompt_sha256": "57e23e87064625e157645fd58c713cc9ffb16920ddcd8fe5860a6d703f23d0d3"
+    },
+    {
+      "rep": 1,
+      "arm": "A",
+      "case_id": "SEM033",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "compliance-change",
+      "actual_workflow": "compliance-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 13867,
+      "prompt_sha256": "d56938137b8551a36a9d40c2cc3adebb16a85febbcfefc6c9a4edb8ebd95b40f"
+    },
+    {
+      "rep": 1,
+      "arm": "B",
+      "case_id": "SEM033",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "compliance-change",
+      "actual_workflow": "compliance-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 12294,
+      "prompt_sha256": "7b0f85360fd56c15e8bbe70f6a47a99d0e181ec6534dd41a68e8681b8eb9da7d"
+    },
+    {
+      "rep": 2,
+      "arm": "B",
+      "case_id": "SEM007",
+      "expected_profile": "STRICT",
+      "actual_profile": "FAST",
+      "profile_correct": false,
+      "expected_workflow": "hotfix",
+      "actual_workflow": "hotfix",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 21440,
+      "prompt_sha256": "838b1b2f43cdfd3519f9a25db46b18fa5122d8e71dbf87f427d2697030157a0a"
+    },
+    {
+      "rep": 2,
+      "arm": "A",
+      "case_id": "SEM007",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "hotfix",
+      "actual_workflow": "hotfix",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 12179,
+      "prompt_sha256": "ce4ac66da29b1f159fde0f3edac85e4c5e2d6a618f5b17c48ff45e81bd9b9ae1"
+    },
+    {
+      "rep": 2,
+      "arm": "B",
+      "case_id": "SEM023",
+      "expected_profile": "STRICT",
+      "actual_profile": "STANDARD",
+      "profile_correct": false,
+      "expected_workflow": "infrastructure-change",
+      "actual_workflow": "infrastructure-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 13436,
+      "prompt_sha256": "57e23e87064625e157645fd58c713cc9ffb16920ddcd8fe5860a6d703f23d0d3"
+    },
+    {
+      "rep": 2,
+      "arm": "A",
+      "case_id": "SEM023",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "infrastructure-change",
+      "actual_workflow": "infrastructure-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 12006,
+      "prompt_sha256": "7ad5432687367400a6c4a31aae018f99dc76bca18972ec67b05e5077b8a64075"
+    },
+    {
+      "rep": 2,
+      "arm": "B",
+      "case_id": "SEM033",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "compliance-change",
+      "actual_workflow": "compliance-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 15690,
+      "prompt_sha256": "7b0f85360fd56c15e8bbe70f6a47a99d0e181ec6534dd41a68e8681b8eb9da7d"
+    },
+    {
+      "rep": 2,
+      "arm": "A",
+      "case_id": "SEM033",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "compliance-change",
+      "actual_workflow": "compliance-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 31430,
+      "prompt_sha256": "d56938137b8551a36a9d40c2cc3adebb16a85febbcfefc6c9a4edb8ebd95b40f"
+    },
+    {
+      "rep": 3,
+      "arm": "A",
+      "case_id": "SEM007",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "hotfix",
+      "actual_workflow": "hotfix",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 24786,
+      "prompt_sha256": "ce4ac66da29b1f159fde0f3edac85e4c5e2d6a618f5b17c48ff45e81bd9b9ae1"
+    },
+    {
+      "rep": 3,
+      "arm": "B",
+      "case_id": "SEM007",
+      "expected_profile": "STRICT",
+      "actual_profile": "FAST",
+      "profile_correct": false,
+      "expected_workflow": "hotfix",
+      "actual_workflow": "hotfix",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 25034,
+      "prompt_sha256": "838b1b2f43cdfd3519f9a25db46b18fa5122d8e71dbf87f427d2697030157a0a"
+    },
+    {
+      "rep": 3,
+      "arm": "A",
+      "case_id": "SEM023",
+      "expected_profile": "STRICT",
+      "actual_profile": "STANDARD",
+      "profile_correct": false,
+      "expected_workflow": "infrastructure-change",
+      "actual_workflow": "infrastructure-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 18224,
+      "prompt_sha256": "7ad5432687367400a6c4a31aae018f99dc76bca18972ec67b05e5077b8a64075"
+    },
+    {
+      "rep": 3,
+      "arm": "B",
+      "case_id": "SEM023",
+      "expected_profile": "STRICT",
+      "actual_profile": "STANDARD",
+      "profile_correct": false,
+      "expected_workflow": "infrastructure-change",
+      "actual_workflow": "infrastructure-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 13382,
+      "prompt_sha256": "57e23e87064625e157645fd58c713cc9ffb16920ddcd8fe5860a6d703f23d0d3"
+    },
+    {
+      "rep": 3,
+      "arm": "A",
+      "case_id": "SEM033",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "compliance-change",
+      "actual_workflow": "compliance-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 24222,
+      "prompt_sha256": "d56938137b8551a36a9d40c2cc3adebb16a85febbcfefc6c9a4edb8ebd95b40f"
+    },
+    {
+      "rep": 3,
+      "arm": "B",
+      "case_id": "SEM033",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "compliance-change",
+      "actual_workflow": "compliance-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 12081,
+      "prompt_sha256": "7b0f85360fd56c15e8bbe70f6a47a99d0e181ec6534dd41a68e8681b8eb9da7d"
+    },
+    {
+      "rep": 4,
+      "arm": "B",
+      "case_id": "SEM007",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "hotfix",
+      "actual_workflow": "hotfix",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 14115,
+      "prompt_sha256": "838b1b2f43cdfd3519f9a25db46b18fa5122d8e71dbf87f427d2697030157a0a"
+    },
+    {
+      "rep": 4,
+      "arm": "A",
+      "case_id": "SEM007",
+      "expected_profile": "STRICT",
+      "actual_profile": "FAST",
+      "profile_correct": false,
+      "expected_workflow": "hotfix",
+      "actual_workflow": "hotfix",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 12661,
+      "prompt_sha256": "ce4ac66da29b1f159fde0f3edac85e4c5e2d6a618f5b17c48ff45e81bd9b9ae1"
+    },
+    {
+      "rep": 4,
+      "arm": "B",
+      "case_id": "SEM023",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "infrastructure-change",
+      "actual_workflow": "infrastructure-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 14125,
+      "prompt_sha256": "57e23e87064625e157645fd58c713cc9ffb16920ddcd8fe5860a6d703f23d0d3"
+    },
+    {
+      "rep": 4,
+      "arm": "A",
+      "case_id": "SEM023",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "infrastructure-change",
+      "actual_workflow": "infrastructure-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 15669,
+      "prompt_sha256": "7ad5432687367400a6c4a31aae018f99dc76bca18972ec67b05e5077b8a64075"
+    },
+    {
+      "rep": 4,
+      "arm": "B",
+      "case_id": "SEM033",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "compliance-change",
+      "actual_workflow": "compliance-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 18285,
+      "prompt_sha256": "7b0f85360fd56c15e8bbe70f6a47a99d0e181ec6534dd41a68e8681b8eb9da7d"
+    },
+    {
+      "rep": 4,
+      "arm": "A",
+      "case_id": "SEM033",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "compliance-change",
+      "actual_workflow": "compliance-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 13176,
+      "prompt_sha256": "d56938137b8551a36a9d40c2cc3adebb16a85febbcfefc6c9a4edb8ebd95b40f"
+    },
+    {
+      "rep": 5,
+      "arm": "A",
+      "case_id": "SEM007",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "hotfix",
+      "actual_workflow": "hotfix",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 14127,
+      "prompt_sha256": "ce4ac66da29b1f159fde0f3edac85e4c5e2d6a618f5b17c48ff45e81bd9b9ae1"
+    },
+    {
+      "rep": 5,
+      "arm": "B",
+      "case_id": "SEM007",
+      "expected_profile": "STRICT",
+      "actual_profile": "FAST",
+      "profile_correct": false,
+      "expected_workflow": "hotfix",
+      "actual_workflow": "hotfix",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 19637,
+      "prompt_sha256": "838b1b2f43cdfd3519f9a25db46b18fa5122d8e71dbf87f427d2697030157a0a"
+    },
+    {
+      "rep": 5,
+      "arm": "A",
+      "case_id": "SEM023",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "infrastructure-change",
+      "actual_workflow": "infrastructure-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 20053,
+      "prompt_sha256": "7ad5432687367400a6c4a31aae018f99dc76bca18972ec67b05e5077b8a64075"
+    },
+    {
+      "rep": 5,
+      "arm": "B",
+      "case_id": "SEM023",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "infrastructure-change",
+      "actual_workflow": "infrastructure-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 12909,
+      "prompt_sha256": "57e23e87064625e157645fd58c713cc9ffb16920ddcd8fe5860a6d703f23d0d3"
+    },
+    {
+      "rep": 5,
+      "arm": "A",
+      "case_id": "SEM033",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "compliance-change",
+      "actual_workflow": "compliance-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 26321,
+      "prompt_sha256": "d56938137b8551a36a9d40c2cc3adebb16a85febbcfefc6c9a4edb8ebd95b40f"
+    },
+    {
+      "rep": 5,
+      "arm": "B",
+      "case_id": "SEM033",
+      "expected_profile": "STRICT",
+      "actual_profile": "STRICT",
+      "profile_correct": true,
+      "expected_workflow": "compliance-change",
+      "actual_workflow": "compliance-change",
+      "outcome": "ANSWERED",
+      "reason": null,
+      "duration_ms": 11894,
+      "prompt_sha256": "7b0f85360fd56c15e8bbe70f6a47a99d0e181ec6534dd41a68e8681b8eb9da7d"
+    }
+  ]
+}

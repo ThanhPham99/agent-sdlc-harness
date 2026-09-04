@@ -1,0 +1,45 @@
+{
+  "schema": "agent-sdlc/mcp-gateway-validation/v1",
+  "checks": 9,
+  "passes": 9,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "mcp-gateway-tools-list-returns-declarations",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-gateway-calls-dashboard-tool",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-gateway-calls-govern-tool",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-gateway-calls-flaky-detect-tool",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-gateway-calls-memory-lookup-tool",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-gateway-calls-release-notes-tool",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-gateway-handles-unknown-tool",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-gateway-handles-tool-execution-error",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-gateway-handles-unsupported-method",
+      "status": "PASS"
+    }
+  ]
+}

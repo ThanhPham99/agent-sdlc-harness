@@ -23,7 +23,8 @@ const SOURCES=new Set(${SOURCES});
 const DISABLED=v=>['0','false','no','off','disabled'].includes(String(v??'').trim().toLowerCase());
 let raw='';
 for await (const c of process.stdin)raw+=c;
-if(DISABLED(process.env.AGENT_SDLC_AUTO_ACTIVATE_ENFORCED)||DISABLED(process.env.${policy.env_override}))process.exit(0);
+const enf=process.env.AGENT_SDLC_AUTO_ACTIVATE_ENFORCED;
+if(enf!==undefined&&String(enf).length?DISABLED(enf):DISABLED(process.env.${policy.env_override}))process.exit(0);
 let p={};try{p=JSON.parse(raw||'{}');}catch{p={};}
 const source=String(p.session_start_reason||p.source||p.matcher||'startup');
 if(!SOURCES.has(source))process.exit(0);
@@ -38,7 +39,8 @@ ${GEN}
 const BOOTSTRAP=${TEXT};
 const DISABLED=v=>['0','false','no','off','disabled'].includes(String(v??'').trim().toLowerCase());
 for await (const _ of process.stdin){}
-if(DISABLED(process.env.AGENT_SDLC_AUTO_ACTIVATE_ENFORCED)||DISABLED(process.env.${policy.env_override}))process.exit(0);
+const enf=process.env.AGENT_SDLC_AUTO_ACTIVATE_ENFORCED;
+if(enf!==undefined&&String(enf).length?DISABLED(enf):DISABLED(process.env.${policy.env_override}))process.exit(0);
 console.log(JSON.stringify({injectSteps:[{ephemeralMessage:BOOTSTRAP}]}));
 `;
 

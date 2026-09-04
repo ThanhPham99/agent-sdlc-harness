@@ -121,6 +121,60 @@
       "tool": "Read",
       "file_path": "package.json",
       "expect": null
+    },
+    {
+      "id": "allow-redirect-to-a-variable-path",
+      "tool": "Bash",
+      "command": "npm test > \"$SP/det.log\" 2>&1",
+      "expect": null
+    },
+    {
+      "id": "allow-redirect-to-a-braced-variable-path",
+      "tool": "Bash",
+      "command": "npm test > \"${TMPDIR}/run.log\" 2>&1",
+      "expect": null
+    },
+    {
+      "id": "allow-redirect-to-a-home-relative-path",
+      "tool": "Bash",
+      "command": "npm test > ~/logs/run.log",
+      "expect": null
+    },
+    {
+      "id": "allow-redirect-to-dev-null",
+      "tool": "Bash",
+      "command": "npm test > /dev/null 2>&1",
+      "expect": null
+    },
+    {
+      "id": "allow-redirect-to-an-extensionless-path",
+      "tool": "Bash",
+      "command": "go test ./... > /tmp/go-out",
+      "expect": null
+    },
+    {
+      "id": "allow-redirect-to-an-unlisted-extension",
+      "tool": "Bash",
+      "command": "npm test > report.md",
+      "expect": null
+    },
+    {
+      "id": "allow-piped-into-tee",
+      "tool": "Bash",
+      "command": "npm test | tee run.log",
+      "expect": null
+    },
+    {
+      "id": "allow-redirect-to-a-windows-path",
+      "tool": "Bash",
+      "command": "npm test > C:\\temp\\run.log",
+      "expect": null
+    },
+    {
+      "id": "deny-stderr-merge-is-not-a-redirect",
+      "tool": "Bash",
+      "command": "npm test 2>&1",
+      "expect": "deny"
     }
   ]
 }

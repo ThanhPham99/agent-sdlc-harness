@@ -1,0 +1,41 @@
+{
+  "schema": "agent-sdlc/autonomous-runner-validation/v1",
+  "checks": 8,
+  "passes": 8,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "ci-guard-detects-configuration-and-runs-local-validation",
+      "status": "PASS"
+    },
+    {
+      "name": "approval-tickets-can-be-requested-and-granted-without-tty",
+      "status": "PASS"
+    },
+    {
+      "name": "gate-1-pauses-for-human-approval-on-strict-workflow",
+      "status": "PASS"
+    },
+    {
+      "name": "auto-pipeline-executes-low-risk-tasks-until-gate-4-pre-commit",
+      "status": "PASS"
+    },
+    {
+      "name": "gate-2-escalates-when-task-fails-verification-exceeding-attempts",
+      "status": "PASS"
+    },
+    {
+      "name": "gate-5-pauses-on-privileged-production-deployment-until-approved",
+      "status": "PASS"
+    },
+    {
+      "name": "semantic-classifier-and-route-semantic-with-host",
+      "status": "PASS"
+    },
+    {
+      "name": "auto-cli-commands-dispatch",
+      "status": "PASS"
+    }
+  ]
+}

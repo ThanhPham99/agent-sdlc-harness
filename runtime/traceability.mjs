@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {now,readJson,sha256,writeJson} from './util.mjs';
-import {stateDir,listTasks,loadTaskGraph,listArtifacts} from './store.mjs';
+import {stateDir,listTasks,loadTaskGraph,artifactsForRun,artifactBindings} from './store.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -44,7 +44,9 @@ function emptyGraph(runId,revision){
 export function buildTraceabilityGraph(projectRoot,runId,{run=null,revision=null,designDecisions=[],documentation=[],release=null}={}){
   const taskGraph=loadTaskGraph(projectRoot,runId);
   const tasks=listTasks(projectRoot,runId);
-  const artifacts=listArtifacts(projectRoot).filter(a=>a.run_id===runId);
+  // By binding, not by the metadata's first owner: an artifact two runs
+  // stored identical bytes for belongs to both of them.
+  const artifacts=artifactsForRun(projectRoot,runId);
   const g=emptyGraph(runId,revision??taskGraph?.source_revision??null);
   const nodeIndex=new Map();
 
@@ -101,7 +103,7 @@ export function buildTraceabilityGraph(projectRoot,runId,{run=null,revision=null
       for(const p of arr(task.scope?.write))addEdge(tId,addNode('DATA_ENTITY',path.posix.basename(String(p))),'affects');
     }
     for(const a of artifactByKindTask('task-verification',task.task_id)){
-      const evId=addNode('EVIDENCE',a.artifact_id,{ref:a.artifact_id,sha256:a.sha256,revision:a.source_revision});
+      const evId=addNode('EVIDENCE',a.artifact_id,{ref:a.artifact_id,sha256:a.sha256,revision:artifactBindings(a).find(b=>b.run_id===runId)?.source_revision??a.source_revision});
       addEdge(evId,tId,'supports');
     }
   }
@@ -311,7 +313,17 @@ export function applyInvalidation(projectRoot,graph,closure,{reason='upstream ch
     affected:closure.affected.map(a=>({id:a.id,kind:a.kind,depth:a.depth,path:a.path})),
     preserved_count:closure.preserved_count,
     earliest_outer_gate:closure.earliest_outer_gate,
-    graph_sha256:sha256(JSON.stringify(graph.nodes.map(n=>[n.id,n.valid]))),
+    // Sorted by id: the anchor identifies the graph's state, not the order the
+    // walk happened to discover it in. Part of that order comes from
+    // listArtifacts() -> fs.readdirSync(), which Node does not promise to sort
+    // -- NTFS returns names in B-tree order, ext4 with dir_index returns hash
+    // order -- so an unsorted anchor is a different number on the Linux runner
+    // than on a Windows workstation for the very same state.
+    //
+    // By code point, NOT localeCompare: collation honours the default locale
+    // and changes again in a Node built --without-intl, which would trade the
+    // filesystem dependency for an ICU one. The two disagree on plain ASCII.
+    graph_sha256:sha256(JSON.stringify(graph.nodes.map(n=>[n.id,n.valid]).sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0))),
     time:now()
   };
   saveTraceabilityGraph(projectRoot,graph);
@@ -326,4 +338,35 @@ export function invalidationHistory(projectRoot,runId){
   const p=path.join(stateDir(projectRoot),'traceability',`${runId}-invalidations.jsonl`);
   if(!fs.existsSync(p))return [];
   return fs.readFileSync(p,'utf8').split('\n').filter(Boolean).map(l=>JSON.parse(l));
+}
+
+/** Render a Mermaid diagram representing the Traceability Graph. */
+export function renderTraceabilityMermaid(graph){
+  if(!graph||!arr(graph.nodes).length)return 'graph TD\n  Empty["(No Traceability Nodes)"]';
+  const lines=['graph LR'];
+  const kindShapes={
+    REQUIREMENT:(id,lbl)=>`${id}(["📋 ${lbl}"])`,
+    ACCEPTANCE_CRITERION:(id,lbl)=>`${id}{"🎯 ${lbl}"}`,
+    DESIGN_DECISION:(id,lbl)=>`${id}[/"📐 ${lbl}"/]`,
+    TASK:(id,lbl)=>`${id}["🔨 ${lbl}"]`,
+    TEST:(id,lbl)=>`${id}[("🧪 ${lbl}")]`,
+    EVIDENCE:(id,lbl)=>`${id}>"📦 ${lbl}"]`,
+    SYMBOL:(id,lbl)=>`${id}["🏷️ ${lbl}"]`,
+    INTERFACE:(id,lbl)=>`${id}{{"🔌 ${lbl}"}}`
+  };
+
+  for(const node of graph.nodes){
+    const safeId=node.id.replace(/[^a-zA-Z0-9_]/g,'_');
+    const cleanLabel=String(node.label||node.id).replace(/"/g,'\'').slice(0,60);
+    const renderer=kindShapes[node.kind]||((id,lbl)=>`${id}["${lbl}"]`);
+    lines.push(`  ${renderer(safeId,cleanLabel)}`);
+  }
+
+  for(const edge of arr(graph.edges)){
+    const fromId=edge.from.replace(/[^a-zA-Z0-9_]/g,'_');
+    const toId=edge.to.replace(/[^a-zA-Z0-9_]/g,'_');
+    lines.push(`  ${fromId} -->|${edge.kind}| ${toId}`);
+  }
+
+  return lines.join('\n');
 }

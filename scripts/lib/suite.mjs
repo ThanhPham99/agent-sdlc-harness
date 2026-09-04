@@ -13,6 +13,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {writeReport} from './report-io.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..','..');
 
@@ -66,7 +67,7 @@ export function createSuite(schema,file){
    */
   const finish=(fields={})=>{
     const report={schema,...fields,checks:rows.length,passes:pass,failures:fail,skipped:skip,results:rows};
-    if(file)fs.writeFileSync(path.join(ROOT,'evals',file),JSON.stringify(report,null,2)+'\n');
+    if(file)writeReport(path.join(ROOT,'evals',file),report);
     console.log(JSON.stringify(fail?report:{...report,results:'all-pass'},null,2));
     process.exit(fail?1:0);
   };

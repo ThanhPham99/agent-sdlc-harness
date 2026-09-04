@@ -2,7 +2,7 @@
 name: sdlc-orchestrator
 description: Run or resume the complete evidence-driven software lifecycle after routing. Enforces deterministic state, progressive context, budgets, least privilege, verification gates, artifact handoffs, review, release/deploy/observe, incident and maintenance workflows.
 metadata:
-  version: "3.0.0-alpha6"
+  version: "3.0.0-rc1"
 ---
 # SDLC Orchestrator
 
@@ -52,3 +52,25 @@ you.
 One task, one bounded context, one primary writer, one workspace. A worker returns a structured result and never transitions run or task state. A diff outside a task's approved write scope is a planning event that re-enters `PLAN`, not a retry. A retry needs new concrete evidence; the engine refuses an identical repeat.
 
 Before declaring completion, the workflow must reach `CLOSE` with the required verification, review/release/deploy evidence for its selected workflow.
+
+## Autonomous Execution & 5 Human Confirmation Gates
+
+To eliminate repetitive manual transitions while guaranteeing human authority over critical decisions, use:
+- `bin/agent-sdlc auto --run-id <id>`: Runs the SDLC stages automatically until complete or paused at a human gate.
+- `bin/agent-sdlc auto-task --run-id <id>`: Automates the task scheduling, verification, and review loop inside `IMPLEMENT`.
+- `bin/agent-sdlc ci-check`: Validates that local test suites pass before commit/push.
+
+### The 5 Human Confirmation Gates
+The runner automatically pauses and returns `status: "PAUSED"` at the following gates:
+1. **Gate 1 - Scope & Architecture Sign-Off**: Triggered on `STRICT` workflows or when `design mode` requires `FULL` architecture review.
+2. **Gate 2 - Escalation & Blocker Decision**: Triggered when a task verification fails repeatedly (> 3 self-healing attempts).
+3. **Gate 3 - Security & Compliance Exception**: Triggered when SAST/SCA scanners find vulnerabilities or policy violations.
+4. **Gate 4 - Pre-Commit & Push Approval**: Triggered at `RELEASE` stage. **RULE**: If project has CI/CD, all local CI checks must pass 100% before requesting human approval to commit and push to remote.
+5. **Gate 5 - Privileged Production Action**: Triggered on production deployments, schema drop, IAM modification, or root policy edits.
+
+### Non-TTY Approval Tickets
+When pausing at a Human Gate in chat/non-TTY environments:
+1. Request a ticket: `bin/agent-sdlc approval request --run-id <id> --capability <cap> --reason "<why>"`.
+2. Present the choice to the human in chat.
+3. Once the user approves, record grant: `bin/agent-sdlc approval grant-ticket --run-id <id> --ticket-id <ticket_id>`.
+4. Resume pipeline: `bin/agent-sdlc auto --run-id <id>`.

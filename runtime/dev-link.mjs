@@ -20,17 +20,55 @@ export function hostHome(){
   return explicit?path.resolve(explicit):path.join(os.homedir(),'.claude');
 }
 
+// Antigravity plugin directory override or fall back to ~/.gemini/config.
+export function antigravityHome(){
+  const explicit=process.env.AGENT_SDLC_ANTIGRAVITY_HOME||process.env.ANTIGRAVITY_CONFIG_DIR||process.env.GEMINI_CONFIG_DIR;
+  return explicit?path.resolve(explicit):path.join(os.homedir(),'.gemini','config');
+}
+
+export function antigravityPluginPath(){
+  return path.join(antigravityHome(),'plugins',PLUGIN);
+}
+
 /** Records the host holds for this plugin, whatever marketplace installed it. */
 export function installedRecords(){
-  const p=path.join(hostHome(),'plugins','installed_plugins.json');
-  if(!fs.existsSync(p))return {path:p,present:false,records:[]};
-  const doc=JSON.parse(fs.readFileSync(p,'utf8'));
+  const claudeRecordPath=path.join(hostHome(),'plugins','installed_plugins.json');
+  const claudePresent=fs.existsSync(claudeRecordPath);
   const records=[];
-  for(const [key,entries] of Object.entries(doc.plugins||{})){
-    if(!key.startsWith(`${PLUGIN}@`))continue;
-    for(const e of entries||[])records.push({key,...e});
+  if(claudePresent){
+    try{
+      const doc=JSON.parse(fs.readFileSync(claudeRecordPath,'utf8'));
+      for(const [key,entries] of Object.entries(doc.plugins||{})){
+        if(!key.startsWith(`${PLUGIN}@`))continue;
+        for(const e of entries||[])records.push({host:'claude',key,...e});
+      }
+    }catch{}
   }
-  return {path:p,present:true,records};
+
+  const agPath=antigravityPluginPath();
+  const agPluginsDir=path.join(antigravityHome(),'plugins');
+  const agDirPresent=fs.existsSync(agPath);
+  const agParentPresent=fs.existsSync(agPluginsDir);
+  if(agDirPresent){
+    let loadedVersion=null;
+    try{loadedVersion=fs.readFileSync(path.join(agPath,'VERSION'),'utf8').trim();}catch{}
+    records.push({
+      host:'antigravity',
+      key:`${PLUGIN}@antigravity`,
+      scope:'user',
+      installPath:agPath,
+      version:loadedVersion
+    });
+  }
+
+  return {
+    path:claudeRecordPath,
+    present:claudePresent||agDirPresent||agParentPresent,
+    claude_present:claudePresent,
+    antigravity_present:agDirPresent||agParentPresent,
+    antigravity_path:agPath,
+    records
+  };
 }
 
 export const linkKind=p=>{try{return fs.lstatSync(p).isSymbolicLink()?'link':'directory';}catch{return 'missing';}};
@@ -45,6 +83,7 @@ export function describeRecord(record,{root,repoVersion}){
   let loadedVersion=null;
   try{loadedVersion=fs.readFileSync(path.join(installPath,'VERSION'),'utf8').trim();}catch{}
   return {
+    host:record.host||'claude',
     key:record.key,
     install_path:installPath,
     recorded_version:record.version??null,
@@ -74,7 +113,7 @@ export function driftStatus(root,repoVersion){
   if(!records.length){
     report.note=present
       ?`no ${PLUGIN} install recorded for this host; install it once, then re-run with --apply`
-      :`no host record at ${recordPath}; set CLAUDE_CONFIG_DIR if the host config lives elsewhere`;
+      :`no host record at ${recordPath}; set CLAUDE_CONFIG_DIR or AGENT_SDLC_ANTIGRAVITY_HOME if the host config lives elsewhere`;
   }
   if(plugins.some(p=>p.drift))report.hint='run: npm run dev:link';
   return report;

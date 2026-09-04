@@ -129,6 +129,26 @@
         "signal": "ARCHITECTURE_BOUNDARY",
         "human_approval_required": false
       }
+    },
+    {
+      "id": "DD-014-external-tech-integration-full",
+      "profile": "STANDARD",
+      "objective": "Integrate the latest Stripe SDK for payment processing",
+      "expected": {
+        "mode": "FULL",
+        "signal": "EXTERNAL_TECH_OR_INTEGRATION",
+        "human_approval_required": false
+      }
+    },
+    {
+      "id": "DD-015-tra-cuu-tai-lieu-moi-nhat",
+      "profile": "STANDARD",
+      "objective": "Tra cứu tài liệu mới nhất và tích hợp OpenTelemetry SDK",
+      "expected": {
+        "mode": "FULL",
+        "signal": "EXTERNAL_TECH_OR_INTEGRATION",
+        "human_approval_required": false
+      }
     }
   ]
 }

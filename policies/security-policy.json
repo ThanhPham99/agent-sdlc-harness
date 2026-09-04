@@ -16,16 +16,26 @@
   ],
   "secret_policy": "no ambient production credentials; prefer short-lived scoped credentials",
   "secret_scan": {
-    "note": "A finding must be a credential-shaped VALUE, not a name followed by punctuation. Regexes are POSIX ERE: they are handed to `git grep -E`, where \\s is not portable.",
+    "note": "A finding must be a credential-shaped VALUE, not a name followed by punctuation. The assigned-credential value class deliberately excludes the dot character, because a dotted identifier reference such as hook.secret is a name, not a value; provider-specific patterns that need dots carry their own regex. Regexes are POSIX ERE: they are handed to `git grep -E`, where \\s is not portable.",
     "patterns": [
       {"id": "AWS_ACCESS_KEY_ID", "regex": "AKIA[0-9A-Z]{16}"},
       {"id": "PRIVATE_KEY_BLOCK", "regex": "BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY"},
-      {"id": "ASSIGNED_CREDENTIAL", "regex": "(api[_-]?key|secret|token|password|passwd)[\"']?[[:space:]]*[:=][[:space:]]*[\"']?[A-Za-z0-9_./+-]{8,}"}
+      {"id": "STRIPE_API_KEY", "regex": "(sk|pk|rk)_(live|test)_[0-9a-zA-Z]{24,}"},
+      {"id": "DATABASE_URI_CREDENTIAL", "regex": "(postgres|postgresql|mysql|mongodb|redis|amqp)://[^/ :@]+:[^/ :@]+@[^/ :]+"},
+      {"id": "ANTHROPIC_API_KEY", "regex": "sk-ant-[A-Za-z0-9_./+-]{32,}"},
+      {"id": "OPENAI_API_KEY", "regex": "sk-proj-[A-Za-z0-9_./+-]{32,}"},
+      {"id": "GITHUB_PAT", "regex": "(ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{36}"},
+      {"id": "GITHUB_FINE_GRAINED_PAT", "regex": "github_pat_[A-Za-z0-9_]{82}"},
+      {"id": "SLACK_API_TOKEN", "regex": "xox[baprs]-[0-9a-zA-Z]{10,48}"},
+      {"id": "SUPABASE_API_KEY", "regex": "sbp_[a-zA-Z0-9]{32,}"},
+      {"id": "GOOGLE_API_KEY", "regex": "AIza[0-9A-Za-z_./+-]{35}"},
+      {"id": "ASSIGNED_CREDENTIAL", "regex": "(api[_-]?key|secret|token|password|passwd)[\"']?[[:space:]]*[:=][[:space:]]*[\"']?[A-Za-z0-9_/+=-]{8,}"}
     ],
     "allowlist_paths": [
       "evals/**",
       "docs/superpowers/specs/**",
-      "docs/superpowers/plans/**"
+      "docs/superpowers/plans/**",
+      "scripts/test-*.mjs"
     ]
   },
   "protected_paths": [
@@ -43,10 +53,14 @@
     ".aws/**",
     ".ssh/**",
     ".npmrc",
-    ".pypirc"
+    ".pypirc",
+    ".git/config",
+    ".git/credentials",
+    ".git-credentials",
+    ".netrc",
+    "_netrc"
   ],
   "web_search_policy": {
-    "sanitize_queries": true,
     "blocked_query_patterns": [
       "(?i)api[_-]?key",
       "(?i)secret",

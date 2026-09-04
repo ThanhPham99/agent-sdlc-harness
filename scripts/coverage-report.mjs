@@ -16,7 +16,10 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath,pathToFileURL} from 'node:url';
-import {spawnSync} from 'node:child_process';
+import {spawn,spawnSync} from 'node:child_process';
+import {planScripts} from './lib/check-plan.mjs';
+import {writeReport} from './lib/report-io.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const FLOOR_FILE=path.join(ROOT,'evals','COVERAGE-FLOOR.json');
@@ -46,7 +49,33 @@ const ENTRIES=[
   'scripts/validate-gates.mjs',
   'scripts/validate-task-engine.mjs',
   'scripts/validate-alpha6.mjs',
-  'scripts/validate-cli-surface.mjs'
+  'scripts/validate-cli-surface.mjs',
+  'scripts/test-prompt-caching.mjs',
+  'scripts/test-error-triage.mjs',
+  'scripts/test-worktree-isolation.mjs',
+  'scripts/test-live-dashboard.mjs',
+  'scripts/test-parallel-execution.mjs',
+  'scripts/test-secret-scanner.mjs',
+  'scripts/test-budget-governor.mjs',
+  'scripts/test-tui.mjs',
+  'scripts/test-adaptive-fallback.mjs',
+  'scripts/test-failure-memory.mjs',
+  'scripts/test-flaky-detector.mjs',
+  'scripts/test-mcp-gateway.mjs',
+  'scripts/test-test-impact.mjs',
+  'scripts/test-pr-synthesizer.mjs',
+  'scripts/test-security-linter.mjs',
+  'scripts/test-webhook-retry.mjs',
+  'scripts/test-sse-stream.mjs',
+  'scripts/test-dead-code.mjs',
+  'scripts/test-arch-linter.mjs',
+  'scripts/test-mutation.mjs',
+  'scripts/test-simulator.mjs',
+  'scripts/test-commands-expansion.mjs',
+  'scripts/test-web-dashboard.mjs',
+  'scripts/simulate-e2e-run.mjs',
+  'scripts/test-coding-standards.mjs',
+  'scripts/test-autonomous-runner.mjs'
 ];
 
 // Suites deliberately not measured, each with the reason. Naming them rather
@@ -70,15 +99,26 @@ const NOT_MEASURED={
   'scripts/test-statusline.mjs':'exercises the opt-in statusline script in adapters/, outside runtime/',
   'scripts/validate-syntax.mjs':'parses each .mjs file with `node --check`; never imports or executes runtime/',
   'scripts/restore-tracked-reports.mjs':'local git-tree hygiene (git status/checkout on evals/); never enters runtime/',
-  'scripts/test-restore-tracked-reports.mjs':'exercises restore-tracked-reports.mjs against a throwaway git fixture; never enters runtime/'
+  'scripts/test-restore-tracked-reports.mjs':'exercises restore-tracked-reports.mjs against a throwaway git fixture; never enters runtime/',
+  'scripts/test-root-sync.mjs':'exercises validate-root-sync.mjs against a throwaway file tree; never enters runtime/',
+  'scripts/test-temp-hygiene.mjs':'spawns child processes to observe what a process leaves in the system temp directory when it ends; never enters runtime/',
+  'scripts/validate-types.mjs':'validates type definitions; never enters runtime/',
+  'scripts/run-check.mjs':'runs the other suites as child processes; never enters runtime/ itself, and each child is measured on its own'
 };
 
-/** Every suite the `check` chain runs, expanded through its npm-script aliases. */
+/**
+ * Every suite `check` runs, expanded through its npm-script aliases.
+ *
+ * The suite list comes from scripts/lib/check-plan.mjs, not from parsing an
+ * `&&` chain. When `check` became a runner over that plan, chain-parsing found
+ * exactly one file -- the runner itself -- and this completeness check, whose
+ * entire job is to refuse an unclassified suite, silently went vacuous.
+ */
 function checkChainSuites(){
   const scripts=JSON.parse(fs.readFileSync(path.join(ROOT,'package.json'),'utf8')).scripts;
   const expand=cmd=>String(cmd||'').split('&&').map(s=>s.trim())
     .flatMap(s=>s.startsWith('npm run ')?expand(scripts[s.slice(8).trim()]):[s]);
-  return [...new Set(expand(scripts.check)
+  return [...new Set(planScripts().flatMap(name=>expand(scripts[name]))
     .flatMap(c=>[...c.matchAll(/(?:scripts|evals)\/[a-z0-9-]+\.mjs/g)].map(m=>m[0])))];
 }
 
@@ -94,15 +134,34 @@ if(unclassified.length){
   process.exit(1);
 }
 
-const outDir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-cov-'));
-for(const entry of ENTRIES){
-  const run=spawnSync(process.execPath,[entry],{cwd:ROOT,encoding:'utf8',
-    env:{...process.env,NODE_V8_COVERAGE:outDir},maxBuffer:64*1024*1024});
-  if(run.status!==0){
-    console.error(`coverage subject failed (${entry} exited ${run.status}); fix the suite before measuring`);
-    process.exit(run.status||1);
-  }
+const outDir=makeTempDir('agent-sdlc-cov-');
+const concurrency=Math.max(1,Math.min(8,os.availableParallelism?.()??os.cpus().length));
+
+function runEntry(entry){
+  return new Promise((resolve,reject)=>{
+    const child=spawn(process.execPath,[entry],{
+      cwd:ROOT,
+      env:{...process.env,NODE_V8_COVERAGE:outDir},
+      stdio:['ignore','pipe','pipe']
+    });
+    let err='';
+    child.stderr.on('data',d=>{err+=d;});
+    child.on('error',reject);
+    child.on('close',code=>{
+      if(code===0)resolve();
+      else reject(new Error(`coverage subject failed (${entry} exited ${code}); fix the suite before measuring\n${err}`));
+    });
+  });
 }
+
+let nextIdx=0;
+const workers=Array.from({length:concurrency},async()=>{
+  while(nextIdx<ENTRIES.length){
+    const i=nextIdx++;
+    await runEntry(ENTRIES[i]);
+  }
+});
+await Promise.all(workers);
 
 const files=fs.readdirSync(outDir).filter(f=>f.startsWith('coverage-')&&f.endsWith('.json'));
 if(!files.length){console.error(`no coverage output in ${outDir}`);process.exit(1);}
@@ -226,7 +285,7 @@ const report={
   ...(advisory.length?{advisory}:{}),
   status:problems.length?'FAIL':'PASS'
 };
-fs.writeFileSync(path.join(ROOT,'evals','COVERAGE.json'),JSON.stringify(report,null,2)+'\n');
+writeReport(path.join(ROOT,'evals','COVERAGE.json'),report);
 if(update){
   fs.writeFileSync(FLOOR_FILE,JSON.stringify({
     schema:'agent-sdlc/coverage-floor/v1',

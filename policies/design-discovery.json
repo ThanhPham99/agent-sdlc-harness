@@ -126,6 +126,18 @@
       ]
     },
     {
+      "id": "EXTERNAL_TECH_OR_INTEGRATION",
+      "min_mode": "FULL",
+      "deescalatable": false,
+      "description": "Requirement involves adopting new external libraries, framework features, SDKs, or researching latest documentation/practices.",
+      "patterns": [
+        "(?:^|[\\s\\b])(integrate|adopt|setup|tích hợp|tich hop|cài đặt|cai dat)(?:[\\s\\b])[^;\\n]{0,40}?(?:[\\s\\b])(library|package|sdk|framework|external service|third[- ]party api|thư viện|thu vien)(?:[\\s\\b]|$)",
+        "(?:^|[\\s\\b])(latest|newest|recent|best practices?|mới nhất|moi nhat)(?:[\\s\\b])[^;\\n]{0,40}?(?:[\\s\\b])(version|docs?|documentation|release|spec|phiên bản|phien ban|tài liệu|tai lieu)(?:[\\s\\b]|$)",
+        "(?:^|[\\s\\b])(find|search|lookup|research|tra cứu|tra cuu|tìm kiếm|tim kiem)(?:[\\s\\b])[^;\\n]{0,40}?(?:[\\s\\b])(latest|online|web|official docs?|mới nhất|moi nhat|tài liệu|tai lieu|phiên bản|phien ban)(?:[\\s\\b]|$)",
+        "(?:^|[\\s\\b])(công nghệ|cong nghe|thư viện|thu vien|framework|api|sdk)(?:[\\s\\b])[^;\\n]{0,30}?(?:[\\s\\b])(mới nhất|moi nhat|mới|moi)(?:[\\s\\b]|$)"
+      ]
+    },
+    {
       "id": "NON_TRIVIAL_LOCAL_DECISION",
       "min_mode": "COMPACT",
       "deescalatable": true,

@@ -74,6 +74,104 @@ function resolveSkills(root,projectRoot,run){
   return ids.map(id=>{const spec=registry[id];let instructions='';try{instructions=readTextFile(path.join(root,spec.instructions)).trim();}catch{}return {id,description:spec.description,instructions,max_response_words:spec.max_response_words};});
 }
 
+/**
+ * Condense verbose test/build stdout/stderr to reduce token footprint while preserving
+ * 100% of error diagnostics, stack traces, failure summaries, and assertion mismatches.
+ */
+export function condenseLog(rawLog,{maxLines=60,preserveHead=10,preserveTail=25}={}){
+  const text=String(rawLog||'').trim();
+  if(!text)return '';
+  const lines=text.split('\n');
+  if(lines.length<=maxLines)return text;
+
+  const errorIndices=new Set();
+  const errorPatterns=/(?:error|err|fail|fatal|exception|syntaxerror|typeerror|assertionerror|errno|stack|at\s+.*:\d+|\^|--- FAIL:|FAIL\s+|FAILED\s+|FAILURES|failures:|assertion failed:|short test summary info|expected:<.*> but was:<.*>|expected.*received|panicked at|panic:|Traceback \(most recent call last\):|error TS\d+:|Biome|eslint|prettier|cargo:warning|rustc:)/i;
+  const blockPatterns=/(?:short test summary info|FAILURES|failures:|=== FAILURES ===|AssertionError|Expected:|Received:|expected:<|Traceback \(most recent call last\):)/i;
+
+  for(let i=0;i<lines.length;i++){
+    if(errorPatterns.test(lines[i])){
+      const isBlock=blockPatterns.test(lines[i]);
+      const before=isBlock?3:2;
+      const after=isBlock?8:4;
+      for(let j=Math.max(0,i-before);j<=Math.min(lines.length-1,i+after);j++){
+        errorIndices.add(j);
+      }
+    }
+  }
+
+  for(let i=0;i<Math.min(preserveHead,lines.length);i++)errorIndices.add(i);
+  for(let i=Math.max(0,lines.length-preserveTail);i<lines.length;i++)errorIndices.add(i);
+
+  const selectedLines=[...errorIndices].sort((a,b)=>a-b);
+  const result=[];
+  let lastIdx=-1;
+
+  for(const idx of selectedLines){
+    if(lastIdx!==-1&&idx>lastIdx+1){
+      const omitted=idx-lastIdx-1;
+      result.push(`... [${omitted} verbose log lines omitted for brevity] ...`);
+    }
+    result.push(lines[idx]);
+    lastIdx=idx;
+  }
+
+  return result.join('\n');
+}
+
+/**
+ * Compact artifact summaries when context payload exceeds stage token budget.
+ */
+export function compactArtifactSummaries(artifacts,maxBudgetTokens,charsPerToken=4){
+  if(!Array.isArray(artifacts)||artifacts.length===0)return artifacts;
+  const maxBytes=maxBudgetTokens*charsPerToken;
+  let totalBytes=artifacts.reduce((acc,a)=>acc+(a.summary?Buffer.byteLength(a.summary):0),0);
+  if(totalBytes<=maxBytes)return artifacts;
+
+  const compacted=artifacts.map(a=>({...a}));
+  for(let i=0;i<compacted.length-1;i++){
+    if(totalBytes<=maxBytes)break;
+    const a=compacted[i];
+    if(a.summary&&a.summary.length>200){
+      const originalBytes=Buffer.byteLength(a.summary);
+      const lines=a.summary.split('\n');
+      const concise=lines.slice(0,3).join('\n')+`\n... [compacted from ${lines.length} lines, sha256: ${a.sha256?a.sha256.slice(0,12):'n/a'}]`;
+      a.summary=concise;
+      a.compacted=true;
+      totalBytes-=(originalBytes-Buffer.byteLength(concise));
+    }
+  }
+  return compacted;
+}
+
+const PRIMARY_KINDS_BY_STAGE={
+  INTAKE:['intake','requirements','research'],
+  REQUIREMENTS:['intake','requirements','research'],
+  DESIGN:['requirements','architecture','design'],
+  PLAN:['requirements','architecture','design','plan'],
+  IMPLEMENT:['requirements','architecture','design','plan','task'],
+  VERIFY:['plan','task','test','verification'],
+  REVIEW:['plan','task','verification','review'],
+  RELEASE:['verification','review','release','manifest'],
+  DEPLOY:['release','deployment','manifest'],
+  OBSERVE:['deployment','monitoring','manifest'],
+  CLOSE:['requirements','release','documentation','summary']
+};
+
+export function projectArtifactsForStage(stage,artifacts){
+  if(!Array.isArray(artifacts)||!stage)return artifacts;
+  const primaryKinds=PRIMARY_KINDS_BY_STAGE[stage]||[];
+  if(!primaryKinds.length)return artifacts;
+  return artifacts.map(a=>{
+    if(!a||a.missing||!a.kind)return a;
+    const kindStr=String(a.kind).toLowerCase();
+    const isPrimary=primaryKinds.some(pk=>kindStr.includes(pk));
+    if(!isPrimary&&a.summary&&a.summary.length>300){
+      return {...a,summary:a.summary.slice(0,300)+`\n... [compacted for ${stage} stage relevance]`};
+    }
+    return a;
+  });
+}
+
 export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],constraints=[]}={}){
   const stagePolicy=readJson(path.join(root,'policies','stage-policy.json')).stages[run.state];
   if(!stagePolicy)throw new Error(`no stage policy for ${run.state}`);
@@ -94,6 +192,9 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
       remainingArtifactBytes-=Buffer.byteLength(t.text);
     }catch{artifacts.push({ref,missing:true});}
   }
+  const maxArtifactTokens=Math.floor(maxContextTokens*0.45);
+  const projectedArtifacts=projectArtifactsForStage(run.state,artifacts);
+  const finalArtifacts=compactArtifactSummaries(projectedArtifacts,maxArtifactTokens,charsPerToken);
   const skills=resolveSkills(root,projectRoot,run);
   const procedures=resolveProcedures(root,projectRoot,run);
   const manifest={
@@ -102,7 +203,7 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
     constraints:[...(cfg.context?.project_invariants||[]),...constraints],evidence_required:stagePolicy.gate_requirements||[],
     allowed_tools:stagePolicy.allowed_tools,budget:stagePolicy.budget,active_roles:resolveRoles(root,stagePolicy),
     skills:skills.map(s=>({id:s.id,description:s.description,max_response_words:s.max_response_words})),
-    skill_instructions:skills.map(s=>({id:s.id,instructions:s.instructions})),artifact_summaries:artifacts,
+    skill_instructions:skills.map(s=>({id:s.id,instructions:s.instructions})),artifact_summaries:finalArtifacts,
     procedures:procedures.map(p=>({id:p.id,group:p.group,when:p.when})),
     procedure_instructions:procedures.map(p=>({id:p.id,instructions:p.instructions})),
     requirement_update:run.workflow==='requirement-update'?loadRequirementUpdatePlan(projectRoot,run.run_id):null,
@@ -115,7 +216,7 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
   return manifest;
 }
 
-export function renderPrompt(root,manifest){
+export function renderCacheablePrompt(root,manifest){
   const system=readTextFile(path.join(root,'prompts','system.md')).trim();
   const skillText=(manifest.skill_instructions||[]).map(s=>`### ${s.id}\n${s.instructions}`).join('\n\n');
   const roleText=(manifest.active_roles||[]).map(r=>`${r.id}: ${(r.responsibilities||[]).join(', ')}`).join('\n');
@@ -124,5 +225,37 @@ export function renderPrompt(root,manifest){
   const requirementUpdateText=ru?`This run continues ${ru.continues_run_id}. Changed: ${ru.changed} (${ru.delta_class}). ${ru.affected_count} node(s) invalidated, ${ru.preserved_count} preserved -- do not redo preserved work. Earliest affected stage: ${ru.earliest_outer_gate||'none (no downstream impact)'}. This run still must produce its own evidence at every gate it passes through.`:'';
   const ft=manifest.feature;
   const featureText=ft?`Feature ${ft.feature_id} "${ft.title}" (${ft.status})${ft.phase?`, phase ${ft.phase.phase_id} "${ft.phase.name}" (${ft.phase.status})`:''}.${ft.deferred_items?.length?` Deferred: ${ft.deferred_items.join('; ')}.`:''}${ft.open_questions?.length?` Open questions: ${ft.open_questions.join('; ')}.`:''} This run finishing does not mean the feature is complete -- feature completion is tracked separately.`:'';
-  return `${system}\n\nSTAGE SKILLS\n${skillText||'(none)'}\n\nDETAILED PROCEDURES\n${procedureText||'(none)'}\n\nOBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nFEATURE\n${featureText||'(standalone run, not attached to a feature)'}\n\nACTIVE ROLES\n${roleText||'(none)'}\n\nREQUIREMENT UPDATE\n${requirementUpdateText||'(none)'}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}\n\nReturn a compact StageResult JSON.`;
+
+  const staticPrefix=`${system}\n\nALLOWED TOOLS\n${(manifest.allowed_tools||[]).join(', ')}`;
+  const stagePrefix=`STAGE SKILLS\n${skillText||'(none)'}\n\nDETAILED PROCEDURES\n${procedureText||'(none)'}\n\nACTIVE ROLES\n${roleText||'(none)'}`;
+  const dynamicSuffix=`OBJECTIVE\n${manifest.objective}\n\nSTAGE\n${manifest.stage}\n\nFEATURE\n${featureText||'(standalone run, not attached to a feature)'}\n\nREQUIREMENT UPDATE\n${requirementUpdateText||'(none)'}\n\nAUTHORIZED SYMBOLS\n${(manifest.symbols||[]).join('\n')||'(discover only as needed)'}\n\nSOURCE ARTIFACTS\n${(manifest.artifact_summaries||[]).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}\n\nCONSTRAINTS\n${(manifest.constraints||[]).join('\n')||'(none)'}\n\nREQUIRED EVIDENCE\n${(manifest.evidence_required||[]).join('\n')||'(none)'}\n\nReturn a compact StageResult JSON.`;
+
+  const fullPrompt=`${staticPrefix}\n\n${stagePrefix}\n\n${dynamicSuffix}`;
+
+  const staticTokens=estimateTokens(staticPrefix,4);
+  const stageTokens=estimateTokens(stagePrefix,4);
+  const dynamicTokens=estimateTokens(dynamicSuffix,4);
+  const totalTokens=staticTokens+stageTokens+dynamicTokens;
+  const cacheHitRatio=totalTokens>0?Math.round(((staticTokens+stageTokens)/totalTokens)*100)/100:0;
+
+  return {
+    static_prefix:staticPrefix,
+    stage_prefix:stagePrefix,
+    dynamic_suffix:dynamicSuffix,
+    full_prompt:fullPrompt,
+    cache_breakpoints:[
+      {tier:'STATIC_SYSTEM',tokens_estimate:staticTokens,breakpoint:'ALLOWED_TOOLS_BOUNDARY'},
+      {tier:'STAGE_POLICY',tokens_estimate:stageTokens,breakpoint:'ACTIVE_ROLES_BOUNDARY'}
+    ],
+    estimated_cache_hit_rate:cacheHitRatio,
+    cache_blocks:[
+      {type:'static_prefix',content:staticPrefix,cache_control:{type:'ephemeral'}},
+      {type:'stage_prefix',content:stagePrefix,cache_control:{type:'ephemeral'}},
+      {type:'dynamic_suffix',content:dynamicSuffix}
+    ]
+  };
+}
+
+export function renderPrompt(root,manifest){
+  return renderCacheablePrompt(root,manifest).full_prompt;
 }

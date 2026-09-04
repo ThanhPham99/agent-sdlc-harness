@@ -12,11 +12,7 @@
         "security",
         "vulnerability"
       ],
-      "workflow": "security-remediation",
-      "profile": "STRICT",
-      "overlays": [
-        "security"
-      ]
+      "workflow": "security-remediation"
     },
     {
       "keywords": [
@@ -28,24 +24,20 @@
         "sev2",
         "sự cố"
       ],
-      "workflow": "incident-response",
-      "profile": "STRICT",
-      "overlays": [
-        "incident"
-      ]
+      "workflow": "incident-response"
     },
     {
       "keywords": [
+        "fix khẩn cấp",
+        "hot fix",
         "hotfix",
         "rollback fix",
+        "sửa gấp",
         "urgent production",
+        "vá gấp",
         "vá nóng"
       ],
-      "workflow": "hotfix",
-      "profile": "STRICT",
-      "overlays": [
-        "hotfix"
-      ]
+      "workflow": "hotfix"
     },
     {
       "keywords": [
@@ -54,11 +46,7 @@
         "deprecate endpoint",
         "thay đổi phá vỡ"
       ],
-      "workflow": "api-breaking-change",
-      "profile": "STRICT",
-      "overlays": [
-        "api-breaking-change"
-      ]
+      "workflow": "api-breaking-change"
     },
     {
       "keywords": [
@@ -66,9 +54,7 @@
         "loại bỏ deprecated",
         "remove deprecated"
       ],
-      "workflow": "deprecation-removal",
-      "profile": "STRICT",
-      "overlays": []
+      "workflow": "deprecation-removal"
     },
     {
       "keywords": [
@@ -79,9 +65,7 @@
         "strangler",
         "viết lại"
       ],
-      "workflow": "modernization",
-      "profile": "STRICT",
-      "overlays": []
+      "workflow": "modernization"
     },
     {
       "keywords": [
@@ -94,8 +78,7 @@
         "tiếp tục tính năng"
       ],
       "workflow": "continue-feature",
-      "profile": "STANDARD",
-      "overlays": []
+      "agent_discretion": true
     },
     {
       "keywords": [
@@ -109,8 +92,7 @@
         "yêu cầu mới"
       ],
       "workflow": "requirement-update",
-      "profile": "STANDARD",
-      "overlays": []
+      "agent_discretion": true
     },
     {
       "keywords": [
@@ -119,13 +101,13 @@
         "database",
         "di chuyển dữ liệu",
         "migration",
-        "schema change"
+        "schema change",
+        "sửa schema",
+        "tạo migration",
+        "thêm bảng",
+        "thêm cột"
       ],
-      "workflow": "database-migration",
-      "profile": "STRICT",
-      "overlays": [
-        "db-migration"
-      ]
+      "workflow": "database-migration"
     },
     {
       "keywords": [
@@ -137,8 +119,7 @@
         "upgrade package"
       ],
       "workflow": "dependency-upgrade",
-      "profile": "STANDARD",
-      "overlays": []
+      "agent_discretion": true
     },
     {
       "keywords": [
@@ -153,32 +134,39 @@
         "tối ưu"
       ],
       "workflow": "performance",
-      "profile": "STANDARD",
-      "overlays": []
+      "agent_discretion": true
     },
     {
       "keywords": [
+        "clean code",
         "cleanup",
         "dọn dẹp code",
+        "làm sạch code",
         "refactor",
+        "refactor code",
         "restructure",
-        "tái cấu trúc"
+        "tách module",
+        "tách service",
+        "tái cấu trúc",
+        "tinh gọn code",
+        "tối ưu code"
       ],
       "workflow": "refactor",
-      "profile": "STANDARD",
-      "overlays": []
+      "agent_discretion": true
     },
     {
       "keywords": [
         "build workflow",
         "ci",
+        "github action",
         "github actions",
         "pipeline",
-        "quy trình build"
+        "pipeline ci",
+        "quy trình build",
+        "quy trình ci"
       ],
       "workflow": "ci-cd-change",
-      "profile": "STANDARD",
-      "overlays": []
+      "agent_discretion": true
     },
     {
       "keywords": [
@@ -188,9 +176,7 @@
         "kubernetes",
         "terraform"
       ],
-      "workflow": "infrastructure-change",
-      "profile": "STRICT",
-      "overlays": []
+      "workflow": "infrastructure-change"
     },
     {
       "keywords": [
@@ -203,8 +189,7 @@
         "tracing"
       ],
       "workflow": "observability-change",
-      "profile": "STANDARD",
-      "overlays": []
+      "agent_discretion": true
     },
     {
       "keywords": [
@@ -213,9 +198,7 @@
         "privacy control",
         "tuân thủ"
       ],
-      "workflow": "compliance-change",
-      "profile": "STRICT",
-      "overlays": []
+      "workflow": "compliance-change"
     },
     {
       "keywords": [
@@ -227,70 +210,100 @@
         "tài liệu"
       ],
       "workflow": "documentation",
-      "profile": "FAST",
-      "overlays": []
+      "agent_discretion": true
     },
     {
       "keywords": [
         "assess",
+        "audit",
+        "audit workflow",
         "đánh giá",
         "điều tra",
+        "điều tra lỗi",
         "evaluate",
         "feasibility",
+        "inspect",
         "investigate",
         "khảo sát",
+        "khảo sát mã nguồn",
+        "kiểm tra",
+        "kiểm tra hệ thống",
+        "kiểm tra luồng",
+        "kiểm tra toàn bộ",
+        "kiểm tra tổng thể",
         "nghiên cứu",
+        "phân tích luồng",
         "proof of concept",
+        "rà soát",
+        "rà soát hệ thống",
+        "rà soát plugin",
         "research prototype",
-        "spike"
+        "spike",
+        "thẩm định"
       ],
       "workflow": "technical-spike",
-      "profile": "FAST",
-      "overlays": [],
-      "intent": "investigate"
+      "intent": "investigate",
+      "agent_discretion": true
     },
     {
       "keywords": [
         "add tests",
+        "bộ test",
+        "chạy test",
+        "e2e test",
+        "integration test",
         "kiểm thử",
+        "kiểm thử lại",
+        "re-test",
+        "run tests",
         "test coverage",
         "test only",
-        "thêm test"
+        "test suite",
+        "thêm test",
+        "unit test",
+        "viết test",
+        "viết thêm test"
       ],
       "workflow": "test-only",
-      "profile": "FAST",
-      "overlays": []
+      "agent_discretion": true
     },
     {
       "keywords": [
         "báo lỗi",
+        "bắt lỗi",
         "bug",
         "defect",
         "error",
         "fix",
+        "fix bug",
         "khắc phục lỗi",
-        "sửa lỗi"
+        "lỗi",
+        "lỗi logic",
+        "sửa bug",
+        "sửa lỗi",
+        "tìm lỗi",
+        "vá lỗi",
+        "xử lý lỗi"
       ],
       "workflow": "bug-fix",
-      "profile": "STANDARD",
-      "overlays": []
+      "agent_discretion": true
     },
     {
       "keywords": [
         "bảo trì",
+        "bảo trì hệ thống",
+        "cập nhật định kỳ",
         "chore",
+        "dọn dẹp",
         "maintenance",
         "nợ kỹ thuật",
         "tech debt"
       ],
       "workflow": "maintenance",
-      "profile": "FAST",
-      "overlays": []
+      "agent_discretion": true
     }
   ],
   "default": {
-    "workflow": "new-feature",
-    "profile": "STANDARD",
-    "overlays": []
+    "workflow": "new-feature"
   }
 }

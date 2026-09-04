@@ -12,16 +12,17 @@
 // to keep the fresh one. An untracked report (a brand new suite's first run)
 // is left alone; there is nothing to restore it to.
 //
-// Two ways to keep the fresh reports instead of restoring:
+// Three ways to keep the fresh reports instead of restoring:
 //   node scripts/restore-tracked-reports.mjs --update   (direct invocation)
-//   AGENT_SDLC_KEEP_REPORTS=1 npm run check              (through the chain)
-// `--update` alone does not survive `npm run check -- --update`: npm appends
-// extra args to the END of the whole `&&`-chain's text, so they land on this
-// script's own invocation without the `--` npm needs to not treat them as
-// its own CLI flags (`--update` silently expands to `--update-notifier` and
-// never reaches this script's argv -- confirmed empirically, not assumed).
-// The env var has no such ambiguity and works through the chain on every
-// shell (`set AGENT_SDLC_KEEP_REPORTS=1 && npm run check` on cmd.exe).
+//   npm run check -- --update                           (through the runner)
+//   AGENT_SDLC_KEEP_REPORTS=1 npm run check             (env, any shell)
+// The middle form only works because `check` is now a single runner
+// (scripts/run-check.mjs), which reads the flag and forwards it as the env var.
+// While `check` was an `&&` chain it could not: npm appends extra args to the
+// END of the whole chain's text, so they landed on this script's own
+// invocation without the `--` npm needs to not treat them as its own CLI flags
+// (`--update` silently expanded to `--update-notifier` and never reached this
+// script's argv -- confirmed empirically, not assumed).
 //
 // A no-op in CI: the checkout is discarded after the job, CI never invokes
 // `npm run check` as a whole (each suite is its own step, for granular
@@ -45,11 +46,20 @@ if(update||process.env.CI){
 
 // Git's own pathspec glob, not shell expansion -- this is a single argv
 // element, never passed through a shell.
-const porcelain=execFileSync('git',['status','--porcelain','--','evals/*.json'],{cwd:ROOT,encoding:'utf8'});
+//
+// `:(glob)` matters: in a plain pathspec git's `*` crosses `/`, so
+// `evals/*.json` also matched `evals/live/*.json` and `evals/activation/*.json`
+// -- the hand-authored qualification corpora and the tier lock, none of which
+// any suite writes. Running `npm run check` after editing one silently reverted
+// the edit, and those files are digest-bound inputs to live qualification, so
+// the loss was invisible until an evidence digest disagreed. With `:(glob)` the
+// `*` stays inside one path segment and only the top-level reports match.
+const porcelain=execFileSync('git',['status','--porcelain','--',':(glob)evals/*.json'],{cwd:ROOT,encoding:'utf8'});
 const restored=porcelain.split('\n').filter(Boolean)
   // Modified-and-tracked only ('M' in either column). '??' is untracked --
   // git checkout on a path git has never seen errors instead of no-op-ing.
-  .filter(line=>line[0]==='M'||line[1]==='M')
+  // When line[0] is 'A' (added in index), the file does not exist in HEAD yet.
+  .filter(line=>(line[0]==='M'||line[1]==='M')&&line[0]!=='A')
   .map(line=>line.slice(3).trim());
 
 // `HEAD --`, not bare `--`: a bare `git checkout -- path` restores the

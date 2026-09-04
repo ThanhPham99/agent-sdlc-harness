@@ -7,6 +7,7 @@ import {
   BOOTSTRAP_TEXT,bootstrapHash,getActivationPolicy,getBootstrapInstruction,estimateBootstrapCost,
   getActivationMode,classifyActivationFixture,buildActivationEvent,ACTIVATION_EVENTS
 } from '../runtime/activation.mjs';
+import {writeReport} from './lib/report-io.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const policy=getActivationPolicy();
@@ -144,6 +145,6 @@ const report={
   status:fail?'FAIL':'PASS',
   results:rows
 };
-fs.writeFileSync(path.join(ROOT,'evals','AUTO-ACTIVATION-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
+writeReport(path.join(ROOT,'evals','AUTO-ACTIVATION-VALIDATION.json'),report);
 console.log(JSON.stringify(report,null,2));
 process.exit(fail?1:0);

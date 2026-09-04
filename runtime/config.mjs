@@ -1,6 +1,6 @@
-import os from 'node:os';
 import path from 'node:path';
 import fs from 'node:fs';
+import {globalConfigPath} from './util.mjs';
 
 function merge(a,b){if(Array.isArray(b)||b===null||typeof b!=='object')return b;const out={...(a&&typeof a==='object'&&!Array.isArray(a)?a:{})};for(const [k,v] of Object.entries(b))out[k]=merge(out[k],v);return out;}
 
@@ -23,7 +23,7 @@ function layer(name,p,layers,effective){
 
 export function resolveConfig(projectRoot,overrides={}){
   const layers=[];let effective={};
-  effective=layer('global',path.join(os.homedir(),'.agent-sdlc','config.json'),layers,effective);
+  effective=layer('global',globalConfigPath(),layers,effective);
   effective=layer('project',path.join(projectRoot,'.agent-sdlc','project.json'),layers,effective);
   const env={};if(process.env.AGENT_SDLC_PROVIDER)env.default_provider=process.env.AGENT_SDLC_PROVIDER;if(process.env.AGENT_SDLC_PROFILE)env.risk_profile=process.env.AGENT_SDLC_PROFILE;
   if(Object.keys(env).length){layers.push({name:'environment',keys:Object.keys(env)});effective=merge(effective,env);}
@@ -32,4 +32,27 @@ export function resolveConfig(projectRoot,overrides={}){
   return {schema:'agent-sdlc/effective-config/v1',precedence:['built-in policy','global','project','environment','cli'],layers,
     ...(unreadable.length?{problems:unreadable.map(l=>`${l.name} config at ${l.path} is unreadable and was skipped: ${l.error}`)}:{}),
     effective};
+}
+
+export function resolveWorkflows(root,projectRoot=null){
+  const canonicalPath=path.join(root,'config','workflows.json');
+  const base=fs.existsSync(canonicalPath)?JSON.parse(fs.readFileSync(canonicalPath,'utf8')).workflows:{};
+  if(!projectRoot)return base;
+  const customDir=path.join(projectRoot,'.agent-sdlc','workflows');
+  if(!fs.existsSync(customDir))return base;
+  try{
+    const files=fs.readdirSync(customDir).filter(f=>f.endsWith('.json'));
+    const merged={...base};
+    for(const f of files){
+      try{
+        const custom=JSON.parse(fs.readFileSync(path.join(customDir,f),'utf8'));
+        if(custom.id&&custom.stages){
+          merged[custom.id]=custom;
+        }
+      }catch{}
+    }
+    return merged;
+  }catch{
+    return base;
+  }
 }

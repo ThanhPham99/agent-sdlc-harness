@@ -9,11 +9,11 @@
 //
 // Every check here speaks to a spawned server the way a host does.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync,spawn} from 'node:child_process';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const SERVER=path.join(ROOT,'runtime','mcp-server.mjs');
@@ -21,7 +21,7 @@ const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.jso
 const {test,assert,finish}=createSuite('agent-sdlc/mcp-validation/v1','MCP-VALIDATION.json');
 
 function project(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-mcp-'));
+  const d=makeTempDir('agent-sdlc-mcp-');
   execFileSync('git',['init','-q'],{cwd:d});
   fs.writeFileSync(path.join(d,'README.md'),'fixture\n');
   execFileSync('git',['add','.'],{cwd:d});
@@ -97,9 +97,20 @@ await test('ping-and-the-initialized-notification-are-handled',async()=>{
   assert(JSON.stringify(r.result)==='{}',JSON.stringify(r.result));
 });
 await test('an-unknown-method-is-a-protocol-error',async()=>{
-  const r=await c.call('resources/list',{});
+  const r=await c.call('custom/unknown_method',{});
   assert(r.error?.code===-32601,JSON.stringify(r));
   assert(/Method not found/.test(r.error.message),r.error.message);
+});
+await test('resources-and-prompts-are-advertised-and-readable',async()=>{
+  const resList=await c.call('resources/list',{});
+  assert(Array.isArray(resList.result?.resources)&&resList.result.resources.length>=2,JSON.stringify(resList));
+  const resRead=await c.call('resources/read',{uri:'sdlc://project/status'});
+  assert(resRead.result?.contents?.[0]?.text,JSON.stringify(resRead));
+
+  const promptList=await c.call('prompts/list',{});
+  assert(Array.isArray(promptList.result?.prompts)&&promptList.result.prompts.length>=3,JSON.stringify(promptList));
+  const promptGet=await c.call('prompts/get',{name:'sdlc_feature_kickoff',arguments:{objective:'Add refund processing'}});
+  assert(promptGet.result?.messages?.[0]?.content?.text?.includes('Add refund processing'),JSON.stringify(promptGet));
 });
 await test('garbage-input-does-not-kill-the-server',async()=>{
   c.raw('this is not json\n');
@@ -173,6 +184,26 @@ await test('the-unified-task-tool-matches-its-granular-twin',async()=>{
   const direct=payload(await c.tool('agent_sdlc_task_list',{run_id:runId}));
   assert(JSON.stringify(viaOp)===JSON.stringify(direct),'op:list and task_list disagree');
 });
+await test('model-route-and-tool-run-over-transport',async()=>{
+  const routed=payload(await c.tool('agent_sdlc_model_route',{run_id:runId,task:'code',provider:'auto'}));
+  assert(routed.mode,JSON.stringify(routed));
+  const toolRes=payload(await c.tool('agent_sdlc_tool_run',{run_id:runId,tool:'git.status'}));
+  assert(toolRes,JSON.stringify(toolRes));
+});
+
+await test('task-granular-tools-sweep',async()=>{
+  const ready=payload(await c.tool('agent_sdlc_task_ready',{run_id:runId}));
+  assert(ready!==undefined,JSON.stringify(ready));
+  const schedule=payload(await c.tool('agent_sdlc_task_schedule',{run_id:runId}));
+  assert(schedule!==undefined,JSON.stringify(schedule));
+  const status=payload(await c.tool('agent_sdlc_task_status',{run_id:runId}));
+  assert(status!==undefined,JSON.stringify(status));
+  const rReady=payload(await c.tool('agent_sdlc_task',{run_id:runId,op:'ready'}));
+  assert(rReady!==undefined,JSON.stringify(rReady));
+  const rSched=payload(await c.tool('agent_sdlc_task',{run_id:runId,op:'schedule'}));
+  assert(rSched!==undefined,JSON.stringify(rSched));
+});
+
 await test('an-unknown-task-op-is-named-in-the-error',async()=>{
   const r=await c.tool('agent_sdlc_task',{run_id:runId,op:'nonsense'});
   assert(r.result.isError===true,'an unknown op succeeded');

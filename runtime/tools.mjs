@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
-import {safeRelative,truncateUtf8,readJson} from './util.mjs';
+import {safeRelative,truncateUtf8,readJson,untrackedFiles} from './util.mjs';
 import {checkTool} from './policy.mjs';
 import {putArtifact,emit,saveRun} from './store.mjs';
 import {normalizeInput} from './normalize.mjs';
@@ -42,14 +42,70 @@ function projectCommand(cfg,key,args){
   }
   return tmpl.map(x=>String(x).replaceAll('{selector}',selector));
 }
-function sensitivePath(root,rel){const sec=readJson(path.join(root,'policies','security-policy.json'));const p=String(rel||'').replaceAll('\\','/');return (sec.sensitive_read_patterns||[]).some(g=>{const re='^'+g.replace(/[.+^${}()|[\]\\]/g,'\\$&').replaceAll('**','.*').replaceAll('*','[^/]*')+'$';return new RegExp(re).test(p);});}
-/** Repo-relative path globs -> a matcher. Same glob dialect as sensitivePath. */
+/**
+ * One repo-relative path glob -> a RegExp. `**` spans directories, `*` does not.
+ *
+ * The two substitutions have to be independent. Replacing `**` with `.*` and
+ * then `*` with `[^/]*` rewrote the `*` the first pass had just produced, so
+ * every `**` compiled to `.[^/]*` and matched a single segment: `.ssh/**`
+ * covered `.ssh/id_rsa` and not `.ssh/keys/deploy_key`, and `evals/**`
+ * allowlisted `evals/x.json` and not `evals/guard/cases.json`. Splitting on
+ * `**` keeps each pass to its own text.
+ */
+function globToRegExp(glob){
+  const escaped=String(glob).replace(/[.+^${}()|[\]\\]/g,'\\$&');
+  return new RegExp('^'+escaped.split('**').map(s=>s.replaceAll('*','[^/]*')).join('.*')+'$');
+}
+/** The path, then every suffix of it that begins at a directory boundary. */
+function pathSuffixes(p){
+  const parts=p.split('/');
+  return parts.map((_,i)=>parts.slice(i).join('/'));
+}
+/**
+ * A credential file is sensitive wherever it sits.
+ *
+ * Matching only the full repo-relative path anchored every pattern at the root:
+ * `.env` meant the top-level one alone, so a monorepo's services/api/.env and a
+ * key in certs/ read straight through the guard built to stop exactly that.
+ * Each pattern is tested against the path and against every suffix starting at
+ * a segment boundary, so the policy list stays a plain list of credential file
+ * names instead of needing a globstar-prefixed twin per entry -- a twin the
+ * next person to add a pattern would forget.
+ */
+function sensitivePath(root,rel){
+  const sec=readJson(path.join(root,'policies','security-policy.json'));
+  const candidates=pathSuffixes(String(rel||'').replaceAll('\\','/'));
+  return (sec.sensitive_read_patterns||[]).some(g=>{
+    const re=globToRegExp(g);
+    return candidates.some(c=>re.test(c));
+  });
+}
+/**
+ * Repo-relative path globs -> a matcher, anchored at the repository root.
+ *
+ * Deliberately NOT suffix-matched the way sensitivePath is: this backs an
+ * allowlist (secret-scan findings that are expected), and a pattern that
+ * matched at any depth would suppress findings its author never named.
+ */
 function pathAllowed(globs,rel){
   const p=String(rel||'').replaceAll('\\','/');
-  return (globs||[]).some(g=>{
-    const re='^'+g.replace(/[.+^${}()|[\]\\]/g,'\\$&').replaceAll('**','.*').replaceAll('*','[^/]*')+'$';
-    return new RegExp(re).test(p);
-  });
+  return (globs||[]).some(g=>globToRegExp(g).test(p));
+}
+/**
+ * The secret-scan allowlist, as one implementation both callers share.
+ *
+ * runtime/task-verification.mjs used to run its own bare `git grep` and drop
+ * this filter entirely, so the per-task check reported findings the gateway had
+ * already classified as expected -- nine paths against six on this repository,
+ * which is exactly the drift the comment at that call site claimed could not
+ * happen. Exporting the filter is what makes that claim true: a second copy
+ * reading the same policy file would still be a second copy.
+ */
+export function secretScanFindings(root,paths){
+  const cfg=readJson(path.join(root,'policies','security-policy.json'),{}).secret_scan||{};
+  const all=(paths||[]).filter(Boolean);
+  const reported=all.filter(f=>!pathAllowed(cfg.allowlist_paths,f));
+  return {reported,allowlisted:all.length-reported.length};
 }
 
 // A finding has to be a credential-shaped VALUE. The previous pattern matched a
@@ -65,7 +121,12 @@ function secretScan(root,projectRoot){
     return {status:'ERROR',reason:'NO_SECRET_PATTERNS_CONFIGURED',exit_code:null,
       summary:'policies/security-policy.json declares no secret_scan.patterns; refusing to report a clean scan.',truncated:false,raw:''};
   }
-  const argv=['git','grep','-l','-E',`(${patterns.join('|')})`];
+  // --untracked: `git grep` searches TRACKED files, and a file an
+  // implementation task just wrote is untracked until someone stages it. The
+  // scan used to return PASS -- worded "No tracked files matched" -- with a
+  // credential sitting in a module the task had just created. The flag still
+  // honours .gitignore, so build output and dependencies stay out.
+  const argv=['git','grep','-l','-E','--untracked',`(${patterns.join('|')})`];
   const launch=resolveLaunch(argv);
   if(launch.status!=='OK'){
     return {status:'ERROR',reason:launch.reason,exit_code:null,
@@ -79,7 +140,7 @@ function secretScan(root,projectRoot){
     return {status:'ERROR',reason:d.reason,exit_code:null,
       summary:`${d.reason}: ${argv.join(' ')}${d.signal?` (killed by ${d.signal})`:''}`,truncated:false,raw:''};
   }
-  if(r.status===1)return {status:'PASS',exit_code:0,summary:'No tracked files matched the configured secret patterns.',truncated:false,raw:''};
+  if(r.status===1)return {status:'PASS',exit_code:0,summary:'No tracked or newly created file matched the configured secret patterns.',truncated:false,raw:''};
   if(r.status===0){
     const all=(r.stdout||'').split('\n').filter(Boolean);
     const files=all.filter(f=>!pathAllowed(cfg.allowlist_paths,f)).slice(0,200);
@@ -90,18 +151,30 @@ function secretScan(root,projectRoot){
     }
     const note=skipped?`\n(${skipped} further match(es) are allowlisted in policies/security-policy.json)`:'';
     return {status:'FAIL',exit_code:1,
-      summary:`Potential secret patterns detected in tracked files (values redacted):\n${files.join('\n')}${note}`,truncated:false,raw:''};
+      summary:`Potential secret patterns detected (values redacted):\n${files.join('\n')}${note}`,truncated:false,raw:''};
   }
   return {status:'FAIL',exit_code:r.status??1,summary:(r.stderr||'secret scan failed').slice(0,24000),truncated:false,raw:''};
 }
-function sanitizeWebQuery(root,query){
+export function sanitizeWebQuery(root,query){
   const sec=readJson(path.join(root,'policies','security-policy.json'));
   const wsp=sec.web_search_policy||{};
   const blocked=wsp.blocked_query_patterns||[];
   for(const pat of blocked){
     const cleanPat=pat.startsWith('(?i)')?pat.slice(4):pat;
     const flags=pat.startsWith('(?i)')?'i':'';
-    try{if(new RegExp(cleanPat,flags).test(query))return {ok:false,reason:`Query violates security policy pattern: ${pat}`,query};}catch{}
+    let re;
+    // A rule that cannot be evaluated is not a rule that passed. This used to
+    // be a bare `catch{}`: a pattern JS refuses to compile stopped enforcing
+    // and nothing anywhere said so. The `(?i)` stripping one line up exists
+    // because this file is authored in a dialect JS does not fully speak, so
+    // the next thing an operator borrows from it -- `(?P<name>...)`, a
+    // possessive quantifier -- is the likely edit, not a hypothetical.
+    try{re=new RegExp(cleanPat,flags);}
+    catch(e){
+      return {ok:false,query,
+        reason:`Security policy pattern ${pat} could not be compiled (${e.message}); refusing the query rather than searching with that rule unenforced`};
+    }
+    if(re.test(query))return {ok:false,reason:`Query violates security policy pattern: ${pat}`,query};
   }
   return {ok:true,query};
 }
@@ -122,7 +195,7 @@ function checkWebUrl(root,urlStr){
   }catch{return {ok:false,reason:`Invalid URL format: ${urlStr}`};}
 }
 export function invokeTool(root,projectRoot,run,tool,args={}){
-  const cfg=JSON.parse(fs.readFileSync(path.join(projectRoot,'.agent-sdlc','project.json'),'utf8'));const decision=checkTool(root,run,tool,cfg);if(decision.decision!=='ALLOW')return {tool,status:decision.decision==='DENY'?'DENY':'APPROVAL_REQUIRED',exit_code:null,summary:decision,failures:[],full_log_artifact:null,truncated:false};let result;
+  const cfg=JSON.parse(fs.readFileSync(path.join(projectRoot,'.agent-sdlc','project.json'),'utf8'));const decision=checkTool(root,run,tool);if(decision.decision!=='ALLOW')return {tool,status:decision.decision==='DENY'?'DENY':'APPROVAL_REQUIRED',exit_code:null,summary:decision,failures:[],full_log_artifact:null,truncated:false};let result;
   // config/tools.json declares these per tool and nothing read them, so a budget
   // tightened in config had no effect. The literals stay as the fallback for a
   // tool the registry does not size.
@@ -137,8 +210,28 @@ export function invokeTool(root,projectRoot,run,tool,args={}){
     const rel=String(args.path||'');if(sensitivePath(root,rel))throw new Error(`sensitive path blocked: ${rel}`);
     const p=safeRelative(projectRoot,rel);const data=fs.readFileSync(p,'utf8');const t=truncateUtf8(data,maxBytes);result={status:'PASS',exit_code:0,summary:t.text,truncated:t.truncated,raw:data};
   }
-  else if(tool==='repo.search'){const argv=['git','grep','-n','--',''+(args.pattern||'')]; if(args.path)argv.push('--',args.path); result=exec(argv,projectRoot,timeout,maxBytes);if(result.exit_code===1){result={...result,status:'PASS',exit_code:0,summary:'No matches.',raw:''};}}
-  else if(tool==='repo.diff')result=exec(['git','diff','--no-ext-diff',...(args.cached?['--cached']:[])],projectRoot,timeout,maxBytes);
+  else if(tool==='repo.search'){// --untracked: an agent asking "who calls this?" before changing an
+    // interface must see code written earlier in the same task, which is not
+    // staged yet. .gitignore is still honoured.
+    const argv=['git','grep','-n','--untracked','--',''+(args.pattern||'')]; if(args.path)argv.push('--',args.path); result=exec(argv,projectRoot,timeout,maxBytes);if(result.exit_code===1){result={...result,status:'PASS',exit_code:0,summary:'No matches.',raw:''};}}
+  else if(tool==='repo.diff'){
+    result=exec(['git','diff','--no-ext-diff',...(args.cached?['--cached']:[])],projectRoot,timeout,maxBytes);
+    // `git diff` has no --untracked and cannot have one: a file with no index
+    // entry has nothing to diff against. The content stays unshown, but the
+    // report must not imply there is nothing there -- an agent reading this to
+    // answer "what did I change?" was told only about tracked edits.
+    const newFiles=(untrackedFiles(projectRoot)||[]).filter(rel=>!rel.startsWith('.agent-sdlc/'));
+    if(newFiles.length&&result.status!=='ERROR'){
+      const shown=newFiles.slice(0,50);
+      const more=newFiles.length-shown.length;
+      const header=`(${newFiles.length} new file(s), content not shown -- git diff cannot render a file with no index entry; read them with repo.read)`;
+      const listed=shown.map(f=>`?? ${f}`);
+      if(more)listed.push(`... and ${more} more`);
+      const note=['','',header,...listed,''].join('\n');
+      const merged=truncateUtf8((result.summary||'')+note,maxBytes);
+      result={...result,summary:merged.text,truncated:result.truncated||merged.truncated};
+    }
+  }
   else if(tool==='git.status')result=exec(['git','status','--short'],projectRoot,timeout,maxBytes);
   else if(tool==='security.secret_scan')result=secretScan(root,projectRoot);
   else if(tool==='web.search'){

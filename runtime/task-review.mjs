@@ -44,7 +44,14 @@ export function validateSpecComplianceReview(review,task){
   if(r.schema!=='agent-sdlc/spec-compliance-review/v1')errors.push('SCHEMA_MISMATCH');
   if(r.task_id!==task?.task_id)errors.push('TASK_ID_MISMATCH');
   if(r.attempt!==task?.attempt)errors.push(`ATTEMPT_MISMATCH:${r.attempt}!=${task?.attempt}`);
-  if(r.diff_hash&&task?.diff_hash&&r.diff_hash!==task.diff_hash)errors.push('REVIEW_NOT_BOUND_TO_CURRENT_DIFF');
+  // The binding, not an optional courtesy. Checking it only when the review
+  // volunteered a diff_hash meant omitting the field skipped the check, and
+  // neither JSON schema requires it -- so a review could validate clean while
+  // bound to nothing. `attempt` was already mandatory; this is the same
+  // binding. task.diff_hash is always set by review time, because
+  // RUNNING -> VERIFYING requires diff_captured.
+  if(task?.diff_hash&&!r.diff_hash)errors.push('REVIEW_NOT_BOUND_TO_A_DIFF');
+  else if(r.diff_hash&&task?.diff_hash&&r.diff_hash!==task.diff_hash)errors.push('REVIEW_NOT_BOUND_TO_CURRENT_DIFF');
   if(!['COMPLIANT','NON_COMPLIANT','PENDING'].includes(r.verdict))errors.push('INVALID_VERDICT');
   const blocking=blockingFindings(r);
   if(r.verdict==='COMPLIANT'&&blocking.length)errors.push('COMPLIANT_WITH_BLOCKING_FINDINGS');
@@ -88,7 +95,14 @@ export function validateCodeQualityReview(review,task){
   if(r.schema!=='agent-sdlc/code-quality-review/v1')errors.push('SCHEMA_MISMATCH');
   if(r.task_id!==task?.task_id)errors.push('TASK_ID_MISMATCH');
   if(r.attempt!==task?.attempt)errors.push(`ATTEMPT_MISMATCH:${r.attempt}!=${task?.attempt}`);
-  if(r.diff_hash&&task?.diff_hash&&r.diff_hash!==task.diff_hash)errors.push('REVIEW_NOT_BOUND_TO_CURRENT_DIFF');
+  // The binding, not an optional courtesy. Checking it only when the review
+  // volunteered a diff_hash meant omitting the field skipped the check, and
+  // neither JSON schema requires it -- so a review could validate clean while
+  // bound to nothing. `attempt` was already mandatory; this is the same
+  // binding. task.diff_hash is always set by review time, because
+  // RUNNING -> VERIFYING requires diff_captured.
+  if(task?.diff_hash&&!r.diff_hash)errors.push('REVIEW_NOT_BOUND_TO_A_DIFF');
+  else if(r.diff_hash&&task?.diff_hash&&r.diff_hash!==task.diff_hash)errors.push('REVIEW_NOT_BOUND_TO_CURRENT_DIFF');
   if(!['ACCEPTED','CHANGES_REQUIRED','PENDING'].includes(r.verdict))errors.push('INVALID_VERDICT');
   const blocking=blockingFindings(r);
   if(r.verdict==='ACCEPTED'&&blocking.length)errors.push('ACCEPTED_WITH_BLOCKING_FINDINGS');

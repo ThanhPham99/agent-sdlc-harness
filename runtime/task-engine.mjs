@@ -100,7 +100,10 @@ function taskFromPlanned(t,{runId,planId,profile}){
  * Task record per planned task. Refuses to run on an invalid plan: the plan
  * quality gate is upstream of the task runtime, not optional to it.
  *
- * Idempotent: an existing task record is preserved, never reset to CREATED.
+ * Re-materializing an amended plan reconciles it: a task that has not started
+ * takes the amended definition, a task with work bound to it keeps everything
+ * and is reported in `conflicts`. Status, attempt, history and evidence always
+ * belong to the engine -- no path here resets a task to CREATED.
  */
 export function materializeTaskGraph(root,projectRoot,run,plan,{planArtifactRef=null,sourceRevision=null,legacyStageEvidence=false}={}){
   const validation=validateTaskPlan(plan,{profile:plan?.profile||run.profile});
@@ -108,9 +111,35 @@ export function materializeTaskGraph(root,projectRoot,run,plan,{planArtifactRef=
     return {schema:'agent-sdlc/task-graph-record/v1',materialized:false,validation,graph:null,created:[],preserved:[]};
   }
   const planId=plan.plan_id;
-  const created=[];const preserved=[];
+  const created=[];const preserved=[];const updated=[];const conflicts=[];
   for(const planned of arr(plan.tasks)){
-    if(hasTask(projectRoot,run.run_id,planned.task_id)){preserved.push(planned.task_id);continue;}
+    if(hasTask(projectRoot,run.run_id,planned.task_id)){
+      // An amended plan used to be silently inert for a task that already
+      // existed: the task kept its original scope, and the operator got
+      // `preserved` with no hint that the amendment had not landed. The fix
+      // for a wrong scope is amending the plan, so an amendment that cannot
+      // be seen is the fix failing quietly.
+      //
+      // A task that has not started carries nothing worth protecting, so its
+      // definition is re-applied. One that has -- a captured diff, recorded
+      // evidence, a review, or any status past READY -- keeps everything:
+      // rewriting the scope under evidence already bound to it would make
+      // that evidence describe a task that no longer exists. Those are
+      // reported as conflicts instead of vanishing into `preserved`.
+      const existing=loadTask(projectRoot,run.run_id,planned.task_id);
+      const want=taskFromPlanned(planned,{runId:run.run_id,planId,profile:plan.profile||run.profile});
+      if(sameDefinition(existing,want)){preserved.push(planned.task_id);continue;}
+      if(!hasBoundWork(existing)){
+        const merged={...existing,...definitionFields(want),plan_id:planId,updated_at:now()};
+        saveTask(projectRoot,merged);
+        emitTaskEvent(projectRoot,merged,{type:'task.redefined',payload:{plan_id:planId,from_status:existing.status}});
+        updated.push(planned.task_id);
+      }else{
+        conflicts.push({task_id:planned.task_id,status:existing.status,reason:'DEFINITION_CHANGED_BUT_WORK_ALREADY_BOUND'});
+        preserved.push(planned.task_id);
+      }
+      continue;
+    }
     const task=taskFromPlanned(planned,{runId:run.run_id,planId,profile:plan.profile||run.profile});
     task.execution.max_retries=maxRetries(root,task);
     saveTask(projectRoot,task);
@@ -134,7 +163,28 @@ export function materializeTaskGraph(root,projectRoot,run,plan,{planArtifactRef=
     updated_at:now()
   };
   saveTaskGraph(projectRoot,graph);
-  return {schema:'agent-sdlc/task-graph-record/v1',materialized:true,validation,graph,created,preserved};
+  return {schema:'agent-sdlc/task-graph-record/v1',materialized:true,validation,graph,created,preserved,updated,conflicts};
+}
+
+/** The fields a plan owns. Status, attempt, history and evidence are the engine's. */
+const DEFINITION_FIELDS=['title','goal','category','depends_on','acceptance_criteria','design_decisions',
+  'changes_behavior','scope','verification','compatibility_obligations','rollback_obligations','done_conditions','risk'];
+function definitionFields(task){
+  const out={};
+  for(const k of DEFINITION_FIELDS)out[k]=task[k];
+  return out;
+}
+function sameDefinition(a,b){return JSON.stringify(definitionFields(a||{}))===JSON.stringify(definitionFields(b||{}));}
+/**
+ * Whether anything is bound to this task that a redefinition would invalidate.
+ * A captured diff, verification evidence or a review all describe the task as
+ * it was defined when they were produced.
+ */
+function hasBoundWork(task){
+  if(!task)return false;
+  if(task.diff_hash||task.base_revision)return true;
+  if(arr(task.evidence_refs).length||arr(task.review_refs).length||arr(task.artifact_refs).length)return true;
+  return !['CREATED','READY'].includes(task.status);
 }
 
 export function maxRetries(root,task){
@@ -214,10 +264,21 @@ export function evaluateTransition(root,task,to,{tasks=[],verification=null,spec
   if(need.has('context_manifest')&&!(contextManifest||task.context_manifest_ref))problems.push('NO_TASK_CONTEXT_MANIFEST');
   if(need.has('diff_captured')&&!task.diff_hash)problems.push('NO_DIFF_CAPTURED');
   if(need.has('verification_evidence')){
+    // The verification record itself, never "this task has an evidence ref".
+    // task-verification.mjs appends a ref for every run it records, passing or
+    // not -- it stores the artifact before it branches on status -- so falling
+    // back to `evidence_refs.length` accepted a FAILED verification, and an
+    // older attempt's passing one, as satisfaction. A task could be moved
+    // VERIFYING -> SPEC_REVIEW on failed evidence with no --force, sending
+    // unverified work to review past the only gate meant to stop it.
+    //
+    // Nothing legitimate relied on the fallback: task-runner.mjs supplies the
+    // record on both edges that require it, and re-verifies rather than trust
+    // an earlier attempt when resuming mid-lifecycle.
     const v=verification||null;
-    if(!v&&!task.evidence_refs?.length)problems.push('NO_VERIFICATION_EVIDENCE');
-    else if(v&&v.status!=='PASS')problems.push(`VERIFICATION_NOT_PASSING:${v.status}`);
-    else if(v&&v.attempt!==task.attempt)problems.push(`VERIFICATION_ATTEMPT_MISMATCH:${v.attempt}!=${task.attempt}`);
+    if(!v)problems.push('NO_VERIFICATION_EVIDENCE');
+    else if(v.status!=='PASS')problems.push(`VERIFICATION_NOT_PASSING:${v.status}`);
+    else if(v.attempt!==task.attempt)problems.push(`VERIFICATION_ATTEMPT_MISMATCH:${v.attempt}!=${task.attempt}`);
   }
   if(need.has('spec_review_clean')){
     if(!specReview)problems.push('NO_SPEC_REVIEW');
@@ -236,8 +297,16 @@ export function evaluateTransition(root,task,to,{tasks=[],verification=null,spec
     }
   }
   if(need.has('scope_respected')){
+    // The audit has to be present, not merely un-damning. `scope` is optional
+    // in TaskVerification.schema.json and `task transition --verification
+    // <file>` reads the record from a caller-supplied path, so a schema-valid
+    // record that omits the block used to skip this gate entirely and reach
+    // DONE with no scope proof. verifyTask() computes scopeAudit() on every
+    // path it takes, dry runs included, so nothing that actually verifies is
+    // affected -- only records that never audited.
     const scope=verification?.scope;
-    if(scope&&scope.respected===false)problems.push(`SCOPE_VIOLATION:${arr(scope.out_of_scope_paths).join(',')}`);
+    if(!scope||typeof scope.respected!=='boolean')problems.push('NO_SCOPE_EVIDENCE');
+    else if(scope.respected===false)problems.push(`SCOPE_VIOLATION:${arr(scope.out_of_scope_paths).join(',')}`);
   }
   if(need.has('new_evidence')&&!newEvidence)problems.push('RETRY_WITHOUT_NEW_EVIDENCE');
   if(need.has('retry_budget')){

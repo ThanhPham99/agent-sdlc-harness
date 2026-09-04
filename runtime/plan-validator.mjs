@@ -22,19 +22,12 @@ export const PLAN_QUALITY_DEFAULTS={
 };
 
 const arr=(x)=>Array.isArray(x)?x:[];
-const norm=(p)=>String(p||'').replace(/\\/g,'/').replace(/^\.\//,'').replace(/\/+$/,'');
 
-// Scope entries are path prefixes or globs. Two entries overlap when either is a
-// prefix of the other, or when their glob-free prefixes collide.
-function scopeOverlap(a,b){
-  const x=norm(a),y=norm(b);
-  if(!x||!y)return false;
-  if(x===y)return true;
-  const stem=(s)=>s.split(/[*?]/)[0].replace(/\/+$/,'');
-  const sx=stem(x),sy=stem(y);
-  if(!sx||!sy)return true; // a bare "*" claims everything
-  return sx===sy||sx.startsWith(sy+'/')||sy.startsWith(sx+'/');
-}
+// Scope entries are path prefixes or globs. The overlap predicate is shared
+// with the scheduler that has to honour this gate's verdict at dispatch time --
+// see runtime/scope.mjs for why it is not defined twice.
+import {scopeOverlap} from './scope.mjs';
+
 function overlappingPairs(listA,listB){
   const out=[];
   for(const a of listA)for(const b of listB)if(scopeOverlap(a,b))out.push([a,b]);

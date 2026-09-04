@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/live-qualification-lock/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc1",
   "evidence_max_age_hours": 168,
   "future_skew_minutes": 10,
   "tiers": {

@@ -20,6 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {COMMANDS,COMMAND_NAMES,GROUP_NAMES,loadGroup,renderHelp} from '../runtime/commands/index.mjs';
+import {writeReport} from './lib/report-io.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
@@ -125,6 +126,6 @@ const report={
   problems,
   status:problems.length?'FAIL':'PASS'
 };
-fs.writeFileSync(path.join(ROOT,'evals','CLI-SURFACE-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
+writeReport(path.join(ROOT,'evals','CLI-SURFACE-VALIDATION.json'),report);
 console.log(JSON.stringify(problems.length?report:{...report,subcommand_groups:'all-documented'},null,2));
 process.exit(problems.length?1:0);

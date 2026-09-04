@@ -210,14 +210,19 @@ export function buildTaskContext(root,projectRoot,run,task,{extraArtifactRefs=[]
   return manifest;
 }
 
-/** Render the bounded task prompt. Nothing outside the manifest reaches it. */
-export function renderTaskPrompt(root,manifest){
+/**
+ * Render the bounded task prompt split into cacheable blocks (static prefix,
+ * module prefix, dynamic suffix) for LLM prefix/prompt caching.
+ */
+export function renderCacheableTaskPrompt(root,manifest){
   const system=readTextFile(path.join(root,'prompts','system.md')).trim();
   const list=(xs,empty='(none)')=>arr(xs).length?arr(xs).join('\n'):empty;
-  return [
-    system,
+
+  const staticPrefix=`${system}\n\nTASK HARNESS CONTRACT\nReturn a compact structured task result. Do not transition workflow state and do not declare the task complete.\n\nEXCLUDED CONTEXT\n${list(manifest.excluded)}`;
+  const modulePrefix=`MODULE GUIDANCE\n${manifest.skill_instructions||'(none)'}\n\nPROJECT INVARIANTS\n${list(manifest.project_invariants)}\n\nRISK CONSTRAINTS\n${list(manifest.risk_constraints)}\n\nYOU MAY NOT\n${list(manifest.handoff_contract?.may_not)}`;
+
+  const dynamicSuffix=[
     `TASK\n${manifest.task_id} — ${manifest.objective}`,
-    `MODULE GUIDANCE\n${manifest.skill_instructions||'(none)'}`,
     `ACCEPTANCE CRITERIA\n${list(manifest.acceptance_criteria)}`,
     `DESIGN DECISIONS\n${list(manifest.design_decisions)}`,
     `DEPENDENCY OUTPUTS\n${arr(manifest.dependency_outputs).map(d=>`${d.task_id}: ${d.summary||''}`).join('\n')||'(none)'}`,
@@ -234,12 +239,39 @@ export function renderTaskPrompt(root,manifest){
         `data entities: ${arr(manifest.intelligence.data_entities).join(', ')||'(none)'}`,
         `dependents of your write scope: ${arr(manifest.intelligence.dependents).join(', ')||'(none)'}`].join('\n')
       :`unavailable: ${manifest.intelligence?.reason||'unknown'}`}`,
-    `PROJECT INVARIANTS\n${list(manifest.project_invariants)}`,
-    `RISK CONSTRAINTS\n${list(manifest.risk_constraints)}`,
     `VERIFICATION\n${list(manifest.verification_commands)}`,
     `DONE CONDITIONS\n${list(manifest.handoff_contract?.done_conditions)}`,
-    `YOU MAY NOT\n${list(manifest.handoff_contract?.may_not)}`,
     `SOURCE ARTIFACTS\n${arr(manifest.artifact_summaries).map(a=>`${a.ref} ${a.kind||''}\n${a.summary||''}`).join('\n\n')||'(none)'}`,
     'Return a compact structured task result. Do not transition workflow state and do not declare the task complete.'
   ].join('\n\n');
+
+  const fullPrompt=`${staticPrefix}\n\n${modulePrefix}\n\n${dynamicSuffix}`;
+  const staticTokens=estimateTokens(staticPrefix,4);
+  const moduleTokens=estimateTokens(modulePrefix,4);
+  const dynamicTokens=estimateTokens(dynamicSuffix,4);
+  const totalTokens=staticTokens+moduleTokens+dynamicTokens;
+  const cacheHitRatio=totalTokens>0?Math.round(((staticTokens+moduleTokens)/totalTokens)*100)/100:0;
+
+  return {
+    static_prefix:staticPrefix,
+    module_prefix:modulePrefix,
+    dynamic_suffix:dynamicSuffix,
+    full_prompt:fullPrompt,
+    cache_breakpoints:[
+      {tier:'STATIC_HARNESS',tokens_estimate:staticTokens,breakpoint:'EXCLUDED_CONTEXT_BOUNDARY'},
+      {tier:'MODULE_GUIDANCE',tokens_estimate:moduleTokens,breakpoint:'YOU_MAY_NOT_BOUNDARY'}
+    ],
+    estimated_cache_hit_rate:cacheHitRatio,
+    cache_blocks:[
+      {type:'static_prefix',content:staticPrefix,cache_control:{type:'ephemeral'}},
+      {type:'module_prefix',content:modulePrefix,cache_control:{type:'ephemeral'}},
+      {type:'dynamic_suffix',content:dynamicSuffix}
+    ]
+  };
 }
+
+/** Render the bounded task prompt. Nothing outside the manifest reaches it. */
+export function renderTaskPrompt(root,manifest){
+  return renderCacheableTaskPrompt(root,manifest).full_prompt;
+}
+

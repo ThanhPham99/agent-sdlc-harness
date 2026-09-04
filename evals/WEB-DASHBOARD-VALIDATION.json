@@ -1,0 +1,13 @@
+{
+  "schema": "agent-sdlc/web-dashboard-validation/v1",
+  "checks": 1,
+  "passes": 1,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "web-dashboard-html-and-static-render",
+      "status": "PASS"
+    }
+  ]
+}

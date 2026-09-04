@@ -1,0 +1,29 @@
+{
+  "schema": "agent-sdlc/worktree-isolation-validation/v1",
+  "checks": 5,
+  "passes": 5,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "isolated-worktree-creation",
+      "status": "PASS"
+    },
+    {
+      "name": "parallel-worktrees-are-disjoint",
+      "status": "PASS"
+    },
+    {
+      "name": "commitTaskWorkspace-persists-uncommitted-files",
+      "status": "PASS"
+    },
+    {
+      "name": "integrateTaskWorkspace-merges-changes-into-root",
+      "status": "PASS"
+    },
+    {
+      "name": "cleanupTaskWorkspace-auto-commits-on-cleanup",
+      "status": "PASS"
+    }
+  ]
+}

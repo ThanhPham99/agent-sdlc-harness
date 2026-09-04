@@ -4,9 +4,10 @@ import {emit,saveRun,loadTaskGraph,listTasks} from './store.mjs';
 import {validateDesignDecision,evaluateDesignGate,getDesignDiscoveryPolicy} from './design-discovery.mjs';
 import {validateTaskPlan,planGateEvidence} from './plan-validator.mjs';
 import {materializeTaskGraph,taskProgress} from './task-engine.mjs';
-import {findValidApproval} from './approvals.mjs';
+import {findValidApproval,activeCapabilities} from './approvals.mjs';
 import {evaluateGate} from './gates.mjs';
 import {attachRun} from './features.mjs';
+import {resolveWorkflows} from './config.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -39,7 +40,7 @@ function addEvidence(projectRoot,run,stage,tokens){
 }
 
 export function newRun(root,projectRoot,{objective,route,featureId=null,phaseId=null,parentRunId=null,runKind=null}){
-  const workflows=readJson(path.join(root,'config','workflows.json')).workflows;
+  const workflows=resolveWorkflows(root,projectRoot);
   const spec=workflows[route.workflow]; if(!spec)throw new Error(`unknown workflow ${route.workflow}`);
   const run={schema:'agent-sdlc/run/v1',run_id:uuid('run'),objective,workflow:route.workflow,profile:route.profile,overlays:route.overlays||[],state:spec.stages[0],stage_index:0,stages:spec.stages,created_at:now(),updated_at:now(),revision:0,evidence:{},approvals:[],artifacts:[],provider_state:{},failure_counts:{},suspended_from:null,
     feature_id:featureId,phase_id:phaseId,parent_run_id:parentRunId,run_kind:runKind};
@@ -110,7 +111,7 @@ export function recordDesignDecision(root,projectRoot,run,decision,{artifactRef=
     mode:decision?.mode??null,
     evidence:validation.gate_evidence,
     humanApprovalRequired,
-    approvals:approvals??(run.approvals||[]).map(a=>a.approval)
+    approvals:approvals??activeCapabilities(run)
   });
   const derived=getDesignDiscoveryPolicy().gate.derived_evidence;
   if(!validation.valid||!gate.valid){

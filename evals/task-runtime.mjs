@@ -7,14 +7,15 @@
 // Fully offline: a temporary git repository, project commands that are plain
 // `node -e` exits, and no model or host involvement anywhere.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
-import {initProject,listTasks,loadTask,saveTask,loadTaskGraph,putArtifact,listTaskEvents,getTaskContextManifest} from '../runtime/store.mjs';
+import {initProject,listTasks,loadTask,saveTask,loadTaskGraph,putArtifact,listTaskEvents,getTaskContextManifest,tasksDir} from '../runtime/store.mjs';
 import {route} from '../runtime/router.mjs';
 import {newRun,transition,recordDesignDecision,recordTaskPlan,materializeRunTasks,recordImplementationComplete} from '../runtime/orchestrator.mjs';
 import {materializeTaskGraph,refreshReadiness,transitionTask,evaluateTransition,dependencyState,taskProgress,requireTask} from '../runtime/task-engine.mjs';
-import {scheduleTasks,readySet,scopeConflicts,mustSerialize} from '../runtime/task-scheduler.mjs';
+import {scheduleTasks,readySet,scopeConflicts,mustSerialize,scopeOverlap as schedulerOverlap} from '../runtime/task-scheduler.mjs';
+import {scopeOverlap as sharedOverlap} from '../runtime/scope.mjs';
+import {computeScopeConflicts} from '../runtime/plan-validator.mjs';
 import {buildTaskContext,renderTaskPrompt,EXCLUDED_BY_DEFAULT} from '../runtime/task-context.mjs';
 import {createTaskWorkspace,cleanupTaskWorkspace,checkWriterIsolation,listTaskWorkspaces,scrubbedEnv,workspaceDiff,getTaskWorkspace} from '../runtime/workspace.mjs';
 import {verifyTask,scopeAudit,verificationStrategy,plannedCommands} from '../runtime/task-verification.mjs';
@@ -24,12 +25,13 @@ import {startTask,advanceTask,captureTaskDiff,taskCheckpoint,recordTaskUsage,res
 import {migrateRunToTaskRuntime} from '../runtime/task-migration.mjs';
 import {reportRunTaskUsage} from '../runtime/cost.mjs';
 import {taskMetrics} from '../runtime/telemetry.mjs';
+import {makeTempDir} from '../scripts/lib/tempdir.mjs';
 
 const gitq=(cwd,...a)=>execFileSync('git',a,{cwd,stdio:'ignore'});
 
 /** A throwaway git project with deterministic, always-passing commands. */
 export function makeFixture({failingTests=false,commands=null}={}){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-taskrt-'));
+  const d=makeTempDir('agent-sdlc-taskrt-');
   gitq(d,'init','-q');
   fs.mkdirSync(path.join(d,'src','auth'),{recursive:true});
   fs.mkdirSync(path.join(d,'src','notify'),{recursive:true});
@@ -282,6 +284,40 @@ export function runTaskRuntimeSuite(root){
       if(listTasks(projectRoot,run.run_id).length)fail('tasks were created from an invalid plan');
     });
 
+    // listTasks used to select records by filename, /^TASK-[0-9]+.json$/. The
+    // plan validator places no constraint on task_id, so a plan numbered any
+    // other way materialized with `materialized: true` and was then invisible
+    // to every reader of the graph: an unexecutable run that reported success.
+    t('a-task-id-that-is-not-TASK-NNN-is-still-a-task',()=>{
+      const plan=basePlan();
+      plan.tasks[0].task_id='auth-token-store';
+      const {run}=runAtImplement(root,projectRoot,{plan});
+      const ids=listTasks(projectRoot,run.run_id).map(x=>x.task_id);
+      if(!ids.includes('auth-token-store'))fail(`materialized task is invisible to listTasks: ${JSON.stringify(ids)}`);
+      if(taskProgress(projectRoot,run.run_id).total!==1)fail('taskProgress does not see the task');
+    });
+
+    t('sidecars-are-never-returned-as-tasks',()=>{
+      const {run}=runAtImplement(root,projectRoot);
+      const dir=tasksDir(projectRoot,run.run_id);
+      fs.writeFileSync(path.join(dir,'migration.json'),JSON.stringify({schema:'agent-sdlc/task-migration/v1',run_id:run.run_id}));
+      fs.writeFileSync(path.join(dir,'notes.json'),JSON.stringify({anything:true}));
+      const ids=listTasks(projectRoot,run.run_id).map(x=>x.task_id);
+      if(ids.length!==1||ids[0]!=='TASK-001')fail(`a sidecar was read as a task: ${JSON.stringify(ids)}`);
+    });
+
+    // The id becomes a filename, so it is authored input reaching the
+    // filesystem. Selecting records by content rather than by a TASK-NNN
+    // pattern removed the accidental guard that used to sit in the way.
+    t('a-task-id-cannot-write-outside-its-run-directory',()=>{
+      const {run}=runAtImplement(root,projectRoot);
+      for(const bad of ['../escape','a/b','..']){
+        let threw=false;
+        try{saveTask(projectRoot,{run_id:run.run_id,task_id:bad,status:'CREATED'});}catch{threw=true;}
+        if(!threw)fail(`saveTask accepted an unsafe task_id: ${JSON.stringify(bad)}`);
+      }
+    });
+
     t('materialization-is-idempotent',()=>{
       const {run}=runAtImplement(root,projectRoot);
       let task=requireTask(projectRoot,run.run_id,'TASK-001');
@@ -291,6 +327,44 @@ export function runTaskRuntimeSuite(root){
       if(again.created.length)fail(`re-materialization recreated ${again.created.join(',')}`);
       if(!again.preserved.includes('TASK-001'))fail(JSON.stringify(again.preserved));
       if(requireTask(projectRoot,run.run_id,'TASK-001').status!=='RUNNING')fail('an in-flight task was reset');
+    });
+
+    // An amended plan used to be silently inert: an existing task kept its
+    // original scope and the caller got `preserved` with no hint the amendment
+    // had not landed. Amending the plan IS the prescribed fix for a wrong
+    // scope, so an amendment that cannot be seen is that fix failing quietly.
+    t('an-amended-plan-redefines-a-task-that-has-not-started',()=>{
+      const {run}=runAtImplement(root,projectRoot);
+      const before=requireTask(projectRoot,run.run_id,'TASK-001');
+      if(!['CREATED','READY'].includes(before.status))fail(`fixture assumption broke: TASK-001 is ${before.status}`);
+      const amended=basePlan();
+      amended.tasks[0].write_scope=[...(amended.tasks[0].write_scope||[]),'runtime/extra-file.mjs'];
+      const out=materializeTaskGraph(root,projectRoot,run,amended);
+      if(!out.materialized)fail(JSON.stringify(out.validation.errors));
+      if(!out.updated.includes('TASK-001'))fail(`amendment did not land: ${JSON.stringify(out)}`);
+      const after=requireTask(projectRoot,run.run_id,'TASK-001');
+      if(!after.scope.write.includes('runtime/extra-file.mjs'))fail(`scope not updated: ${JSON.stringify(after.scope.write)}`);
+      if(after.status!==before.status)fail('redefinition changed the status');
+      if(after.attempt!==before.attempt)fail('redefinition changed the attempt counter');
+    });
+
+    // The other half: a task with work bound to it keeps everything, because
+    // evidence describes the task as it was defined when that evidence was
+    // produced. It must be reported, not folded into `preserved` unmarked.
+    t('an-amended-plan-reports-a-conflict-when-work-is-already-bound',()=>{
+      const {run}=runAtImplement(root,projectRoot);
+      let task=requireTask(projectRoot,run.run_id,'TASK-001');
+      task=transitionTask(root,projectRoot,task,'RUNNING',{force:true});
+      task.diff_hash='deadbeef';task.base_revision='cafebabe';saveTask(projectRoot,task);
+      const amended=basePlan();
+      amended.tasks[0].write_scope=[...(amended.tasks[0].write_scope||[]),'runtime/extra-file.mjs'];
+      const out=materializeTaskGraph(root,projectRoot,run,amended);
+      if(out.updated.includes('TASK-001'))fail('scope was rewritten under bound evidence');
+      const c=(out.conflicts||[]).find(x=>x.task_id==='TASK-001');
+      if(!c)fail(`conflict not reported: ${JSON.stringify(out.conflicts)}`);
+      if(c.reason!=='DEFINITION_CHANGED_BUT_WORK_ALREADY_BOUND')fail(JSON.stringify(c));
+      const after=requireTask(projectRoot,run.run_id,'TASK-001');
+      if(after.scope.write.includes('runtime/extra-file.mjs'))fail('scope changed despite the conflict');
     });
 
     t('implement-gate-closed-until-every-task-is-done',()=>{
@@ -469,6 +543,42 @@ export function runTaskRuntimeSuite(root){
       if(!scopeConflicts(['src/auth/'],['src/auth/reset.js']).length)fail('directory prefix missed');
       if(scopeConflicts(['src/auth/a.js'],['src/auth/b.js']).length)fail('siblings reported as overlapping');
       if(!scopeConflicts(['src/*'],['src/auth/a.js']).length)fail('glob stem missed');
+      // `src/auth` must NOT collide with `src/authentication`: the prefix test
+      // is at directory boundaries, and a raw startsWith would serialize two
+      // tasks that share nothing.
+      if(scopeConflicts(['src/auth'],['src/authentication/x.js']).length)fail('non-boundary prefix reported as overlapping');
+    });
+
+    t('the-plan-gate-and-the-scheduler-share-one-overlap-predicate',()=>{
+      // The PLAN gate decides whether parallel candidates may coexist; the
+      // scheduler decides whether they may be dispatched together. They carried
+      // separate copies of the predicate, outside the "one policy model" claim
+      // in scripts/validate-task-engine.mjs, so a fix to one would have let a
+      // plan be accepted and then refused at dispatch, or the reverse.
+      if(schedulerOverlap!==sharedOverlap)fail('the scheduler no longer re-exports the shared predicate');
+      // And the gate's verdict must agree with the scheduler's on the corpus,
+      // which is what catches a copy reintroduced inside plan-validator.
+      const pairs=[
+        ['src/auth/','src/auth/reset.js',true],
+        ['src/auth/a.js','src/auth/b.js',false],
+        ['src/*','src/auth/a.js',true],
+        ['src/auth','src/authentication/x.js',false],
+        ['*','anything/at/all.js',true],
+        ['./src/a.js','src/a.js',true]
+      ];
+      for(const [a,b,expected] of pairs){
+        const plan={
+          schema:'agent-sdlc/task-plan/v1',plan_id:'PLAN-1',run_id:'RUN-1',
+          tasks:[
+            {task_id:'TASK-1',parallel_candidate:true,write_scope:[a],interface_scope:[]},
+            {task_id:'TASK-2',parallel_candidate:true,write_scope:[b],interface_scope:[]}
+          ]
+        };
+        const gate=computeScopeConflicts(plan).some(c=>c.kind==='WRITE_SCOPE');
+        const sched=scopeConflicts([a],[b]).length>0;
+        if(gate!==sched)fail(`gate ${gate} vs scheduler ${sched} for ${a} | ${b}`);
+        if(sched!==expected)fail(`${a} | ${b} -> ${sched}, expected ${expected}`);
+      }
     });
   }
 
@@ -672,6 +782,39 @@ export function runTaskRuntimeSuite(root){
       if(!stale.errors.some(e=>e.startsWith('ATTEMPT_MISMATCH')))fail(JSON.stringify(stale.errors));
     });
 
+    t('a-review-that-declares-no-diff-is-not-bound-to-anything',()=>{
+      // The binding was checked only when the review volunteered a diff_hash,
+      // and neither JSON schema requires the field. So omitting it skipped the
+      // check entirely -- a review could come back COMPLIANT/ACCEPTED, validate
+      // clean and open the gate while bound to no diff at all. `attempt` was
+      // already mandatory; this is the same binding, half-enforced.
+      //
+      // task.diff_hash is always set by review time: RUNNING -> VERIFYING
+      // requires diff_captured, so there is no legitimate reason to omit it.
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot);
+      const task=requireTask(projectRoot,run.run_id,'TASK-001');
+      task.diff_hash='current';saveTask(projectRoot,task);
+      const cur=requireTask(projectRoot,run.run_id,'TASK-001');
+
+      for(const [label,build,validate] of [
+        ['spec',specReviewFor,validateSpecComplianceReview],
+        ['quality',qualityReviewFor,validateCodeQualityReview]
+      ]){
+        const bound=validate(build(cur),cur);
+        if(!bound.clean)fail(`${label}: a correctly bound review was refused: ${JSON.stringify(bound.errors)}`);
+
+        const review=build(cur);
+        delete review.diff_hash;
+        const unbound=validate(review,cur);
+        if(unbound.clean)fail(`${label}: a review declaring no diff was accepted as clean`);
+        if(!unbound.errors.includes('REVIEW_NOT_BOUND_TO_A_DIFF'))fail(`${label}: ${JSON.stringify(unbound.errors)}`);
+
+        const wrong=validate(build(cur,{diff_hash:'previous'}),cur);
+        if(wrong.clean)fail(`${label}: a review bound to another diff was accepted`);
+      }
+    });
+
     t('acceptance-criteria-must-actually-be-checked',()=>{
       const projectRoot=makeFixture();
       const {run}=runAtImplement(root,projectRoot);
@@ -739,6 +882,112 @@ export function runTaskRuntimeSuite(root){
       if(verificationStrategy({category:'implementation',risk:{}},{escalate:true})!=='BROAD_SUITE')fail('explicit escalation ignored');
     });
 
+    // A suite that publishes its results by rewriting a tracked report -- which
+    // is how most of this project's own suites work -- left the workspace dirty
+    // in paths the task never touched. The next capture read that as work
+    // outside the approved write scope and blocked the task for something
+    // verification itself had done, with a SCOPE_EXPANSION recovery that
+    // re-running could never clear.
+    // The configured suite is the only thing verification used to run, so a
+    // file the task broke was parsed only if some suite imported it. An
+    // unterminated string literal reached VERIFY that way once.
+    const jsPlan=()=>{const p=basePlan();p.tasks[0].write_scope=['src/auth/'];return p;};
+
+    t('a-task-that-breaks-the-file-it-changed-fails-its-own-verification',()=>{
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot,{plan:jsPlan()});
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/token-store.mjs',"export const store='unterminated;\n");
+      captureTaskDiff(projectRoot,run,requireTask(projectRoot,run.run_id,'TASK-001'));
+      const {evidence}=verifyTask(root,projectRoot,run,requireTask(projectRoot,run.run_id,'TASK-001'));
+      const parse=evidence.commands.find(c=>c.kind==='syntax_check');
+      if(!parse)fail(`no parse check over the changed file: ${JSON.stringify(evidence.commands.map(c=>c.kind))}`);
+      if(parse.exit_code===0)fail('an unparseable file passed the parse check');
+      if(evidence.status!=='FAIL')fail(`verification passed with a broken file: ${evidence.status}`);
+    });
+
+    t('the-parse-check-covers-the-diff-and-nothing-else',()=>{
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot,{plan:jsPlan()});
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/token-store.mjs','export const store=new Map();\n');
+      captureTaskDiff(projectRoot,run,requireTask(projectRoot,run.run_id,'TASK-001'));
+      const {evidence}=verifyTask(root,projectRoot,run,requireTask(projectRoot,run.run_id,'TASK-001'));
+      const parsed=evidence.commands.filter(c=>c.kind==='syntax_check').map(c=>c.command[2]);
+      if(JSON.stringify(parsed)!==JSON.stringify(['src/auth/token-store.mjs']))
+        fail(`the parse check did not follow the diff: ${JSON.stringify(parsed)}`);
+      if(evidence.status!=='PASS')fail(JSON.stringify(evidence.reason));
+    });
+
+    // A bare .js is only unambiguous where a package.json says which module
+    // system it is; parsing an ESM .js as CommonJS would fail for a reason that
+    // has nothing to do with the task.
+    t('a-bare-js-file-is-left-unparsed-where-nothing-declares-its-module-system',()=>{
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot);
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/token-store.js','export const store=new Map();\nexport const ttl=900;\n');
+      captureTaskDiff(projectRoot,run,requireTask(projectRoot,run.run_id,'TASK-001'));
+      const {evidence}=verifyTask(root,projectRoot,run,requireTask(projectRoot,run.run_id,'TASK-001'));
+      if(evidence.commands.some(c=>c.kind==='syntax_check'))
+        fail('an ESM .js was parsed as CommonJS in a project with no package.json');
+      if(evidence.status!=='PASS')fail(JSON.stringify(evidence.reason));
+    });
+
+    t('a-task-that-changed-no-javascript-adds-no-parse-check',()=>{
+      const projectRoot=makeFixture();
+      const plan=basePlan();
+      plan.tasks[0].write_scope=['docs/'];
+      const {run}=runAtImplement(root,projectRoot,{plan});
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      writeInWorkspace(projectRoot,run,'TASK-001','docs/notes.md','# notes\n');
+      captureTaskDiff(projectRoot,run,requireTask(projectRoot,run.run_id,'TASK-001'));
+      const {evidence}=verifyTask(root,projectRoot,run,requireTask(projectRoot,run.run_id,'TASK-001'));
+      if(evidence.commands.some(c=>c.kind==='syntax_check'))fail('a parse check was planned with no JavaScript in the diff');
+    });
+
+    t('verification-side-effects-outside-the-write-scope-are-restored',()=>{
+      const projectRoot=makeFixture({commands:{
+        test_targeted:['node','-e',"require('fs').writeFileSync('src/notify/reset-email.js','export const send=()=>false;');require('fs').writeFileSync('coverage-report.txt','generated by the suite');"],
+        test_full:['node','-e','process.exit(0)'],
+        build:['node','-e','process.exit(0)']
+      }});
+      const {run}=runAtImplement(root,projectRoot);
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/token-store.js','export const store=new Map();\nexport const ttl=900;\n');
+      const task=requireTask(projectRoot,run.run_id,'TASK-001');
+      captureTaskDiff(projectRoot,run,task);
+      const {evidence}=verifyTask(root,projectRoot,run,requireTask(projectRoot,run.run_id,'TASK-001'));
+      if(evidence.status!=='PASS')fail(`${evidence.reason}: ${JSON.stringify(evidence.scope)}`);
+      if(!evidence.restored_by_verification.includes('src/notify/reset-email.js'))
+        fail(`the tracked file the command touched was not restored: ${JSON.stringify(evidence.restored_by_verification)}`);
+      // And the capture that follows must be clean of it, which is the whole point.
+      const after=workspaceDiff(projectRoot,getTaskWorkspace(projectRoot,run.run_id,'TASK-001'));
+      if(after.changed_paths.includes('src/notify/reset-email.js'))
+        fail(`still dirty after restore: ${JSON.stringify(after.changed_paths)}`);
+      // The task's own work inside its write scope is never restored.
+      if(!after.changed_paths.includes('src/auth/token-store.js'))
+        fail(`the task's own change was reverted: ${JSON.stringify(after.changed_paths)}`);
+    });
+
+    t('an-untracked-file-a-command-created-is-left-alone',()=>{
+      const projectRoot=makeFixture({commands:{
+        test_targeted:['node','-e',"require('fs').writeFileSync('src/notify/reset-email.js','export const send=()=>false;');require('fs').writeFileSync('coverage-report.txt','generated by the suite');"],
+        test_full:['node','-e','process.exit(0)'],
+        build:['node','-e','process.exit(0)']
+      }});
+      const {run}=runAtImplement(root,projectRoot);
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/token-store.js','export const store=new Map();\nexport const ttl=900;\n');
+      captureTaskDiff(projectRoot,run,requireTask(projectRoot,run.run_id,'TASK-001'));
+      const {evidence}=verifyTask(root,projectRoot,run,requireTask(projectRoot,run.run_id,'TASK-001'));
+      if(evidence.restored_by_verification.includes('coverage-report.txt'))
+        fail('an untracked file was reported as restored; git has no previous content for it');
+      const ws=getTaskWorkspace(projectRoot,run.run_id,'TASK-001');
+      if(!fs.existsSync(path.join(ws.root,'coverage-report.txt')))
+        fail('an untracked file the command created was deleted rather than left alone');
+    });
+
     t('verification-evidence-is-bound-to-a-revision-and-diff',()=>{
       const projectRoot=makeFixture();
       const {run}=runAtImplement(root,projectRoot);
@@ -753,6 +1002,156 @@ export function runTaskRuntimeSuite(root){
       if(!evidence.commands.length||evidence.commands[0].exit_code!==0)fail(JSON.stringify(evidence.commands));
       if(!evidence.environment.platform)fail('no environment fingerprint');
       if(evidence.attempt!==fresh.attempt)fail(`attempt ${evidence.attempt} != ${fresh.attempt}`);
+    });
+
+    t('an-isolated-workspace-records-the-new-files-it-cannot-see-either',()=>{
+      // uncommitted_changes_excluded is what the worktree cannot see. It was
+      // counted with --untracked-files=no, so it named modified tracked files
+      // and stayed silent about files that exist only in the project root --
+      // which are just as invisible from a worktree at the base revision, and
+      // are what a half-finished session leaves behind.
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot);
+      const stray=path.join(projectRoot,'left-behind.js');
+      fs.writeFileSync(stray,'export const strayWork=1;\n');
+      try{
+        const ws=createTaskWorkspace(projectRoot,{run,task:{task_id:'TASK-777',scope:{write:['src/']}},writer:'writer-z'});
+        if(ws.mode!=='isolated-worktree')fail(`fixture did not isolate: ${ws.mode} ${ws.degraded||''}`);
+        if(!ws.uncommitted_changes_excluded)
+          fail('a file the worktree cannot see was not recorded as excluded');
+      }finally{fs.rmSync(stray,{force:true});}
+    });
+
+    t('the-per-task-secret-scan-searches-the-files-the-task-just-wrote',()=>{
+      // This command runs inside the task's own workspace, on a task that was
+      // singled out as security-critical or interface-changing -- so the files
+      // it most needs to read are the ones the task just created, and those are
+      // untracked. `git grep` without --untracked exits 1 there, and
+      // task-verification.mjs maps exit 1 to a pass. The comment on this branch
+      // says the patterns cannot drift from the gateway scanner's; the flag had
+      // drifted instead.
+      const projectRoot=makeFixture();
+      const task={task_id:'TASK-900',risk:{security:'HIGH'},verification:{targeted_tests:[]}};
+      const cmds=plannedCommands(projectRoot,task,'BROAD_SUITE',{root});
+      const scan=cmds.find(c=>c.kind==='security_secret_scan');
+      if(!scan)fail(`a HIGH-security task planned no secret scan: ${JSON.stringify(cmds.map(c=>c.kind))}`);
+      if(!scan.command.includes('--untracked'))
+        fail(`the per-task scan cannot see new files: ${JSON.stringify(scan.command)}`);
+      // Still the same patterns as the gateway scanner, from the same policy.
+      const declared=JSON.parse(fs.readFileSync(path.join(root,'policies','security-policy.json'),'utf8'))
+        .secret_scan.patterns.map(p=>p.regex);
+      for(const rx of declared)if(!scan.command.join(' ').includes(rx))fail(`pattern missing from the per-task scan: ${rx}`);
+    });
+
+    t('diff_hash-covers-the-content-of-files-the-task-created-and-never-staged',()=>{
+      // `git diff` reports tracked changes only. The hash was
+      // sha256(diff.stdout + changed_paths), so an untracked file contributed
+      // its NAME but never its CONTENT -- and a file a task just created is
+      // untracked by definition. Rewriting it wholesale left diff_hash
+      // identical, which reaches three separate gates: diff_captured,
+      // REVIEW_NOT_BOUND_TO_CURRENT_DIFF, and the retry fingerprint that
+      // decides whether an attempt brought new evidence.
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot);
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      const ws=getTaskWorkspace(projectRoot,run.run_id,'TASK-001');
+
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/new-module.js','export const secret="v1";\n');
+      const before=workspaceDiff(projectRoot,ws);
+      if(!before.changed_paths.some(p=>p.endsWith('new-module.js')))fail(JSON.stringify(before.changed_paths));
+
+      // Same path, entirely different code.
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/new-module.js','export const secret="different";\nexport function backdoor(){}\n');
+      const after=workspaceDiff(projectRoot,ws);
+      if(before.diff_hash===after.diff_hash)
+        fail('rewriting an untracked file left the diff binding unchanged');
+
+      // Rewriting it back reproduces the earlier hash: the binding is a
+      // function of content, not a counter that only ever moves forward.
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/new-module.js','export const secret="v1";\n');
+      if(workspaceDiff(projectRoot,ws).diff_hash!==before.diff_hash)
+        fail('the same workspace content produced a different diff binding');
+    });
+
+    t('a-failed-verification-does-not-satisfy-the-verification-gate',()=>{
+      // task.evidence_refs is appended for every verification run, passing or
+      // not (task-verification.mjs records the artifact before it branches on
+      // status). The gate accepted "this task has some evidence ref" as
+      // satisfaction whenever no verification object was passed in, so a task
+      // whose verification had FAILED could still be moved VERIFYING ->
+      // SPEC_REVIEW from the CLI, with no --force -- sending unverified work to
+      // review, past the one gate that exists to stop it.
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot);
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/token-store.js','export const store=new Map();\n');
+      let task=requireTask(projectRoot,run.run_id,'TASK-001');
+      captureTaskDiff(projectRoot,run,task);
+      task=transitionTask(root,projectRoot,requireTask(projectRoot,run.run_id,'TASK-001'),'VERIFYING',{reason:'diff captured'});
+
+      // A recorded verification that did not pass still leaves a ref behind.
+      task.evidence_refs=['artifact://sha256/'+'0'.repeat(64)];
+      saveTask(projectRoot,task);
+      const withoutObject=evaluateTransition(root,requireTask(projectRoot,run.run_id,'TASK-001'),'SPEC_REVIEW',{});
+      if(withoutObject.allowed)fail('a bare evidence ref satisfied the verification gate');
+      if(!withoutObject.problems.some(p=>p.startsWith('NO_VERIFICATION_EVIDENCE')))
+        fail(`unexpected problems: ${JSON.stringify(withoutObject.problems)}`);
+
+      // The gate still opens for a passing verification bound to this attempt,
+      // and still refuses one bound to a different one.
+      const cur=requireTask(projectRoot,run.run_id,'TASK-001');
+      const passing={status:'PASS',attempt:cur.attempt};
+      if(!evaluateTransition(root,cur,'SPEC_REVIEW',{verification:passing}).allowed)
+        fail('a passing verification for this attempt was refused');
+      const otherAttempt=evaluateTransition(root,cur,'SPEC_REVIEW',{verification:{status:'PASS',attempt:(cur.attempt||0)+1}});
+      if(otherAttempt.allowed)fail('verification from another attempt was accepted');
+      const failing=evaluateTransition(root,cur,'SPEC_REVIEW',{verification:{status:'FAIL',attempt:cur.attempt}});
+      if(failing.allowed)fail('a failing verification was accepted');
+    });
+
+    t('a-verification-record-with-no-scope-audit-does-not-satisfy-the-scope-gate',()=>{
+      // `scope_respected` is required on QUALITY_REVIEW -> DONE, and the check
+      // was `if(scope && scope.respected===false)`. `scope` is optional in
+      // TaskVerification.schema.json, and `task transition --verification
+      // <file>` reads the record from a caller-supplied path -- so a
+      // schema-valid record that simply omits the scope block skipped the gate
+      // entirely and the task reached DONE with no scope proof at all. Absence
+      // of a violation report is not a report of no violation.
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot);
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/token-store.js','export const store=new Map();\n');
+      let task=requireTask(projectRoot,run.run_id,'TASK-001');
+      captureTaskDiff(projectRoot,run,task);
+      task=requireTask(projectRoot,run.run_id,'TASK-001');
+      task.status='QUALITY_REVIEW';
+      saveTask(projectRoot,task);
+
+      const cur=requireTask(projectRoot,run.run_id,'TASK-001');
+      const base={
+        qualityReview:{verdict:'ACCEPTED',findings:[]},
+        verification:{status:'PASS',attempt:cur.attempt}
+      };
+      const noScope=evaluateTransition(root,cur,'DONE',base);
+      if(noScope.allowed)fail('a verification with no scope audit satisfied scope_respected');
+      if(!noScope.problems.includes('NO_SCOPE_EVIDENCE'))
+        fail(`unexpected problems: ${JSON.stringify(noScope.problems)}`);
+
+      // A scope block that reports out-of-scope paths but never says so in
+      // `respected` is the same evasion one field down.
+      const halfScope=evaluateTransition(root,cur,'DONE',
+        {...base,verification:{...base.verification,scope:{out_of_scope_paths:['src/notify/x.js']}}});
+      if(halfScope.allowed)fail('a scope block with no boolean verdict satisfied the gate');
+
+      // The gate still reports a real violation, and still opens for a clean audit.
+      const violated=evaluateTransition(root,cur,'DONE',
+        {...base,verification:{...base.verification,scope:{respected:false,out_of_scope_paths:['src/notify/x.js']}}});
+      if(violated.allowed)fail('a scope violation was accepted');
+      if(!violated.problems.some(p=>p.startsWith('SCOPE_VIOLATION:')))
+        fail(`unexpected problems: ${JSON.stringify(violated.problems)}`);
+      const clean=evaluateTransition(root,cur,'DONE',
+        {...base,verification:{...base.verification,scope:{respected:true,out_of_scope_paths:[]}}});
+      if(!clean.allowed)fail(`a clean scope audit was refused: ${JSON.stringify(clean.problems)}`);
     });
 
     t('scope-audit-treats-declared-directories-as-covering',()=>{
@@ -1038,12 +1437,46 @@ export function runTaskRuntimeSuite(root){
       const task=requireTask(projectRoot,run.run_id,'TASK-001');
       const ws=createTaskWorkspace(projectRoot,{run,task,writer:'writer-a'});
       if(!ws.writable)fail('a task with a write scope got a read-only workspace');
+      // The fixture has to contain work for the refusal to be about anything.
+      // It used to be an untouched workspace, so the case asserted a refusal in
+      // the one situation where nothing was at stake.
+      fs.writeFileSync(path.join(ws.root,'uncaptured-work.txt'),'a worker wrote this and no evidence recorded it\n');
       const refused=cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted:false});
       if(refused.status!=='REFUSED_EVIDENCE_NOT_PERSISTED')fail(JSON.stringify(refused));
       const still=listTaskWorkspaces(projectRoot,run.run_id).find(w=>w.task_id==='TASK-001');
       if(still.status!=='ACTIVE')fail('the workspace was cleaned despite unpersisted evidence');
       const forced=cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted:false,force:true});
       if(forced.status!=='CLEANED')fail(JSON.stringify(forced));
+    });
+
+    // The other side of the same guard: a workspace created and never written to
+    // holds nothing, so refusing guarded nothing while leaving a real worktree
+    // on disk that only `force` could remove.
+    t('workspace-cleanup-allows-a-provably-empty-workspace',()=>{
+      const {run}=runAtImplement(root,projectRoot,{plan:basePlan({plan_id:'PLAN-007'})});
+      const task=requireTask(projectRoot,run.run_id,'TASK-001');
+      const ws=createTaskWorkspace(projectRoot,{run,task,writer:'writer-a'});
+      if(!ws.writable)fail('a task with a write scope got a read-only workspace');
+      const diff=workspaceDiff(projectRoot,ws);
+      if(diff.changed_paths.length)fail(`fixture assumption broke: ${JSON.stringify(diff.changed_paths)}`);
+      const out=cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted:false});
+      if(out.status!=='CLEANED')fail(JSON.stringify(out));
+      if(out.reason!=='WORKSPACE_EMPTY')fail(`cleanup did not say why it was allowed: ${JSON.stringify(out)}`);
+    });
+
+    // Emptiness has to be proven, not assumed. A worktree whose diff cannot be
+    // read is not a worktree known to be clean, so that case keeps refusing.
+    t('workspace-cleanup-refuses-when-emptiness-cannot-be-proven',()=>{
+      const {run}=runAtImplement(root,projectRoot,{plan:basePlan({plan_id:'PLAN-008'})});
+      const task=requireTask(projectRoot,run.run_id,'TASK-001');
+      const ws=createTaskWorkspace(projectRoot,{run,task,writer:'writer-a'});
+      // Point the record at a path that is not a git worktree at all.
+      const rec=path.join(projectRoot,'.agent-sdlc','workspaces',run.run_id,'TASK-001.json');
+      const saved=JSON.parse(fs.readFileSync(rec,'utf8'));
+      fs.writeFileSync(rec,JSON.stringify({...saved,root:path.join(projectRoot,'.agent-sdlc','no-such-worktree')},null,2));
+      const out=cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted:false});
+      if(out.status!=='REFUSED_EVIDENCE_NOT_PERSISTED')fail(`an unreadable worktree was treated as clean: ${JSON.stringify(out)}`);
+      fs.writeFileSync(rec,JSON.stringify(saved,null,2));
     });
   }
 

@@ -6,13 +6,13 @@
 // against it, and it is the module a user reaches for precisely when their state
 // looks wrong -- so its failure modes matter more than its happy path.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {execFileSync,spawnSync} from 'node:child_process';
 import {initProject} from '../runtime/store.mjs';
 import {compatCheck,migrateState,stateSchema} from '../runtime/compat.mjs';
 import {createSuite} from './lib/suite.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
@@ -20,7 +20,7 @@ const {test,assert,finish}=createSuite('agent-sdlc/compat-validation/v1','COMPAT
 
 /** A bare directory: a git repo with no harness state at all. */
 function bare(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-compat-'));
+  const d=makeTempDir('agent-sdlc-compat-');
   execFileSync('git',['init','-q'],{cwd:d});
   return d;
 }

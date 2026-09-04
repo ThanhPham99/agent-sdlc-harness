@@ -1,0 +1,45 @@
+{
+  "schema": "agent-sdlc/prompt-caching-validation/v1",
+  "checks": 9,
+  "passes": 9,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "renderCacheablePrompt-returns-consistent-blocks",
+      "status": "PASS"
+    },
+    {
+      "name": "static-prefix-is-stable-across-different-objectives",
+      "status": "PASS"
+    },
+    {
+      "name": "renderCacheableTaskPrompt-returns-consistent-blocks",
+      "status": "PASS"
+    },
+    {
+      "name": "task-static-and-module-prefix-stable-across-tasks",
+      "status": "PASS"
+    },
+    {
+      "name": "condenseLog-preserves-error-frames-across-frameworks",
+      "status": "PASS"
+    },
+    {
+      "name": "cache-breakpoints-and-estimated-hit-rate-are-computed",
+      "status": "PASS"
+    },
+    {
+      "name": "formatProviderPrompt-adapts-to-host-capabilities",
+      "status": "PASS"
+    },
+    {
+      "name": "projectArtifactsForStage-compacts-non-primary-artifacts-for-stage",
+      "status": "PASS"
+    },
+    {
+      "name": "full_prompt-matches-prefix-cacheable-layout",
+      "status": "PASS"
+    }
+  ]
+}

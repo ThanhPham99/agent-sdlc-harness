@@ -1,0 +1,29 @@
+{
+  "schema": "agent-sdlc/live-dashboard-validation/v1",
+  "checks": 5,
+  "passes": 5,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "server-start-and-health",
+      "status": "PASS"
+    },
+    {
+      "name": "server-dashboard-html-with-sse",
+      "status": "PASS"
+    },
+    {
+      "name": "server-status-api",
+      "status": "PASS"
+    },
+    {
+      "name": "server-run-api",
+      "status": "PASS"
+    },
+    {
+      "name": "dashboard-command-serve-flag",
+      "status": "PASS"
+    }
+  ]
+}

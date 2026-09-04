@@ -7,7 +7,8 @@ const SOURCES=new Set(["startup","resume","clear","compact","fork"]);
 const DISABLED=v=>['0','false','no','off','disabled'].includes(String(v??'').trim().toLowerCase());
 let raw='';
 for await (const c of process.stdin)raw+=c;
-if(DISABLED(process.env.AGENT_SDLC_AUTO_ACTIVATE_ENFORCED)||DISABLED(process.env.AGENT_SDLC_AUTO_ACTIVATE))process.exit(0);
+const enf=process.env.AGENT_SDLC_AUTO_ACTIVATE_ENFORCED;
+if(enf!==undefined&&String(enf).length?DISABLED(enf):DISABLED(process.env.AGENT_SDLC_AUTO_ACTIVATE))process.exit(0);
 let p={};try{p=JSON.parse(raw||'{}');}catch{p={};}
 const source=String(p.session_start_reason||p.source||p.matcher||'startup');
 if(!SOURCES.has(source))process.exit(0);

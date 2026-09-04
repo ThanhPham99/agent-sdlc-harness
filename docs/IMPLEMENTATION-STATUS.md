@@ -1,4 +1,4 @@
-# Implementation Status — 3.0.0-alpha6
+# Implementation Status — 3.0.0-rc1
 
 `3.0.0-alpha4` adds auto-bootstrap: a single canonical auto-activation instruction (76 rough
 tokens) compiled into a Claude Code `SessionStart` hook, an Antigravity `PreInvocation` hook plus

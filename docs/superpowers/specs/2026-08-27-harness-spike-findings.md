@@ -1,4 +1,4 @@
-# Spike findings — agent-sdlc-harness 3.0.0-alpha6
+# Spike findings — agent-sdlc-harness 3.0.0-rc1
 
 Source: technical-spike run `run_8018882d-f4ec-463b-a6c3-945bf32806aa`, git `aba951a`, win32, node v24.14.0.
 Run reached VERIFY and is BLOCKED on `no_new_high_security_findings` — by F12 below, which is one of the findings.

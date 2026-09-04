@@ -12,8 +12,15 @@ import {truthy} from '../util.mjs';
 export const commands={
   route:async ctx=>{
     const {args,ROOT,print}=ctx;
-    const {route}=await import('../router.mjs');
-    print(route(ROOT,args.objective||args._.slice(1).join(' '),args.workflow||null,args.profile||null));
+    const objective=args.objective||args._.slice(1).join(' ');
+    const isSemantic=truthy(args.semantic)||truthy(args.ai);
+    if(isSemantic){
+      const {routeSemantic}=await import('../router.mjs');
+      print(await routeSemantic(ROOT,objective,args.workflow||null,args.profile||null,{semantic:true,provider:args.provider||'auto'}));
+    }else{
+      const {route}=await import('../router.mjs');
+      print(route(ROOT,objective,args.workflow||null,args.profile||null));
+    }
   },
   start:async ctx=>{
     const {args,ROOT,projectRoot,print}=ctx;
@@ -21,11 +28,14 @@ export const commands={
     if(!objective)throw new Error('objective required');
     const {detectProject}=await import('../init.mjs');
     const {initProject}=await import('../store.mjs');
-    const {route}=await import('../router.mjs');
+    const {route,routeSemantic}=await import('../router.mjs');
     const {newRun}=await import('../orchestrator.mjs');
     const {resolveFeatureBinding}=await import('../features.mjs');
     if(!fs.existsSync(path.join(projectRoot,'.agent-sdlc','project.json')))initProject(projectRoot,detectProject(projectRoot));
-    const r=route(ROOT,objective,args.workflow||null,args.profile||null);
+    const isSemantic=truthy(args.semantic)||truthy(args.ai);
+    const r=isSemantic
+      ?await routeSemantic(ROOT,objective,args.workflow||null,args.profile||null,{semantic:true,provider:args.provider||'auto'})
+      :route(ROOT,objective,args.workflow||null,args.profile||null);
     // Binding is always resolved for continue-feature/requirement-update
     // (they refuse to run unbound) and whenever --feature-id is given. For
     // plain new-feature starts it stays opt-in via --track-feature so the
@@ -39,8 +49,23 @@ export const commands={
     print(run);
   },
   status:async ctx=>{
-    const {print,needRun}=ctx;
-    print(await needRun());
+    const {args,print,needRun}=ctx;
+    const run=await needRun();
+    if(truthy(args.pretty)){
+      const lines=[
+        `=== SDLC Run ${run.run_id} ===`,
+        `Objective: ${run.objective}`,
+        `Workflow:  ${run.workflow} [${run.profile}]`,
+        `Stage:     ${run.state}`,
+        `Artifacts: ${(run.artifacts||[]).length} attached`,
+        `Tasks:     ${(run.tasks||[]).length} materialized`,
+        `Created:   ${run.created_at}`,
+        `Updated:   ${run.updated_at}`
+      ];
+      print(lines.join('\n'));
+    } else {
+      print(run);
+    }
   },
   next:async ctx=>{
     const {print,needRun}=ctx;
@@ -71,10 +96,36 @@ export const commands={
   approval:async ctx=>{
     const {args,ROOT,projectRoot,print,needRun}=ctx;
     const sub=args._[1]||'status';
-    const {recordApproval,revokeApproval,listApprovals}=await import('../approvals.mjs');
+    const {recordApproval,revokeApproval,listApprovals,requestApprovalTicket,grantApprovalTicket,listApprovalTickets}=await import('../approvals.mjs');
     if(sub==='status'){
       const run=await needRun();
       print(listApprovals(run));
+    }
+    else if(sub==='tickets'){
+      const run=await needRun();
+      print(listApprovalTickets(run));
+    }
+    else if(sub==='request'){
+      const run=await needRun();
+      const capability=args.capability;
+      if(!capability)throw new Error('--capability required');
+      const ticket=requestApprovalTicket(projectRoot,run,{
+        capability,
+        reason:args.reason||null,
+        expiresInMinutes:args['expires-in']?Number(args['expires-in']):60
+      });
+      print(ticket);
+    }
+    else if(sub==='grant-ticket'){
+      const run=await needRun();
+      const ticketId=args.ticket||args['ticket-id'];
+      if(!ticketId)throw new Error('--ticket <ticketId> required');
+      const rec=grantApprovalTicket(ROOT,projectRoot,run,{
+        ticketId,
+        actor:args.actor||os.userInfo().username,
+        reason:args.reason||null
+      });
+      print(rec);
     }
     else if(sub==='grant'){
       const run=await needRun();
@@ -120,5 +171,66 @@ export const commands={
     const {parallelPlan}=await import('../parallel.mjs');
     const tasks=args.tasks?JSON.parse(args.tasks):(args.file?JSON.parse(fs.readFileSync(path.resolve(args.file),'utf8')):[]);
     print(parallelPlan(ROOT,tasks));
+  },
+  explain:async ctx=>{
+    const {ROOT,projectRoot,print,needRun}=ctx;
+    const run=await needRun();
+    const {evaluateGate}=await import('../gates.mjs');
+    const {nextState}=await import('../orchestrator.mjs');
+    const gate=evaluateGate(ROOT,projectRoot,run,run.state);
+    const next=nextState(run);
+    const tasks=run.tasks||[];
+    const taskSummary={
+      total:tasks.length,
+      done:tasks.filter(t=>t.status==='DONE').length,
+      in_progress:tasks.filter(t=>t.status==='IN_PROGRESS').length,
+      pending:tasks.filter(t=>t.status==='PENDING').length
+    };
+    print({
+      schema:'agent-sdlc/run-explanation/v1',
+      run_id:run.run_id,
+      objective:run.objective,
+      workflow:run.workflow,
+      profile:run.profile,
+      current_stage:run.state,
+      next_stage:next,
+      gate_decision:gate.decision,
+      gate_status:{
+        satisfied:gate.satisfied,
+        missing:gate.missing,
+        stale:gate.stale
+      },
+      tasks:taskSummary,
+      recommendation:gate.decision==='PASS'
+        ?`Stage ${run.state} gate is satisfied. Proceed with transition to ${next||'CLOSE'}.`
+        :`Stage ${run.state} gate is blocked. Provide missing evidence tokens: [${gate.missing.join(', ')}]${gate.stale.length?` (refresh stale: [${gate.stale.join(', ')}])`:''}.`
+    });
+  },
+  diff:async ctx=>{
+    const {projectRoot,print,needRun}=ctx;
+    const run=await needRun();
+    const {spawnSync}=await import('node:child_process');
+    const r=spawnSync('git',['diff','--stat'],{cwd:projectRoot,encoding:'utf8'});
+    print({
+      schema:'agent-sdlc/run-diff/v1',
+      run_id:run.run_id,
+      stage:run.state,
+      git_stat:(r.stdout||'').trim(),
+      artifacts_count:(run.artifacts||[]).length
+    });
+  },
+  rewind:async ctx=>{
+    const {args,ROOT,projectRoot,print,needRun}=ctx;
+    const run=await needRun();
+    const toStage=args['to-stage']||args.to||args._[1]||null;
+    const toTaskId=args['to-task']||args['task-id']||null;
+    if(!toStage&&!toTaskId)throw new Error('--to-stage <stage> or --to-task <taskId> required');
+    const {rewindRun}=await import('../rewind.mjs');
+    const res=rewindRun(ROOT,projectRoot,run,{
+      toStage,
+      toTaskId,
+      preserveEvidence:truthy(args['preserve-evidence'])
+    });
+    print(res);
   }
 };

@@ -15,6 +15,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {jobScriptSequence} from './lib/ci-workflow.mjs';
+import {STAGES,planScripts} from './lib/check-plan.mjs';
+import {writeReport} from './lib/report-io.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const pkg=JSON.parse(fs.readFileSync(path.join(ROOT,'package.json'),'utf8'));
@@ -47,6 +49,8 @@ const FULL_GATE_JOB='offline-validation';
 // must run inside FULL_GATE_JOB specifically.
 const ALTERNATE_JOB={'test:coverage':'coverage-floor'};
 
+const CHECK_SCRIPT='check';
+
 // Suites CI is allowed to skip, with the reason. Live host qualification needs
 // provider credentials and runs from live-qualification.yml instead.
 // F14: restore-tracked-reports' whole purpose is local git-tree hygiene after
@@ -56,10 +60,16 @@ const ALTERNATE_JOB={'test:coverage':'coverage-floor'};
 // sets) rather than a suite CI is expected to run at all.
 const EXEMPT={'restore-tracked-reports':'local git-tree hygiene only; a documented no-op in CI'};
 
-const CHECK_SCRIPT='check';
-
-/** npm scripts a script body invokes, in order. */
+/**
+ * npm scripts a script body invokes, in order.
+ *
+ * `check` is the exception: it is no longer an `&&` chain to read but a runner
+ * over scripts/lib/check-plan.mjs, so its children come from the plan. That is
+ * the point of the plan -- one declaration the runner executes and this
+ * validator holds CI to, instead of a string both had to parse.
+ */
 function children(name){
+  if(name===CHECK_SCRIPT)return planScripts();
   const body=pkg.scripts[name];
   if(!body)return [];
   const out=[...body.matchAll(/npm run ([a-z0-9:-]+)/g)].map(m=>m[1]);
@@ -115,19 +125,24 @@ if(!rows.length)rows.push({script:CHECK_SCRIPT,status:'FAIL',problems:[`no suite
 // FULL_GATE_JOB's steps to check -- parallel jobs have no relative order.
 // An EXEMPT script is never run by CI at all, so it has no position in
 // ciSequence to check order against either.
-const chain=children(CHECK_SCRIPT).filter(s=>!ALTERNATE_JOB[s]&&!EXEMPT[s]);
+//
+// Order is judged per STAGE, not per script. The plan's stage boundaries are
+// the real dependencies (nothing reads dist/ before `build` writes it); within
+// a stage the suites run concurrently, so their relative order in CI carries no
+// meaning and must not be asserted. Holding CI to the old flat chain would have
+// demanded an order the plan itself does not have.
+const runnable=s=>!ALTERNATE_JOB[s]&&!EXEMPT[s];
 const orderProblems=[];
-let cursor=-1,previous=null;
-for(const script of chain){
-  const at=ciSequence.indexOf(script,cursor+1);
-  if(at<0){
-    // Membership is reported per suite above; only order is judged here.
-    if(ciSequence.includes(script)){
-      orderProblems.push(`\`${script}\` runs before \`${previous}\` in ${WORKFLOW}'s \`${FULL_GATE_JOB}\` job but after it in \`${CHECK_SCRIPT}\``);
-    }
-    continue;
+let cursor=-1,previousStage=null;
+for(const stage of STAGES){
+  const present=stage.parallel.filter(runnable).filter(s=>ciSequence.includes(s));
+  if(!present.length)continue;
+  const positions=present.map(s=>({script:s,at:ciSequence.indexOf(s)}));
+  for(const p of positions.filter(p=>p.at<=cursor)){
+    orderProblems.push(`\`${p.script}\` is in the \`${stage.name}\` stage of \`${CHECK_SCRIPT}\`, which runs after the \`${previousStage}\` stage, but ${WORKFLOW}'s \`${FULL_GATE_JOB}\` job runs it before that stage completes`);
   }
-  cursor=at;previous=script;
+  cursor=Math.max(cursor,...positions.map(p=>p.at));
+  previousStage=stage.name;
 }
 if(orderProblems.length)rows.push({script:`${CHECK_SCRIPT} (step order)`,status:'FAIL',problems:orderProblems});
 
@@ -143,6 +158,6 @@ const report={
   suites:rows,
   status:failures.length?'FAIL':'PASS'
 };
-fs.writeFileSync(path.join(ROOT,'evals','CI-COVERAGE-VALIDATION.json'),JSON.stringify(report,null,2)+'\n');
+writeReport(path.join(ROOT,'evals','CI-COVERAGE-VALIDATION.json'),report);
 console.log(JSON.stringify({...report,suites:failures.length?failures:'all-gated'},null,2));
 process.exit(failures.length?1:0);

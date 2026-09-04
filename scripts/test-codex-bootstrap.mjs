@@ -2,12 +2,12 @@
 // Managed Codex bootstrap tests. Every case runs against a temporary CODEX_HOME;
 // no real user instruction file is ever touched.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {BOOTSTRAP_TEXT,bootstrapHash} from '../runtime/activation.mjs';
 import * as cb from '../runtime/codex-bootstrap.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
@@ -16,7 +16,7 @@ const test=(name,fn)=>{try{fn();rows.push({name,status:'PASS'});}catch(e){fail++
 const assert=(v,m)=>{if(!v)throw new Error(m);};
 const homes=[];
 function home(files={}){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-codex-home-'));
+  const d=makeTempDir('agent-sdlc-codex-home-');
   homes.push(d);
   for(const [rel,text] of Object.entries(files))fs.writeFileSync(path.join(d,rel),text);
   return d;
@@ -119,7 +119,7 @@ test('crlf-line-endings-are-preserved',()=>{
   assert(!/[^\r]\n/.test(read(h)),'uninstall broke CRLF endings');
 });
 test('no-repository-local-agents-md-is-touched',()=>{
-  const repo=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-codex-repo-'));
+  const repo=makeTempDir('agent-sdlc-codex-repo-');
   homes.push(repo);
   const local=path.join(repo,'AGENTS.md');
   fs.writeFileSync(local,'repo rules\n');

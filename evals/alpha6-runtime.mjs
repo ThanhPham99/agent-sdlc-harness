@@ -5,7 +5,6 @@
 // Shared by `npm test` and `scripts/validate-alpha6.mjs`, so the gate and the
 // release evidence describe the same run. Fully offline.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import {execFileSync} from 'node:child_process';
 import {initProject,listTasks,saveTask,putArtifact,listTaskEvents,loadRun} from '../runtime/store.mjs';
@@ -19,6 +18,7 @@ import {openIntelligence,findSymbol,findReferences,findTestsForSymbol,findModule
 import {buildTraceabilityGraph,loadTraceabilityGraph,validateTraceabilityGraph,computeTraceCoverage,computeInvalidationClosure,applyInvalidation,invalidationHistory,nodeId,DELTA_CLASSES} from '../runtime/traceability.mjs';
 import {recordDelivery,baseDrift,checkPushTarget,branchFor,groupTaskBranches,isProtectedBranch} from '../runtime/git-delivery.mjs';
 import {recordCiEvidence,ciEvidenceCurrent,loadCiEvidence} from '../runtime/ci-evidence.mjs';
+import {recordApproval,revokeApproval,activeCapabilities} from '../runtime/approvals.mjs';
 import {resumeFromCheckpoint,taskCheckpoint,startTask,captureTaskDiff} from '../runtime/task-runner.mjs';
 import {governTask,governorReport,taskComplexity,getGovernancePolicy} from '../runtime/governor.mjs';
 import {buildRegressionCandidate,validateRegressionCandidate,toEvalCase,sanitizeText,sanitizePath,LEARNING_SOURCES} from '../runtime/learning.mjs';
@@ -26,12 +26,13 @@ import {buildTaskContext,renderTaskPrompt,scopeIntelligence} from '../runtime/ta
 import {getTaskWorkspace} from '../runtime/workspace.mjs';
 import {planRequirementUpdate,loadRequirementUpdatePlan} from '../runtime/requirement-update.mjs';
 import {buildContext,renderPrompt} from '../runtime/context.mjs';
+import {makeTempDir} from '../scripts/lib/tempdir.mjs';
 
 const gitq=(cwd,...a)=>execFileSync('git',a,{cwd,stdio:'ignore'});
 
 /** A small but realistic repository: modules, tests, routes, entities, events. */
 export function makeRichFixture(){
-  const d=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-a6-'));
+  const d=makeTempDir('agent-sdlc-a6-');
   gitq(d,'init','-q');
   const write=(rel,text)=>{
     const p=path.join(d,rel);
@@ -178,6 +179,30 @@ export function runAlpha6Suite(root){
       if(restoredStale.stale)fail(`restored working tree should be clean, got: ${JSON.stringify(restoredStale)}`);
     });
 
+    t('a-new-file-the-task-wrote-makes-the-index-stale',()=>{
+      // indexStale asked git with --untracked-files=no, so a workspace holding
+      // modules the index has never seen reported stale:false. The case above
+      // modifies a TRACKED file, which is the third fixture in this repo to
+      // route around the same blind spot. openIntelligence hands this verdict
+      // to the caller alongside findDependents/getMinimalChangeSurface answers
+      // computed without the new code -- an index claiming to be current for a
+      // tree it does not describe.
+      const idx=buildIndex(projectRoot,{force:true});
+      if(indexStale(projectRoot,idx).stale)fail('fixture did not start clean');
+
+      const added=path.join(projectRoot,'src/notify/brand-new-module.js');
+      try{
+        fs.writeFileSync(added,'export function brandNew(){return 1;}\n');
+        const s=indexStale(projectRoot,idx);
+        if(!s.stale)fail('a file the index has never seen left it reported as current');
+        if(!s.dirty_files.some(f=>f.includes('brand-new-module.js')))
+          fail(`the new file is not named in the report: ${JSON.stringify(s.dirty_files)}`);
+      }finally{
+        fs.rmSync(added,{force:true});
+      }
+      if(indexStale(projectRoot,idx).stale)fail('removing the new file did not restore a clean verdict');
+    });
+
     t('index-records-truncation-for-oversized-files',()=>{
       const bigRel='src/big-data.js';
       const bigPath=path.join(projectRoot,bigRel);
@@ -196,8 +221,41 @@ export function runAlpha6Suite(root){
       }
     });
 
+    t('the-maxFiles-budget-is-spent-on-indexable-files-not-on-skipped-dirs',()=>{
+      // A committed dist/ (published JS libraries, browser extensions) or
+      // vendor/ (Go) is discovered by `git ls-files` and then dropped by
+      // SKIP_DIR. Capping the raw list BEFORE that filter spends the budget on
+      // files that are never indexed: `dist/` sorts before `src/`, so a real
+      // source file falls off the end of a repository well under the cap.
+      const dir=makeTempDir('agent-sdlc-vendorcap-');
+      try{
+        gitq(dir,'init','-q');
+        const write=(rel,text)=>{
+          const p=path.join(dir,rel);
+          fs.mkdirSync(path.dirname(p),{recursive:true});
+          fs.writeFileSync(p,text);
+        };
+        // ls-files sorts, so 'dist/' is yielded before 'src/'.
+        for(let i=0;i<6;i++)write(`dist/bundle${i}.js`,`export const dep${i}=${i};\n`);
+        write('src/payments.js','export function chargeCard(){return 1;}\n');
+        gitq(dir,'add','.');
+        execFileSync('git',['-c','user.email=a@b.c','-c','user.name=t','commit','-qm','init'],{cwd:dir,stdio:'ignore'});
+
+        const idx=buildIndex(dir,{force:true,maxFiles:4});
+        const paths=idx.files.map(f=>f.path);
+        if(!paths.includes('src/payments.js'))fail(`the only real source file was crowded out by dist/: ${JSON.stringify(paths)}`);
+        if(paths.some(p=>p.startsWith('dist/')))fail(`dist/ must never be indexed: ${JSON.stringify(paths)}`);
+        // total_discovered / omitted_files describe the indexable set, so a
+        // repository under the cap is not reported as truncated.
+        if(idx.is_truncated)fail(`1 indexable file under a cap of 4 reported as truncated: ${JSON.stringify(idx.counts)}`);
+        if(idx.counts.omitted_files!==0)fail(`omitted_files should be 0, got ${idx.counts.omitted_files}`);
+      }finally{
+        try{fs.rmSync(dir,{recursive:true,force:true});}catch{}
+      }
+    });
+
     t('regex-extracts-ruby-rust-csharp-php-kotlin',()=>{
-      const multiDir=fs.mkdtempSync(path.join(os.tmpdir(),'agent-sdlc-multilang-'));
+      const multiDir=makeTempDir('agent-sdlc-multilang-');
       try{
         gitq(multiDir,'init','-q');
         const write=(rel,text)=>{
@@ -452,6 +510,60 @@ export function runAlpha6Suite(root){
       if(!record.affected.every(a=>a.path?.length))fail('record lacks graph paths');
     });
 
+    t('graph_sha256-identifies-the-graph-state-not-the-order-nodes-happened-to-be-built-in',()=>{
+      // The anchor is over graph.nodes in build order, and part of that order
+      // comes from listArtifacts() -> fs.readdirSync(), which Node does not
+      // promise to sort. NTFS returns names in B-tree order so this reproduces
+      // as stable on Windows; ext4 with dir_index returns hash order, so the
+      // same logical state can hash differently on the Linux CI runner than it
+      // does here. Every other list* in store.mjs sorts for exactly this
+      // reason. Hash the state, not the walk.
+      const a=fresh();
+      const closure=computeInvalidationClosure(a,nodeId('ACCEPTANCE_CRITERION','AC-001'),'BEHAVIOR_CHANGE');
+      const first=applyInvalidation(projectRoot,a,closure,{reason:'ordering probe'});
+
+      const b=fresh();
+      // Same graph, nodes discovered in the opposite order.
+      b.nodes.reverse();
+      const closureB=computeInvalidationClosure(b,nodeId('ACCEPTANCE_CRITERION','AC-001'),'BEHAVIOR_CHANGE');
+      const second=applyInvalidation(projectRoot,b,closureB,{reason:'ordering probe'});
+
+      if(first.graph_sha256!==second.graph_sha256)
+        fail(`node order changed the anchor: ${first.graph_sha256} != ${second.graph_sha256}`);
+
+      // It must still be a real anchor: a different validity state hashes differently.
+      const c=fresh();
+      c.nodes[0].valid=false;
+      const closureC=computeInvalidationClosure(c,nodeId('ACCEPTANCE_CRITERION','AC-001'),'BEHAVIOR_CHANGE');
+      const third=applyInvalidation(projectRoot,c,closureC,{reason:'ordering probe'});
+      if(third.graph_sha256===first.graph_sha256)fail('the anchor no longer distinguishes graph state');
+    });
+
+    t('the-anchor-orders-node-ids-by-code-point-not-by-locale',()=>{
+      // Sorting the entries fixed the readdir dependency but localeCompare
+      // swapped it for an ICU one: it honours the default locale and degrades
+      // to a different order in a Node built --without-intl. The two disagree
+      // on plain ASCII ids -- localeCompare puts `_x` first and interleaves
+      // case, code-point order does neither -- so a hash sorted that way is
+      // still not the same number on two machines.
+      const g=fresh();
+      g.nodes.push({id:'_underscore',kind:'EVIDENCE',label:'_',status:null,ref:null,sha256:null,revision:null,valid:true,invalidated_by:null});
+      g.nodes.push({id:'Zeta',kind:'EVIDENCE',label:'Z',status:null,ref:null,sha256:null,revision:null,valid:true,invalidated_by:null});
+      g.nodes.push({id:'requirement-lower',kind:'EVIDENCE',label:'r',status:null,ref:null,sha256:null,revision:null,valid:true,invalidated_by:null});
+
+      const closure=computeInvalidationClosure(g,nodeId('ACCEPTANCE_CRITERION','AC-001'),'BEHAVIOR_CHANGE');
+      const record=applyInvalidation(projectRoot,g,closure,{reason:'collation probe'});
+
+      const entries=g.nodes.map(n=>[n.id,n.valid]);
+      const byCodePoint=[...entries].sort((a,b)=>a[0]<b[0]?-1:a[0]>b[0]?1:0);
+      const byLocale=[...entries].sort((a,b)=>a[0].localeCompare(b[0]));
+      if(JSON.stringify(byCodePoint)===JSON.stringify(byLocale))
+        fail('fixture no longer discriminates: the two collations agree on these ids');
+
+      if(record.graph_sha256!==sha256(JSON.stringify(byCodePoint)))
+        fail('the anchor is not code-point ordered');
+    });
+
     t('invalidation-reason-and-path-are-replayable',()=>{
       const history=invalidationHistory(projectRoot,run.run_id);
       if(!history.length)fail('no invalidation history recorded');
@@ -590,6 +702,53 @@ export function runAlpha6Suite(root){
       if(feature.decision!=='ALLOW')fail(JSON.stringify(feature));
     });
 
+    t('a-revoked-or-expired-approval-no-longer-authorizes-a-protected-push',()=>{
+      // The delivery commands mapped every approval record to its capability
+      // string with no validity filter, so `approval revoke` had no effect on
+      // the push gate and an expired grant kept authorizing. findValidApproval
+      // already knew both were dead; this path just never asked it.
+      const pushRun=newRun(root,projectRoot,{objective:'ship',route:route(root,'Ship a release')});
+      const hour=()=>new Date(Date.now()+3600e3).toISOString();
+      const caps=()=>activeCapabilities(pushRun);
+
+      if(checkPushTarget('main',{approvals:caps()}).decision!=='DENY')fail('denied by default no longer holds');
+
+      recordApproval(root,projectRoot,pushRun,{capability:'git.push_protected',
+        authority:'USER_INTERACTIVE',actor:'operator',expiresAt:hour()});
+      if(checkPushTarget('main',{approvals:caps()}).decision!=='APPROVAL_RECORDED')
+        fail('a live approval stopped authorizing');
+
+      revokeApproval(root,projectRoot,pushRun,'git.push_protected',{reason:'withdrawn'});
+      const afterRevoke=checkPushTarget('main',{approvals:caps()});
+      if(afterRevoke.decision!=='DENY')fail(`revoked approval still authorized: ${JSON.stringify(afterRevoke)}`);
+
+      pushRun.approvals=[];
+      recordApproval(root,projectRoot,pushRun,{capability:'git.push_protected',
+        authority:'USER_INTERACTIVE',actor:'operator',expiresAt:new Date(Date.now()-1000).toISOString()});
+      const afterExpiry=checkPushTarget('main',{approvals:caps()});
+      if(afterExpiry.decision!=='DENY')fail(`expired approval still authorized: ${JSON.stringify(afterExpiry)}`);
+    });
+
+    t('protection-survives-the-spellings-a-ref-actually-arrives-in',()=>{
+      // The patterns were anchored on the bare branch name, so a default-deny
+      // gate allowed the two spellings an agent writes most naturally --
+      // `git push origin main` and a rev-parsed `refs/heads/main` -- plus any
+      // difference of case. --branch is caller-supplied and unvalidated, so
+      // each of these reached ALLOW on a branch the module calls protected.
+      const protectedRefs=['origin/main','origin/master','upstream/develop','refs/heads/main',
+        'refs/remotes/origin/master','Main','MASTER','Production','main/','  main  '];
+      for(const b of protectedRefs){
+        if(!isProtectedBranch(b))fail(`${JSON.stringify(b)} not treated as protected`);
+        if(checkPushTarget(b,{approvals:[]}).decision!=='DENY')fail(`${JSON.stringify(b)} was not denied`);
+        if(checkPushTarget(b,{approvals:['git.push_protected']}).decision!=='APPROVAL_RECORDED')
+          fail(`${JSON.stringify(b)} ignored a recorded approval`);
+      }
+      // Over-protecting costs an approval; under-protecting pushes to
+      // production. But ordinary work must still flow without one.
+      for(const b of ['agent-sdlc/run_1/task-001','feature/main-menu','mainline-docs','my-main','release-notes'])
+        if(isProtectedBranch(b))fail(`${b} was wrongly treated as protected`);
+    });
+
     t('ci-evidence-is-revision-bound',()=>{
       const rec=recordCiEvidence(projectRoot,run,{revision:head(),provider:'github',workflow:'ci',
         checks:[{name:'unit',status:'PASS'},{name:'lint',status:'PASS',required:false}]});
@@ -634,6 +793,25 @@ export function runAlpha6Suite(root){
       const out=recordDelivery(projectRoot,run,{target:'PR_READY',base:'master',recordedBaseRevision:head()});
       if(out.status!=='BLOCKED')fail(JSON.stringify(out));
       if(!out.problems.includes('CI_EVIDENCE_REVISION_MISMATCH'))fail(JSON.stringify(out.problems));
+    });
+
+    t('ci-evidence-bound-to-no-revision-does-not-vouch-for-anything',()=>{
+      // ciEvidenceCurrent already calls this EVIDENCE_NOT_REVISION_BOUND, but
+      // only `ci status` -- a reporting command -- asks it. recordDelivery, the
+      // gate that actually decides READY, compared revisions itself and skipped
+      // the comparison entirely when the record carried none. A record with no
+      // revision is weaker than one on an older revision, which this module
+      // already refuses. It is reachable: recordCiEvidence falls back to
+      // gitSha(), which is null when git cannot answer.
+      const freshRoot=makeRichFixture();
+      const other=runToImplement(root,freshRoot);
+      const unbound={schema:'agent-sdlc/ci-evidence/v1',run_id:other.run.run_id,
+        provider:'github',revision:null,checks:[{name:'unit',required:true,status:'PASS'}],
+        required_checks:1,status:'PASS'};
+      const out=recordDelivery(freshRoot,other.run,{target:'PR_READY',base:'master',ciEvidence:unbound});
+      if(out.status!=='BLOCKED')fail(`revision-less CI evidence produced ${out.status}: ${JSON.stringify(out.problems)}`);
+      if(!out.problems.includes('CI_EVIDENCE_NOT_REVISION_BOUND'))fail(JSON.stringify(out.problems));
+      if(out.achieved_target)fail('a target was claimed on evidence bound to no revision');
     });
 
     t('missing-ci-evidence-blocks-delivery',()=>{

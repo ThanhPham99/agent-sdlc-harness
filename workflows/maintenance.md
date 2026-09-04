@@ -1,6 +1,6 @@
 # Workflow: maintenance
 
-Default profile: **STANDARD**
+Default profile: **FAST**
 
 Stages: INTAKE → REQUIREMENTS → PLAN → IMPLEMENT → VERIFY → REVIEW → CLOSE
 

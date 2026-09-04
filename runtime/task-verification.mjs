@@ -7,13 +7,17 @@
 //
 // Escalation ladder: nearest targeted test -> affected integration/contract
 // tests -> a broader suite only when policy or risk requires it.
+import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {now,readJson,truncateUtf8} from './util.mjs';
 import {putArtifact,emitTaskEvent,saveTask} from './store.mjs';
+import {secretScanFindings} from './tools.mjs';
 import {workspaceDiff,getTaskWorkspace} from './workspace.mjs';
+import {execFileSync} from 'node:child_process';
 import {resolveLaunch,describeSpawn} from './launcher.mjs';
+import {triageFailure} from './triage.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 const norm=p=>String(p||'').replace(/\\/g,'/').replace(/^\.\//,'').replace(/\/+$/,'');
@@ -51,8 +55,43 @@ function substituteSelector(command,selectors){
   return {command:out,unsatisfied_selector:false};
 }
 
+/**
+ * Attempt deterministic formatting or linting auto-fix if command failed on style/lint rules.
+ */
+export function attemptDeterministicMicroFix(cwd,projectRoot,task,{summary='',kind=''}={}){
+  if(!cwd||!fs.existsSync(cwd))return {attempted:false,success:false};
+  const isStyleOrLint=/prettier|eslint|stylelint|formatting error|trailing whitespace|prettier\/prettier|indent-error/i.test(summary);
+  if(!isStyleOrLint)return {attempted:false,success:false};
+
+  const projectPkgPath=path.join(projectRoot,'package.json');
+  let fixCmd=null;
+  if(fs.existsSync(projectPkgPath)){
+    try{
+      const pkg=JSON.parse(fs.readFileSync(projectPkgPath,'utf8'));
+      if(pkg.scripts?.['lint:fix'])fixCmd=['npm','run','lint:fix'];
+      else if(pkg.scripts?.['format'])fixCmd=['npm','run','format'];
+      else if(pkg.scripts?.['fix'])fixCmd=['npm','run','fix'];
+      else if(pkg.devDependencies?.prettier||pkg.dependencies?.prettier)fixCmd=['npx','prettier','--write','.'];
+      else if(pkg.devDependencies?.eslint||pkg.dependencies?.eslint)fixCmd=['npx','eslint','--fix','.'];
+    }catch{}
+  }
+  if(!fixCmd)return {attempted:false,success:false};
+
+  try{
+    const launch=resolveLaunch(fixCmd);
+    if(launch.status!=='OK')return {attempted:true,success:false,error:launch.reason};
+    const r=spawnSync(launch.bin,launch.args,{cwd,encoding:'utf8',timeout:30000,...launch.spawnOptions});
+    if(r.status===0){
+      return {attempted:true,success:true,command:fixCmd.join(' ')};
+    }
+    return {attempted:true,success:false,command:fixCmd.join(' '),exit_code:r.status};
+  }catch(e){
+    return {attempted:true,success:false,error:e.message};
+  }
+}
+
 /** Which project commands a strategy runs, in order. */
-export function plannedCommands(projectRoot,task,strategy,{root=null}={}){
+export function plannedCommands(projectRoot,task,strategy,{root=null,changedPaths=[],cwd=null}={}){
   const cfg=readJson(path.join(projectRoot,'.agent-sdlc','project.json'),{});
   const out=[];
   const selectors=arr(task.verification?.targeted_tests).map(String);
@@ -60,29 +99,66 @@ export function plannedCommands(projectRoot,task,strategy,{root=null}={}){
     if(!command.length)return;
     out.push({kind,...substituteSelector(command,selectors)});
   };
+  // Parse what the task changed, before running anything long.
+  //
+  // A task's verification runs the project's test command and nothing else, so
+  // a JavaScript file the task just broke is parsed only if some suite happens
+  // to import it. That is exactly how an unterminated string literal once
+  // reached a run's VERIFY stage: the configured suite passed, and the file it
+  // never loaded did not. `node --check` is parse-only -- it executes nothing
+  // -- and it takes one file at a time, so this is one command per changed
+  // file, over the task's own diff and never the repository.
+  //
+  // .mjs and .cjs declare their own module system, so they are always safe to
+  // parse. A bare .js does not: node decides from the nearest package.json, and
+  // without one an ESM .js parses as CommonJS and fails for a reason that has
+  // nothing to do with the task. So .js is only checked where a package.json
+  // exists to answer the question.
+  const workspace=cwd||projectRoot;
+  const hasPackageJson=fs.existsSync(path.join(workspace,'package.json'));
+  const parseable=rel=>/\.(mjs|cjs)$/i.test(rel)||(hasPackageJson&&/\.js$/i.test(rel));
+  for(const rel of arr(changedPaths).map(String).filter(parseable).sort()){
+    // A file the task deleted has nothing left to parse.
+    if(!fs.existsSync(path.join(workspace,rel)))continue;
+    out.push({kind:'syntax_check',command:['node','--check',rel],unsatisfied_selector:false});
+  }
   push('test_targeted',arr(cfg.commands?.test_targeted));
   if(strategy!=='TARGETED')push('build',arr(cfg.commands?.build));
   if(strategy==='BROAD_SUITE')push('test_full',arr(cfg.commands?.test_full));
   if((task.risk?.security==='HIGH'||arr(task.scope?.interfaces).length)&&strategy!=='TARGETED'){
-    // Patterns come from the same policy the tool gateway's scanner reads, so
-    // the two cannot drift apart. This path stays narrow on purpose: it is a
-    // per-task check, not the repository-wide scan.
+    // Patterns come from the same policy the tool gateway's scanner reads, and
+    // the hits are filtered through the gateway's own exported allowlist below,
+    // so the two cannot drift apart. This scan is repository-wide, not limited
+    // to the task's diff: a credential committed anywhere is a finding, and
+    // narrowing it to changed paths would let one slip in under an unrelated
+    // task. The comment here used to claim the opposite on both counts.
+    //
+    // --untracked for the same reason the gateway scanner needs it, and more
+    // urgently: this runs inside the workspace of a task singled out as
+    // security-critical, so the files it most needs to read are the ones that
+    // task just created -- and those are untracked. Without the flag `git
+    // grep` exits 1 there, which this module maps to a pass.
     const declared=root?(readJson(path.join(root,'policies','security-policy.json'),{}).secret_scan?.patterns||[]):[];
     const regexes=declared.map(p=>p.regex).filter(Boolean);
     const pattern=regexes.length?`(${regexes.join('|')})`:'(AKIA[0-9A-Z]{16}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY)';
-    out.push({kind:'security_secret_scan',command:['git','grep','-l','-E',pattern],unsatisfied_selector:false});
+    out.push({kind:'security_secret_scan',command:['git','grep','-l','-E','--untracked',pattern],unsatisfied_selector:false});
   }
   return out;
 }
 
 /** Paths a task changed that its approved write scope does not cover. */
-export function scopeAudit(task,changedPaths){
-  const allowed=arr(task.scope?.write).map(norm);
-  const forbidden=arr(task.scope?.forbidden).map(norm);
-  const covered=p=>allowed.some(a=>{
+/** True when a path falls inside the task's approved write scope. */
+export function coveredByWriteScope(task,p){
+  const target=norm(p);
+  return arr(task?.scope?.write).map(norm).some(a=>{
     const stem=a.split(/[*?]/)[0].replace(/\/+$/,'');
-    return p===a||p===stem||(stem&&p.startsWith(stem+'/'));
+    return target===a||target===stem||(stem&&target.startsWith(stem+'/'));
   });
+}
+
+export function scopeAudit(task,changedPaths){
+  const forbidden=arr(task.scope?.forbidden).map(norm);
+  const covered=p=>coveredByWriteScope(task,p);
   const hitsForbidden=p=>forbidden.some(f=>{
     const stem=f.split(/[*?]/)[0].replace(/\/+$/,'');
     return p===f||p===stem||(stem&&p.startsWith(stem+'/'));
@@ -90,6 +166,42 @@ export function scopeAudit(task,changedPaths){
   const paths=arr(changedPaths).map(norm);
   const out_of_scope_paths=paths.filter(p=>!covered(p)||hitsForbidden(p));
   return {changed_paths:paths,out_of_scope_paths,respected:out_of_scope_paths.length===0};
+}
+
+/**
+ * Undo what verification itself changed outside the task's write scope.
+ *
+ * verifyTask runs the project's own test command inside the task workspace, and
+ * a suite that rewrites a tracked report -- which is how most of this project's
+ * suites publish their results -- leaves the workspace dirty in paths the task
+ * never touched. The next diff capture then reads those paths as work outside
+ * the approved write scope and blocks the task for something verification did,
+ * with a SCOPE_EXPANSION recovery that no amount of re-running can clear.
+ *
+ * Only TRACKED files are restored: a file git has never seen has no previous
+ * content to return to, so an untracked artefact a command created is left
+ * where it is and still shows up in the next capture. That is the honest
+ * outcome -- it may be a genuine new file the task produced.
+ */
+function restoreVerificationSideEffects(cwd,task,before){
+  const seen=new Set(arr(before));
+  const after=(()=>{
+    try{return execFileSync('git',['status','--porcelain'],{cwd,encoding:'utf8'});}
+    catch{return null;}
+  })();
+  if(after===null)return [];
+  const restored=[];
+  for(const line of after.split(/\r?\n/)){
+    if(!line.trim())continue;
+    const code=line.slice(0,2);
+    if(code.includes('?'))continue; // untracked: nothing to restore it to
+    const rel=line.slice(3).trim().replace(/^"|"$/g,'');
+    if(!rel||seen.has(norm(rel)))continue;
+    if(coveredByWriteScope(task,rel))continue;
+    try{execFileSync('git',['checkout','--',rel],{cwd,stdio:'ignore'});restored.push(norm(rel));}
+    catch{/* leave it; the scope audit will report it rather than hide it */}
+  }
+  return restored.sort();
 }
 
 /**
@@ -101,7 +213,7 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
   const cwd=ws?.root||projectRoot;
   const diff=ws?workspaceDiff(projectRoot,ws):{base_revision:task.base_revision,changed_paths:[],diff_hash:task.diff_hash,diff_available:false};
   const strategy=verificationStrategy(task,{escalate});
-  const planned=commands||plannedCommands(projectRoot,task,strategy,{root});
+  const planned=commands||plannedCommands(projectRoot,task,strategy,{root,changedPaths:diff.changed_paths,cwd});
   const executed=[];
   let allPassed=true;
 
@@ -133,18 +245,49 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
         summary:`${spawned.reason}: ${c.command.join(' ')}${spawned.signal?` (killed by ${spawned.signal})`:''}${detail?`\n${truncateUtf8(detail,4000).text}`:''}`});
       continue;
     }
-    const raw=(r.stdout||'')+(r.stderr||'');
+    let raw=(r.stdout||'')+(r.stderr||'');
     // `git grep -l` exits 1 when nothing matched, which is the clean outcome.
-    const exit=c.kind==='security_secret_scan'?(r.status===1?0:(r.status===0?1:r.status??1)):(r.status??1);
+    let exit=c.kind==='security_secret_scan'?(r.status===1?0:(r.status===0?1:r.status??1)):(r.status??1);
+    if(c.kind==='security_secret_scan'&&r.status===0&&root){
+      // Matched paths still have to clear the allowlist the tool gateway
+      // applies, through the gateway's own filter. Without this the per-task
+      // check failed on fixtures the project had already declared expected,
+      // which is a scanner that cries wolf -- and an operator who learns to
+      // assert past it.
+      const {reported,allowlisted}=secretScanFindings(root,(r.stdout||'').split('\n'));
+      exit=reported.length?1:0;
+      raw=reported.length
+        ?`${reported.join('\n')}${allowlisted?`\n(${allowlisted} further match(es) are allowlisted in policies/security-policy.json)`:''}`
+        :`No findings outside the configured allowlist (${allowlisted} allowlisted path(s) matched).`;
+    }
     const t=truncateUtf8(raw,4000);
     let log_ref=null;
     if(raw&&(exit!==0||t.truncated)){
       log_ref=putArtifact(projectRoot,{kind:'task-verification-log',content:raw,runId:run.run_id,stage:run.state,filename:`${task.task_id}-${c.kind}.log`}).artifact_id;
     }
+    if(exit!==0&&!dryRun){
+      const microFix=attemptDeterministicMicroFix(cwd,projectRoot,task,{summary:t.text,kind:c.kind});
+      if(microFix.success){
+        const retryLaunch=resolveLaunch(c.command);
+        if(retryLaunch.status==='OK'){
+          const retryRes=spawnSync(retryLaunch.bin,retryLaunch.args,{cwd,encoding:'utf8',timeout:timeoutMs,maxBuffer:20*1024*1024,...retryLaunch.spawnOptions});
+          const retrySpawn=describeSpawn(retryRes);
+          if(retrySpawn.status!=='ERROR'&&(retryRes.status===0||(c.kind==='security_secret_scan'&&retryRes.status===1))){
+            exit=0;
+            raw=(retryRes.stdout||'')+(retryRes.stderr||'')+'\n[agent-sdlc micro-fix applied: '+microFix.command+']';
+            t.text=truncateUtf8(raw,4000).text;
+          }
+        }
+      }
+    }
     if(exit!==0)allPassed=false;
     executed.push({kind:c.kind,command:c.command,exit_code:exit,duration_ms:Date.now()-start,log_ref,summary:t.text||null});
   }
 
+  // Before the next capture reads the workspace, undo whatever the commands
+  // above changed outside the write scope. `diff` was taken before they ran,
+  // so it is exactly the set of paths that are the task's own work.
+  const restored_by_verification=dryRun?[]:restoreVerificationSideEffects(cwd,task,diff.changed_paths);
   const scope=scopeAudit(task,diff.changed_paths);
   // A task that must change behaviour but produced no diff has not been verified.
   const noWork=task.changes_behavior!==false&&arr(task.scope?.write).length>0&&!diff.changed_paths.length;
@@ -154,6 +297,10 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
     :!scope.respected?'SCOPE_VIOLATION'
     :noWork?'NO_CHANGE_CAPTURED'
     :allPassed?null:'COMMAND_FAILED';
+
+  const failingCommands=executed.filter(c=>c.exit_code!==0&&c.exit_code!==null);
+  const triages=failingCommands.map(c=>triageFailure(c.summary,c.kind));
+  const failingNames=[...new Set(triages.flatMap(t=>t.failing_names))];
 
   const evidence={
     schema:'agent-sdlc/task-verification/v1',
@@ -168,7 +315,8 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
       passed:executed.filter(c=>c.kind.startsWith('test')&&c.exit_code===0).length,
       failed:executed.filter(c=>c.kind.startsWith('test')&&c.exit_code!==0&&c.exit_code!==null).length,
       skipped:0,
-      failing_names:[]
+      failing_names:failingNames,
+      triage:triages[0]||null
     },
     build:executed.some(c=>c.kind==='build')
       ?{required:true,status:executed.find(c=>c.kind==='build').exit_code===0?'PASS':'FAIL'}
@@ -177,6 +325,9 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
       ?{required:true,status:executed.filter(c=>c.kind.startsWith('security')).every(c=>c.exit_code===0)?'PASS':'FAIL',new_high_findings:executed.filter(c=>c.kind.startsWith('security')&&c.exit_code!==0).length}
       :{required:false,status:'SKIPPED',new_high_findings:0},
     scope,
+    // Named, not silent: a reader has to be able to tell a clean workspace
+    // from one that was cleaned up on its behalf.
+    restored_by_verification,
     environment:environmentFingerprint(),
     status,
     reason,

@@ -3,7 +3,7 @@
   "name": "agent-sdlc-harness",
   "displayName": "Agent SDLC Harness",
   "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for Claude Code.",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc1",
   "author": {
     "name": "Agent SDLC Harness Contributors"
   },

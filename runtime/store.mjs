@@ -14,7 +14,7 @@ export function initProject(projectRoot,config){
   const targetIntent=path.join(d,'intent','template.md');
   if(fs.existsSync(intentTemplate)&&!fs.existsSync(targetIntent)){try{fs.copyFileSync(intentTemplate,targetIntent);}catch{}}
   const reviewTemplate=path.join(ROOT,'templates','REVIEW.md');
-  const targetReview=path.join(projectRoot,'REVIEW.md');
+  const targetReview=path.join(d,'REVIEW.md');
   if(fs.existsSync(reviewTemplate)&&!fs.existsSync(targetReview)){try{fs.copyFileSync(reviewTemplate,targetReview);}catch{}}
   writeJson(path.join(d,'project.json'),config);
   const statePath=path.join(d,'state.json');
@@ -47,10 +47,20 @@ export function saveRun(projectRoot,run){
   writeJson(p,run);
 }
 export function loadRun(projectRoot,runId){return readJson(runPath(projectRoot,runId));}
-// Event sequence numbers were derived by reading and splitting the whole event
-// log on every append: quadratic in the number of events for a single run. The
-// count is now derived once per stream per process and then incremented.
+export function loadState(projectRoot){return readJson(path.join(stateDir(projectRoot),'state.json'),{});}
+export function listRuns(projectRoot){
+  const d=path.join(stateDir(projectRoot),'runs');
+  if(!fs.existsSync(d))return [];
+  return fs.readdirSync(d).filter(x=>x.endsWith('.json')).sort().map(x=>x.replace(/\.json$/,''));
+}
+// Event sequence numbers are cosmetic display aids (e.g. mcp-server stream display).
+// They were derived by reading and splitting the whole event log on every append:
+// quadratic in the number of events for a single run. The count is now derived once
+// per stream per process and then incremented. Event validation, replays, and hashes
+// operate on append order and timestamps, so sequence collision across distinct
+// concurrent processes is harmless.
 const seqCache=new Map();
+const lastHashCache=new Map();
 function nextSeq(p){
   if(!seqCache.has(p)){
     let count=0;
@@ -61,8 +71,99 @@ function nextSeq(p){
   seqCache.set(p,seq);
   return seq;
 }
-export function emit(projectRoot,run,event){const p=path.join(stateDir(projectRoot),'events',`${run.run_id}.jsonl`); const full={event_id:uuid('evt'),run_id:run.run_id,seq:nextSeq(p),time:now(),stage:run.state,provider:null,artifact_refs:[],usage:{},...event};appendJsonl(p,full);return full;}
-export function putArtifact(projectRoot,{kind,content,runId=null,stage=null,sourceRevision=null,filename=null}){const d=stateDir(projectRoot);const hash=sha256(content);const objectPath=path.join(d,'artifacts','objects',hash);if(!fs.existsSync(objectPath))fs.writeFileSync(objectPath,content);const meta={artifact_id:`artifact://sha256/${hash}`,kind,sha256:hash,path:objectPath,filename,created_at:now(),run_id:runId,stage,source_revision:sourceRevision};writeJson(path.join(d,'artifacts','meta',`${hash}.json`),meta);return meta;}
+export function emit(projectRoot,run,event){
+  const p=path.join(stateDir(projectRoot),'events',`${run.run_id}.jsonl`);
+  if(!lastHashCache.has(p)){
+    let prev='0'.repeat(64);
+    if(fs.existsSync(p)){
+      const lines=fs.readFileSync(p,'utf8').trim().split('\n').filter(Boolean);
+      if(lines.length>0){
+        try{
+          const last=JSON.parse(lines[lines.length-1]);
+          if(last.hash)prev=last.hash;
+        }catch{}
+      }
+    }
+    lastHashCache.set(p,prev);
+  }
+  const prev_hash=lastHashCache.get(p);
+  const full={
+    event_id:uuid('evt'),
+    run_id:run.run_id,
+    seq:nextSeq(p),
+    time:now(),
+    stage:run.state,
+    provider:null,
+    artifact_refs:[],
+    usage:{},
+    ...event,
+    prev_hash
+  };
+  const event_hash=sha256(JSON.stringify(full));
+  full.hash=event_hash;
+  lastHashCache.set(p,event_hash);
+  appendJsonl(p,full);
+  try{
+    import('./webhook.mjs').then(m=>m.dispatchWebhooks(projectRoot,full)).catch(()=>{});
+    import('./server.mjs').then(m=>m.broadcastSseEvent(full)).catch(()=>{});
+  }catch{}
+  return full;
+}
+/**
+ * Store content-addressed content and record who stored it.
+ *
+ * The object store is shared across runs and identical content is one object
+ * by design (artifact-content-addressed-dedup-id pins that). The metadata used
+ * to be rewritten wholesale on every put, so a second run storing the same
+ * bytes took the first run's artifact over: kind, stage, run_id and revision
+ * all became the newcomer's, and `listArtifacts().filter(m=>m.run_id===A)`
+ * returned nothing for a run that had stored it. retention.mjs already reasons
+ * about exactly this collision -- it marks from run references rather than
+ * metadata for that reason -- and input.normalize makes it ordinary rather
+ * than exotic, being deterministic enough that the same requirements file
+ * normalized in two runs is byte-identical.
+ *
+ * So the object keeps one identity and gains a binding per distinct storer.
+ * The top-level fields stay the FIRST binding, which is what every existing
+ * reader already assumes; the caller is handed its own binding back, which is
+ * what it asked about.
+ */
+export function putArtifact(projectRoot,{kind,content,runId=null,stage=null,sourceRevision=null,filename=null}){
+  const d=stateDir(projectRoot);
+  const hash=sha256(content);
+  const objectPath=path.join(d,'artifacts','objects',hash);
+  if(!fs.existsSync(objectPath))fs.writeFileSync(objectPath,content);
+  const metaPath=path.join(d,'artifacts','meta',`${hash}.json`);
+  const prior=fs.existsSync(metaPath)?readJson(metaPath):null;
+  const binding={run_id:runId,stage,kind,source_revision:sourceRevision,filename,created_at:now()};
+  const bindings=prior
+    ?(prior.bindings||[{run_id:prior.run_id??null,stage:prior.stage??null,kind:prior.kind,
+        source_revision:prior.source_revision??null,filename:prior.filename??null,created_at:prior.created_at}])
+    :[];
+  const known=bindings.some(b=>b.run_id===binding.run_id&&b.stage===binding.stage&&b.kind===binding.kind);
+  if(!known)bindings.push(binding);
+  const first=bindings[0];
+  const stored={
+    artifact_id:`artifact://sha256/${hash}`,
+    kind:first.kind,sha256:hash,path:objectPath,filename:first.filename,
+    created_at:prior?.created_at??binding.created_at,
+    run_id:first.run_id,stage:first.stage,source_revision:first.source_revision,
+    bindings
+  };
+  writeJson(metaPath,stored);
+  // The caller's view: the same object, described by the put it just made.
+  return {...stored,kind,filename,run_id:runId,stage,source_revision:sourceRevision};
+}
+/** Every artifact this run stored, from any binding -- not just the first. */
+export function artifactsForRun(projectRoot,runId){
+  return listArtifacts(projectRoot).filter(m=>artifactBindings(m).some(b=>b.run_id===runId));
+}
+/** Bindings for a meta record, including metas written before bindings existed. */
+export function artifactBindings(meta){
+  if(Array.isArray(meta?.bindings)&&meta.bindings.length)return meta.bindings;
+  return [{run_id:meta?.run_id??null,stage:meta?.stage??null,kind:meta?.kind??null,
+    source_revision:meta?.source_revision??null,filename:meta?.filename??null,created_at:meta?.created_at??null}];
+}
 export function getArtifact(projectRoot,ref){const hash=ref.replace('artifact://sha256/','');const d=stateDir(projectRoot);const meta=readJson(path.join(d,'artifacts','meta',`${hash}.json`));return {meta,content:fs.readFileSync(path.join(d,'artifacts','objects',hash),'utf8')};}
 // ---------------------------------------------------------------------------
 // Task runtime persistence (alpha5).
@@ -73,26 +174,46 @@ export function getArtifact(projectRoot,ref){const hash=ref.replace('artifact://
 // the content-addressed artifact store; task records hold refs.
 // ---------------------------------------------------------------------------
 export function tasksDir(projectRoot,runId){return path.join(stateDir(projectRoot),'tasks',runId);}
-export function taskPath(projectRoot,runId,taskId){return path.join(tasksDir(projectRoot,runId),`${taskId}.json`);}
+// Task ids come from a plan, and a plan is authored input: the id becomes a
+// filename, so an id carrying a separator or a parent reference would write a
+// task record outside its own run directory. The plan validator constrains the
+// graph, not the characters, and the safe set is deliberately narrow -- the ids
+// the engine has ever produced are TASK-001 and the like.
+const SAFE_TASK_ID=/^[A-Za-z0-9._-]+$/;
+export function assertSafeTaskId(taskId){
+  if(typeof taskId!=='string'||!SAFE_TASK_ID.test(taskId)||taskId==='.'||taskId==='..')
+    throw new Error(`unsafe task_id: ${JSON.stringify(taskId)}`);
+  return taskId;
+}
+export function taskPath(projectRoot,runId,taskId){return path.join(tasksDir(projectRoot,runId),`${assertSafeTaskId(taskId)}.json`);}
 export function taskGraphPath(projectRoot,runId){return path.join(tasksDir(projectRoot,runId),'graph.json');}
 // `writeJson` is itself temp-file + rename now, so every JSON document the
 // runtime owns gets the durability task records already had.
 const writeJsonAtomic=writeJson;
 export function saveTask(projectRoot,task){
   if(!task?.run_id||!task?.task_id)throw new Error('task requires run_id and task_id');
+  assertSafeTaskId(task.task_id);
   task.updated_at=now();
   writeJsonAtomic(taskPath(projectRoot,task.run_id,task.task_id),task);
   return task;
 }
 export function loadTask(projectRoot,runId,taskId){return readJson(taskPath(projectRoot,runId,taskId));}
 export function hasTask(projectRoot,runId,taskId){return fs.existsSync(taskPath(projectRoot,runId,taskId));}
+// `graph.json`, `migration.json` and any future sidecar file live in the same
+// directory and must never be read as tasks. That used to be enforced by
+// matching the filename against /^TASK-[0-9]+.json$/, which also silently
+// excluded every task record whose id followed a different convention: the
+// plan validator places no constraint on task_id, so such a plan materialized
+// with `materialized: true` and was then invisible to list, refresh, schedule,
+// the governor and taskProgress -- an unexecutable run with nothing to say why.
+// A record is now recognised by what it is rather than what it is called.
+const TASK_SIDECARS=new Set(['graph.json','migration.json']);
 export function listTasks(projectRoot,runId){
   const d=tasksDir(projectRoot,runId);
   if(!fs.existsSync(d))return [];
-  // Only task records. `graph.json`, `migration.json` and any future sidecar
-  // file live in the same directory and must never be read as tasks.
-  return fs.readdirSync(d).filter(x=>/^TASK-[0-9]+\.json$/.test(x)).sort()
-    .map(x=>readJson(path.join(d,x)));
+  return fs.readdirSync(d).filter(x=>x.endsWith('.json')&&!TASK_SIDECARS.has(x)).sort()
+    .map(x=>readJson(path.join(d,x)))
+    .filter(t=>t&&typeof t.task_id==='string'&&typeof t.run_id==='string');
 }
 export function saveTaskGraph(projectRoot,graph){
   if(!graph?.run_id)throw new Error('task graph requires run_id');
@@ -131,4 +252,38 @@ export function getTaskContextManifest(projectRoot,runId,taskId){
   return fs.existsSync(p)?readJson(p):null;
 }
 
-export function listArtifacts(projectRoot){const d=path.join(stateDir(projectRoot),'artifacts','meta');if(!fs.existsSync(d))return [];return fs.readdirSync(d).filter(x=>x.endsWith('.json')).map(x=>readJson(path.join(d,x)));}
+// Sorted, like listTasks and listWorkspaces above: readdir order is the
+// filesystem's business (NTFS gives names in B-tree order, ext4 with dir_index
+// gives hash order) and it reached a content hash through the traceability
+// graph. Meta filenames are content hashes, so sorting by name is stable and
+// carries no meaning of its own.
+export function listArtifacts(projectRoot){const d=path.join(stateDir(projectRoot),'artifacts','meta');if(!fs.existsSync(d))return [];return fs.readdirSync(d).filter(x=>x.endsWith('.json')).sort().map(x=>readJson(path.join(d,x)));}
+
+/**
+ * Verify cryptographic hash-chain integrity of a run's event stream.
+ */
+export function verifyEventChain(projectRoot,runId){
+  const p=path.join(stateDir(projectRoot),'events',`${runId}.jsonl`);
+  if(!fs.existsSync(p))return {valid:true,event_count:0,head_hash:null,corrupted_at_seq:null};
+  const lines=fs.readFileSync(p,'utf8').trim().split('\n').filter(Boolean);
+  let expectedPrev='0'.repeat(64);
+  for(let i=0;i<lines.length;i++){
+    try{
+      const evt=JSON.parse(lines[i]);
+      if(evt.prev_hash!==undefined){
+        if(evt.prev_hash!==expectedPrev){
+          return {valid:false,event_count:lines.length,corrupted_at_seq:evt.seq||i+1,reason:'PREV_HASH_MISMATCH'};
+        }
+        const {hash,...rest}=evt;
+        const computed=sha256(JSON.stringify(rest));
+        if(hash&&hash!==computed){
+          return {valid:false,event_count:lines.length,corrupted_at_seq:evt.seq||i+1,reason:'EVENT_HASH_TAMPERED'};
+        }
+        expectedPrev=hash||expectedPrev;
+      }
+    }catch(e){
+      return {valid:false,event_count:lines.length,corrupted_at_seq:i+1,reason:`JSON_PARSE_ERROR:${e.message}`};
+    }
+  }
+  return {valid:true,event_count:lines.length,head_hash:expectedPrev,corrupted_at_seq:null};
+}

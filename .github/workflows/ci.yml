@@ -26,9 +26,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      # Step order is generated from the `check` chain: qualification needs the
-      # packages `build` produces, and scripts/validate-ci-coverage.mjs asserts
-      # both membership and order so this cannot drift again.
+      # Step order mirrors the stages in scripts/lib/check-plan.mjs, and
+      # scripts/validate-ci-coverage.mjs asserts both membership and stage order
+      # so this cannot drift again. Everything that needs no built package runs
+      # first; `build` then produces what the packaged-surface steps read.
+      # (The offline suites used to be split across `build` -- harmless, since
+      # none of them read dist/, but it misrepresented the dependency.)
+      #
+      # --- offline: nothing here needs a built package -------------------
       - name: Deterministic regression
         run: npm test
       - name: Integrity gates (versions, registry, root sync, host guard, CI coverage, CLI surface)
@@ -41,16 +46,6 @@ jobs:
         run: npm run test:tasks
       - name: Repository intelligence, traceability, delivery, governance, learning
         run: npm run test:alpha6
-      - name: Build provider distributions
-        run: npm run build
-      - name: Validate GitHub-native install surfaces
-        run: npm run validate:github
-      - name: Test bootstrap installers with fake host CLIs
-        run: npm run test:github-installers
-      - name: Qualification harness contract
-        run: npm run test:qualification-harness
-      - name: Qualification transport contract (needs the built packages)
-        run: npm run test:qualification-transport
       - name: CLI contract (spawned binary, agent-facing surface)
         run: npm run test:cli-contract
       - name: Input normalization (untrusted document parsers)
@@ -65,6 +60,67 @@ jobs:
         run: npm run test:detection
       - name: Development link tooling
         run: npm run test:dev-link
+      - name: Prompt caching strategies and context bounds
+        run: npm run test:prompt-caching
+      - name: Git worktree isolation and worker boundaries
+        run: npm run test:worktree
+      - name: Live dashboard metrics and pipeline status
+        run: npm run test:dashboard
+      - name: Bounded parallel task scheduling and batch partitioning
+        run: npm run test:parallel
+      - name: Deterministic secret scanning and credential redactor
+        run: npm run test:secret-scan
+      - name: Budget governor and circuit breaker
+        run: npm run test:budget
+      - name: Terminal user interface ANSI renderer
+        run: npm run test:tui
+      - name: Adaptive provider fallback and checkpoint resumption
+        run: npm run test:fallback
+      - name: Failure memory and regression test promotion
+        run: npm run test:memory
+      - name: Flaky test detection and quarantine
+        run: npm run test:flaky
+      - name: MCP gateway routing and authorization
+        run: npm run test:mcp-gateway
+      - name: Test impact analysis and smart test selection
+        run: npm run test:test-impact
+      - name: PR synthesizer and changelog generator
+        run: npm run test:pr-synthesizer
+      - name: Deterministic security linter
+        run: npm run test:security-linter
+      - name: Error triage and classification engine
+        run: npm run test:error-triage
+      - name: Webhook notification and exponential backoff retry
+        run: npm run test:webhook
+      - name: Real-time live SSE event stream and event replay
+        run: npm run test:sse
+      - name: Dead code, unused exports, and ghost dependency eliminator
+        run: npm run test:dead-code
+      - name: Architectural linter and module boundary enforcer
+        run: npm run test:arch-linter
+      - name: Lightweight mutation testing and test strength analyzer
+        run: npm run test:mutation
+      - name: Predictive budgeting and pre-flight cost simulator
+        run: npm run test:simulator
+      - name: Expanded commands, rewind engine, and webhook edge cases
+        run: npm run test:commands-expansion
+      - name: Built-in Live Web Dashboard and SSE Streaming Server
+        run: npm run test:web-dashboard
+      - name: End-to-end full 10-stage lifecycle dogfooding simulation
+        run: npm run test:simulate-e2e
+      - name: Autonomous SDLC runner and human confirmation gates
+        run: npm run test:autonomous-runner
+      # --- build, then the surfaces that read what it produced -----------
+      - name: Build provider distributions
+        run: npm run build
+      - name: Validate GitHub-native install surfaces
+        run: npm run validate:github
+      - name: Test bootstrap installers with fake host CLIs
+        run: npm run test:github-installers
+      - name: Qualification harness contract
+        run: npm run test:qualification-harness
+      - name: Qualification transport contract (needs the built packages)
+        run: npm run test:qualification-transport
       - name: Verify extracted distributions
         run: npm run verify:dist
       - name: Package release candidates
@@ -76,23 +132,7 @@ jobs:
           name: agent-sdlc-${{ github.sha }}
           path: |
             release/*
-            evals/DETERMINISTIC-VALIDATION.json
-            evals/AUTO-ACTIVATION-VALIDATION.json
-            evals/VERSION-CONSISTENCY.json
-            evals/REGISTRY-VALIDATION.json
-            evals/ROOT-SYNC-VALIDATION.json
-            evals/GUARD-VALIDATION.json
-            evals/CI-COVERAGE-VALIDATION.json
-            evals/DEV-LINK-VALIDATION.json
-            evals/CLI-CONTRACT-VALIDATION.json
-            evals/CLI-SURFACE-VALIDATION.json
-            evals/SYNTAX-VALIDATION.json
-            evals/REPORT-HYGIENE-VALIDATION.json
-            evals/NORMALIZE-VALIDATION.json
-            evals/PROVIDER-VALIDATION.json
-            evals/COMPAT-VALIDATION.json
-            evals/MCP-VALIDATION.json
-            evals/PROJECT-DETECTION-VALIDATION.json
+            evals/*.json
           if-no-files-found: warn
           retention-days: 14
 
@@ -112,14 +152,18 @@ jobs:
         run: npm test
       - name: Integrity gates (versions, registry, root sync, host guard, CI coverage, CLI surface)
         run: npm run test:integrity
+      # The bootstrap hooks resolve host home directories and write config
+      # there. That is exactly the platform-sensitive path handling this job
+      # exists for -- os.homedir() reads %USERPROFILE% here and $HOME on the
+      # ubuntu leg -- so the contract is checked on both, not assumed from one.
+      - name: Auto-activation contract and per-host bootstrap hooks
+        run: npm run test:activation
       - name: Design and plan-quality gates
         run: npm run test:gates
       - name: Task execution engine
         run: npm run test:tasks
       - name: Repository intelligence, traceability, delivery, governance, learning
         run: npm run test:alpha6
-      - name: Build provider distributions
-        run: npm run build
       - name: CLI contract (spawned binary, agent-facing surface)
         run: npm run test:cli-contract
       - name: Input normalization (untrusted document parsers)
@@ -134,6 +178,50 @@ jobs:
         run: npm run test:detection
       - name: Development link tooling
         run: npm run test:dev-link
+      - name: Prompt caching strategies and context bounds
+        run: npm run test:prompt-caching
+      - name: Git worktree isolation and worker boundaries
+        run: npm run test:worktree
+      - name: Live dashboard metrics and pipeline status
+        run: npm run test:dashboard
+      - name: Bounded parallel task scheduling and batch partitioning
+        run: npm run test:parallel
+      - name: Deterministic secret scanning and credential redactor
+        run: npm run test:secret-scan
+      - name: Budget governor and circuit breaker
+        run: npm run test:budget
+      - name: Terminal user interface ANSI renderer
+        run: npm run test:tui
+      - name: Adaptive provider fallback and checkpoint resumption
+        run: npm run test:fallback
+      - name: Failure memory and regression test promotion
+        run: npm run test:memory
+      - name: Flaky test detection and quarantine
+        run: npm run test:flaky
+      - name: MCP gateway routing and authorization
+        run: npm run test:mcp-gateway
+      - name: Test impact analysis and smart test selection
+        run: npm run test:test-impact
+      - name: PR synthesizer and changelog generator
+        run: npm run test:pr-synthesizer
+      - name: Deterministic security linter
+        run: npm run test:security-linter
+      - name: Error triage and classification engine
+        run: npm run test:error-triage
+      - name: Webhook notification and exponential backoff retry
+        run: npm run test:webhook
+      - name: Real-time live SSE event stream and event replay
+        run: npm run test:sse
+      - name: Dead code, unused exports, and ghost dependency eliminator
+        run: npm run test:dead-code
+      - name: Architectural linter and module boundary enforcer
+        run: npm run test:arch-linter
+      - name: Lightweight mutation testing and test strength analyzer
+        run: npm run test:mutation
+      - name: Predictive budgeting and pre-flight cost simulator
+        run: npm run test:simulator
+      - name: Build provider distributions
+        run: npm run build
       - name: Verify extracted distributions
         run: npm run verify:dist
 

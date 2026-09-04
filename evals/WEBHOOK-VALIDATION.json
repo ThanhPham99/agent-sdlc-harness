@@ -1,0 +1,33 @@
+{
+  "schema": "agent-sdlc/webhook-validation/v1",
+  "checks": 6,
+  "passes": 6,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "webhook-pattern-matching",
+      "status": "PASS"
+    },
+    {
+      "name": "webhook-signature-computation",
+      "status": "PASS"
+    },
+    {
+      "name": "webhook-direct-send-success",
+      "status": "PASS"
+    },
+    {
+      "name": "webhook-retry-recovers-after-transient-500",
+      "status": "PASS"
+    },
+    {
+      "name": "webhook-retry-fails-permanently-on-persistent-error",
+      "status": "PASS"
+    },
+    {
+      "name": "webhook-delivery-logging-to-disk",
+      "status": "PASS"
+    }
+  ]
+}

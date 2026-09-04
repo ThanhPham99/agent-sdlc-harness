@@ -1,6 +1,6 @@
 # Workflow: modernization
 
-Default profile: **STANDARD**
+Default profile: **STRICT**
 
 Stages: INTAKE → REQUIREMENTS → DESIGN → PLAN → IMPLEMENT → VERIFY → REVIEW → RELEASE → DEPLOY → OBSERVE → CLOSE
 

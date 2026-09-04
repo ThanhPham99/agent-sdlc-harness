@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {now,sha256,writeJson} from './util.mjs';
-import {listArtifacts,getArtifact,loadTaskGraph,listTasks,stateDir} from './store.mjs';
+import {artifactsForRun,artifactBindings,getArtifact,loadTaskGraph,listTasks,stateDir} from './store.mjs';
 import {materializeTaskGraph} from './task-engine.mjs';
 
 const KNOWN_PLAN_SCHEMAS=['agent-sdlc/task-plan/v1'];
@@ -20,8 +20,8 @@ const POST_IMPLEMENT=['VERIFY','REVIEW','RELEASE','DEPLOY','OBSERVE','CLOSE'];
 
 /** Newest validated plan artifact belonging to this run, if any. */
 export function findPlanArtifact(projectRoot,runId){
-  const metas=listArtifacts(projectRoot)
-    .filter(m=>m.kind==='task-plan'&&m.run_id===runId)
+  const metas=artifactsForRun(projectRoot,runId)
+    .filter(m=>artifactBindings(m).some(b=>b.run_id===runId&&b.kind==='task-plan'))
     .sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
   const meta=metas.at(-1);
   if(!meta)return null;

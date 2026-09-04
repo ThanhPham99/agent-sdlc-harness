@@ -76,7 +76,6 @@ function underSystemRoot(token){
 // Wrappers that prefix a real command without changing what it does.
 const WRAPPER=/^(?:sudo|doas|su|env|nohup|time|timeout|command|builtin|exec|xargs|cmd|cmd\.exe|powershell|powershell\.exe|pwsh|bash|sh|zsh|\/c|\/k|-c|-command|-noprofile|-executionpolicy|bypass|unrestricted|-file|--)$/i;
 
-const flagLetters=tok=>/^-[^-]/.test(tok)?tok.slice(1):'';
 const hasFlag=(flags,short,long)=>flags.some(f=>
   (long&&new RegExp(`^--${long}$`,'i').test(f))||
   (short&&new RegExp(`^-[^-]*${short}[^-]*$`).test(f))||
@@ -128,6 +127,11 @@ if(/\btruncate\s+table\b/i.test(norm))flag('ask','sql-truncate-table','irreversi
 if(/\bdelete\s+from\s+\w+\s*(?:;|$)/i.test(norm))flag('ask','sql-delete-without-where','delete with no WHERE clause');
 if(/\bprisma\s+migrate\s+reset\b|\bsupabase\s+db\s+reset\b|\bdjango-admin\s+flush\b|\brails\s+db:drop\b/i.test(norm))
   flag('deny','orm-database-reset','framework command that drops and recreates the database');
+
+// Exfiltration of environment variables / credentials directly to network tools
+if(/\b(?:printenv|env)\b[^|;\n]*\|\s*(?:curl|wget|nc|ncat|netcat|iwr|invoke-webrequest|invoke-restmethod)\b/i.test(norm)||
+   /\b(?:get-childitem\s+env:|dir\s+env:|ls\s+env:)\b[^|;\n]*\|\s*(?:curl|wget|iwr|invoke-webrequest|invoke-restmethod)\b/i.test(norm))
+  flag('deny','env-credential-exfiltration','dumping environment variables directly into a network transfer tool risks leaking credentials');
 
 // Infrastructure, release and production surfaces. Irreversible or externally
 // visible: a human decides, the guard only stops to ask.

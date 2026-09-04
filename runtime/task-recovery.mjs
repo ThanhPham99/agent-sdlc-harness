@@ -152,3 +152,48 @@ export function outerEscalation(plan){
   if(plan.escalate)return {required:true,kind:'ESCALATE',outer_state:'BLOCKED',reason:plan.reason};
   return {required:false};
 }
+
+/**
+ * Parse raw test/build stdout/stderr to extract structured diagnostics
+ * (syntax error, assertion failure, missing import, type error)
+ * and generate targeted remediation hints for self-healing loops.
+ */
+export function parseFailureDiagnostics(output){
+  const text=String(output||'');
+  if(!text.trim())return {error_type:'UNKNOWN',summary:'empty output',remediation_hint:null};
+
+  let errorType='RUNTIME_ERROR';
+  let summary='command failed with runtime error';
+  let file=null;
+  let line=null;
+
+  if(/SyntaxError|Unexpected token|Unexpected identifier|missing \)|missing ;/i.test(text)){
+    errorType='SYNTAX_ERROR';
+    summary='Code syntax or parsing error';
+  }else if(/TypeError|is not a function|Cannot read propert|cannot read property|undefined is not an object/i.test(text)){
+    errorType='TYPE_ERROR';
+    summary='Type mismatch or undefined property access';
+  }else if(/Cannot find module|MODULE_NOT_FOUND|ERR_MODULE_NOT_FOUND|import error|No module named/i.test(text)){
+    errorType='IMPORT_ERROR';
+    summary='Missing or unresolved module dependency/import';
+  }else if(/AssertionError|assert|Expected:.*Received:|expected.*to equal|fail\(/i.test(text)){
+    errorType='ASSERTION_FAILURE';
+    summary='Test assertion failed';
+  }
+
+  const match=text.match(/(?:at\s+.*?\()?([A-Za-z0-9_\-./\\]+\.[a-zA-Z0-9]+):(\d+):?(\d+)?\)?/);
+  if(match){
+    file=match[1].replace(/\\/g,'/');
+    line=Number(match[2]);
+  }
+
+  const hint=`${errorType}: ${summary}${file?` at ${file}${line?`:${line}`:''}`:''}. Focus remediation on resolving the exact error before re-running tests.`;
+
+  return {
+    error_type:errorType,
+    summary,
+    failing_file:file,
+    failing_line:line,
+    remediation_hint:hint
+  };
+}
