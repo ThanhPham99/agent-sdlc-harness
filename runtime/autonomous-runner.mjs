@@ -1,5 +1,4 @@
-// Autonomous SDLC Runner: Orchestrates end-to-end SDLC workflows with high automation
-// while enforcing strict Human-in-the-Loop confirmation gates for critical decisions.
+import fs from 'node:fs';
 import path from 'node:path';
 import {now,uuid,readJson,gitSha} from './util.mjs';
 import {loadRun,saveRun,listTasks,loadTask,emit} from './store.mjs';
@@ -14,6 +13,8 @@ import {findValidApproval,activeCapabilities} from './approvals.mjs';
 import {ensureCiPassedBeforeDelivery,runLocalCiValidation} from './ci-guard.mjs';
 import {generatePrBody,generateChangelog} from './pr-generator.mjs';
 import {recordDelivery} from './git-delivery.mjs';
+import {invokeTool} from './tools.mjs';
+import {integrateTaskWorkspace} from './workspace.mjs';
 
 export const MAX_SELF_HEAL_ATTEMPTS=3;
 
@@ -26,9 +27,51 @@ export const HUMAN_GATES={
 };
 
 /**
+ * Detect an existing test file in project root if available.
+ */
+export function detectExistingTestFile(projectRoot){
+  if(!projectRoot||!fs.existsSync(projectRoot))return null;
+  const candidates=['test','tests','evals','spec','__tests__'];
+  for(const c of candidates){
+    const dir=path.join(projectRoot,c);
+    if(fs.existsSync(dir)){
+      try{
+        const files=fs.readdirSync(dir);
+        const match=files.find(f=>/\.(test|spec)\.[a-zA-Z0-9]+$/i.test(f)||/^test_.*\.[a-zA-Z0-9]+$/i.test(f)||/.*_test\.[a-zA-Z0-9]+$/i.test(f)||f.endsWith('.mjs')||f.endsWith('.js')||f.endsWith('.py'));
+        if(match)return `${c}/${match}`;
+      }catch{}
+    }
+  }
+  try{
+    const rootFiles=fs.readdirSync(projectRoot);
+    const rootMatch=rootFiles.find(f=>/\.(test|spec)\.[a-zA-Z0-9]+$/i.test(f)||/^test_.*\.[a-zA-Z0-9]+$/i.test(f));
+    if(rootMatch)return rootMatch;
+  }catch{}
+  return null;
+}
+
+/**
+ * Detect common write scopes for the target project.
+ */
+export function detectWriteScope(projectRoot){
+  const defaultScopes=['src/**','lib/**','runtime/**','app/**','pkg/**','internal/**','components/**','pages/**','test/**','tests/**','scripts/**'];
+  if(!projectRoot||!fs.existsSync(projectRoot))return defaultScopes;
+  try{
+    const entries=fs.readdirSync(projectRoot,{withFileTypes:true});
+    const dirs=entries.filter(e=>e.isDirectory()&&!e.name.startsWith('.')&&e.name!=='node_modules').map(e=>`${e.name}/**`);
+    if(dirs.length){
+      return [...new Set([...dirs,'*.*'])];
+    }
+  }catch{}
+  return defaultScopes;
+}
+
+/**
  * Automatically scaffold a minimal compliant TaskPlan for routine work if none provided.
  */
-export function scaffoldTaskPlan(run){
+export function scaffoldTaskPlan(run,projectRoot=null){
+  const detectedTest=projectRoot?detectExistingTestFile(projectRoot):null;
+  const scopes=projectRoot?detectWriteScope(projectRoot):['src/**','lib/**','runtime/**','app/**','test/**'];
   return {
     schema:'agent-sdlc/task-plan/v1',
     plan_id:uuid('plan'),
@@ -42,11 +85,12 @@ export function scaffoldTaskPlan(run){
         done_conditions:[`Objective completed and verified`],
         category:'implementation',
         depends_on:[],
-        write_scope:['src/**','lib/**','runtime/**','test/**'],
+        write_scope:scopes,
         interface_scope:[],
         compatibility_obligations:['Preserve backward compatibility'],
         verification:{
-          targeted_tests:['test/unit.test.js']
+          targeted_tests:detectedTest?[detectedTest]:['test/unit.test.js'],
+          expected_behavior:[`Objective completed and verified`]
         }
       }
     ]
@@ -121,6 +165,12 @@ export function runAutoTaskLoop(root,projectRoot,run,{customWriter=null,workerCa
 
       currentTask=loadTask(projectRoot,run.run_id,t.task_id);
       steps.push({task_id:currentTask.task_id,action:'ADVANCED',to:currentTask.status});
+
+      if(currentTask.status==='DONE'){
+        try{
+          integrateTaskWorkspace(projectRoot,{run,task:currentTask});
+        }catch{/* ignore */}
+      }
 
       if(adv.failure||currentTask.status==='FAILED'||currentTask.status==='BLOCKED'){
         const attempt_count=currentTask.attempt||1;
@@ -236,7 +286,7 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
 
     // --- STAGE: PLAN ---
     if(stage==='PLAN'){
-      const plan=customPlan||scaffoldTaskPlan(currentRun);
+      const plan=customPlan||scaffoldTaskPlan(currentRun,projectRoot);
       const rec=recordTaskPlan(root,projectRoot,currentRun,plan);
       if(!rec.recorded){
         throw new Error(`Task plan validation failed: ${JSON.stringify(rec.validation.errors)}`);
@@ -272,6 +322,14 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
         throw new Error(`Implementation incomplete: ${JSON.stringify(rec.problems)}`);
       }
 
+      // Ensure all done tasks are integrated into project root before verification
+      const doneTasks=listTasks(projectRoot,currentRun.run_id).filter(t=>t.status==='DONE');
+      for(const t of doneTasks){
+        try{
+          integrateTaskWorkspace(projectRoot,{run:currentRun,task:t});
+        }catch{/* ignore */}
+      }
+
       currentRun=transition(root,projectRoot,currentRun,'VERIFY',{
         evidence:['implementation_artifact','task_graph_complete'],
         internal:true
@@ -282,6 +340,20 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
 
     // --- STAGE: VERIFY ---
     if(stage==='VERIFY'){
+      try{
+        const scan=invokeTool(root,projectRoot,currentRun,'security.secret_scan');
+        if(scan&&scan.status==='FAIL'){
+          return {
+            status:'PAUSED',
+            current_stage:'VERIFY',
+            pause_gate:HUMAN_GATES.GATE_3_SECURITY_EXCEPTION,
+            run:currentRun,
+            stage_steps:stageSteps,
+            message:`Security scan found potential secrets or policy violations: ${scan.summary}`
+          };
+        }
+      }catch{/* ignore if policy not configured */}
+
       // Transition to REVIEW with verification evidence
       currentRun=transition(root,projectRoot,currentRun,'REVIEW',{
         evidence:['targeted_verification_pass','no_new_high_security_findings'],

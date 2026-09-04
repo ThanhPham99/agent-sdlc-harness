@@ -309,4 +309,61 @@ await test('auto-cli-commands-dispatch',async ()=>{
   assert(printed&&printed.status!==undefined,'auto pipeline returns status');
 });
 
+await test('ci-guard-detects-commands-field-without-test_commands-for-multi-language',async ()=>{
+  const d=makeTempDir('agent-sdlc-python-stack-');
+  execFileSync('git',['init','-q'],{cwd:d});
+  fs.writeFileSync(path.join(d,'README.md'),'# python fixture\n');
+  execFileSync('git',['add','.'],{cwd:d});
+  execFileSync('git',['-c','user.email=test@test.local','-c','user.name=test','commit','-qm','init'],{cwd:d});
+  // initProject writes `commands`, NOT `test_commands`
+  initProject(d,{
+    schema:'agent-sdlc/project/v1',
+    project:'python-svc',
+    commands:{
+      test_full:['python','-m','pytest'],
+      test_targeted:['python','-m','pytest','{selector}']
+    }
+  });
+
+  const det=detectProjectCi(d);
+  assert(det.has_ci===true,'detectProjectCi should recognize has_ci from cfg.commands');
+  assert(det.recommended_command[0]==='python'&&det.recommended_command[2]==='pytest','recommended command should match cfg.commands.test_full');
+});
+
+await test('scaffoldTaskPlan-detects-project-test-files-and-scopes',async ()=>{
+  const d=makeTempDir('agent-sdlc-scaffold-test-');
+  fs.mkdirSync(path.join(d,'tests'),{recursive:true});
+  fs.writeFileSync(path.join(d,'tests','test_main.py'),'def test_ok(): pass\n');
+  fs.mkdirSync(path.join(d,'app'),{recursive:true});
+
+  const {scaffoldTaskPlan,detectExistingTestFile,detectWriteScope}=await import('../runtime/autonomous-runner.mjs');
+  const existingTest=detectExistingTestFile(d);
+  assert(existingTest==='tests/test_main.py','should detect tests/test_main.py');
+
+  const scopes=detectWriteScope(d);
+  assert(scopes.includes('app/**')&&scopes.includes('tests/**'),'write scope should include app/** and tests/**');
+
+  const plan=scaffoldTaskPlan({objective:'Add payment endpoint',profile:'STANDARD'},d);
+  assert(plan.tasks[0].verification.targeted_tests[0]==='tests/test_main.py','task plan should use detected test file');
+});
+
+await test('gate-3-pauses-when-task-introduces-secret',async ()=>{
+  const d=fixture('gate-3-secret');
+  const r=route(ROOT,'Update payment keys');
+  const run=newRun(ROOT,d,{objective:'Update payment keys',route:r});
+
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const secWorker=(task)=>{
+    const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','app.py'),'AWS_SECRET_KEY = "AKIAIOSFODNN7EXAMPLE"\n');
+  };
+
+  const res=runAutoPipeline(ROOT,d,run,{workerCallback:secWorker});
+  assert(res.status==='PAUSED','pipeline should pause when secret is introduced');
+  assert(res.pause_gate===HUMAN_GATES.GATE_3_SECURITY_EXCEPTION,'paused gate must be GATE_3_SECURITY_EXCEPTION');
+  assert(res.current_stage==='VERIFY','paused stage must be VERIFY');
+});
+
 finish();

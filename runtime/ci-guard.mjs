@@ -29,11 +29,11 @@ export function detectProjectCi(projectRoot){
   if(fs.existsSync(projectCfgPath)){
     try{
       const cfg=readJson(projectCfgPath);
-      test_commands=cfg.test_commands||null;
+      test_commands=cfg.test_commands||cfg.commands||null;
     }catch{/* ignore */}
   }
 
-  const has_ci=has_gh_workflows||package_json_scripts.includes('check')||package_json_scripts.includes('test')||package_json_scripts.includes('ci')||Boolean(test_commands);
+  const has_ci=has_gh_workflows||package_json_scripts.includes('check')||package_json_scripts.includes('test')||package_json_scripts.includes('ci')||Boolean(test_commands?.test_full||test_commands?.test_targeted);
 
   // Determine the best local CI command
   let recommended_command=null;
@@ -43,6 +43,8 @@ export function detectProjectCi(projectRoot){
     recommended_command=['npm','run','check'];
   }else if(package_json_scripts.includes('test')){
     recommended_command=['npm','test'];
+  }else if(test_commands?.test_targeted){
+    recommended_command=test_commands.test_targeted.filter(arg=>arg!=='{selector}'&&arg!=='--');
   }
 
   return {

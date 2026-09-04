@@ -53,6 +53,11 @@ await test('linter-detects-excessive-parameters', () => {
   assert(bad_res.is_compliant === false, 'should detect > 3 parameters');
   assert(bad_res.violations.some(v => v.rule_id === 'MAX_FUNCTION_PARAMETERS'), 'missing MAX_FUNCTION_PARAMETERS');
 
+  const multiline_bad = 'function sendEmail(\n  recipient,\n  subject,\n  body,\n  attachment,\n  priority\n) {}';
+  const multiline_res = auditFileContent('mailer.js', multiline_bad);
+  assert(multiline_res.is_compliant === false, 'should detect multiline > 3 parameters');
+  assert(multiline_res.violations.some(v => v.rule_id === 'MAX_FUNCTION_PARAMETERS'), 'missing multiline MAX_FUNCTION_PARAMETERS');
+
   const good_code = 'function sendEmail({ recipient, subject, body, attachment }) {}';
   const good_res = auditFileContent('mailer.js', good_code);
   assert(!good_res.violations.some(v => v.rule_id === 'MAX_FUNCTION_PARAMETERS'), 'object parameter should be allowed');
@@ -63,9 +68,13 @@ await test('linter-detects-boolean-naming-violation', () => {
   const bad_res = auditFileContent('flags.js', bad_code);
   assert(bad_res.violations.some(v => v.rule_id === 'BOOLEAN_PREFIX_REQUIRED'), 'should flag missing boolean prefix');
 
-  const good_code = 'const is_active = true;\nlet has_permission = false;';
-  const good_res = auditFileContent('flags.js', good_code);
-  assert(!good_res.violations.some(v => v.rule_id === 'BOOLEAN_PREFIX_REQUIRED'), 'valid prefixes should pass');
+  const good_snake = 'const is_active = true;\nlet has_permission = false;';
+  const good_snake_res = auditFileContent('flags.js', good_snake);
+  assert(!good_snake_res.violations.some(v => v.rule_id === 'BOOLEAN_PREFIX_REQUIRED'), 'valid snake_case prefixes should pass');
+
+  const good_camel = 'const isActive = true;\nlet hasPermission = false;\nconst canSubmit = true;\nlet shouldRetry = false;';
+  const good_camel_res = auditFileContent('flags.js', good_camel);
+  assert(!good_camel_res.violations.some(v => v.rule_id === 'BOOLEAN_PREFIX_REQUIRED'), 'valid camelCase prefixes should pass');
 });
 
 await test('linter-detects-kebab-case-violation', () => {

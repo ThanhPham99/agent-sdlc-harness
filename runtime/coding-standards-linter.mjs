@@ -119,6 +119,30 @@ export function auditFileContent(file_path, content, policy = null) {
     }
   });
 
+  // Check multiline function declarations
+  const raw_str = String(content || '');
+  const multiline_func_regex = /(?:function\s+[a-zA-Z0-9_$]*\s*\(([^)]*)\)|(?:const|let)\s+[a-zA-Z0-9_$]+\s*=\s*(?:async\s*)?\(([^)]*)\)\s*=>)/gs;
+  let m_match;
+  while ((m_match = multiline_func_regex.exec(raw_str)) !== null) {
+    const params_string = (m_match[1] ?? m_match[2] ?? '').trim();
+    if (params_string.includes('\n') && !params_string.includes('{')) {
+      const param_count = params_string.split(',').map(p => p.replace(/\/\/.*$/mg, '').trim()).filter(Boolean).length;
+      if (param_count > 3) {
+        const line_number = raw_str.slice(0, m_match.index).split('\n').length;
+        if (!violations.some(v => v.rule_id === 'MAX_FUNCTION_PARAMETERS' && v.line_number === line_number)) {
+          violations.push({
+            file_path,
+            line_number,
+            rule_id: 'MAX_FUNCTION_PARAMETERS',
+            severity: 'MAJOR',
+            message: `Function has ${param_count} parameters, exceeding the maximum allowed of 3. Encapsulate parameters into an object DTO.`,
+            snippet: m_match[0].split('\n')[0].trim()
+          });
+        }
+      }
+    }
+  }
+
   // Rule 4: Boolean naming convention (prefix required for boolean variable assignments)
   lines.forEach((line, line_index) => {
     const trimmed_line = line.trim();
@@ -129,14 +153,15 @@ export function auditFileContent(file_path, content, policy = null) {
     const bool_match = trimmed_line.match(/\b(?:const|let)\s+([a-zA-Z0-9_$]+)\s*=\s*(?:true|false)\b/);
     if (bool_match) {
       const var_name = bool_match[1];
-      const has_valid_prefix = ALLOWED_BOOLEAN_PREFIXES.some(prefix => var_name.startsWith(prefix));
+      const has_valid_prefix = ALLOWED_BOOLEAN_PREFIXES.some(prefix => var_name.startsWith(prefix)) ||
+                               /^(?:is|has|can|should)[A-Z0-9]/.test(var_name);
       if (!has_valid_prefix) {
         violations.push({
           file_path,
           line_number: line_index + 1,
           rule_id: 'BOOLEAN_PREFIX_REQUIRED',
           severity: 'MINOR',
-          message: `Boolean variable "${var_name}" should start with one of prefixes: ${ALLOWED_BOOLEAN_PREFIXES.join(', ')}`,
+          message: `Boolean variable "${var_name}" should start with one of prefixes: ${ALLOWED_BOOLEAN_PREFIXES.join(', ')} or camelCase equivalent (isX, hasX, canX, shouldX)`,
           snippet: trimmed_line
         });
       }

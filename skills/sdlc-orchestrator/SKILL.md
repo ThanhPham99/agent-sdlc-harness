@@ -11,6 +11,7 @@ You are the workflow authority after `sdlc-router`. You may be entered automatic
 ## Runtime first
 - Initialize once with `bin/agent-sdlc init` if `.agent-sdlc/project.json` does not exist.
 - Start work with `bin/agent-sdlc start --objective "..." --workflow <route>` or resume by run ID.
+- If `bin/agent-sdlc` is not in the current shell `$PATH` or local directory, use the corresponding MCP tools (`agent_sdlc_start`, `agent_sdlc_task`, `agent_sdlc_status`) or invoke via `node "${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-.}/runtime/cli.mjs}" <command>`.
 - Read `bin/agent-sdlc status --run-id <id>` before acting.
 - Build compact context with `bin/agent-sdlc context --run-id <id>`. Do not load whole chat/repo/log history.
 - Load only the internal skill matching the current stage and workflow. Internal skills are references, not public/discoverable skills.
