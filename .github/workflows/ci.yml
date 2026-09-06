@@ -110,6 +110,8 @@ jobs:
         run: npm run test:simulate-e2e
       - name: Autonomous SDLC runner and human confirmation gates
         run: npm run test:autonomous-runner
+      - name: TypeScript definition validation
+        run: npm run typecheck
       # --- build, then the surfaces that read what it produced -----------
       - name: Build provider distributions
         run: npm run build
