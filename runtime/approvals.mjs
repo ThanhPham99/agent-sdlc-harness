@@ -119,19 +119,35 @@ export function findValidApproval(run,capability){
  * findValidApproval already encoded the rule; this is it applied to the whole
  * set, so a gate cannot accidentally ask the weaker question.
  */
-export function activeCapabilities(run){
+export function activeCapabilities(root,run){
+  const known=new Set(knownCapabilities(root));
   const caps=new Set((run?.approvals||[]).map(a=>a.capability||a.approval).filter(Boolean));
-  return [...caps].filter(c=>findValidApproval(run,c));
+  return [...caps].filter(c=>known.has(c)&&findValidApproval(run,c));
 }
 
-export function approvalStatus(a){
+/**
+ * Validation on the write path cannot speak for a record that was already
+ * stored: a run written before the registry existed, or a hand-edited
+ * `.agent-sdlc/runs/*.json`, still holds whatever name it was given. Read as
+ * ACTIVE, such a record is indistinguishable from a real grant. So the
+ * registry is re-checked here, on the read, and an unconsumed name is reported
+ * as what it is.
+ *
+ * The record itself is left alone. Deleting it would tidy the display and
+ * destroy the audit trail that makes the orphan discoverable in the first
+ * place.
+ */
+export function approvalStatus(a,known){
+  const capability=a.capability||a.approval;
+  if(known&&!known.has(capability))return 'UNKNOWN_CAPABILITY';
   if(a.revoked_at)return 'REVOKED';
   if(a.expires_at&&a.expires_at<=now())return 'EXPIRED';
   return 'ACTIVE';
 }
 
-export function listApprovals(run){
-  return (run.approvals||[]).map(a=>({...a,status:approvalStatus(a)}));
+export function listApprovals(root,run){
+  const known=new Set(knownCapabilities(root));
+  return (run.approvals||[]).map(a=>({...a,status:approvalStatus(a,known)}));
 }
 
 export function requestApprovalTicket(root,projectRoot,run,{capability,reason=null,expiresInMinutes=60}={}){

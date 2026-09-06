@@ -289,7 +289,7 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
 
       // Auto-record design decision
       const decision=builtinScaffoldDesignDecision(modeResult,{objective:currentRun.objective});
-      const rec=recordDesignDecision(root,projectRoot,currentRun,decision,{approvals:activeCapabilities(currentRun)});
+      const rec=recordDesignDecision(root,projectRoot,currentRun,decision,{approvals:activeCapabilities(root,currentRun)});
       if(!rec.recorded){
         throw new Error(`Failed to record design decision: ${JSON.stringify(rec.validation.errors)}`);
       }

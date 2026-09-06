@@ -1534,7 +1534,7 @@ test('approval-status-reports-lifecycle',()=>{
   const r=newRun(ROOT,tmp,{objective:'status',route:route(ROOT,'Add refund capability')});
   const future=new Date(Date.now()+3600000).toISOString();
   recordApproval(ROOT,tmp,r,{capability:'deploy.production',authority:'USER_INTERACTIVE',expiresAt:future});
-  const statuses=listApprovals(r).map(a=>a.status);
+  const statuses=listApprovals(ROOT,r).map(a=>a.status);
   if(!statuses.includes('ACTIVE'))throw Error(JSON.stringify(statuses));
 });
 test('design-gate-wildcard-approval-rejected',()=>{

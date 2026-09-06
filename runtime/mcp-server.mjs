@@ -189,7 +189,7 @@ export function execute(name,a={}){
     if(a.op==='tickets')return listApprovalTickets(run);
     if(a.op==='request')return requestApprovalTicket(ROOT,projectRoot,run,{capability:a.capability,reason:a.reason||null,expiresInMinutes:a.expires_in?Number(a.expires_in):60});
     if(a.op==='grant_ticket')return grantApprovalTicket(ROOT,projectRoot,run,{ticketId:a.ticket_id,actor:a.actor||'USER_INTERACTIVE',reason:a.reason||null});
-    return listApprovals(run);
+    return listApprovals(ROOT,run);
   }
   if(name==='agent_sdlc_gate_status')return evaluateGate(ROOT,projectRoot,run,run.state);
   if(name==='agent_sdlc_tool_check')return checkTool(ROOT,run,a.tool);

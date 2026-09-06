@@ -99,7 +99,7 @@ export const commands={
     const {recordApproval,revokeApproval,listApprovals,requestApprovalTicket,grantApprovalTicket,listApprovalTickets}=await import('../approvals.mjs');
     if(sub==='status'){
       const run=await needRun();
-      print(listApprovals(run));
+      print(listApprovals(ROOT,run));
     }
     else if(sub==='tickets'){
       const run=await needRun();

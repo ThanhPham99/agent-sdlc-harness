@@ -586,6 +586,7 @@ await test('commands-delivery-deep',async ()=>{
   let pushOut=null;
   await deliveryCmds.delivery({
     args:{_:[ 'delivery','push-check' ]},
+    ROOT,
     needRun:async()=>run,
     print:data=>{pushOut=data;}
   });
@@ -1245,6 +1246,54 @@ await test('approval-capability-name-validation',async ()=>{
   // A real one still works end to end.
   const ok=requestApprovalTicket(ROOT,d,run,{capability:GATE_CAPABILITIES.DELIVERY_COMMIT_APPROVED});
   assert(ok&&ok.status==='PENDING','a known capability must still produce a ticket');
+});
+
+await test('stored-orphan-approval-is-not-reported-active',async ()=>{
+  const d=fixture();
+  const r=route(ROOT,'Orphan approval read path');
+  const run=newRun(ROOT,d,{objective:'Orphan approval read path',route:r});
+  const {recordApproval,listApprovals,activeCapabilities,approvalStatus,knownCapabilities,GATE_CAPABILITIES}=await import('../runtime/approvals.mjs');
+
+  // A genuine grant, through the validated write path.
+  recordApproval(ROOT,d,run,{
+    capability:GATE_CAPABILITIES.DELIVERY_COMMIT_APPROVED,
+    authority:'USER_INTERACTIVE',
+    actor:'test-user',
+    expiresAt:new Date(Date.now()+3600000).toISOString()
+  });
+
+  // An orphan as a hand-edited or pre-registry run file would hold it: the
+  // write path never saw it, so only the read path can catch it.
+  run.approvals.push({
+    approval_id:'approval_hand_edited',
+    approval:'vcs.commit_push',
+    capability:'vcs.commit_push',
+    authority:'USER_INTERACTIVE',
+    actor:'someone',
+    reason:'hand-edited state',
+    time:new Date().toISOString(),
+    expires_at:new Date(Date.now()+86400000).toISOString(),
+    revoked_at:null
+  });
+
+  const listed=listApprovals(ROOT,run);
+  const orphan=listed.find(a=>a.capability==='vcs.commit_push');
+  const real=listed.find(a=>a.capability===GATE_CAPABILITIES.DELIVERY_COMMIT_APPROVED);
+  assert(orphan&&orphan.status==='UNKNOWN_CAPABILITY','an unconsumed capability must not read as ACTIVE');
+  assert(real&&real.status==='ACTIVE','a genuine unexpired approval must still read ACTIVE');
+
+  // The audit trail survives: the record is reported, not deleted.
+  assert(listed.length===2,'the orphan record must be preserved, not removed');
+  assert(run.approvals.length===2,'listApprovals must not mutate stored approvals');
+
+  const active=activeCapabilities(ROOT,run);
+  assert(!active.includes('vcs.commit_push'),'an orphan must be excluded from activeCapabilities');
+  assert(active.includes(GATE_CAPABILITIES.DELIVERY_COMMIT_APPROVED),'a genuine capability must stay active');
+
+  // Revoked and expired still win over ACTIVE for a known capability.
+  const known=new Set(knownCapabilities(ROOT));
+  assert(approvalStatus({capability:GATE_CAPABILITIES.DEPLOY_PRODUCTION,revoked_at:new Date().toISOString()},known)==='REVOKED','revoked must still report REVOKED');
+  assert(approvalStatus({capability:GATE_CAPABILITIES.DEPLOY_PRODUCTION,expires_at:'2000-01-01T00:00:00.000Z'},known)==='EXPIRED','expired must still report EXPIRED');
 });
 
 finish();

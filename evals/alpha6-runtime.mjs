@@ -709,7 +709,7 @@ export function runAlpha6Suite(root){
       // already knew both were dead; this path just never asked it.
       const pushRun=newRun(root,projectRoot,{objective:'ship',route:route(root,'Ship a release')});
       const hour=()=>new Date(Date.now()+3600e3).toISOString();
-      const caps=()=>activeCapabilities(pushRun);
+      const caps=()=>activeCapabilities(root,pushRun);
 
       if(checkPushTarget('main',{approvals:caps()}).decision!=='DENY')fail('denied by default no longer holds');
 

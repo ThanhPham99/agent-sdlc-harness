@@ -111,7 +111,7 @@ export function recordDesignDecision(root,projectRoot,run,decision,{artifactRef=
     mode:decision?.mode??null,
     evidence:validation.gate_evidence,
     humanApprovalRequired,
-    approvals:approvals??activeCapabilities(run)
+    approvals:approvals??activeCapabilities(root,run)
   });
   const derived=getDesignDiscoveryPolicy().gate.derived_evidence;
   if(!validation.valid||!gate.valid){
