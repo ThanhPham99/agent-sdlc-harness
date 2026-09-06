@@ -7,22 +7,23 @@ engine limitations found while landing F1. They are independent: each produces
 working, testable software on its own, and none blocks another except where
 noted below.
 
-| Plan | Covers | Size | Risk |
-|---|---|---|---|
-| [Gate honesty](2026-09-07-gate-honesty.md) | F2, F3, F10 | 5 tasks | **High** — Task 5 changes an evidence token's authority and breaks every current caller that asserts it |
-| [Surface coverage](2026-09-07-surface-coverage.md) | F4, F6, F7 | 4 tasks | Low — one new gate, wiring, and prose |
-| [MCP authored artifacts](2026-09-07-mcp-authored-artifacts.md) | F5 | 3 tasks | Medium — new public tool surface |
-| [Harness hygiene](2026-09-07-harness-hygiene.md) | F8, F9, F11, E4, housekeeping | 5 tasks | Medium — Task 3 changes what every `tool-run` caller sees |
-| [Task engine ergonomics](2026-09-07-task-engine-ergonomics.md) | E1, E2, E3 | 3 tasks | **High** — Task 1 changes task status automatically |
+| Plan | Covers | Size | Risk | Status |
+|---|---|---|---|---|
+| [Gate honesty](2026-09-07-gate-honesty.md) | F2, F3, F10 | 5 tasks | **High** — Task 5 changes an evidence token's authority and breaks every current caller that asserts it | Not started |
+| [Surface coverage](2026-09-07-surface-coverage.md) | F4, F6, F7 | 4 tasks | Low — one new gate, wiring, and prose | **Complete** — merged to `master` at `f75e8c5`, 2026-09-07 |
+| [MCP authored artifacts](2026-09-07-mcp-authored-artifacts.md) | F5 | 3 tasks | Medium — new public tool surface | Not started |
+| [Harness hygiene](2026-09-07-harness-hygiene.md) | F8, F9, F11, E4, housekeeping | 5 tasks | Medium — Task 3 changes what every `tool-run` caller sees | Not started |
+| [Task engine ergonomics](2026-09-07-task-engine-ergonomics.md) | E1, E2, E3 | 3 tasks | **High** — Task 1 changes task status automatically | Not started |
 
 ## Suggested order
 
-**1. Surface coverage.** Lowest risk, and it is the plan that stops the class of
-defect from recurring: after it, a command cannot ship undocumented and
-`typecheck` cannot silently stop running. Do this first regardless of what else
-gets done.
+**1. Surface coverage.** ✅ **Done** — merged at `f75e8c5`. Lowest risk, and it is
+the plan that stops the class of defect from recurring: a command can no longer
+ship undocumented, an unclassifiable `docs/` path now fails the gate, and
+`typecheck` cannot silently stop running. See that plan's Execution record for
+the six places execution departed from what was written.
 
-**2. Harness hygiene, Tasks 1, 2, 4 and 5.** Small, independent, and Task 5
+**2. Harness hygiene, Tasks 1, 2, 4 and 5.** ← **next** Small, independent, and Task 5
 clears the two housekeeping items off the board. Leave Task 3 (tool-output
 summaries) for later — it is the one with reach.
 
@@ -51,8 +52,14 @@ else is moving.
   callers are known and handled. Run
   `grep -rn "no_new_high_security_findings" --include=*.mjs .` before starting
   and handle anything the grep finds that the plan does not name.
-- **Surface coverage Task 3 changes the suite count** from 46 to 47. Later plans
-  say "46/46"; read it as "all suites".
+- **Surface coverage Task 3 changed the suite count** from 46 to 47 (done). The
+  other four plans still say "46/46" in their verification steps; read that as
+  "all suites", and expect 47 until another plan adds one.
+- **Surface coverage's gate now classifies every `docs/` path** as reference or
+  non-reference and fails on anything it cannot classify. A later plan that adds
+  a directory under `docs/` must classify it in
+  `scripts/validate-cli-surface.mjs` or the gate will refuse it — that refusal is
+  the intended behaviour, not a breakage.
 
 ## What is deliberately not planned
 

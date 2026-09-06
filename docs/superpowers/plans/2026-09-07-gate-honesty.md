@@ -10,6 +10,8 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-07-remaining-plugin-audit-findings.md` (F2, F3, F10)
 
+**Status:** Not started. Covers F2, F3, F10. The suite count is 47 as of `f75e8c5` — verification steps below that say "46/46" mean "all suites".
+
 ## Global Constraints
 
 - Node `>=18`; `"type": "module"`; **zero runtime dependencies**.

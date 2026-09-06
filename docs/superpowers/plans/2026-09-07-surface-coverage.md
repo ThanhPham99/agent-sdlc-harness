@@ -40,7 +40,7 @@
 
 Doing this before Task 2 is deliberate: the gate is what keeps F4 from happening again, and writing the docs first would leave nothing proving they stay.
 
-- [ ] **Step 1: Add the assertion**
+- [x] **Step 1: Add the assertion**
 
 ```js
 // --- registry vs the documentation -----------------------------------------
@@ -77,14 +77,14 @@ Add to the `report` object, next to `command_count`:
   undocumented:undocumented.sort(),
 ```
 
-- [ ] **Step 2: Run it and confirm it fails with exactly the expected list**
+- [x] **Step 2: Run it and confirm it fails with exactly the expected list**
 
 Run: `npm run test:cli-surface`
 Expected: FAIL, naming `auto`, `auto-task`, `ci-check`, `rewind`, `serve`, `dashboard`, `webhook`, `completion`, `review`.
 
 If the list differs from those nine, the spec's F4 count is stale — trust this output, not the spec, and note the difference in the commit message.
 
-- [ ] **Step 3: Commit the gate, red**
+- [ ] **Step 3: Commit the gate, red** — *not done as written; see Execution record, Ruling 1*
 
 Do not commit a red gate to `master`. Commit it on the working branch only, and let Task 2 turn it green in the same branch before the branch merges.
 
@@ -105,12 +105,12 @@ git commit -m "test(cli): fail the surface gate on a command absent from docs/"
 - Consumes: the gate from Task 1.
 - Produces: nothing other code reads.
 
-- [ ] **Step 1: Read the real flags before writing a word**
+- [x] **Step 1: Read the real flags before writing a word**
 
 Run: `node runtime/cli.mjs help`
 Then, for each of the nine, read its handler in `runtime/commands/` to get the actual flags. `runtime/commands/index.mjs` maps command → group. Do not document a flag you have not seen parsed — this whole task exists because the docs said things the code did not.
 
-- [ ] **Step 2: Write the sections**
+- [x] **Step 2: Write the sections**
 
 Append to `docs/USAGE.md`, continuing the existing numbering (the file currently ends at `## 11.`):
 
@@ -143,17 +143,17 @@ built-in live dashboard with an SSE event stream. `agent-sdlc webhook list` and
 
 Then fill each paragraph out with the flags you read in Step 1. The block above is the section skeleton and the framing; it is not a substitute for the flag list.
 
-- [ ] **Step 3: Run the gate**
+- [x] **Step 3: Run the gate**
 
 Run: `npm run test:cli-surface`
 Expected: PASS, `undocumented: []`.
 
-- [ ] **Step 4: Run the full gate**
+- [x] **Step 4: Run the full gate**
 
 Run: `npm run check`
 Expected: 46/46 PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit** — *`evals/CLI-SURFACE-VALIDATION.json` deliberately not committed; see Execution record, Ruling 8*
 
 ```bash
 git add docs/USAGE.md evals/CLI-SURFACE-VALIDATION.json
@@ -172,11 +172,11 @@ git commit -m "docs(usage): document auto, ci-check and the seven other undocume
 - Consumes: the existing `typecheck` script in `package.json` (`node scripts/validate-types.mjs`), which passes today.
 - Produces: nothing; this is wiring.
 
-- [ ] **Step 1: Add it to the plan**
+- [x] **Step 1: Add it to the plan**
 
 In `scripts/lib/check-plan.mjs`, append `'typecheck'` to the `offline` stage's `parallel` array. It reads only `types/` and writes only its own report, so it is safe alongside the rest.
 
-- [ ] **Step 2: Add the matching CI step**
+- [x] **Step 2: Add the matching CI step**
 
 In `.github/workflows/ci.yml`, in `offline-validation`, in the offline block (before `- name: Build provider distributions`):
 
@@ -187,17 +187,17 @@ In `.github/workflows/ci.yml`, in `offline-validation`, in the offline block (be
 
 `scripts/validate-ci-coverage.mjs` asserts stage order, so it must sit among the offline steps, not after `build`.
 
-- [ ] **Step 3: Run the coverage gate**
+- [x] **Step 3: Run the coverage gate**
 
 Run: `npm run test:ci-coverage`
 Expected: PASS. A failure here names the mismatch precisely — fix the file it names rather than relaxing the assertion.
 
-- [ ] **Step 4: Run the full gate**
+- [x] **Step 4: Run the full gate**
 
 Run: `npm run check`
 Expected: 47 suites, all PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add scripts/lib/check-plan.mjs .github/workflows/ci.yml evals/CI-COVERAGE-VALIDATION.json
@@ -215,7 +215,7 @@ git commit -m "ci: run typecheck in the local gate and on CI"
 
 The Windows job stops at `test:simulator`. The four suites it omits include `test:autonomous-runner`, which is where F1 lived — and Windows is this project's primary development platform.
 
-- [ ] **Step 1: Add the four steps**
+- [x] **Step 1: Add the four steps**
 
 In `windows-validation`, after the `Predictive budgeting and pre-flight cost simulator` step and before `Build provider distributions`:
 
@@ -232,17 +232,17 @@ In `windows-validation`, after the `Predictive budgeting and pre-flight cost sim
 
 Step names are copied verbatim from the `offline-validation` job so the two legs read as the same list.
 
-- [ ] **Step 2: Check whether the coverage gate constrains this job**
+- [x] **Step 2: Check whether the coverage gate constrains this job**
 
 Run: `npm run test:ci-coverage`
 Expected: PASS. Read `scripts/validate-ci-coverage.mjs` first: if it asserts the Windows job's contents at all, this change must satisfy that assertion; if it only checks `offline-validation` and the `coverage-floor` alternate job, this change is invisible to it and that is fine.
 
-- [ ] **Step 3: Verify the four suites actually pass on Windows locally**
+- [x] **Step 3: Verify the four suites actually pass on Windows locally**
 
 Run: `npm run test:commands-expansion && npm run test:web-dashboard && npm run test:simulate-e2e && npm run test:autonomous-runner`
 Expected: PASS. If one fails on Windows, that is a real finding — a suite ubuntu-only by accident. Stop and report it rather than dropping the step from the job.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add .github/workflows/ci.yml
@@ -250,6 +250,57 @@ git commit -m "ci(windows): run the four suites the windows leg was missing"
 ```
 
 ---
+
+## Execution record
+
+**Status: complete.** Executed 2026-09-07 via superpowers:subagent-driven-development
+on branch `fix/remaining-audit-surface-coverage`, merged to `master` at `f75e8c5`.
+`npm run check` 47/47 PASS on the merged result.
+
+| Task | Commits | Outcome |
+|---|---|---|
+| 1 + 2 | `be6a31c`, `ab62032` | Spec ✅, quality changes-requested → fix round 1 `978f011` (5/5 addressed) |
+| 3 | `a2dd3ff` | Spec ✅, quality approved, zero findings |
+| 4 | `4c5af7b` | Spec ✅, quality approved, 2 minors deferred |
+| final review fix wave | `f75e8c5` | 3/3 addressed, no new breakage |
+
+Supporting commits: `cc54d7b` (this plan and its spec), `4a2a8d0` (gitignore `.superpowers/`).
+
+### Where execution departed from this plan
+
+- **Ruling 1 — Tasks 1 and 2 ran as one dispatch, and no red gate was ever committed.**
+  Task 1 Step 3 mandates committing the gate while it fails. A reviewer seeing that
+  commit alone would correctly flag it, which would mean adjudicating a finding this
+  plan created. Its checkbox above is left unticked because it was not carried out.
+- **Ruling 3 — the gate's document scope was fixed immediately, not deferred.**
+  As first written the gate scanned all of `docs/`, so this very plan file satisfied
+  it for nine commands out of its own Task 2 skeleton. A gate the plan demanding it
+  can satisfy cannot fail. The task review suggested a follow-up; that was overridden.
+- **Ruling 4 — `\b` → `(?![-\w])` in the match.** Under `\b`, `agent-sdlc ci-check`
+  credited `ci` and `agent-sdlc auto-task` credited `auto` — two of F4's own nine
+  commands would have been passed by a sibling's documentation. Filed Minor by the
+  task reviewer; the final review reclassified it as a correctness fix.
+- **Ruling 6 — Task 4 was justified on platform sensitivity, not parity.** See the
+  Self-Review Notes entry below.
+- **Ruling 7 — the final review's Important finding was fixed, not deferred.** The
+  `superpowers` exclusion still let release notes and status documents count as
+  documentation, and a new command's first `agent-sdlc <name>` mention is usually
+  the release note announcing it. The gate now classifies every `docs/` path
+  explicitly and **fails on any it cannot classify**.
+- **Ruling 8 — refreshed `evals/*.json` reports were not committed** (Task 2 Step 5,
+  Task 3 Step 5). Spec E4 documents that restoring those reports after gate evidence
+  is recorded invalidates the evidence, and `npm run check`'s hygiene stage reverts
+  them by design. The plan step was wrong; the omission was correct.
+
+### Known-open, deliberately not fixed here
+
+- `generateFishCompletion` in `runtime/commands/completion.mjs` is dead code
+  (pre-dates this plan; the new docs correctly list only bash/zsh/pwsh).
+- `evals/CLI-SURFACE-VALIDATION.json` is tracked but schema-divergent from its
+  writer — evidence only, nothing reads it.
+- `test:web-dashboard` is the weakest of the four Windows additions. It qualifies
+  because it binds a real socket, which is also the likeliest new source of flake
+  on a hosted Windows runner: suspect this step first if that leg goes intermittent.
 
 ## Self-Review Notes
 
