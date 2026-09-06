@@ -222,6 +222,22 @@ jobs:
         run: npm run test:mutation
       - name: Predictive budgeting and pre-flight cost simulator
         run: npm run test:simulator
+      # These four exercise the same platform-sensitive surface as the rest of
+      # this job: every fixture route runs through store.mjs's writeJson,
+      # which is a temp-file + fs.renameSync durable write (util.mjs), and
+      # through real os.tmpdir() fixtures and path.join-based file layouts.
+      # test:autonomous-runner additionally drives detectWriteScope's real
+      # fs.readdirSync directory listing and getTaskWorkspace's git worktree
+      # creation -- the exact code path F1 (unbounded write scope from a
+      # directory listing) lived in, undetected because this leg never ran it.
+      - name: Expanded commands, rewind engine, and webhook edge cases
+        run: npm run test:commands-expansion
+      - name: Built-in Live Web Dashboard and SSE Streaming Server
+        run: npm run test:web-dashboard
+      - name: End-to-end full 10-stage lifecycle dogfooding simulation
+        run: npm run test:simulate-e2e
+      - name: Autonomous SDLC runner and human confirmation gates
+        run: npm run test:autonomous-runner
       - name: Build provider distributions
         run: npm run build
       - name: Verify extracted distributions
