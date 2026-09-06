@@ -839,7 +839,7 @@ await test('commands-run-rewind-and-approval-revoke',async ()=>{
   // run approval revoke
   const {recordApproval}=await import('../runtime/approvals.mjs');
   recordApproval(ROOT,d,run,{
-    capability:'git.push',
+    capability:'git.push_protected',
     authority:'USER_INTERACTIVE',
     actor:'test-user',
     reason:'test grant',
@@ -848,7 +848,7 @@ await test('commands-run-rewind-and-approval-revoke',async ()=>{
 
   let revAppOut=null;
   await runCmds.approval({
-    args:{_:[ 'approval','revoke' ],capability:'git.push'},
+    args:{_:[ 'approval','revoke' ],capability:'git.push_protected'},
     ROOT,
     projectRoot:d,
     needRun:async()=>run,
@@ -1202,6 +1202,49 @@ await test('webhook-system-deep-branches',async ()=>{
 
   const delsLimit=getWebhookDeliveries(d,{limit:10});
   assert(delsLimit.length===10,'getWebhookDeliveries limit failed');
+});
+
+await test('approval-capability-name-validation',async ()=>{
+  const d=fixture();
+  const r=route(ROOT,'Capability validation test');
+  const run=newRun(ROOT,d,{objective:'Capability validation test',route:r});
+  const {recordApproval,requestApprovalTicket,knownCapabilities,GATE_CAPABILITIES,assertKnownCapability}=await import('../runtime/approvals.mjs');
+
+  // Every name a gate checks must be accepted, or the gate is unreachable.
+  const known=knownCapabilities(ROOT);
+  for(const cap of Object.values(GATE_CAPABILITIES)){
+    assert(known.includes(cap),`gate capability ${cap} missing from knownCapabilities`);
+  }
+
+  // The defect this guards: a plausible-looking name nothing consumes.
+  let threw=null;
+  try{assertKnownCapability(ROOT,'vcs.commit_push');}catch(e){threw=e;}
+  assert(threw,'an unconsumed capability must be refused');
+  assert(/no gate or policy consumes it/.test(threw.message),'refusal must say why');
+  assert(threw.message.includes('delivery_commit_approved'),'refusal must name the valid set');
+
+  // Refused at the request boundary, before a human is asked to approve.
+  let ticketErr=null;
+  try{requestApprovalTicket(ROOT,d,run,{capability:'vcs.commit_push'});}catch(e){ticketErr=e;}
+  assert(ticketErr,'requestApprovalTicket must refuse an unknown capability');
+  assert(!(run.approval_tickets||[]).length,'no ticket may be written for a refused capability');
+
+  // Refused at the record boundary too.
+  let recErr=null;
+  try{
+    recordApproval(ROOT,d,run,{
+      capability:'vcs.commit_push',
+      authority:'USER_INTERACTIVE',
+      actor:'test-user',
+      expiresAt:new Date(Date.now()+3600000).toISOString()
+    });
+  }catch(e){recErr=e;}
+  assert(recErr,'recordApproval must refuse an unknown capability');
+  assert(!(run.approvals||[]).length,'no approval may be recorded for a refused capability');
+
+  // A real one still works end to end.
+  const ok=requestApprovalTicket(ROOT,d,run,{capability:GATE_CAPABILITIES.DELIVERY_COMMIT_APPROVED});
+  assert(ok&&ok.status==='PENDING','a known capability must still produce a ticket');
 });
 
 finish();

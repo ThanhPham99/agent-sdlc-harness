@@ -187,7 +187,7 @@ export function execute(name,a={}){
   }
   if(name==='agent_sdlc_approval_status'){
     if(a.op==='tickets')return listApprovalTickets(run);
-    if(a.op==='request')return requestApprovalTicket(projectRoot,run,{capability:a.capability,reason:a.reason||null,expiresInMinutes:a.expires_in?Number(a.expires_in):60});
+    if(a.op==='request')return requestApprovalTicket(ROOT,projectRoot,run,{capability:a.capability,reason:a.reason||null,expiresInMinutes:a.expires_in?Number(a.expires_in):60});
     if(a.op==='grant_ticket')return grantApprovalTicket(ROOT,projectRoot,run,{ticketId:a.ticket_id,actor:a.actor||'USER_INTERACTIVE',reason:a.reason||null});
     return listApprovals(run);
   }

@@ -117,7 +117,7 @@ await test('approval-tickets-can-be-requested-and-granted-without-tty',async ()=
   const run=newRun(ROOT,d,{objective:'Deploy service to production',route:r});
 
   // Request ticket
-  const ticket=requestApprovalTicket(d,run,{
+  const ticket=requestApprovalTicket(ROOT,d,run,{
     capability:'deploy.production',
     reason:'Production release required'
   });
@@ -177,7 +177,7 @@ await test('auto-pipeline-executes-low-risk-tasks-until-gate-4-pre-commit',async
 
   // Once user grants delivery_commit_approved, pipeline completes to CLOSE
   const freshRun=loadRun(d,run.run_id);
-  const ticket=requestApprovalTicket(d,freshRun,{capability:'delivery_commit_approved'});
+  const ticket=requestApprovalTicket(ROOT,d,freshRun,{capability:'delivery_commit_approved'});
   grantApprovalTicket(ROOT,d,freshRun,{
     ticketId:ticket.ticket_id,
     actor:'operator'
@@ -253,7 +253,7 @@ await test('gate-5-pauses-on-privileged-production-deployment-until-approved',as
 
   // Pre-approve delivery commit to reach DEPLOY
   grantApprovalTicket(ROOT,d,run,{
-    ticketId:requestApprovalTicket(d,run,{capability:'delivery_commit_approved'}).ticket_id,
+    ticketId:requestApprovalTicket(ROOT,d,run,{capability:'delivery_commit_approved'}).ticket_id,
     actor:'lead'
   });
 
@@ -272,7 +272,7 @@ await test('gate-5-pauses-on-privileged-production-deployment-until-approved',as
 
   // Grant production deployment approval
   const freshRun=loadRun(d,run.run_id);
-  const ticket=requestApprovalTicket(d,freshRun,{capability:'deploy.production',expiresInMinutes:30});
+  const ticket=requestApprovalTicket(ROOT,d,freshRun,{capability:'deploy.production',expiresInMinutes:30});
   grantApprovalTicket(ROOT,d,freshRun,{
     ticketId:ticket.ticket_id,
     actor:'infra-admin'

@@ -9,7 +9,7 @@ import {validateTaskPlan} from './plan-validator.mjs';
 import {startTask,captureTaskDiff,advanceTask} from './task-runner.mjs';
 import {verifyTask} from './task-verification.mjs';
 import {recordTaskReview} from './task-review.mjs';
-import {findValidApproval,activeCapabilities} from './approvals.mjs';
+import {findValidApproval,activeCapabilities,GATE_CAPABILITIES} from './approvals.mjs';
 import {ensureCiPassedBeforeDelivery,runLocalCiValidation} from './ci-guard.mjs';
 import {generatePrBody,generateChangelog} from './pr-generator.mjs';
 import {recordDelivery} from './git-delivery.mjs';
@@ -273,7 +273,7 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
       // Check GATE 1: Scope & Architecture Sign-off
       const is_strict=currentRun.profile==='STRICT';
       const is_full_design=modeResult.mode==='FULL'||modeResult.human_approval_required;
-      const has_human_approval=findValidApproval(currentRun,'design_human_approved');
+      const has_human_approval=findValidApproval(currentRun,GATE_CAPABILITIES.DESIGN_HUMAN_APPROVED);
 
       if((is_strict||is_full_design)&&!has_human_approval){
         return {
@@ -428,7 +428,7 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
       }
 
       // Check GATE 4: Pre-Commit & Push Approval
-      const has_delivery_approval=findValidApproval(currentRun,'delivery_commit_approved');
+      const has_delivery_approval=findValidApproval(currentRun,GATE_CAPABILITIES.DELIVERY_COMMIT_APPROVED);
       if(!has_delivery_approval){
         const pr_body=generatePrBody(projectRoot,currentRun);
         const changelog=generateChangelog(projectRoot,{version:'Next',tasks:listTasks(projectRoot,currentRun.run_id)});
@@ -460,7 +460,7 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
     // --- STAGE: DEPLOY ---
     if(stage==='DEPLOY'){
       // Check GATE 5: Privileged Production Deployment
-      const has_prod_approval=findValidApproval(currentRun,'deploy.production');
+      const has_prod_approval=findValidApproval(currentRun,GATE_CAPABILITIES.DEPLOY_PRODUCTION);
       if(!has_prod_approval){
         return {
           status:'PAUSED',

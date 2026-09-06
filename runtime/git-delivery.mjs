@@ -8,6 +8,7 @@ import path from 'node:path';
 import {git,gitSha,now,readJson,writeJson} from './util.mjs';
 import {stateDir} from './store.mjs';
 import {loadCiEvidence,ciEvidenceState} from './ci-evidence.mjs';
+import {GATE_CAPABILITIES} from './approvals.mjs';
 
 export const DELIVERY_TARGETS=['PR_READY','MERGED','RELEASE_READY'];
 const arr=x=>Array.isArray(x)?x:[];
@@ -59,7 +60,7 @@ export function isProtectedBranch(name){
  */
 export function checkPushTarget(branch,{approvals=[]}={}){
   if(!isProtectedBranch(branch))return {decision:'ALLOW',reason:'UNPROTECTED_BRANCH',branch};
-  const approved=arr(approvals).some(a=>a==='git.push_protected');
+  const approved=arr(approvals).some(a=>a===GATE_CAPABILITIES.GIT_PUSH_PROTECTED);
   return approved
     ?{decision:'APPROVAL_RECORDED',reason:'PROTECTED_BRANCH_WITH_EXPLICIT_APPROVAL',branch}
     :{decision:'DENY',reason:'PROTECTED_BRANCH_PUSH_DENIED_BY_DEFAULT',branch};

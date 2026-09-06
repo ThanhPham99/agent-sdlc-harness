@@ -109,7 +109,7 @@ export const commands={
       const run=await needRun();
       const capability=args.capability;
       if(!capability)throw new Error('--capability required');
-      const ticket=requestApprovalTicket(projectRoot,run,{
+      const ticket=requestApprovalTicket(ROOT,projectRoot,run,{
         capability,
         reason:args.reason||null,
         expiresInMinutes:args['expires-in']?Number(args['expires-in']):60

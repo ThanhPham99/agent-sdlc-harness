@@ -10,6 +10,62 @@ import {emit,saveRun,loadRun} from './store.mjs';
 export const TRUSTED_AUTHORITIES=['HOST_PERMISSION','USER_INTERACTIVE','ORG_POLICY','EXTERNAL_APPROVAL_PROVIDER'];
 export const UNTRUSTED_AUTHORITIES=['AGENT_SELF','DATA_ONLY','UNKNOWN'];
 
+/**
+ * The capability names the gates themselves check.
+ *
+ * These used to live as bare string literals at each gate site, so the name a
+ * caller had to request was discoverable only by reading the gate. Requesting
+ * `vcs.commit_push` instead of `delivery_commit_approved` produced a ticket
+ * that was granted, recorded, and matched by nothing -- an approval that reads
+ * as GRANTED in `run.approvals` while satisfying no gate at all. The gates now
+ * import these, so the registry below cannot drift from what they check.
+ */
+export const GATE_CAPABILITIES={
+  DESIGN_HUMAN_APPROVED:'design_human_approved',
+  DELIVERY_COMMIT_APPROVED:'delivery_commit_approved',
+  DEPLOY_PRODUCTION:'deploy.production',
+  GIT_PUSH_PROTECTED:'git.push_protected'
+};
+
+/**
+ * Every capability name the harness actually consumes, derived from the places
+ * that consume it rather than restated by hand:
+ *
+ * - the gate constants above,
+ * - `human_approval_required` in policies/security-policy.json,
+ * - tool ids in config/tools.json whose risk is privileged or irreversible,
+ * - evidence tokens in policies/stage-policy.json marked `human`, which
+ *   orchestrator.mjs satisfies with findValidApproval.
+ *
+ * A deployment that needs a new capability adds it to security-policy.json;
+ * that is a config edit, not a code change.
+ */
+export function knownCapabilities(root){
+  const caps=new Set(Object.values(GATE_CAPABILITIES));
+  const sec=readJson(path.join(root,'policies','security-policy.json'));
+  for(const c of sec.human_approval_required||[])caps.add(c);
+  const tools=readJson(path.join(root,'config','tools.json')).tools||{};
+  for(const [id,def] of Object.entries(tools)){
+    if(def?.risk==='privileged'||def?.risk==='irreversible')caps.add(id);
+  }
+  const stage=readJson(path.join(root,'policies','stage-policy.json'));
+  for(const [token,authority] of Object.entries(stage.evidence_authority||{})){
+    if(authority==='human')caps.add(token);
+  }
+  return [...caps].sort();
+}
+
+/**
+ * Refuse a capability nothing reads. `recordApproval` already refuses a
+ * wildcard and an untrusted authority outright rather than auditing the
+ * mistake afterwards; an unconsumed name belongs in the same category.
+ */
+export function assertKnownCapability(root,capability){
+  const known=knownCapabilities(root);
+  if(known.includes(capability))return capability;
+  throw new Error(`unknown capability ${capability}: no gate or policy consumes it. Valid capabilities are ${known.join(', ')}. To add one, list it under human_approval_required in policies/security-policy.json.`);
+}
+
 export function isPrivilegedCapability(root,capability){
   const sec=readJson(path.join(root,'policies','security-policy.json'));
   if((sec.human_approval_required||[]).includes(capability))return true;
@@ -21,6 +77,7 @@ export function isPrivilegedCapability(root,capability){
 export function recordApproval(root,projectRoot,run,{capability,authority,actor=null,reason=null,expiresAt=null}={}){
   if(!capability)throw new Error('capability is required');
   if(capability==='*')throw new Error('a wildcard capability is not permitted');
+  assertKnownCapability(root,capability);
   if(!TRUSTED_AUTHORITIES.includes(authority))throw new Error(`authority ${authority} cannot grant approval`);
   if(isPrivilegedCapability(root,capability)&&!expiresAt)throw new Error(`capability ${capability} is privileged and requires an expiry`);
   const record={approval_id:uuid('approval'),approval:capability,capability,authority,actor,reason,time:now(),expires_at:expiresAt,revoked_at:null};
@@ -77,8 +134,9 @@ export function listApprovals(run){
   return (run.approvals||[]).map(a=>({...a,status:approvalStatus(a)}));
 }
 
-export function requestApprovalTicket(projectRoot,run,{capability,reason=null,expiresInMinutes=60}={}){
+export function requestApprovalTicket(root,projectRoot,run,{capability,reason=null,expiresInMinutes=60}={}){
   if(!capability)throw new Error('capability is required');
+  assertKnownCapability(root,capability);
   const currentRun=loadRun(projectRoot,run.run_id);
   const ticketId=uuid('ticket');
   const expiresAt=new Date(Date.now()+Number(expiresInMinutes)*60000).toISOString();
