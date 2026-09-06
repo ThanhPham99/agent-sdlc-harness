@@ -7,6 +7,7 @@ import {initProject,saveRun,loadRun,putArtifact,listTasks,saveTask} from '../run
 import {newRun} from '../runtime/orchestrator.mjs';
 import {route} from '../runtime/router.mjs';
 import {runAutoPipeline,runAutoTaskLoop,HUMAN_GATES} from '../runtime/autonomous-runner.mjs';
+import {validateTaskPlan,PLAN_QUALITY_DEFAULTS} from '../runtime/plan-validator.mjs';
 import {detectProjectCi,runLocalCiValidation,ensureCiPassedBeforeDelivery} from '../runtime/ci-guard.mjs';
 import {requestApprovalTicket,grantApprovalTicket,listApprovalTickets} from '../runtime/approvals.mjs';
 import {execFileSync} from 'node:child_process';
@@ -186,6 +187,290 @@ await test('auto-pipeline-executes-low-risk-tasks-until-gate-4-pre-commit',async
   const finalRes=runAutoPipeline(ROOT,d,freshRun,{skipCiCheck:true});
   assert(finalRes.status==='COMPLETED','pipeline should finish to COMPLETED');
   assert(finalRes.current_stage==='CLOSE','final stage must be CLOSE');
+});
+
+await test('auto-pipeline-plans-a-repository-with-many-top-level-directories',async ()=>{
+  // A real repository has many top-level directories. detectWriteScope used to
+  // claim every one of them plus `*.*`, which put the single scaffolded task
+  // over plan-validator's giant_task_write_scope_threshold with no
+  // scope_justification -- so `agent-sdlc auto` threw at PLAN on any repository
+  // of ordinary size. Every other fixture here has one to three directories,
+  // which is why the suite never saw it.
+  const {scaffoldTaskPlan}=await import('../runtime/autonomous-runner.mjs');
+  const d=fixture('auto-wide-repo');
+  const dirs=['src','lib','app','pkg','internal','components','pages','test','tests','scripts','docs','config','tools','assets'];
+  for(const name of dirs){
+    fs.mkdirSync(path.join(d,name),{recursive:true});
+    fs.writeFileSync(path.join(d,name,'placeholder.js'),'export const placeholder = 1;\n');
+  }
+  execFileSync('git',['add','.'],{cwd:d});
+  execFileSync('git',['-c','user.email=test@test.local','-c','user.name=test','commit','-qm','wide'],{cwd:d});
+
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+
+  // The scaffold the pipeline would use must satisfy the gate that consumes it.
+  const scaffolded=scaffoldTaskPlan(run,d);
+  const validation=validateTaskPlan(scaffolded);
+  assert(validation.valid===true,`scaffolded plan for a ${dirs.length}-directory repository must validate, got ${JSON.stringify(validation.errors)}`);
+
+  const scope=scaffolded.tasks[0].write_scope;
+  assert(scope.includes('src/**'),'recognised source directories stay in scope');
+  assert(!scope.includes('docs/**')&&!scope.includes('assets/**')&&!scope.includes('config/**'),
+    'unrelated top-level directories must not be claimed when recognised source directories exist');
+  assert(!scope.includes('*.*'),'the inert wildcard entry is gone');
+
+  // End to end: the pipeline clears PLAN and stops where the low-risk pipeline
+  // stops, rather than throwing. A PLAN failure surfaces as an exception, not a
+  // status, so reaching this assertion at all is part of the regression.
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const workerCallback=(task)=>{
+    const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','helper.js'),'export function format() { return "date"; }\n');
+  };
+  const res=runAutoPipeline(ROOT,d,run,{workerCallback});
+  assert(res.status==='PAUSED','pipeline should reach the pre-commit gate');
+  assert(res.pause_gate===HUMAN_GATES.GATE_4_PRE_COMMIT_PUSH_APPROVAL,'paused gate must be GATE_4_PRE_COMMIT_PUSH_APPROVAL');
+  assert(res.current_stage==='RELEASE','paused stage must be RELEASE');
+});
+
+await test('scaffolded-scope-justifies-itself-only-when-the-recognised-set-is-that-wide',async ()=>{
+  // The justification branch, which the wide-repository case above never
+  // reaches: its fixture has ten recognised directories, so that assertion
+  // would pass with the branch deleted.
+  const {detectWriteScope,scaffoldTaskPlan}=await import('../runtime/autonomous-runner.mjs');
+  const d=makeTempDir('agent-sdlc-scope-justify-');
+  const recognised=['src','lib','app','apps','pkg','packages','internal','components','pages','cmd','api','server'];
+  for(const name of [...recognised,'docs','dist'])fs.mkdirSync(path.join(d,name),{recursive:true});
+
+  const scope=detectWriteScope(d);
+  assert(scope.length===recognised.length,`every recognised directory is in scope, got ${scope.length}`);
+  assert(scope.length>=PLAN_QUALITY_DEFAULTS.giant_task_write_scope_threshold,'this layout must be wide enough to need a justification');
+  assert(!scope.includes('docs/**')&&!scope.includes('dist/**'),'unrecognised directories stay out even at this width');
+
+  const plan=scaffoldTaskPlan({objective:'Add payment endpoint',profile:'STANDARD'},d);
+  const task=plan.tasks[0];
+  assert(typeof task.scope_justification==='string'&&task.scope_justification.length>0,
+    'a scope at or above the threshold must carry a scope_justification');
+  // The string is persisted into the plan artefact a human reads, so it has to
+  // describe the bound that was applied rather than claiming the whole tree.
+  assert(task.scope_justification.includes(`${scope.length} recognised source directories`),
+    `justification must state what was actually scoped, got: ${task.scope_justification}`);
+  assert(validateTaskPlan(plan).valid===true,'the justified plan must satisfy the PLAN gate');
+});
+
+await test('an-unrecognised-but-boundable-layout-scopes-to-the-directories-that-exist',async ()=>{
+  // The branch that used to hand back every directory plus a wildcard. It still
+  // scopes to the real directories -- a fixed conventional list would name
+  // directories that do not exist and put every worker write out of scope --
+  // but the wildcard is gone and nothing here justifies its own width.
+  const {detectWriteScope,scaffoldTaskPlan}=await import('../runtime/autonomous-runner.mjs');
+  const d=fixture('auto-opaque-repo');
+  const opaque=['engine','widgets','plumbing'];
+  for(const name of opaque){
+    fs.mkdirSync(path.join(d,name),{recursive:true});
+    fs.writeFileSync(path.join(d,name,'placeholder.js'),'export const placeholder = 1;\n');
+  }
+  execFileSync('git',['add','.'],{cwd:d});
+  execFileSync('git',['-c','user.email=test@test.local','-c','user.name=test','commit','-qm','opaque'],{cwd:d});
+
+  const scope=detectWriteScope(d);
+  assert(JSON.stringify([...scope].sort())===JSON.stringify(opaque.map(o=>`${o}/**`).sort()),
+    `an unrecognised layout scopes to what is there, got ${JSON.stringify(scope)}`);
+  assert(!scope.includes('*.*'),'the inert wildcard entry is gone');
+  const task=scaffoldTaskPlan({objective:'Tidy the engine',profile:'STANDARD'},d).tasks[0];
+  assert(task.scope_justification===undefined,'a scope this narrow needs no justification');
+
+  // The no-project-root default reaches the same recognised:false branch, and
+  // sits one entry under the threshold. If it ever crosses, a scaffold with no
+  // repository to read would route to a pause whose message talks about one.
+  const {resolveWriteScope}=await import('../runtime/autonomous-runner.mjs');
+  const noRoot=resolveWriteScope(null);
+  assert(noRoot.recognised===false,'the no-project-root default is not a recognised layout');
+  assert(noRoot.scopes.length<PLAN_QUALITY_DEFAULTS.giant_task_write_scope_threshold,
+    `the no-project-root default must stay under the giant-task threshold, got ${noRoot.scopes.length}`);
+
+  // The scope has to be usable, not merely valid: a worker writing into one of
+  // those directories must reach the pre-commit gate, not a scope violation.
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const workerCallback=(t)=>{
+    const ws=getTaskWorkspace(d,run.run_id,t.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'engine'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'engine','helper.js'),'export function format() { return "date"; }\n');
+  };
+  const res=runAutoPipeline(ROOT,d,run,{workerCallback});
+  assert(res.pause_gate===HUMAN_GATES.GATE_4_PRE_COMMIT_PUSH_APPROVAL,
+    `a write inside the detected scope must reach the pre-commit gate, stopped at ${res.pause_gate} in ${res.current_stage}`);
+});
+
+await test('an-unrecognised-and-unboundable-layout-pauses-at-gate-1',async ()=>{
+  // The case with no good automatic answer: too wide to bound, and nothing in
+  // the layout says which parts are source. Throwing is what made `auto`
+  // unusable; self-issuing a justification would be the runner approving its
+  // own reach. It asks instead.
+  const d=fixture('auto-unboundable-repo');
+  const opaque=['engine','widgets','plumbing','fixtures','glue','vendorized','ledger','conduit','marshal','beacon','satchel','quarry'];
+  for(const name of opaque)fs.mkdirSync(path.join(d,name),{recursive:true});
+  execFileSync('git',['add','.'],{cwd:d});
+  execFileSync('git',['-c','user.email=test@test.local','-c','user.name=test','commit','-qm','unboundable','--allow-empty'],{cwd:d});
+
+  const {detectWriteScope,scaffoldTaskPlan}=await import('../runtime/autonomous-runner.mjs');
+  const scope=detectWriteScope(d);
+  assert(scope.length>=PLAN_QUALITY_DEFAULTS.giant_task_write_scope_threshold,
+    `this layout must be too wide to bound, got ${scope.length}`);
+  const plan=scaffoldTaskPlan({objective:'Tidy the engine',profile:'STANDARD'},d);
+  assert(plan.tasks[0].scope_justification===undefined,'the unrecognised branch must not justify its own width');
+  const validation=validateTaskPlan(plan);
+  assert(validation.valid===false&&validation.errors.some(e=>e.code==='GIANT_TASK_WITHOUT_JUSTIFICATION'),
+    'the plan is meant to stay invalid so the runner has to ask');
+
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+  const res=runAutoPipeline(ROOT,d,run);
+  assert(res.status==='PAUSED','an unboundable scope must pause, not throw');
+  assert(res.pause_gate===HUMAN_GATES.GATE_1_SCOPE_AND_ARCHITECTURE,'paused gate must be GATE_1_SCOPE_AND_ARCHITECTURE');
+  assert(res.current_stage==='PLAN','paused stage must be PLAN');
+});
+
+await test('the-gate-1-scope-pause-names-a-recovery-that-actually-works',async ()=>{
+  // The pause tells the operator what to do next. Nothing else in the branch
+  // reads an approval and `agent-sdlc auto` has no plan flag, so the sequence
+  // in that message is the only recovery there is -- which makes it worth
+  // driving end to end rather than trusting the wording.
+  const {recordTaskPlan,materializeRunTasks,transition}=await import('../runtime/orchestrator.mjs');
+  const d=fixture('auto-gate1-recovery');
+  const opaque=['engine','widgets','plumbing','fixtures','glue','vendorized','ledger','conduit','marshal','beacon','satchel','quarry'];
+  for(const name of opaque)fs.mkdirSync(path.join(d,name),{recursive:true});
+  execFileSync('git',['add','.'],{cwd:d});
+  execFileSync('git',['-c','user.email=test@test.local','-c','user.name=test','commit','-qm','recovery','--allow-empty'],{cwd:d});
+
+  const r=route(ROOT,'Fix calculation bug in helper');
+  let run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+  const paused=runAutoPipeline(ROOT,d,run);
+  assert(paused.pause_gate===HUMAN_GATES.GATE_1_SCOPE_AND_ARCHITECTURE,'precondition: the run pauses for scope sign-off');
+  // The pause has to be self-describing: a caller that only reads the object
+  // still learns which scope was rejected and why.
+  assert(Array.isArray(paused.validation_errors)&&paused.validation_errors.some(e=>e.code==='GIANT_TASK_WITHOUT_JUSTIFICATION'),
+    'the pause carries the machine-readable reason');
+  assert(Array.isArray(paused.detected_write_scope)&&paused.detected_write_scope.length>=PLAN_QUALITY_DEFAULTS.giant_task_write_scope_threshold,
+    'the pause carries the scope that was rejected');
+
+  const authored={
+    schema:'agent-sdlc/task-plan/v1',
+    plan_id:'plan_authored_recovery',
+    objective:run.objective,
+    profile:run.profile||'STANDARD',
+    tasks:[{
+      task_id:'TASK-001',
+      title:'Fix the helper',
+      goal:'Correct the calculation in the engine helper',
+      done_conditions:['The helper returns the corrected value'],
+      category:'implementation',
+      depends_on:[],
+      write_scope:['engine/**'],
+      verification:{targeted_tests:['engine/placeholder.js'],expected_behavior:['The helper returns the corrected value']}
+    }]
+  };
+  run=loadRun(d,run.run_id);
+  const rec=recordTaskPlan(ROOT,d,run,authored);
+  assert(rec.recorded===true,`an authored bounded plan must be accepted, got ${JSON.stringify(rec.validation?.errors)}`);
+  materializeRunTasks(ROOT,d,run,authored);
+  // No evidence tokens and no internal flag: exactly what `agent-sdlc
+  // transition` does. The PLAN gate tokens all carry runtime authority, so
+  // asserting them by hand would bypass guardEvidenceAuthority and prove a
+  // path the documented command cannot take -- this has to pass on the
+  // evidence recordTaskPlan already persisted, or the message is wrong.
+  run=transition(ROOT,d,loadRun(d,run.run_id),'IMPLEMENT',{evidence:[]});
+
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const workerCallback=(t)=>{
+    const ws=getTaskWorkspace(d,run.run_id,t.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'engine'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'engine','placeholder.js'),'export const placeholder = 2;\n');
+  };
+  const resumed=runAutoPipeline(ROOT,d,run,{workerCallback});
+  assert(resumed.pause_gate!==HUMAN_GATES.GATE_1_SCOPE_AND_ARCHITECTURE,
+    `the documented recovery must clear the scope pause, still at ${resumed.pause_gate}`);
+  assert(resumed.current_stage!=='PLAN',`the run must be past PLAN, still at ${resumed.current_stage}`);
+});
+
+await test('a-plan-invalid-for-more-than-its-scope-is-not-reported-as-a-scope-question',async ()=>{
+  // The `every` in the pause predicate. If the scaffold is also invalid for
+  // unrelated reasons, calling it a scope sign-off question would bury the
+  // errors the operator can actually act on -- so it throws, as before.
+  const d=fixture('auto-multi-error');
+  const opaque=['engine','widgets','plumbing','fixtures','glue','vendorized','ledger','conduit','marshal','beacon','satchel','quarry'];
+  for(const name of opaque)fs.mkdirSync(path.join(d,name),{recursive:true});
+  execFileSync('git',['add','.'],{cwd:d});
+  execFileSync('git',['-c','user.email=test@test.local','-c','user.name=test','commit','-qm','multi','--allow-empty'],{cwd:d});
+
+  const r=route(ROOT,'Fix calculation bug in helper');
+  // An empty objective adds MISSING_OBJECTIVE alongside the giant-task error.
+  const run=newRun(ROOT,d,{objective:'',route:r});
+  let threw=null;
+  try{runAutoPipeline(ROOT,d,run);}catch(e){threw=e;}
+  assert(threw!==null,'a plan invalid for more than its scope must throw, not pause');
+  assert(threw.message.includes('MISSING_OBJECTIVE'),
+    `the error the operator can act on must survive, got: ${threw.message}`);
+});
+
+await test('a-caller-supplied-plan-gets-the-error-rather-than-the-scope-pause',async ()=>{
+  // The `!customPlan` in the pause predicate. A plan someone authored is not
+  // the runner's to renegotiate: its author is the one who can bound it, so
+  // they get the validation error rather than a gate pause.
+  const d=fixture('auto-custom-plan-error');
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+  const wide=Array.from({length:PLAN_QUALITY_DEFAULTS.giant_task_write_scope_threshold},(_,i)=>`area${i}/**`);
+  const customPlan={
+    schema:'agent-sdlc/task-plan/v1',
+    plan_id:'plan_custom_unbounded',
+    objective:run.objective,
+    profile:run.profile||'STANDARD',
+    tasks:[{
+      task_id:'TASK-001',
+      title:'Do the thing',
+      goal:'Do the thing everywhere',
+      done_conditions:['Done'],
+      category:'implementation',
+      depends_on:[],
+      write_scope:wide,
+      verification:{targeted_tests:['test/unit.test.js'],expected_behavior:['Done']}
+    }]
+  };
+  let threw=null;
+  try{runAutoPipeline(ROOT,d,run,{customPlan});}catch(e){threw=e;}
+  assert(threw!==null,'an authored plan must get the validation error, not the Gate 1 pause');
+  assert(threw.message.includes('GIANT_TASK_WITHOUT_JUSTIFICATION'),
+    `the error must name what is wrong with the authored plan, got: ${threw.message}`);
+});
+
+await test('write-scope-detection-is-case-insensitive-and-prefers-source-over-siblings',async ()=>{
+  const {detectWriteScope,resolveWriteScope}=await import('../runtime/autonomous-runner.mjs');
+  // .NET trees spell these Src/, Tests/ and Source/. Treating them as
+  // unrecognised would push a layout the list does know into the handling
+  // reserved for layouts it cannot read at all. Java needs no folding (Maven
+  // and Gradle are lowercase src/), and Unity is the wart the source comment
+  // names rather than a case this covers.
+  const cased=makeTempDir('agent-sdlc-scope-cased-');
+  for(const name of ['Src','Tests','Source'])fs.mkdirSync(path.join(cased,name),{recursive:true});
+  const casedResolved=resolveWriteScope(cased);
+  assert(casedResolved.recognised===true,'capitalised source directories must count as recognised');
+  assert(casedResolved.scopes.length===3&&casedResolved.scopes.includes('Src/**')&&casedResolved.scopes.includes('Tests/**'),
+    `the emitted glob keeps the directory's real casing, got ${JSON.stringify(casedResolved.scopes)}`);
+
+  // The deliberate tradeoff: a mixed layout narrows to what is recognised, so a
+  // worker touching backend/ trips a scope audit rather than passing silently.
+  const mixed=makeTempDir('agent-sdlc-scope-mixed-');
+  for(const name of ['src','backend'])fs.mkdirSync(path.join(mixed,name),{recursive:true});
+  assert(JSON.stringify(detectWriteScope(mixed))===JSON.stringify(['src/**']),
+    'a mixed layout scopes to the recognised directory only');
 });
 
 await test('gate-2-escalates-when-task-fails-verification-exceeding-attempts',async ()=>{

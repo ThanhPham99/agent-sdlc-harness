@@ -5,7 +5,7 @@ import {loadRun,saveRun,listTasks,loadTask,saveTask,emit} from './store.mjs';
 import {transition,recordDesignDecision,recordTaskPlan,materializeRunTasks,recordImplementationComplete,nextState} from './orchestrator.mjs';
 import {refreshReadiness} from './task-engine.mjs';
 import {selectDesignDiscoveryMode,scaffoldDesignDecision as builtinScaffoldDesignDecision} from './design-discovery.mjs';
-import {validateTaskPlan} from './plan-validator.mjs';
+import {validateTaskPlan,PLAN_QUALITY_DEFAULTS} from './plan-validator.mjs';
 import {startTask,captureTaskDiff,advanceTask} from './task-runner.mjs';
 import {verifyTask} from './task-verification.mjs';
 import {recordTaskReview} from './task-review.mjs';
@@ -50,20 +50,56 @@ export function detectExistingTestFile(projectRoot){
   return null;
 }
 
+// Top-level directory names that ordinarily hold code a task would be asked to
+// change. Everything else at the top level -- docs/, dist/, vendor/, assets/,
+// release/ -- is not somewhere an auto-scaffolded task should be handed write
+// access just because it exists. The comparison folds case for .NET trees,
+// which spell these Src/, Tests/ and Source/. It does not pretend to know every
+// ecosystem: a Unity tree matches Packages/ but not Assets/, so it narrows to
+// the wrong half rather than pausing -- the same tradeoff as any layout whose
+// real source root is not named here.
+const KNOWN_SOURCE_DIRS=new Set(['src','source','lib','app','apps','pkg','packages','internal','components',
+  'pages','cmd','api','server','client','services','core','runtime','test','tests','spec','__tests__','scripts']);
+
 /**
  * Detect common write scopes for the target project.
+ *
+ * This used to claim every top-level directory plus `*.*`. On any repository of
+ * ordinary size that is a dozen or more entries, which put the single
+ * scaffolded task over plan-validator's giant_task_write_scope_threshold with
+ * no scope_justification -- so `agent-sdlc auto` threw at the PLAN gate rather
+ * than running.
+ *
+ * The answer is a narrower scope, never a wider gate -- but a scope has to be
+ * usable, so an unrecognised layout still scopes to the directories that are
+ * actually there, minus `*.*` (coveredByWriteScope reduces that to an empty
+ * stem, so it never matched a root file and its only effect was to inflate the
+ * entry count). Returning a fixed conventional list for those repositories
+ * would name directories that do not exist and put every worker write out of
+ * scope.
+ *
+ * What must never happen is the runner handing itself the whole repository
+ * because it understood the layout least. resolveWriteScope therefore reports
+ * which branch it took, and only the recognised branch may justify its own
+ * width; an unrecognised layout that is too wide to bound is a scope sign-off
+ * question, which runAutoPipeline routes to Gate 1.
  */
 export function detectWriteScope(projectRoot){
+  return resolveWriteScope(projectRoot).scopes;
+}
+
+/** detectWriteScope plus the provenance the justification decision needs. */
+export function resolveWriteScope(projectRoot){
   const defaultScopes=['src/**','lib/**','runtime/**','app/**','pkg/**','internal/**','components/**','pages/**','test/**','tests/**','scripts/**'];
-  if(!projectRoot||!fs.existsSync(projectRoot))return defaultScopes;
+  if(!projectRoot||!fs.existsSync(projectRoot))return {scopes:defaultScopes,recognised:false};
   try{
     const entries=fs.readdirSync(projectRoot,{withFileTypes:true});
-    const dirs=entries.filter(e=>e.isDirectory()&&!e.name.startsWith('.')&&e.name!=='node_modules').map(e=>`${e.name}/**`);
-    if(dirs.length){
-      return [...new Set([...dirs,'*.*'])];
-    }
+    const dirs=entries.filter(e=>e.isDirectory()&&!e.name.startsWith('.')&&e.name!=='node_modules').map(e=>e.name);
+    const known=dirs.filter(d=>KNOWN_SOURCE_DIRS.has(d.toLowerCase())).map(d=>`${d}/**`);
+    if(known.length)return {scopes:known,recognised:true};
+    if(dirs.length)return {scopes:dirs.map(d=>`${d}/**`),recognised:false};
   }catch{}
-  return defaultScopes;
+  return {scopes:defaultScopes,recognised:false};
 }
 
 /**
@@ -71,7 +107,7 @@ export function detectWriteScope(projectRoot){
  */
 export function scaffoldTaskPlan(run,projectRoot=null){
   const detectedTest=projectRoot?detectExistingTestFile(projectRoot):null;
-  const scopes=projectRoot?detectWriteScope(projectRoot):['src/**','lib/**','runtime/**','app/**','test/**'];
+  const {scopes,recognised}=resolveWriteScope(projectRoot);
   return {
     schema:'agent-sdlc/task-plan/v1',
     plan_id:uuid('plan'),
@@ -91,7 +127,18 @@ export function scaffoldTaskPlan(run,projectRoot=null){
         verification:{
           targeted_tests:detectedTest?[detectedTest]:['test/unit.test.js'],
           expected_behavior:[`Objective completed and verified`]
-        }
+        },
+        // plan-validator refuses a write surface this wide without a stated
+        // reason, and it is right to. Only the recognised branch may answer it:
+        // there the width is a fact about the repository, and the reason can
+        // state the bound that was applied. An unrecognised layout this wide
+        // gets no justification from us -- the plan stays invalid on purpose,
+        // and runAutoPipeline turns that into a Gate 1 pause. Keying this on
+        // the branch rather than on scopes.length keeps the sentence from
+        // outliving its premise if either list changes.
+        ...(recognised&&scopes.length>=PLAN_QUALITY_DEFAULTS.giant_task_write_scope_threshold?{
+          scope_justification:`Auto-scaffolded plan: this repository has ${scopes.length} recognised source directories, which is at or above the plan-quality threshold. The scope is bounded to those directories -- unrecognised top-level directories are excluded -- but it is still a guess. Replace it with an authored plan before relying on it.`
+        }:{})
       }
     ]
   };
@@ -309,6 +356,30 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
       const plan=customPlan||scaffoldTaskPlan(currentRun,projectRoot);
       const rec=recordTaskPlan(root,projectRoot,currentRun,plan);
       if(!rec.recorded){
+        // A scaffold that cannot bound its own write scope is asking a scope
+        // question, not reporting a crash. Throwing here is what made `auto`
+        // unusable on ordinary repositories; widening the scope until the gate
+        // accepts it would be the runner approving its own reach. Neither: ask
+        // a human, which is what Gate 1 is for. A caller-supplied plan gets the
+        // error, because its author is the one who can fix it.
+        //
+        // `every`, not `some`: a plan that is also invalid for unrelated
+        // reasons is not a scope question, and telling the operator it is one
+        // would bury the errors they can actually act on.
+        const errs=rec.validation.errors;
+        const unbounded=!customPlan&&errs.length>0&&errs.every(e=>e.code==='GIANT_TASK_WITHOUT_JUSTIFICATION');
+        if(unbounded){
+          return {
+            status:'PAUSED',
+            current_stage:'PLAN',
+            pause_gate:HUMAN_GATES.GATE_1_SCOPE_AND_ARCHITECTURE,
+            run:currentRun,
+            stage_steps:stageSteps,
+            detected_write_scope:plan.tasks?.[0]?.write_scope??[],
+            validation_errors:errs,
+            message:'No source layout could be inferred for this repository, so an auto-scaffolded plan cannot bound its write scope. Author a plan and hand it to the run: `agent-sdlc plan record --run-id <id> --file <plan.json>`, then `agent-sdlc task materialize --run-id <id> --file <plan.json>`, then `agent-sdlc transition --run-id <id> --to IMPLEMENT`. `agent-sdlc auto` resumes from there. Re-running `auto` without those steps scaffolds the same unbounded plan and stops here again.'
+          };
+        }
         throw new Error(`Task plan validation failed: ${JSON.stringify(rec.validation.errors)}`);
       }
       materializeRunTasks(root,projectRoot,currentRun,plan);
