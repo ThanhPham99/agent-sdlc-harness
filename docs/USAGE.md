@@ -296,3 +296,118 @@ earns its own evidence at every stage — this is honest signal about what chang
 surfaced in its context manifest as `requirement_update`, not an automatic replay shortcut.
 
 See `docs/architecture/REPOSITORY-INTELLIGENCE.md` and `docs/architecture/TRACEABILITY-GRAPH.md`.
+
+## 12. Autonomous execution (v3.0.0-rc1)
+
+```bash
+./bin/agent-sdlc auto      --run-id <id> [--skip-ci]
+./bin/agent-sdlc auto-task --run-id <id> [--writer <path>]
+./bin/agent-sdlc ci-check  --run-id <id> [--detect] [--command "<cmd>"]
+```
+
+`auto` drives the stage machine until the run completes or reaches a human
+gate; `--skip-ci` bypasses the Gate 4 CI check for cases where CI is already
+known-good. `auto-task` runs only the scheduling / verification / review loop
+inside IMPLEMENT; `--writer` overrides which provider writes the task's diff.
+
+Both return `status: "PAUSED"` with a `pause_gate` at the five human gates:
+scope and architecture sign-off; escalation after repeated verification failure;
+a security or compliance exception; pre-commit and push approval; a privileged
+production action. A pause is not an error — it is where the runner stops
+deciding for you.
+
+`ci-check` runs the project's configured local CI commands and records the
+result; Gate 4 requires it to pass before asking for commit and push approval.
+`--detect` only reports what CI setup was found, without running it.
+`--command` overrides the detected command with a literal string, split on
+spaces.
+
+## 13. Operating a run
+
+```bash
+./bin/agent-sdlc dashboard [--out <path>] [--tui] [--serve --port <n> --host <h>]
+./bin/agent-sdlc serve [--port <n>] [--host <h>]
+./bin/agent-sdlc webhook list
+./bin/agent-sdlc webhook test --url <url> [--secret <secret>]
+./bin/agent-sdlc rewind --run-id <id> (--to-stage <stage> | --to-task <taskId>) [--preserve-evidence]
+./bin/agent-sdlc review audit [--paths <a,b,c>] [--strict]
+./bin/agent-sdlc completion <bash|zsh|pwsh>
+```
+
+`dashboard` writes a static HTML snapshot of run and task status to
+`.agent-sdlc/dashboard.html` (or `--out`); `--tui` renders the same data as text
+instead; `--serve` (or `--watch`/`--web`) starts the live dashboard server
+in-process rather than writing a file. `serve` starts that same built-in live
+dashboard with an SSE event stream directly, defaulting to `127.0.0.1:4100`.
+
+`webhook list` prints the project's configured webhooks. `webhook test` posts a
+probe payload to `--url`, signed with `--secret` if one is configured, and
+reports the delivery result.
+
+`rewind` returns a run to an earlier checkpoint: `--to-stage` rewinds to the
+start of a named stage, `--to-task` rewinds to before a specific task, and
+exactly one of the two is required. `--preserve-evidence` keeps evidence
+recorded after the checkpoint instead of discarding it.
+
+`review audit` reports the review evidence recorded against the codebase;
+`--paths` scopes it to a comma-separated list of paths (`--path` for a single
+one), and `--strict` makes any finding a failing exit code. `completion` emits
+a shell completion script for the given shell — only `bash`, `zsh`, and `pwsh`
+(alias `powershell`) are implemented; any other value is rejected.
+
+## 14. Inspecting a run
+
+```bash
+./bin/agent-sdlc status  --run-id <id> [--pretty]
+./bin/agent-sdlc explain --run-id <id>
+./bin/agent-sdlc diff    --run-id <id>
+./bin/agent-sdlc next    --run-id <id>
+```
+
+`status` prints the run record as JSON, or as a short human-readable summary
+with `--pretty`. `explain` reports the current stage, the next stage, the gate
+decision with its missing/stale evidence, a task-status summary, and a
+plain-language recommendation for what to do next. `diff` reports `git diff
+--stat` for the project working tree alongside the run's stage and artifact
+count. `next` reports the stage the orchestrator would transition to from the
+run's current state.
+
+## 15. Artifacts and handoffs by reference
+
+```bash
+./bin/agent-sdlc artifact-get  --ref <artifactId>
+./bin/agent-sdlc artifact-list
+./bin/agent-sdlc handoff-get   --id <handoffId>
+./bin/agent-sdlc handoff-list  [--run-id <id>]
+```
+
+`artifact-get` and `handoff-get` fetch one record by its id; `artifact-list`
+lists every artifact in the project store, and `handoff-list` lists handoffs,
+optionally scoped to one run with `--run-id`.
+
+## 16. Recording usage directly
+
+```bash
+./bin/agent-sdlc usage-add --run-id <id> --provider <name> --model <name> \
+    [--input <n>] [--cached <n>] [--output <n>] [--reasoning <n>] [--wall-ms <n>] [--source <name>]
+```
+
+`usage-add` appends one usage record to the run's cost ledger without going
+through a provider invocation — for a manual or externally-run turn whose
+tokens still need to be accounted for. Every token/time flag defaults to `0`
+when omitted.
+
+## 17. Direct provider invocation
+
+```bash
+./bin/agent-sdlc provider-probe   [--host <claude|codex|antigravity>]
+./bin/agent-sdlc provider-command --run-id <id> --host <name>
+./bin/agent-sdlc provider-run     --run-id <id> --host <name>
+```
+
+`provider-probe` reports each host's detected capabilities; with no `--host` it
+probes `claude`, `codex`, and `antigravity`. `provider-command` builds the
+invocation (prompt, schema, turn/wall-time limits) for a host without running
+it — useful for constructing the call by hand. `provider-run` builds the same
+invocation and actually runs it against the host, then records a
+`provider.completed` event on the run with its status and wall time.
