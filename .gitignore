@@ -5,6 +5,7 @@ node_modules/
 *.log
 .tmp/
 .claude/
+.superpowers/
 
 # Where scripts/qualify-host.mjs writes each measurement it takes. Working
 # output, not evidence: the deliberate artifact is the promoted copy under
