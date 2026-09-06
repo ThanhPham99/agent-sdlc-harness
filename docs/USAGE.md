@@ -329,7 +329,7 @@ spaces.
 ./bin/agent-sdlc serve [--port <n>] [--host <h>]
 ./bin/agent-sdlc webhook list
 ./bin/agent-sdlc webhook test --url <url> [--secret <secret>]
-./bin/agent-sdlc rewind --run-id <id> (--to-stage <stage> | --to-task <taskId>) [--preserve-evidence]
+./bin/agent-sdlc rewind --run-id <id> [--to-stage <stage>] [--to-task <taskId>] [--preserve-evidence]
 ./bin/agent-sdlc review audit [--paths <a,b,c>] [--strict]
 ./bin/agent-sdlc completion <bash|zsh|pwsh>
 ```
@@ -345,15 +345,24 @@ probe payload to `--url`, signed with `--secret` if one is configured, and
 reports the delivery result.
 
 `rewind` returns a run to an earlier checkpoint: `--to-stage` rewinds to the
-start of a named stage, `--to-task` rewinds to before a specific task, and
-exactly one of the two is required. `--preserve-evidence` keeps evidence
-recorded after the checkpoint instead of discarding it.
+start of a named stage, `--to-task` rewinds to before a specific task, and at
+least one of the two is required (both are forwarded if both are given).
+`--preserve-evidence` keeps evidence recorded after the checkpoint instead of
+discarding it.
 
-`review audit` reports the review evidence recorded against the codebase;
-`--paths` scopes it to a comma-separated list of paths (`--path` for a single
-one), and `--strict` makes any finding a failing exit code. `completion` emits
-a shell completion script for the given shell — only `bash`, `zsh`, and `pwsh`
-(alias `powershell`) are implemented; any other value is rejected.
+`review audit` does not read recorded evidence; it re-scans the given paths
+against a fixed rule set and computes a fresh scorecard each time it runs
+(`runtime/review-engine.mjs`). `--paths` scopes the scan to a comma-separated
+list of paths (`--path` for a single one). The scan is `PASS` only when it
+finds zero security-dimension matches *and* the weighted overall score is at
+least 75; any security finding forces non-`PASS` regardless of the score, but
+performance/architecture/reliability findings alone can still leave the score
+at or above 75 and pass. A non-`PASS` result is `FAIL` with `--strict` and
+`WARN` without it — `runtime/commands/delivery.mjs` only sets a non-zero exit
+code on `FAIL`, so without `--strict` a failing audit can never fail the
+command. `completion` emits a shell completion script for the given shell —
+only `bash`, `zsh`, and `pwsh` (alias `powershell`) are implemented; any other
+value is rejected.
 
 ## 14. Inspecting a run
 

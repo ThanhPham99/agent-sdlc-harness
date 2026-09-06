@@ -116,17 +116,26 @@ if(ps1Body&&!/\$args/.test(ps1Body))problems.push('bin/agent-sdlc.ps1 does not f
 if(ps1Body&&!/LASTEXITCODE/.test(ps1Body))problems.push('bin/agent-sdlc.ps1 does not propagate the exit code');
 
 // --- registry vs the documentation -----------------------------------------
-// Nine top-level commands shipped with no mention anywhere in docs/ -- `auto`
-// and `ci-check` among them, which are the headline of the release they shipped
-// in. Nothing caught it because this suite checked the registry against the
-// code and the generated help, and never against the reference an operator
-// actually reads. A command is documented when some file under docs/ mentions
-// it as `agent-sdlc <name>`: that is the form every existing section uses, and
-// it is specific enough that a passing mention of the bare word does not count.
+// Nine top-level commands (auto, auto-task, ci-check, rewind, serve, dashboard,
+// webhook, completion, review) shipped with no mention in any file a user
+// actually reads for reference, including auto and ci-check, the headline of
+// the release they shipped in. Nothing caught it because this suite checked
+// the registry against the code and the generated help, never against the
+// docs. A first pass over all of docs/ produced a different, non-overlapping
+// list of twelve, because docs/superpowers/plans/2026-09-07-surface-coverage.md
+// -- an SDD planning artifact, not reference documentation -- already
+// contained this very brief's skeleton text and so satisfied the check for
+// those nine by accident. docs/superpowers/** is excluded below for that
+// reason: it holds working documents about the docs, not the docs an operator
+// reads. A command is documented when some file under the remaining reference
+// trees mentions it as `agent-sdlc <name>` with nothing else -- not even a
+// hyphen -- immediately after the name, so `ci-check` cannot satisfy the check
+// for `ci` and `auto-task` cannot satisfy it for `auto`.
 const docsDir=path.join(ROOT,'docs');
 const docFiles=[];
 (function walk(dir){
   for(const e of fs.readdirSync(dir,{withFileTypes:true})){
+    if(e.isDirectory()&&e.name==='superpowers'&&dir===docsDir)continue;
     const p=path.join(dir,e.name);
     if(e.isDirectory())walk(p);
     else if(e.name.endsWith('.md'))docFiles.push(p);
@@ -135,10 +144,10 @@ const docFiles=[];
 const docsText=docFiles.map(f=>fs.readFileSync(f,'utf8')).join('\n');
 const documented=[];const undocumented=[];
 for(const name of COMMAND_NAMES){
-  (new RegExp(`agent-sdlc\\s+${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`).test(docsText)?documented:undocumented).push(name);
+  (new RegExp(`agent-sdlc\\s+${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?![-\\w])`).test(docsText)?documented:undocumented).push(name);
 }
 for(const name of undocumented){
-  problems.push(`command \`${name}\` is registered but appears in no file under docs/ as \`agent-sdlc ${name}\``);
+  problems.push(`command \`${name}\` is registered but appears in no file under docs/ (excluding docs/superpowers/) as \`agent-sdlc ${name}\``);
 }
 
 const report={
