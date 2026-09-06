@@ -115,11 +115,39 @@ const ps1Body=shimCode.get('agent-sdlc.ps1')||'';
 if(ps1Body&&!/\$args/.test(ps1Body))problems.push('bin/agent-sdlc.ps1 does not forward its arguments ($args)');
 if(ps1Body&&!/LASTEXITCODE/.test(ps1Body))problems.push('bin/agent-sdlc.ps1 does not propagate the exit code');
 
+// --- registry vs the documentation -----------------------------------------
+// Nine top-level commands shipped with no mention anywhere in docs/ -- `auto`
+// and `ci-check` among them, which are the headline of the release they shipped
+// in. Nothing caught it because this suite checked the registry against the
+// code and the generated help, and never against the reference an operator
+// actually reads. A command is documented when some file under docs/ mentions
+// it as `agent-sdlc <name>`: that is the form every existing section uses, and
+// it is specific enough that a passing mention of the bare word does not count.
+const docsDir=path.join(ROOT,'docs');
+const docFiles=[];
+(function walk(dir){
+  for(const e of fs.readdirSync(dir,{withFileTypes:true})){
+    const p=path.join(dir,e.name);
+    if(e.isDirectory())walk(p);
+    else if(e.name.endsWith('.md'))docFiles.push(p);
+  }
+})(docsDir);
+const docsText=docFiles.map(f=>fs.readFileSync(f,'utf8')).join('\n');
+const documented=[];const undocumented=[];
+for(const name of COMMAND_NAMES){
+  (new RegExp(`agent-sdlc\\s+${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`).test(docsText)?documented:undocumented).push(name);
+}
+for(const name of undocumented){
+  problems.push(`command \`${name}\` is registered but appears in no file under docs/ as \`agent-sdlc ${name}\``);
+}
+
 const report={
   schema:'agent-sdlc/cli-surface-validation/v1',
   version:VERSION,
   commands:[...COMMAND_NAMES].sort(),
   command_count:COMMAND_NAMES.length,
+  documented_count:documented.length,
+  undocumented:undocumented.sort(),
   groups:GROUP_NAMES,
   help_generated:true,
   subcommand_groups:subRows.sort((a,b)=>a.command.localeCompare(b.command)),
