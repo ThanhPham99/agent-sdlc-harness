@@ -125,29 +125,70 @@ if(ps1Body&&!/LASTEXITCODE/.test(ps1Body))problems.push('bin/agent-sdlc.ps1 does
 // list of twelve, because docs/superpowers/plans/2026-09-07-surface-coverage.md
 // -- an SDD planning artifact, not reference documentation -- already
 // contained this very brief's skeleton text and so satisfied the check for
-// those nine by accident. docs/superpowers/** is excluded below for that
-// reason: it holds working documents about the docs, not the docs an operator
-// reads. A command is documented when some file under the remaining reference
-// trees mentions it as `agent-sdlc <name>` with nothing else -- not even a
-// hyphen -- immediately after the name, so `ci-check` cannot satisfy the check
-// for `ci` and `auto-task` cannot satisfy it for `auto`.
+// those nine by accident.
+//
+// A naive "everything under docs/ except docs/superpowers/" rule repeated
+// that mistake one layer up: docs/releases/*.md and status documents like
+// docs/IMPLEMENTATION-STATUS.md and docs/CORPUS-DECISIONS.md also narrate
+// commands in passing without teaching an operator how to use them, and a
+// release note is the single likeliest place a brand-new command gets its
+// first `agent-sdlc <name>` mention -- which would turn this gate green
+// before docs/USAGE.md ever learns the command exists. That is the exact
+// failure this gate exists to catch, so selection is by explicit
+// classification, not by exclusion: every markdown file under docs/ is
+// either in REFERENCE_TREES (an operator-facing manual an operator actually
+// reads to learn a command) or NON_REFERENCE_PATHS (a working document about
+// the project -- plans, specs, release announcements, status snapshots --
+// that mentions commands without documenting them). A path matching neither
+// list fails the gate outright: adding a new subtree under docs/ must force
+// a decision about which bucket it belongs to, not silently widen what
+// counts as documentation.
+//
+// A command is documented when some reference file mentions it as
+// `agent-sdlc <name>` with nothing else -- not even a hyphen -- immediately
+// after the name, so `ci-check` cannot satisfy the check for `ci` and
+// `auto-task` cannot satisfy it for `auto`.
 const docsDir=path.join(ROOT,'docs');
+const REFERENCE_TREES=['architecture/','compatibility/','guides/','runbooks/','threat-model/'];
+const REFERENCE_FILES=new Set([
+  'AUTO-ACTIVATION.md','CONFIGURATION.md','GITHUB-DISTRIBUTION.md','INSTALLATION.md',
+  'MCP-AND-TOOLS.md','MIGRATION.md','QUICKSTART.md','TUTORIAL-STEP-BY-STEP.md','USAGE.md',
+]);
+const NON_REFERENCE_TREES=['superpowers/','releases/'];
+const NON_REFERENCE_FILES=new Set([
+  'IMPLEMENTATION-STATUS.md','CORPUS-DECISIONS.md','EVALS.md','QUALIFICATION.md',
+]);
+function classify(rel){
+  const posixRel=rel.split(path.sep).join('/');
+  if(NON_REFERENCE_TREES.some(t=>posixRel.startsWith(t))||NON_REFERENCE_FILES.has(posixRel))return'non-reference';
+  if(REFERENCE_TREES.some(t=>posixRel.startsWith(t))||REFERENCE_FILES.has(posixRel))return'reference';
+  return null;
+}
 const docFiles=[];
+const nonReferenceFiles=[];
+const unclassifiedFiles=[];
 (function walk(dir){
   for(const e of fs.readdirSync(dir,{withFileTypes:true})){
-    if(e.isDirectory()&&e.name==='superpowers'&&dir===docsDir)continue;
     const p=path.join(dir,e.name);
-    if(e.isDirectory())walk(p);
-    else if(e.name.endsWith('.md'))docFiles.push(p);
+    if(e.isDirectory()){walk(p);continue;}
+    if(!e.name.endsWith('.md'))continue;
+    const rel=path.relative(docsDir,p);
+    const kind=classify(rel);
+    if(kind==='reference')docFiles.push(p);
+    else if(kind==='non-reference')nonReferenceFiles.push(rel);
+    else unclassifiedFiles.push(rel);
   }
 })(docsDir);
+for(const rel of unclassifiedFiles){
+  problems.push(`docs/${rel.split(path.sep).join('/')} is neither a known reference tree nor a known non-reference path -- classify it in scripts/validate-cli-surface.mjs before it can count toward the documentation gate`);
+}
 const docsText=docFiles.map(f=>fs.readFileSync(f,'utf8')).join('\n');
 const documented=[];const undocumented=[];
 for(const name of COMMAND_NAMES){
   (new RegExp(`agent-sdlc\\s+${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}(?![-\\w])`).test(docsText)?documented:undocumented).push(name);
 }
 for(const name of undocumented){
-  problems.push(`command \`${name}\` is registered but appears in no file under docs/ (excluding docs/superpowers/) as \`agent-sdlc ${name}\``);
+  problems.push(`command \`${name}\` is registered but appears in no reference file under docs/ as \`agent-sdlc ${name}\``);
 }
 
 const report={
@@ -157,6 +198,8 @@ const report={
   command_count:COMMAND_NAMES.length,
   documented_count:documented.length,
   undocumented:undocumented.sort(),
+  reference_docs:docFiles.map(f=>path.relative(docsDir,f).split(path.sep).join('/')).sort(),
+  non_reference_docs:nonReferenceFiles.map(f=>f.split(path.sep).join('/')).sort(),
   groups:GROUP_NAMES,
   help_generated:true,
   subcommand_groups:subRows.sort((a,b)=>a.command.localeCompare(b.command)),

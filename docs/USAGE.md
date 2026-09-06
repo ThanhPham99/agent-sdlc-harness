@@ -332,6 +332,7 @@ spaces.
 ./bin/agent-sdlc rewind --run-id <id> [--to-stage <stage>] [--to-task <taskId>] [--preserve-evidence]
 ./bin/agent-sdlc review audit [--paths <a,b,c>] [--strict]
 ./bin/agent-sdlc completion <bash|zsh|pwsh>
+./bin/agent-sdlc completion --shell <bash|zsh|pwsh>
 ```
 
 `dashboard` writes a static HTML snapshot of run and task status to
@@ -362,7 +363,9 @@ at or above 75 and pass. A non-`PASS` result is `FAIL` with `--strict` and
 code on `FAIL`, so without `--strict` a failing audit can never fail the
 command. `completion` emits a shell completion script for the given shell —
 only `bash`, `zsh`, and `pwsh` (alias `powershell`) are implemented; any other
-value is rejected.
+value is rejected. The shell can be given positionally (`completion bash`) or
+as `--shell bash`; running `completion` with neither silently defaults to
+`bash` rather than erroring.
 
 ## 14. Inspecting a run
 
