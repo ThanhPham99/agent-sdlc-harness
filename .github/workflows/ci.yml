@@ -112,6 +112,8 @@ jobs:
         run: npm run test:autonomous-runner
       - name: State directory layout authority
         run: npm run test:layout
+      - name: Layout v1 to v2 migration
+        run: npm run test:layout-migration
       - name: Cache subtree is regenerable
         run: npm run test:cache-regeneration
       - name: Human-readable documentation generator
@@ -246,6 +248,8 @@ jobs:
         run: npm run test:autonomous-runner
       - name: State directory layout authority
         run: npm run test:layout
+      - name: Layout v1 to v2 migration
+        run: npm run test:layout-migration
       - name: Cache subtree is regenerable
         run: npm run test:cache-regeneration
       - name: Human-readable documentation generator

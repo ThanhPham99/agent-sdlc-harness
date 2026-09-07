@@ -46,6 +46,7 @@
     "test:ci-coverage": "node scripts/validate-ci-coverage.mjs",
     "test:syntax": "node scripts/validate-syntax.mjs",
     "test:layout": "node scripts/test-layout.mjs",
+    "test:layout-migration": "node scripts/test-layout-migration.mjs",
     "test:layout-boundary": "node scripts/test-layout-boundary.mjs",
     "test:cache-regeneration": "node scripts/test-cache-regeneration.mjs",
     "test:coding-standards": "node scripts/test-coding-standards.mjs",
