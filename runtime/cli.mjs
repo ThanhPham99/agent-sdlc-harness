@@ -41,14 +41,26 @@ function need(flag){
   return v;
 }
 
+// `--run-id` is required only when the project cannot answer the question
+// itself. `start` records the run it created as active, so the commands the
+// slash commands and the orchestrator actually invoke -- status, next, task
+// list, task resume, delivery status -- resolve it and work with no flag at
+// all. An explicit --run-id still wins, so every existing caller is unchanged.
+async function needRunId(){
+  const {resolveRunId}=await import('./store.mjs');
+  const runId=resolveRunId(projectRoot,args['run-id']);
+  if(!runId)throw new Error('--run-id required (no run found in this project; run `agent-sdlc start` first)');
+  return runId;
+}
+
 async function needRun(){
-  const runId=need('run-id');
+  const runId=await needRunId();
   const {loadRun}=await import('./store.mjs');
   return loadRun(projectRoot,runId);
 }
 
 /** Everything a handler is allowed to reach. Handlers take this and print. */
-const ctx={args,ROOT,projectRoot,print,need,needRun};
+const ctx={args,ROOT,projectRoot,print,need,needRun,needRunId};
 
 async function main(){
   try{

@@ -2,7 +2,7 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import {listRuns,listTasks,loadRun,loadState,projectConfig} from './store.mjs';
+import {listRuns,listTasks,loadRun,loadState,projectConfig,resolveRunId} from './store.mjs';
 import {generateDashboardHtml} from './commands/dashboard.mjs';
 import {metrics as getMetrics} from './telemetry.mjs';
 import {readJson,rootFrom} from './util.mjs';
@@ -229,8 +229,7 @@ export function startServer(projectRoot, { port = 4100, host = '127.0.0.1' } = {
     }
 
     if (pathname === '/api/run') {
-      const state = loadState(projectRoot);
-      const runId = url.searchParams.get('run_id') || state.active_run_id || (listRuns(projectRoot)[0]);
+      const runId = resolveRunId(projectRoot, url.searchParams.get('run_id'));
       if (!runId) {
         res.writeHead(404, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'No run found' }));
@@ -244,8 +243,7 @@ export function startServer(projectRoot, { port = 4100, host = '127.0.0.1' } = {
     }
 
     if (pathname === '/api/dag') {
-      const state = loadState(projectRoot);
-      const runId = url.searchParams.get('run_id') || state.active_run_id || (listRuns(projectRoot)[0]);
+      const runId = resolveRunId(projectRoot, url.searchParams.get('run_id'));
       const tasks = runId ? listTasks(projectRoot, runId) : [];
       const { renderTaskDagMermaid } = await import('./task-scheduler.mjs');
       const mermaid = renderTaskDagMermaid(tasks);
@@ -261,8 +259,7 @@ export function startServer(projectRoot, { port = 4100, host = '127.0.0.1' } = {
     }
 
     if (pathname === '/api/trace') {
-      const state = loadState(projectRoot);
-      const runId = url.searchParams.get('run_id') || state.active_run_id || (listRuns(projectRoot)[0]);
+      const runId = resolveRunId(projectRoot, url.searchParams.get('run_id'));
       const { loadTraceabilityGraph, renderTraceabilityMermaid } = await import('./traceability.mjs');
       const graph = runId ? loadTraceabilityGraph(projectRoot, runId) : null;
       const mermaid = graph ? renderTraceabilityMermaid(graph) : 'graph TD\n  Empty["(No Traceability Graph)"]';

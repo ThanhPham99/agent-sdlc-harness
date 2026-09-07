@@ -6,8 +6,7 @@ import http from 'node:http';
 import {fileURLToPath} from 'node:url';
 import {execFileSync} from 'node:child_process';
 import {createSuite} from './lib/suite.mjs';
-import {initProject,loadRun,saveRun,loadState,listTasks,saveTask,saveTaskGraph,stateDir} from '../runtime/store.mjs';
-import {writeJson} from '../runtime/util.mjs';
+import {initProject,loadRun,saveRun,loadState,listTasks,saveTask,saveTaskGraph} from '../runtime/store.mjs';
 import {newRun,transition} from '../runtime/orchestrator.mjs';
 import {route} from '../runtime/router.mjs';
 import {rewindRun} from '../runtime/rewind.mjs';
@@ -271,7 +270,11 @@ await test('commands-delivery-and-ci-and-repo-handlers',async ()=>{
   const r=route(ROOT,'Delivery Commands Test');
   const run=newRun(ROOT,d,{objective:'Delivery Commands Test',route:r});
 
-  writeJson(path.join(stateDir(d),'state.json'),{active_run_id:run.run_id,workflow:run.workflow});
+  // `start` is what makes a run the active one, so this asserts rather than
+  // writes. Hand-writing active_run_id here is what previously hid the fact
+  // that no production code path ever set it: five readers in the runtime,
+  // and the only writer was this fixture.
+  assert(loadState(d).active_run_id===run.run_id,'newRun must record the run it created as active');
 
   // delivery targets
   let targetsOut=null;

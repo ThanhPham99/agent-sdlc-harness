@@ -66,13 +66,32 @@ function gitBranch(startDir){
   return null;
 }
 
+// The statusline names the run the project is on, which is the run `start`
+// recorded as active. Run ids are UUIDs, so the readdir order is alphabetical
+// and unrelated to age -- picking the last filename showed whichever run
+// happened to sort highest, not the current one. The fallback for a project
+// whose state predates `active_run_id` sorts on `created_at` instead.
+//
+// This hook stays free of runtime imports so it cannot slow down or break a
+// prompt; that is why it repeats the resolution in store.mjs rather than
+// importing resolveRunId.
 function activeSdlcStage(startDir){
   try{
-    const runsDir=path.join(startDir,'.agent-sdlc','runs');
+    const stateDir=path.join(startDir,'.agent-sdlc');
+    const runsDir=path.join(stateDir,'runs');
     if(!fs.existsSync(runsDir))return null;
-    const files=fs.readdirSync(runsDir).filter(x=>x.endsWith('.json')).sort();
-    if(!files.length)return null;
-    const run=JSON.parse(fs.readFileSync(path.join(runsDir,files[files.length-1]),'utf8'));
+    const readRun=id=>{try{return JSON.parse(fs.readFileSync(path.join(runsDir,`${id}.json`),'utf8'));}catch{return null;}};
+    let run=null;
+    try{
+      const active=JSON.parse(fs.readFileSync(path.join(stateDir,'state.json'),'utf8')).active_run_id;
+      if(active)run=readRun(active);
+    }catch{}
+    if(!run){
+      const runs=fs.readdirSync(runsDir).filter(x=>x.endsWith('.json'))
+        .map(f=>readRun(f.replace(/\.json$/,''))).filter(Boolean)
+        .sort((a,b)=>String(a.created_at||'')<String(b.created_at||'')?-1:1);
+      run=runs.length?runs[runs.length-1]:null;
+    }
     if(run&&run.workflow&&run.state){
       return `sdlc:${run.workflow}@${run.state}`;
     }

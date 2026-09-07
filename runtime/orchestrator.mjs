@@ -1,6 +1,6 @@
 import path from 'node:path';
 import {now,readJson,uuid} from './util.mjs';
-import {emit,saveRun,loadTaskGraph,listTasks} from './store.mjs';
+import {emit,saveRun,setActiveRun,loadTaskGraph,listTasks} from './store.mjs';
 import {validateDesignDecision,evaluateDesignGate,getDesignDiscoveryPolicy} from './design-discovery.mjs';
 import {validateTaskPlan,planGateEvidence} from './plan-validator.mjs';
 import {materializeTaskGraph,taskProgress} from './task-engine.mjs';
@@ -45,6 +45,10 @@ export function newRun(root,projectRoot,{objective,route,featureId=null,phaseId=
   const run={schema:'agent-sdlc/run/v1',run_id:uuid('run'),objective,workflow:route.workflow,profile:route.profile,overlays:route.overlays||[],state:spec.stages[0],stage_index:0,stages:spec.stages,created_at:now(),updated_at:now(),revision:0,evidence:{},approvals:[],artifacts:[],provider_state:{},failure_counts:{},suspended_from:null,
     feature_id:featureId,phase_id:phaseId,parent_run_id:parentRunId,run_kind:runKind};
   saveRun(projectRoot,run);emit(projectRoot,run,{type:'run.created',payload:{workflow:run.workflow,profile:run.profile}});
+  // Starting a run is what makes it the run the project is on. Without this
+  // the `active_run_id` that the CLI, the dashboard and `delivery status`
+  // all read is never written by anything but a test fixture.
+  setActiveRun(projectRoot,run.run_id);
   // Mechanical binding only -- which feature/phase a run belongs to is a
   // policy decision made by the caller (see resolveFeatureBinding in
   // features.mjs), not guessed here.

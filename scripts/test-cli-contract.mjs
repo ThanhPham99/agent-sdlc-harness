@@ -294,8 +294,23 @@ test('no-command-prints-help-and-exits-0',()=>{
   if(r.status!==0)throw new Error(`exit ${r.status}`);
   if(!/Commands: init/.test(r.stdout))throw new Error('help text not printed');
 });
-test('missing-run-id-is-a-structured-error',()=>{
-  const err=failure(['status']);
+test('omitted-run-id-resolves-the-active-run',()=>{
+  // `start` records the run it created as active, so the commands an agent
+  // actually reaches for work without the flag. An explicit --run-id still wins.
+  // Its own fixture: the shared PROJECT starts further runs later in the suite,
+  // and the newest of those would be the active one by the time this runs.
+  const d=fixture();
+  const first=json(['start','--objective','First','--workflow','bug-fix'],d);
+  if(json(['status'],d).run_id!==first.run_id)throw new Error('did not resolve the run just started');
+  const second=json(['start','--objective','Second','--workflow','bug-fix'],d);
+  const s=json(['status'],d);
+  if(s.run_id!==second.run_id)throw new Error(`resolved ${s.run_id}, expected the newly active run ${second.run_id}`);
+  // The flag still overrides the active run.
+  if(json(['status','--run-id',first.run_id],d).run_id!==first.run_id)throw new Error('explicit --run-id was not honoured');
+});
+test('omitted-run-id-in-a-project-with-no-runs-is-a-structured-error',()=>{
+  const empty=fixture();
+  const err=failure(['status'],empty);
   if(!/run-id required/.test(err.error))throw new Error(err.error);
 });
 test('unknown-run-id-is-a-structured-error',()=>{

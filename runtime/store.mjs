@@ -48,6 +48,39 @@ export function saveRun(projectRoot,run){
 }
 export function loadRun(projectRoot,runId){return readJson(runPath(projectRoot,runId));}
 export function loadState(projectRoot){return readJson(path.join(stateDir(projectRoot),'state.json'),{});}
+export function saveState(projectRoot,patch){
+  const p=path.join(stateDir(projectRoot),'state.json');
+  const state={...readJson(p,{schema:'agent-sdlc/state/v1',harness_version:HARNESS_VERSION,created_at:now()}),...patch};
+  ensureDir(stateDir(projectRoot));
+  writeJson(p,state);
+  return state;
+}
+export function setActiveRun(projectRoot,runId){return saveState(projectRoot,{active_run_id:runId});}
+// Run ids are UUIDs, so the readdir order that `listRuns` keeps is alphabetical
+// and says nothing about age. Anything that means "the run being worked on" has
+// to sort on `created_at`, which is why this is a separate function rather than
+// an index into the list.
+export function latestRunId(projectRoot){
+  const d=path.join(stateDir(projectRoot),'runs');
+  if(!fs.existsSync(d))return null;
+  const runs=listRuns(projectRoot)
+    .map(id=>({id,created_at:readJson(path.join(d,`${id}.json`),{}).created_at||''}))
+    .sort((a,b)=>a.created_at<b.created_at?-1:a.created_at>b.created_at?1:(a.id<b.id?-1:1));
+  return runs.length?runs[runs.length-1].id:null;
+}
+// The single answer to "which run does this command mean?".
+//
+// An explicit --run-id always wins. Otherwise the run `start` recorded as
+// active is used, and if that run has since been deleted (or was never
+// recorded, e.g. a project from an older harness version) the newest run on
+// disk stands in. Returns null only when the project has no runs at all;
+// callers turn that into their own argument error.
+export function resolveRunId(projectRoot,explicit){
+  if(explicit)return explicit;
+  const active=loadState(projectRoot).active_run_id;
+  if(active&&fs.existsSync(runPath(projectRoot,active)))return active;
+  return latestRunId(projectRoot);
+}
 export function listRuns(projectRoot){
   const d=path.join(stateDir(projectRoot),'runs');
   if(!fs.existsSync(d))return [];
