@@ -1,12 +1,37 @@
-#!/usr/bin/env node
-// Test suite for Deterministic Static Security Linter.
+import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {execFileSync} from 'node:child_process';
 import {lintSecurityRisks} from '../runtime/security-linter.mjs';
+import {initProject} from '../runtime/store.mjs';
+import {newRun} from '../runtime/orchestrator.mjs';
+import {route} from '../runtime/router.mjs';
+import {makeTempDir} from './lib/tempdir.mjs';
 import {createSuite} from './lib/suite.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const {test,assert,finish}=createSuite('agent-sdlc/security-linter-validation/v1','SECURITY-LINTER-VALIDATION.json');
+
+function fixture(name='auto-test-service'){
+  const d=makeTempDir(`agent-sdlc-${name}-`);
+  execFileSync('git',['init','-q'],{cwd:d});
+  fs.writeFileSync(path.join(d,'README.md'),'# fixture\n');
+  execFileSync('git',['add','.'],{cwd:d});
+  execFileSync('git',['-c','user.email=test@test.local','-c','user.name=test','commit','-qm','init'],{cwd:d});
+  initProject(d,{
+    schema:'agent-sdlc/project/v1',
+    project:name,
+    commands:{
+      test_targeted:['node','-e','process.exit(0)'],
+      test_full:['node','-e','process.exit(0)']
+    },
+    test_commands:{
+      test_targeted:['node','-e','process.exit(0)'],
+      test_full:['node','-e','process.exit(0)']
+    }
+  });
+  return d;
+}
 
 await test('security-linter-detects-eval',()=>{
   const code='function run(code) { return eval(code); }';
@@ -72,6 +97,30 @@ await test('security-linter-passes-clean-code',()=>{
   assert(res.clean===true,'should be clean');
   assert(res.risk_level==='LOW','should be LOW risk');
   assert(res.findings_count===0,'should have 0 findings');
+});
+
+await test('security-sast-runs-the-shipped-linter-over-changed-files',async ()=>{
+  const {invokeTool}=await import('../runtime/tools.mjs');
+  const d=fixture('sast-tool');           // reuse this suite's existing fixture helper
+  fs.mkdirSync(path.join(d,'src'),{recursive:true});
+  fs.writeFileSync(path.join(d,'src','risky.js'),'const q = "SELECT * FROM t WHERE id=" + userInput;\neval(userInput);\n');
+  const run=newRun(ROOT,d,{objective:'Add lookup',route:route(ROOT,'Add lookup endpoint')});
+  run.state='VERIFY';
+  const res=invokeTool(ROOT,d,run,'security.sast',{});
+  assert(res.status!=='ERROR',`sast must be builtin now, got ${res.status}: ${JSON.stringify(res.summary)}`);
+  assert(res.status==='FAIL','a file with eval() and string-built SQL must not pass');
+  assert(String(res.summary).includes('src/risky.js'),`the summary must name the file, got ${res.summary}`);
+});
+
+await test('security-sast-passes-a-clean-tree',async ()=>{
+  const {invokeTool}=await import('../runtime/tools.mjs');
+  const d=fixture('sast-clean');
+  fs.mkdirSync(path.join(d,'src'),{recursive:true});
+  fs.writeFileSync(path.join(d,'src','clean.js'),'export const add=(a,b)=>a+b;\n');
+  const run=newRun(ROOT,d,{objective:'Add sum',route:route(ROOT,'Add sum helper')});
+  run.state='VERIFY';
+  const res=invokeTool(ROOT,d,run,'security.sast',{});
+  assert(res.status==='PASS',`a clean tree must pass, got ${res.status}: ${res.summary}`);
 });
 
 finish();

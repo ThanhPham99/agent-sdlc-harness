@@ -7,6 +7,7 @@ import {putArtifact,emit,saveRun} from './store.mjs';
 import {normalizeInput} from './normalize.mjs';
 import {recordEvidence} from './evidence.mjs';
 import {resolveLaunch,describeSpawn} from './launcher.mjs';
+import {lintSecurityRisks} from './security-linter.mjs';
 
 // A command the harness was told to run, resolved the same way host binaries
 // are, and a result that distinguishes "it ran and failed" from "it never ran".
@@ -155,6 +156,43 @@ function secretScan(root,projectRoot){
   }
   return {status:'FAIL',exit_code:r.status??1,summary:(r.stderr||'secret scan failed').slice(0,24000),truncated:false,raw:''};
 }
+
+// security.sast was registered as `external`, so `tool-run security.sast`
+// answered "requires host/MCP/external implementation" -- while
+// runtime/security-linter.mjs shipped a working deterministic linter with its
+// own suite and no caller. The same `--untracked` argument as secretScan:
+// a file an implementation task just wrote is the file most worth scanning.
+function sastScan(root,projectRoot,maxBytes){
+  const argv=['git','ls-files','--cached','--others','--exclude-standard'];
+  const launch=resolveLaunch(argv);
+  if(launch.status!=='OK'){
+    return {status:'ERROR',reason:launch.reason,exit_code:null,
+      summary:`${launch.reason}: cannot launch ${argv.join(' ')}`,truncated:false,raw:''};
+  }
+  const r=spawnSync(launch.bin,launch.args,{cwd:projectRoot,encoding:'utf8',timeout:120000,maxBuffer:4*1024*1024,...launch.spawnOptions});
+  const d=describeSpawn(r);
+  if(d.status==='ERROR'){
+    return {status:'ERROR',reason:d.reason,exit_code:null,
+      summary:`${d.reason}: ${argv.join(' ')}`,truncated:false,raw:''};
+  }
+  const files=(r.stdout||'').split('\n').filter(f=>/\.(js|mjs|cjs|jsx|ts|tsx)$/.test(f));
+  const findings=[];
+  for(const rel of files){
+    let code;
+    try{code=fs.readFileSync(path.join(projectRoot,rel),'utf8');}catch{continue;}
+    const rep=lintSecurityRisks(code,{filename:rel});
+    for(const f of (rep.findings||[])){
+      findings.push(`${rel}:${f.line??'?'} ${f.severity??'?'} ${f.rule_id??f.rule??f.id??'?'} ${f.description??f.message??''}`.trim());
+    }
+  }
+  if(!findings.length){
+    return {status:'PASS',exit_code:0,summary:`No security findings in ${files.length} scanned source file(s).`,truncated:false,raw:''};
+  }
+  const raw=findings.join('\n');
+  const t=truncateUtf8(raw,maxBytes);
+  return {status:'FAIL',exit_code:1,summary:`${findings.length} security finding(s):\n${t.text}`,truncated:t.truncated,raw};
+}
+
 export function sanitizeWebQuery(root,query){
   const sec=readJson(path.join(root,'policies','security-policy.json'));
   const wsp=sec.web_search_policy||{};
@@ -234,6 +272,7 @@ export function invokeTool(root,projectRoot,run,tool,args={}){
   }
   else if(tool==='git.status')result=exec(['git','status','--short'],projectRoot,timeout,maxBytes);
   else if(tool==='security.secret_scan')result=secretScan(root,projectRoot);
+  else if(tool==='security.sast')result=sastScan(root,projectRoot,maxBytes);
   else if(tool==='web.search'){
     const query=String(args.query||args.pattern||'');
     const sanitized=sanitizeWebQuery(root,query);

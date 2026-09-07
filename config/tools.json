@@ -118,7 +118,7 @@
       "risk": "read",
       "idempotent": true,
       "deterministic": true,
-      "implementation": "external",
+      "implementation": "builtin",
       "default_timeout_ms": 120000,
       "max_return_bytes": 24000
     },
