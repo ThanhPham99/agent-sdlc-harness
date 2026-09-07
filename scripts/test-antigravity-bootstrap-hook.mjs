@@ -71,6 +71,22 @@ test('antigravity-rule-carries-auto-activation',()=>{
   }
 });
 
+test('the-manifest-command-runs-from-the-hooks-json-directory',()=>{
+  // Antigravity sets working directory to the directory containing hooks.json
+  // (per agy-customizations/docs/hooks.md). We assert that running the manifest's
+  // exact command string from the directory of hooks.json succeeds and emits the bootstrap.
+  for(const rel of ['hooks.json']){
+    const manifestPath=path.join(ROOT,rel);
+    const manifestDir=path.dirname(manifestPath);
+    const manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'));
+    const command=manifest['agent-sdlc-context-reminder'].PreInvocation[0].command;
+    const r=spawnSync(command,{cwd:manifestDir,shell:true,input:JSON.stringify({}),encoding:'utf8',timeout:10000,
+      env:{...process.env,AGENT_SDLC_AUTO_ACTIVATE:'',AGENT_SDLC_AUTO_ACTIVATE_ENFORCED:''}});
+    assert(r.status===0,`the manifest command failed from ${manifestDir}: ${r.stderr||r.stdout}`);
+    assert((r.stdout||'').includes('sdlc-router'),`the hook must emit the bootstrap, got: ${r.stdout}`);
+  }
+});
+
 const report={schema:'agent-sdlc/antigravity-bootstrap-hook-test/v1',per_invocation_budget_rough_tokens:budget,checks:rows.length,passes:rows.length-fail,failures:fail,status:fail?'FAIL':'PASS',results:rows};
 console.log(JSON.stringify(report,null,2));
 process.exit(fail?1:0);

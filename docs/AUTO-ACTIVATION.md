@@ -37,6 +37,11 @@ Ambiguous requests that may still mutate a real repository/system fail safe towa
 Claude is deliberately wired to `SessionStart` rather than `UserPromptSubmit`: one injection
 per session (plus re-injection after `/clear` and compaction) instead of per-turn cost.
 
+Antigravity executes hook command strings with the working directory set to the
+directory containing `hooks.json` (per Antigravity's lifecycle hooks contract).
+The manifest's `./hooks/antigravity-preinvocation.mjs` path therefore resolves
+reliably against the plugin root without depending on an injected environment variable.
+
 Codex has no plugin hook contract this package is willing to claim, so
 `.codex-plugin/plugin.json` declares no hooks. Native-only Codex installation therefore
 gives **soft** activation: the host may select `sdlc-router` from its description, but nothing
