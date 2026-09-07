@@ -232,6 +232,24 @@ function checkWebUrl(root,urlStr){
     return {ok:true,url:urlStr};
   }catch{return {ok:false,reason:`Invalid URL format: ${urlStr}`};}
 }
+// "Bounded output, structured summaries" was half true: output was bounded and
+// the summary was the first 24 KB of the log. For a passing run that is a list
+// of PASS lines -- the least informative bytes available -- and the caller pays
+// for them in context. A trailing JSON report is the shape every suite here and
+// most project runners emit; when we recognise one, send its counts and the
+// names that failed. The raw log is already an artifact either way.
+function summariseReport(raw){
+  const start=raw.lastIndexOf('\n{');
+  const text=start>=0?raw.slice(start+1):raw.trimStart().startsWith('{')?raw:null;
+  if(!text)return null;
+  let doc;try{doc=JSON.parse(text);}catch{return null;}
+  if(typeof doc!=='object'||doc===null)return null;
+  if(doc.checks===undefined&&doc.failures===undefined&&doc.passes===undefined)return null;
+  const failed=Array.isArray(doc.results)?doc.results.filter(r=>r&&r.status==='FAIL').map(r=>r.name??'?'):[];
+  const head=`${doc.schema??'report'}: ${doc.checks??'?'} checks, ${doc.passes??'?'} passes, ${doc.failures??'?'} failures`;
+  return failed.length?`${head}\nfailed: ${failed.join(', ')}`:head;
+}
+
 export function invokeTool(root,projectRoot,run,tool,args={}){
   const cfg=JSON.parse(fs.readFileSync(path.join(projectRoot,'.agent-sdlc','project.json'),'utf8'));const decision=checkTool(root,run,tool);if(decision.decision!=='ALLOW')return {tool,status:decision.decision==='DENY'?'DENY':'APPROVAL_REQUIRED',exit_code:null,summary:decision,failures:[],full_log_artifact:null,truncated:false};let result;
   // config/tools.json declares these per tool and nothing read them, so a budget
@@ -298,9 +316,11 @@ export function invokeTool(root,projectRoot,run,tool,args={}){
   else if(tool==='test.run_full')result=exec(projectCommand(cfg,'test_full',args),projectRoot,Math.max(timeout,args.timeout_ms||0),maxBytes);
   else if(tool==='build.run')result=exec(projectCommand(cfg,'build',args),projectRoot,Math.max(timeout,args.timeout_ms||0),maxBytes);
   else throw new Error(`tool ${tool} requires host/MCP/external implementation`);
+  const structured=result.raw?summariseReport(result.raw):null;
   // Anything that is not a clean pass is worth keeping the raw log for, ERROR
-  // included; the previous condition named FAIL only.
-  let full=null;if((result.truncated||result.status!=='PASS')&&result.raw){const a=putArtifact(projectRoot,{kind:'tool-log',content:result.raw,runId:run.run_id,stage:run.state,filename:`${tool}.log`});full=a.artifact_id;}
+  // included; the previous condition named FAIL only. A passing run whose
+  // summary is now compact still deserves its log, so store whenever structured.
+  let full=null;if((result.truncated||result.status!=='PASS'||structured)&&result.raw){const a=putArtifact(projectRoot,{kind:'tool-log',content:result.raw,runId:run.run_id,stage:run.state,filename:`${tool}.log`});full=a.artifact_id;}
   // A gate token is only as trustworthy as what wrote it. Binding it to the
   // deterministic tool run that produced it, instead of letting a caller
   // assert the same string, is what makes it evidence rather than a claim.
@@ -308,5 +328,5 @@ export function invokeTool(root,projectRoot,run,tool,args={}){
   if(tool==='security.sast'||tool==='security.secret_scan'){
     recordEvidence(projectRoot,run,{stage:run.state,claim:'no_new_high_security_findings',status:result.status,tool,exitCode:result.exit_code,artifactRef:full});
   }
-  const out={tool,status:result.status,reason:result.reason??null,exit_code:result.exit_code,summary:result.summary,failures:[],full_log_artifact:full,truncated:result.truncated};emit(projectRoot,run,{type:'tool.completed',payload:{tool,status:out.status,reason:out.reason,exit_code:out.exit_code,truncated:out.truncated},artifact_refs:full?[full]:[]});return out;
+  const out={tool,status:result.status,reason:result.reason??null,exit_code:result.exit_code,summary:structured??result.summary,failures:[],full_log_artifact:full,truncated:structured?false:result.truncated};emit(projectRoot,run,{type:'tool.completed',payload:{tool,status:out.status,reason:out.reason,exit_code:out.exit_code,truncated:out.truncated},artifact_refs:full?[full]:[]});return out;
 }

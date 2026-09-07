@@ -1231,6 +1231,38 @@ test('targeted-test-substitutes-the-selector',()=>{
   if(out.status!=='PASS')throw Error(JSON.stringify(out));
   if(!out.summary.includes('ran tests/refund.test.js'))throw Error(JSON.stringify(out));
 });
+test('a-recognised-test-report-is-summarised-not-pasted',()=>{
+  const d=makeTempDir('agent-sdlc-summary-');
+  execFileSync('git',['init','-q'],{cwd:d});
+  fs.writeFileSync(path.join(d,'README.md'),'fixture\n');
+  execFileSync('git',['add','.'],{cwd:d});
+  execFileSync('git',['-c','user.email=a@b.c','-c','user.name=t','commit','-qm','init'],{cwd:d});
+  initProject(d,{
+    schema:'agent-sdlc/project/v1',
+    project:'fixture',
+    commands:{
+      test_targeted:[
+        'node',
+        '-e',
+        'const lines=Array.from({length:200},(_,i)=>"PASS test_"+i).join("\\n");const report=JSON.stringify({schema:"custom-test/v1",checks:200,passes:200,failures:0,results:[]});console.log(lines+"\\n"+report);',
+        '{selector}'
+      ],
+      test_full:['node','-e','process.exit(0)'],
+      build:['node','-e','process.exit(0)']
+    },
+    providers:{preferred:['claude']}
+  });
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+  transition(ROOT,d,run,'REQUIREMENTS');
+  transition(ROOT,d,run,'PLAN',{evidence:['requirements_confirmed'],internal:true});
+  transition(ROOT,d,run,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
+  const out=invokeTool(ROOT,d,run,'test.run_targeted',{selector:'x'});
+  if(out.summary.length>2000)throw Error(`summary should be compact, got ${out.summary.length} bytes`);
+  if(!/checks/.test(out.summary))throw Error(`summary should carry the counts, got: ${out.summary}`);
+  if(!out.full_log_artifact)throw Error('the full log must still be stored');
+});
+
 
 // A missing selector used to substitute the empty string, so the gateway ran
 // `node ''`, got exit 0 with no output, and recorded targeted_verification_pass.
