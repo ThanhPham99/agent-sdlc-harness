@@ -761,6 +761,23 @@ export function runTaskRuntimeSuite(root){
       if(out.task.status!=='RUNNING')fail(out.task.status);
     });
 
+    t('advance-uses-a-review-that-was-already-recorded',()=>{
+      const projectRoot=makeFixture();
+      const {run}=runAtImplement(root,projectRoot);
+      startTask(root,projectRoot,run,'TASK-001',{writer:'writer-a'});
+      writeInWorkspace(projectRoot,run,'TASK-001','src/auth/token-store.js','export const store=new Map();\nexport const ttl=900;\n');
+      advanceTask(root,projectRoot,run,'TASK-001');
+      let task=requireTask(projectRoot,run.run_id,'TASK-001');
+      if(task.status!=='SPEC_REVIEW')fail(task.status);
+      const review=specReviewFor(task);
+      const rec=recordTaskReview(projectRoot,run,task,review,{kind:'spec'});
+      if(!rec.validation.clean)fail(JSON.stringify(rec.validation.errors));
+
+      // Recording it attached it to the task. Advancing without specReview argument should not ask for it again.
+      const out=advanceTask(root,projectRoot,run,'TASK-001',{});
+      if(out.awaiting==='SPEC_COMPLIANCE_REVIEW')fail('advance ignored a review it already holds');
+    });
+
     t('quality-blocker-re-enters-running',()=>{
       const projectRoot=makeFixture();
       const {run}=runAtImplement(root,projectRoot);

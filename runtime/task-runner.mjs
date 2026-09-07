@@ -10,7 +10,7 @@
 // state machine, so an unverified or badly-reviewed task cannot reach DONE by
 // any path a worker controls.
 import {now} from './util.mjs';
-import {loadTask,listTasks,saveTask,emitTaskEvent} from './store.mjs';
+import {loadTask,listTasks,saveTask,emitTaskEvent,getArtifact} from './store.mjs';
 import {transitionTask,evaluateTransition,dependencyState,requireTask} from './task-engine.mjs';
 import {buildTaskContext,renderTaskPrompt} from './task-context.mjs';
 import {createTaskWorkspace,checkpointTaskWorkspace,workspaceDiff,getTaskWorkspace,cleanupTaskWorkspace} from './workspace.mjs';
@@ -131,24 +131,40 @@ export function advanceTask(root,projectRoot,run,taskId,{specReview=null,quality
     task=transitionTask(root,projectRoot,task,'SPEC_REVIEW',{tasks,verification,reason:'verification passed'});
   }
 
+  // `task review --kind spec --file r.json` validates a review, stores it, and
+  // binds it to the task -- and advance then asked for it again, because it read
+  // only its own arguments. The two commands look like they compose. They should.
+  // An inline review still wins: it is the newer statement of the same thing.
+  const recorded=(kind)=>{
+    const want=kind==='spec'?'agent-sdlc/spec-compliance-review/v1':'agent-sdlc/code-quality-review/v1';
+    for(const ref of [...(task.review_refs||[])].reverse()){
+      let doc;try{doc=JSON.parse(getArtifact(projectRoot,ref).content);}catch{continue;}
+      // Bound to THIS attempt and THIS diff, or it is a review of something else.
+      if(doc?.schema===want&&doc.attempt===task.attempt&&doc.diff_hash===task.diff_hash)return doc;
+    }
+    return null;
+  };
+
   // --- SPEC_REVIEW -> QUALITY_REVIEW --------------------------------------
   if(task.status==='SPEC_REVIEW'){
-    if(!specReview)return {schema:'agent-sdlc/task-advance/v1',advanced:false,task,steps,
+    const review=specReview??recorded('spec');
+    if(!review)return {schema:'agent-sdlc/task-advance/v1',advanced:false,task,steps,
       awaiting:'SPEC_COMPLIANCE_REVIEW',verification,
       review_contract:'agent-sdlc/spec-compliance-review/v1'};
-    const rec=recordTaskReview(projectRoot,run,task,specReview,{kind:'spec'});
+    const rec=recordTaskReview(projectRoot,run,task,review,{kind:'spec'});
     task=loadTask(projectRoot,run.run_id,taskId);
     steps.push({step:'spec_review',valid:rec.validation.valid,clean:rec.validation.clean,errors:rec.validation.errors});
     if(!rec.validation.clean)return fail(verification);
-    task=transitionTask(root,projectRoot,task,'QUALITY_REVIEW',{tasks,specReview,reason:'spec compliance clean'});
+    task=transitionTask(root,projectRoot,task,'QUALITY_REVIEW',{tasks,specReview:review,reason:'spec compliance clean'});
   }
 
   // --- QUALITY_REVIEW -> DONE ---------------------------------------------
   if(task.status==='QUALITY_REVIEW'){
-    if(!qualityReview)return {schema:'agent-sdlc/task-advance/v1',advanced:false,task,steps,
+    const review=qualityReview??recorded('quality');
+    if(!review)return {schema:'agent-sdlc/task-advance/v1',advanced:false,task,steps,
       awaiting:'CODE_QUALITY_REVIEW',verification,
       review_contract:'agent-sdlc/code-quality-review/v1'};
-    const rec=recordTaskReview(projectRoot,run,task,qualityReview,{kind:'quality'});
+    const rec=recordTaskReview(projectRoot,run,task,review,{kind:'quality'});
     task=loadTask(projectRoot,run.run_id,taskId);
     steps.push({step:'quality_review',valid:rec.validation.valid,clean:rec.validation.clean,errors:rec.validation.errors});
     if(!rec.validation.clean)return fail(verification);
@@ -159,7 +175,7 @@ export function advanceTask(root,projectRoot,run,taskId,{specReview=null,quality
       task=loadTask(projectRoot,run.run_id,taskId);
       if(verification.status!=='PASS')return fail(verification);
     }
-    task=transitionTask(root,projectRoot,task,'DONE',{tasks,verification,specReview,qualityReview,reason:'verified and reviewed'});
+    task=transitionTask(root,projectRoot,task,'DONE',{tasks,verification,specReview:specReview??recorded('spec'),qualityReview:review,reason:'verified and reviewed'});
     steps.push({step:'done'});
     const cleanup=cleanupTaskWorkspace(projectRoot,{run,task});
     steps.push({step:'workspace',status:cleanup.status});
