@@ -9,11 +9,11 @@ noted below.
 
 | Plan | Covers | Size | Risk | Status |
 |---|---|---|---|---|
-| [Gate honesty](2026-09-07-gate-honesty.md) | F2, F3, F10 | 5 tasks | **High** — Task 5 changes an evidence token's authority and breaks every current caller that asserts it | Not started |
+| [Gate honesty](2026-09-07-gate-honesty.md) | F2, F3, F10 | 5 tasks | **High** — Task 5 changes an evidence token's authority and breaks every current caller that asserts it | **Complete** — all 5 tasks landed (commits `26e2a46`..`1c65763`) |
 | [Surface coverage](2026-09-07-surface-coverage.md) | F4, F6, F7 | 4 tasks | Low — one new gate, wiring, and prose | **Complete** — merged to `master` at `f75e8c5`, 2026-09-07 |
-| [MCP authored artifacts](2026-09-07-mcp-authored-artifacts.md) | F5 | 3 tasks | Medium — new public tool surface | Not started |
-| [Harness hygiene](2026-09-07-harness-hygiene.md) | F8, F9, F11, E4, housekeeping | 5 tasks | Medium — Task 3 changes what every `tool-run` caller sees | Not started |
-| [Task engine ergonomics](2026-09-07-task-engine-ergonomics.md) | E1, E2, E3 | 3 tasks | **High** — Task 1 changes task status automatically | Not started |
+| [MCP authored artifacts](2026-09-07-mcp-authored-artifacts.md) | F5 | 3 tasks | Medium — new public tool surface | **Complete** — all 3 tasks landed (commits `e5c12ab`..`e48a45c`) |
+| [Harness hygiene](2026-09-07-harness-hygiene.md) | F8, F9, F11, E4, housekeeping | 5 tasks | Medium — Task 3 changes what every `tool-run` caller sees | **Complete** — all 5 tasks landed (commits `36436ff`..`f233cc1`) |
+| [Task engine ergonomics](2026-09-07-task-engine-ergonomics.md) | E1, E2, E3 | 3 tasks | **High** — Task 1 changes task status automatically | **Complete** — all 3 tasks landed (commits `4d6376d`..`8dea631`) |
 
 ## Suggested order
 

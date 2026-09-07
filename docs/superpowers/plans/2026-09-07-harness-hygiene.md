@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-07-remaining-plugin-audit-findings.md` (F8, F9, F11, E4, Housekeeping)
 
-**Status:** Not started. Covers F8, F9, F11, E4 and the housekeeping items. The suite count is 47 as of `f75e8c5` — verification steps below that say "46/46" mean "all suites".
+**Status:** Complete — all tasks landed. Covers F8, F9, F11, E4 and the housekeeping items. The suite count is 47 as of `f75e8c5` — verification steps below that say "46/46" mean "all suites".
 
 ## Global Constraints
 
@@ -44,7 +44,7 @@
 
 `initProject` copies `templates/REVIEW.md` into the project root. It is ignored by nothing, so the harness's own initialization leaves an untracked file in the working tree whose cleanliness the task scope audit depends on — the audit that flagged it during F1's own delivery.
 
-- [ ] **Step 1: Decide where it belongs, and say why in the commit**
+- [x] **Step 1: Decide where it belongs, and say why in the commit**
 
 Two defensible answers. Pick one before writing code:
 
@@ -54,7 +54,7 @@ Two defensible answers. Pick one before writing code:
 
 (b) is the smaller blast radius and needs no write to a file the harness does not own — prefer it unless reading `templates/REVIEW.md` shows it is meant for humans to edit and commit, in which case (a) is right. Read the template before choosing.
 
-- [ ] **Step 2: Write the failing test**
+- [x] **Step 2: Write the failing test**
 
 Add to `scripts/test-project-detection.mjs`:
 
@@ -75,12 +75,12 @@ await test('init-does-not-leave-an-untracked-file-in-the-project-root',async ()=
 });
 ```
 
-- [ ] **Step 3: Run it and confirm it fails**
+- [x] **Step 3: Run it and confirm it fails**
 
 Run: `npm run test:detection`
 Expected: FAIL — `init left the tree dirty:  ?? REVIEW.md`.
 
-- [ ] **Step 4: Implement the choice from Step 1**
+- [x] **Step 4: Implement the choice from Step 1**
 
 For (b), in `runtime/store.mjs`:
 
@@ -95,17 +95,17 @@ For (b), in `runtime/store.mjs`:
 
 `d` is already the `.agent-sdlc` state directory at that point in `initProject` — confirm that by reading the surrounding lines, since the existing code writes `project.json` into `d` two lines later.
 
-- [ ] **Step 5: Run the test and the suites that read REVIEW.md**
+- [x] **Step 5: Run the test and the suites that read REVIEW.md**
 
 Run: `npm run test:detection && grep -rn "REVIEW.md" --include=*.mjs runtime scripts`
 Expected: the test passes, and every remaining reference resolves to the new location. `runtime/commands/project.mjs:18-19` has its own copy of this path — update it to match or the two disagree.
 
-- [ ] **Step 6: Run the full gate**
+- [x] **Step 6: Run the full gate**
 
 Run: `npm run check`
 Expected: 46/46 PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add runtime/store.mjs runtime/commands/project.mjs scripts/test-project-detection.mjs
@@ -126,7 +126,7 @@ git commit -m "fix(init): keep REVIEW.md out of the project working tree"
 
 The manifest runs `node ./hooks/antigravity-preinvocation.mjs` — relative to whatever the host's working directory happens to be. The Claude adapter uses `${CLAUDE_PLUGIN_ROOT}`. The suite spawns the hook by absolute path, so the manifest's actual command string has never run.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `scripts/test-antigravity-bootstrap-hook.mjs`:
 
@@ -147,16 +147,16 @@ await test('the-manifest-command-runs-from-a-foreign-working-directory',async ()
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `npm run test:antigravity-bootstrap`
 Expected: FAIL — `Cannot find module ...\hooks\antigravity-preinvocation.mjs`, because `./hooks/...` resolved against the temp directory.
 
-- [ ] **Step 3: Check what variable the host actually provides**
+- [x] **Step 3: Check what variable the host actually provides**
 
 Read `docs/AUTO-ACTIVATION.md` and `adapters/antigravity/plugin.json` for the plugin-root variable Antigravity sets. **Do not invent one.** If Antigravity provides no such variable, the correct fix is different: keep the relative path and document the working-directory requirement, and change the test to assert the documented contract instead. Decide from the documentation, not from symmetry with Claude.
 
-- [ ] **Step 4: Apply the fix**
+- [x] **Step 4: Apply the fix**
 
 If a plugin-root variable exists, in `adapters/antigravity/hooks.json`:
 
@@ -166,18 +166,18 @@ If a plugin-root variable exists, in `adapters/antigravity/hooks.json`:
 
 substituting the real variable name from Step 3, and update the test's `replaceAll` to match.
 
-- [ ] **Step 5: Mirror to the root copy**
+- [x] **Step 5: Mirror to the root copy**
 
 Run: `npm run sync:root`
 Then: `npm run test:root-sync`
 Expected: PASS. `hooks.json` at the repository root is a byte-for-byte mirror; editing it directly instead fails this gate.
 
-- [ ] **Step 6: Run the activation suites**
+- [x] **Step 6: Run the activation suites**
 
 Run: `npm run test:activation`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add adapters/antigravity/hooks.json hooks.json scripts/test-antigravity-bootstrap-hook.mjs
@@ -198,7 +198,7 @@ git commit -m "fix(antigravity): resolve the preinvocation hook by plugin root, 
 
 The harness's own invariant is "tool output is bounded; store raw logs as artifacts and pass structured summaries". Today a passing run returns roughly 24 KB of PASS lines — the least informative bytes available — and the caller pays for them in context.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```js
 test('a-recognised-test-report-is-summarised-not-pasted',()=>{
@@ -221,12 +221,12 @@ test('a-recognised-test-report-is-summarised-not-pasted',()=>{
 Configure the fixture's `test_targeted` command to print a small JSON report, e.g.
 `['node','-e','console.log(JSON.stringify({schema:"x/v1",checks:3,passes:3,failures:0,results:[]}))']`.
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `npm test`
 Expected: FAIL on the compactness assertion (today the whole document is the summary).
 
-- [ ] **Step 3: Summarise recognised output**
+- [x] **Step 3: Summarise recognised output**
 
 In `runtime/tools.mjs`, before the result object is assembled:
 
@@ -260,17 +260,17 @@ and apply it where the result is finalised:
 
 Keep `full` computed as it is today — a passing run whose summary is now compact still deserves its log, so widen that condition to store the artifact whenever `structured` is non-null as well.
 
-- [ ] **Step 4: Run the affected suites**
+- [x] **Step 4: Run the affected suites**
 
 Run: `npm test && npm run test:cli-contract && npm run test:mcp`
 Expected: PASS. Any case asserting on the old raw-text summary is a case that was pinning the defect — update it and say so in the commit.
 
-- [ ] **Step 5: Run the full gate**
+- [x] **Step 5: Run the full gate**
 
 Run: `npm run check`
 Expected: 46/46 PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add runtime/tools.mjs evals/run-deterministic.mjs
@@ -288,7 +288,7 @@ git commit -m "feat(tools): summarise a recognised test report instead of pastin
 
 Every suite rewrites its own tracked `evals/*.json`, so `tool-run` leaves the tree dirty. Restoring those reports *after* gate evidence is recorded changes the workspace and marks the evidence stale — `gate blocked at VERIFY; stale evidence (workspace changed since it was recorded)`. The working order is: restore first, run the tool, transition without touching the tree. Nothing says so, and the failure reads like a harness bug.
 
-- [ ] **Step 1: Add the section**
+- [x] **Step 1: Add the section**
 
 ```markdown
 ## "Stale evidence (workspace changed since it was recorded)"
@@ -311,7 +311,7 @@ The order that works:
 Restoring the reports afterwards is fine — the transition has already happened.
 ```
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 
 ```bash
 git add docs/runbooks/FAILURE-RECOVERY.md
@@ -324,7 +324,7 @@ git commit -m "docs(runbook): explain stale gate evidence and the tracked-report
 
 **Files:** none tracked.
 
-- [ ] **Step 1: Reword the F1 commit message**
+- [x] **Step 1: Reword the F1 commit message**
 
 `709ca04` carries a harness-generated message: `chore(sdlc): commit changes for TASK-010 [<the entire goal sentence>]`. It is on `master` and unpushed, so amending is safe and local.
 
@@ -344,7 +344,7 @@ self-issuing a justification for a scope it cannot bound."
 
 Confirm nothing has been pushed first: `git log origin/master..master --oneline` should show the commit as unpushed, or error because no such remote ref exists.
 
-- [ ] **Step 2: Remove the stale worktrees**
+- [x] **Step 2: Remove the stale worktrees**
 
 Two remain under `.agent-sdlc/workspaces/`: one from the superseded `TASK-001` of run `4d2c9237`, one from run `add72e05`.
 
@@ -357,7 +357,7 @@ git worktree prune
 
 Check each for uncommitted work before removing it — `git -C <path> status --porcelain` must be empty. `agent-sdlc task workspace-clean` is the harness's own route to the same outcome; prefer it if it handles both.
 
-- [ ] **Step 3: Confirm the tree is clean**
+- [x] **Step 3: Confirm the tree is clean**
 
 Run: `git status --porcelain && git worktree list`
 Expected: no output from the first, and only the main worktree from the second.

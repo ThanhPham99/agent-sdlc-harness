@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-07-remaining-plugin-audit-findings.md` (E1, E2, E3)
 
-**Status:** Not started. Covers E1, E2, E3. The suite count is 47 as of `f75e8c5` — verification steps below that say "46/46" mean "all suites".
+**Status:** Complete — all tasks landed. Covers E1, E2, E3. The suite count is 47 as of `f75e8c5` — verification steps below that say "46/46" mean "all suites".
 
 ## Global Constraints
 
@@ -43,7 +43,7 @@
 
 A task present in an older plan revision and absent from the new one stays in the graph. `task implementation-complete` then answers `TASKS_NOT_DONE:TASK-002(BLOCKED)` and nothing retires it. The operator's only route today is `task transition --to SUPERSEDED --force`, which is a force flag used to clean up after the engine.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `scripts/validate-task-engine.mjs`:
 
@@ -85,12 +85,12 @@ test('a-dropped-task-with-bound-work-is-reported-not-retired',()=>{
 
 Read the surrounding cases first and reuse their fixture and task-building helpers rather than inventing `fixtureRunAtPlan`/`mkTask` if equivalents already exist.
 
-- [ ] **Step 2: Run and confirm both fail**
+- [x] **Step 2: Run and confirm both fail**
 
 Run: `npm run test:tasks`
 Expected: FAIL — `out.retired` is undefined.
 
-- [ ] **Step 3: Implement retirement**
+- [x] **Step 3: Implement retirement**
 
 In `runtime/task-engine.mjs`, after the loop over `plan.tasks` and before the `graph` object is built:
 
@@ -126,21 +126,21 @@ and add both to the return:
 
 Confirm `task.superseded` is an accepted event type; if `runtime/store.mjs` or the task state machine constrains event names, use the existing one for this transition rather than adding a type.
 
-- [ ] **Step 4: Run the suite**
+- [x] **Step 4: Run the suite**
 
 Run: `npm run test:tasks`
 Expected: PASS.
 
-- [ ] **Step 5: Surface it in the CLI output**
+- [x] **Step 5: Surface it in the CLI output**
 
 `runtime/commands/task.mjs`'s `materialize` handler prints the record. Confirm `retired` and `orphaned` appear in that output — a retirement the operator cannot see is the same class of defect as the silent `preserved` this replaces.
 
-- [ ] **Step 6: Run the full gate**
+- [x] **Step 6: Run the full gate**
 
 Run: `npm run check`
 Expected: 46/46 PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add runtime/task-engine.mjs scripts/validate-task-engine.mjs
@@ -161,7 +161,7 @@ git commit -m "fix(tasks): retire a task the new plan dropped, and report one th
 
 `task review --kind spec --file r.json` validates the review, stores it as an artifact, attaches it to `task.review_refs`, and emits `task.spec_reviewed`. `task advance` then still answers `awaiting: SPEC_COMPLIANCE_REVIEW`, because `advanceTask` reads only its own arguments. Two commands that look like they compose do not.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```js
 test('advance-uses-a-review-that-was-already-recorded',()=>{
@@ -180,12 +180,12 @@ test('advance-uses-a-review-that-was-already-recorded',()=>{
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `npm run test:tasks`
 Expected: FAIL — `advance ignored a review it already holds`.
 
-- [ ] **Step 3: Add the fallback**
+- [x] **Step 3: Add the fallback**
 
 In `runtime/task-runner.mjs`, above the `SPEC_REVIEW` branch:
 
@@ -220,12 +220,12 @@ and the same shape for `QUALITY_REVIEW` with `'agent-sdlc/code-quality-review/v1
 
 Find the real artifact-reading helper in `runtime/store.mjs` — the name `readArtifactContent` above is a placeholder for whatever `putArtifact`'s counterpart is actually called. Read the module and use the real one.
 
-- [ ] **Step 4: Run the suite**
+- [x] **Step 4: Run the suite**
 
 Run: `npm run test:tasks && npm run test:cli-contract`
 Expected: PASS. Any case asserting `awaiting: SPEC_COMPLIANCE_REVIEW` after a recorded review was pinning this defect; update it.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runtime/task-runner.mjs scripts/validate-task-engine.mjs
@@ -247,7 +247,7 @@ git commit -m "fix(tasks): advance on a review that was already recorded"
 
 `validateCodeQualityReview` requires `ACCEPTED` / `CHANGES_REQUIRED` / `PENDING`; `validateSpecComplianceReview` requires `COMPLIANT` / `NON_COMPLIANT` / `PENDING`. Neither appears in the agent that ships to produce these documents, so a caller dispatching it gets `INVALID_VERDICT` and has to read the validator to find out why. `.claude-plugin/plugin.json` loads the `adapters/` copy; both files must say the same thing.
 
-- [ ] **Step 1: Export the vocabularies**
+- [x] **Step 1: Export the vocabularies**
 
 In `runtime/task-review.mjs`, replace the inline arrays with named exports and use them in both validators:
 
@@ -258,7 +258,7 @@ export const SPEC_VERDICTS=['COMPLIANT','NON_COMPLIANT','PENDING'];
 export const QUALITY_VERDICTS=['ACCEPTED','CHANGES_REQUIRED','PENDING'];
 ```
 
-- [ ] **Step 2: Write the drift test**
+- [x] **Step 2: Write the drift test**
 
 In `evals/run-deterministic.mjs`:
 
@@ -277,12 +277,12 @@ test('the-reviewer-agent-states-the-verdicts-the-validator-accepts',()=>{
 });
 ```
 
-- [ ] **Step 3: Run it and confirm it fails**
+- [x] **Step 3: Run it and confirm it fails**
 
 Run: `npm test`
 Expected: FAIL — the agent file does not mention `COMPLIANT`.
 
-- [ ] **Step 4: Document the contract in both agent files**
+- [x] **Step 4: Document the contract in both agent files**
 
 Append to each:
 
@@ -307,18 +307,18 @@ else. Every finding needs an `evidence` field. Record independence honestly in
 the one thing that contract exists to prevent.
 ```
 
-- [ ] **Step 5: Run the suite**
+- [x] **Step 5: Run the suite**
 
 Run: `npm test && npm run test:registry && npm run test:root-sync`
 Expected: PASS. If `validate-root-sync.mjs` mirrors these two files, edit the `adapters/` copy and run `npm run sync:root` rather than editing both by hand.
 
-- [ ] **Step 6: Raise the reviewer's turn budget**
+- [x] **Step 6: Raise the reviewer's turn budget**
 
 `agents/independent-reviewer/agent.md` sets `maxTurns: 20`. A review asked to read a diff, check acceptance criteria and run a suite exhausts that and returns a partial result — observed during F1's own review round, where a reviewer stopped mid-investigation and had to be resumed.
 
 Raise it to `40` in both files, or leave it and document in the agent body that the reviewer should not run test suites and should be given measured results in the prompt. Pick one and say which in the commit message; do not do neither.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add runtime/task-review.mjs agents/independent-reviewer/agent.md adapters/common-independent-reviewer.md evals/run-deterministic.mjs

@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-07-remaining-plugin-audit-findings.md` (F5)
 
-**Status:** Not started. Covers F5. The suite count is 47 as of `f75e8c5` — verification steps below that say "46/46" mean "all suites".
+**Status:** Complete — all tasks landed. Covers F5. The suite count is 47 as of `f75e8c5` — verification steps below that say "46/46" mean "all suites".
 
 ## Global Constraints
 
@@ -39,7 +39,7 @@
 - Consumes: `selectDesignDiscoveryMode({profile,objective})`, `scaffoldDesignDecision(selection,{objective})`, `validateDesignDecision(decision)` from `runtime/design-discovery.mjs`; `recordDesignDecision(root,projectRoot,run,decision,{approvals})` from `runtime/orchestrator.mjs`; `activeCapabilities(root,run)` from `runtime/approvals.mjs`.
 - Produces: tool `agent_sdlc_design` with `op` ∈ `mode | scaffold | validate | record`. Task 3's test uses `op: "record"`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `scripts/test-mcp.mjs`, following the shape of the existing `mcp-route-call` case:
 
@@ -64,12 +64,12 @@ await test('mcp-design-tool-scaffolds-validates-and-records',async ()=>{
 
 Use whatever `call` / `fixture` helpers `scripts/test-mcp.mjs` already defines; do not invent new ones. Read the top of that file first.
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `npm run test:mcp`
 Expected: FAIL — unknown tool `agent_sdlc_design`.
 
-- [ ] **Step 3: Add the imports**
+- [x] **Step 3: Add the imports**
 
 In `runtime/mcp-server.mjs`:
 
@@ -82,7 +82,7 @@ import {activeCapabilities} from './approvals.mjs';
 
 `newRun,transition,nextState` are already imported from `./orchestrator.mjs` at line 11 — extend that existing import rather than adding a second one from the same module.
 
-- [ ] **Step 4: Declare the tool**
+- [x] **Step 4: Declare the tool**
 
 Add to `toolDefs`, after the `agent_sdlc_gate_status` entry:
 
@@ -94,7 +94,7 @@ Add to `toolDefs`, after the `agent_sdlc_gate_status` entry:
   {name:'agent_sdlc_design',description:'Design gate: read the required discovery depth, scaffold a correctly shaped decision, validate one, or record an authored decision. Recording enforces the same structural gate as the CLI; there is no bypass.',inputSchema:{type:'object',required:['run_id','op'],properties:{project_root:{type:'string'},run_id:{type:'string'},op:{type:'string',enum:['mode','scaffold','validate','record']},decision:{type:'object'}}}},
 ```
 
-- [ ] **Step 5: Dispatch it**
+- [x] **Step 5: Dispatch it**
 
 Add to `execute`, after the `agent_sdlc_gate_status` line:
 
@@ -112,14 +112,14 @@ Add to `execute`, after the `agent_sdlc_gate_status` line:
   }
 ```
 
-- [ ] **Step 6: Run the suite**
+- [x] **Step 6: Run the suite**
 
 Run: `npm run test:mcp`
 Expected: PASS.
 
 Note: if the gate-honesty plan's Task 1 has already landed, a FULL-mode scaffold will not record and this test's fixture must use a STANDARD-profile objective whose design mode is SKIP or COMPACT. `Add a caching layer` routes to `new-feature`/STANDARD, which is why it is the fixture objective here.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add runtime/mcp-server.mjs scripts/test-mcp.mjs
@@ -138,7 +138,7 @@ git commit -m "feat(mcp): expose the design gate so an MCP host can record an au
 - Consumes: `validateTaskPlan(plan)`, `recordTaskPlan(root,projectRoot,run,plan)`, `computeTaskGraph(plan)`.
 - Produces: tool `agent_sdlc_plan` with `op` ∈ `validate | record | graph`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```js
 await test('mcp-plan-tool-validates-and-records-an-authored-plan',async ()=>{
@@ -168,18 +168,18 @@ await test('mcp-plan-tool-validates-and-records-an-authored-plan',async ()=>{
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `npm run test:mcp`
 Expected: FAIL — unknown tool `agent_sdlc_plan`.
 
-- [ ] **Step 3: Declare the tool**
+- [x] **Step 3: Declare the tool**
 
 ```js
   {name:'agent_sdlc_plan',description:'Plan gate: validate a task plan, record a validated one, or read its derived task graph. Recording runs the same deterministic plan-quality gate as the CLI; an invalid plan is refused, not forced.',inputSchema:{type:'object',required:['run_id','op'],properties:{project_root:{type:'string'},run_id:{type:'string'},op:{type:'string',enum:['validate','record','graph']},plan:{type:'object'}}}},
 ```
 
-- [ ] **Step 4: Dispatch it**
+- [x] **Step 4: Dispatch it**
 
 ```js
   if(name==='agent_sdlc_plan'){
@@ -192,12 +192,12 @@ Expected: FAIL — unknown tool `agent_sdlc_plan`.
 
 Add `computeTaskGraph` to the `./plan-validator.mjs` import from Task 1 Step 3.
 
-- [ ] **Step 5: Run the suite**
+- [x] **Step 5: Run the suite**
 
 Run: `npm run test:mcp`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add runtime/mcp-server.mjs scripts/test-mcp.mjs
@@ -216,7 +216,7 @@ git commit -m "feat(mcp): expose the plan gate for an authored task plan"
 - Consumes: `materializeRunTasks(root,projectRoot,run,plan)`; `runAutoPipeline(root,projectRoot,run,{customPlan,skipCiCheck})` — `customPlan` already exists and is reachable from nowhere.
 - Produces: `op: 'materialize'` and a `plan` argument on `agent_sdlc_task`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```js
 await test('mcp-task-tool-materializes-an-authored-plan',async ()=>{
@@ -244,16 +244,16 @@ await test('mcp-task-tool-materializes-an-authored-plan',async ()=>{
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `npm run test:mcp`
 Expected: FAIL — `materialize` is not in the `op` enum.
 
-- [ ] **Step 3: Extend the tool definition**
+- [x] **Step 3: Extend the tool definition**
 
 In the `agent_sdlc_task` entry: add `'materialize'` to the `op` enum, add `plan:{type:'object'}` to `properties`, and update the description to name the new op and the plan argument.
 
-- [ ] **Step 4: Dispatch it**
+- [x] **Step 4: Dispatch it**
 
 In the `agent_sdlc_task` branch of `execute`, before the existing `op` checks:
 
@@ -273,17 +273,17 @@ and change the `pipeline` branch so an authored plan can reach it:
     if(a.op==='pipeline')return runAutoPipeline(ROOT,projectRoot,run,{skipCiCheck:!!a.skip_ci,customPlan:a.plan||null});
 ```
 
-- [ ] **Step 5: Run the suite**
+- [x] **Step 5: Run the suite**
 
 Run: `npm run test:mcp`
 Expected: PASS.
 
-- [ ] **Step 6: Run the full gate**
+- [x] **Step 6: Run the full gate**
 
 Run: `npm run check`
 Expected: 46/46 PASS (47 if the surface-coverage plan's Task 3 has landed).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add runtime/mcp-server.mjs scripts/test-mcp.mjs

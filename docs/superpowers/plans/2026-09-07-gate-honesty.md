@@ -10,7 +10,7 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-07-remaining-plugin-audit-findings.md` (F2, F3, F10)
 
-**Status:** Not started. Covers F2, F3, F10. The suite count is 47 as of `f75e8c5` — verification steps below that say "46/46" mean "all suites".
+**Status:** Complete — all tasks landed. Covers F2, F3, F10. The suite count is 47 as of `f75e8c5` — verification steps below that say "46/46" mean "all suites".
 
 ## Global Constraints
 
@@ -45,7 +45,7 @@
 - Consumes: `scaffoldDesignDecision(selection, {objective})`, `validateDesignDecision(decision)` — both already exported.
 - Produces: error strings of the form `PLACEHOLDER_TEXT_NOT_REPLACED:<field>`. Task 2 matches on this exact prefix.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `evals/run-deterministic.mjs`, next to the existing `design-scaffold-full-mode-*` case:
 
@@ -69,12 +69,12 @@ test('a-full-design-decision-of-placeholders-does-not-pass-the-gate',()=>{
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `npm test`
 Expected: FAIL on `a-full-design-decision-of-placeholders-does-not-pass-the-gate` with `a scaffold of TODOs validated`.
 
-- [ ] **Step 3: Add the guard**
+- [x] **Step 3: Add the guard**
 
 In `runtime/design-discovery.mjs`, above `validateDesignDecision`:
 
@@ -114,12 +114,12 @@ and once for every mode, next to the `MISSING_OBJECTIVE` check:
   if(d.objective&&isPlaceholder(d.objective))errors.push('PLACEHOLDER_TEXT_NOT_REPLACED:objective');
 ```
 
-- [ ] **Step 4: Run the test and the neighbouring scaffold cases**
+- [x] **Step 4: Run the test and the neighbouring scaffold cases**
 
 Run: `npm test`
 Expected: PASS. `design-scaffold-full-mode-is-correctly-shaped-but-still-needs-content` must still pass — it asserts only the absence of `FULL_MODE_WITHOUT_OPTIONS`, `MISSING_RECOMMENDED_OPTION`, `MISSING_DECISION_STATEMENT` and `OPTION_MISSING*`, none of which this adds. `design-scaffold-skip-mode-*` and `design-scaffold-compact-mode-*` assert validity and contain no placeholders, so they are unaffected.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runtime/design-discovery.mjs evals/run-deterministic.mjs
@@ -140,7 +140,7 @@ git commit -m "fix(design): refuse a design decision whose required text is stil
 
 Task 1 makes a FULL scaffold invalid. `runAutoPipeline` records that scaffold after a human grants design approval, and today an unrecordable decision throws. That would turn Task 1 into a crash for exactly the STRICT runs it is meant to protect.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `scripts/test-autonomous-runner.mjs`:
 
@@ -168,12 +168,12 @@ await test('an-unfillable-scaffolded-design-decision-pauses-rather-than-throwing
 
 Add `GATE_CAPABILITIES` to the existing `runtime/approvals.mjs` import at the top of the file if it is not already imported.
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `npm run test:autonomous-runner`
 Expected: FAIL — `must not throw, got: Failed to record design decision: [...]`.
 
-- [ ] **Step 3: Replace the throw with a pause**
+- [x] **Step 3: Replace the throw with a pause**
 
 In `runtime/autonomous-runner.mjs`, replace the `if(!rec.recorded){ throw ... }` block in the DESIGN stage:
 
@@ -198,12 +198,12 @@ In `runtime/autonomous-runner.mjs`, replace the `if(!rec.recorded){ throw ... }`
       }
 ```
 
-- [ ] **Step 4: Run the suite**
+- [x] **Step 4: Run the suite**
 
 Run: `npm run test:autonomous-runner`
 Expected: PASS, and every pre-existing case still passes — the STRICT fixtures pause at Gate 1 *before* this branch, so they never reach it.
 
-- [ ] **Step 5: Verify the recovery the message names actually works**
+- [x] **Step 5: Verify the recovery the message names actually works**
 
 Add a second case driving it, mirroring `the-gate-1-scope-pause-names-a-recovery-that-actually-works`:
 
@@ -234,7 +234,7 @@ await test('an-authored-design-decision-clears-the-placeholder-pause',async ()=>
 Run: `npm run test:autonomous-runner`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add runtime/autonomous-runner.mjs scripts/test-autonomous-runner.mjs
@@ -255,7 +255,7 @@ git commit -m "fix(auto): pause for an authored design decision instead of throw
 
 This must be a **warning**, never an error: `auto` depends on scaffolded plans validating.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `scripts/test-autonomous-runner.mjs`:
 
@@ -277,12 +277,12 @@ await test('a-scaffolded-plan-says-so-and-an-authored-one-does-not',async ()=>{
 });
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `npm run test:autonomous-runner`
 Expected: FAIL — `a scaffolded plan records its provenance`.
 
-- [ ] **Step 3: Stamp it and warn on it**
+- [x] **Step 3: Stamp it and warn on it**
 
 In `runtime/autonomous-runner.mjs`, in the object `scaffoldTaskPlan` returns, next to `plan_id`:
 
@@ -299,12 +299,12 @@ In `runtime/plan-validator.mjs`, before the `return`:
   if(p.generated_by==='auto-scaffold')warn('SCAFFOLDED_PLAN_NOT_AUTHORED',{plan_id:p.plan_id??null});
 ```
 
-- [ ] **Step 4: Run both suites**
+- [x] **Step 4: Run both suites**
 
 Run: `npm run test:autonomous-runner && npm test`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add runtime/autonomous-runner.mjs runtime/plan-validator.mjs scripts/test-autonomous-runner.mjs
@@ -324,7 +324,7 @@ git commit -m "feat(plan): record that an auto-scaffolded plan was not authored"
 - Consumes: `lintSecurityRisks(codeString,{filename})` from `runtime/security-linter.mjs` — the only export of that module.
 - Produces: a tool result of the same shape `secretScan` returns: `{status,reason,exit_code,summary,truncated,raw}`. Task 5 derives evidence from `status`.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `scripts/test-security-linter.mjs`:
 
@@ -354,12 +354,12 @@ await test('security-sast-passes-a-clean-tree',async ()=>{
 
 If `scripts/test-security-linter.mjs` has no `fixture` helper, copy the one from `scripts/test-autonomous-runner.mjs:19-37` verbatim into it — it is nine lines and duplicating it keeps the suite standalone, which is how every other suite here is written.
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `npm run test:security-linter`
 Expected: FAIL — `sast must be builtin now, got ERROR: tool security.sast requires host/MCP/external implementation`.
 
-- [ ] **Step 3: Implement the builtin**
+- [x] **Step 3: Implement the builtin**
 
 In `runtime/tools.mjs`, next to `secretScan`:
 
@@ -412,7 +412,7 @@ Dispatch it beside the `security.secret_scan` branch:
   else if(tool==='security.sast'){result=sastScan(root,projectRoot,maxBytes);}
 ```
 
-- [ ] **Step 4: Flip the registry entry**
+- [x] **Step 4: Flip the registry entry**
 
 In `config/tools.json`, `security.sast`:
 
@@ -422,17 +422,17 @@ In `config/tools.json`, `security.sast`:
 
 Leave `security.sca` as `external` — this plan does not implement a dependency scanner, and claiming otherwise would be the same defect in a new place.
 
-- [ ] **Step 5: Confirm the finding shape matches the linter**
+- [x] **Step 5: Confirm the finding shape matches the linter**
 
 Run: `node -e "import('./runtime/security-linter.mjs').then(m=>console.log(JSON.stringify(m.lintSecurityRisks('eval(x);',{filename:'a.js'}),null,1)))"`
 Read the actual field names and, if they differ from `line`/`severity`/`rule`/`message`, correct the template string in Step 3 to match. Do not guess.
 
-- [ ] **Step 6: Run the suite**
+- [x] **Step 6: Run the suite**
 
 Run: `npm run test:security-linter`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add runtime/tools.mjs config/tools.json scripts/test-security-linter.mjs
@@ -452,7 +452,7 @@ git commit -m "feat(tools): implement security.sast with the shipped determinist
 - Consumes: the `security.sast` builtin from Task 4.
 - Produces: the token `no_new_high_security_findings` with `runtime` authority, so `guardEvidenceAuthority` refuses it as a hand-asserted `--evidence` value.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `evals/run-deterministic.mjs`, next to `caller-cannot-assert-verify-evidence-directly`:
 
@@ -469,12 +469,12 @@ test('caller-cannot-assert-the-security-gate-either',()=>{
 
 Match the surrounding cases' fixture helper exactly; if they build the run inline rather than through a helper, do the same here rather than inventing one.
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `npm test`
 Expected: FAIL — `the security gate token was accepted as a bare assertion`.
 
-- [ ] **Step 3: Give the token runtime authority**
+- [x] **Step 3: Give the token runtime authority**
 
 In `policies/stage-policy.json`, in `evidence_authority`, after `"targeted_verification_pass": "runtime"`:
 
@@ -482,7 +482,7 @@ In `policies/stage-policy.json`, in `evidence_authority`, after `"targeted_verif
     "no_new_high_security_findings": "runtime"
 ```
 
-- [ ] **Step 4: Derive it from the scan**
+- [x] **Step 4: Derive it from the scan**
 
 In `runtime/tools.mjs`, extend the derivation at line 268:
 
@@ -496,7 +496,7 @@ In `runtime/tools.mjs`, extend the derivation at line 268:
   }
 ```
 
-- [ ] **Step 5: Update the runner, which asserts the token today**
+- [x] **Step 5: Update the runner, which asserts the token today**
 
 `runtime/autonomous-runner.mjs:468` lists `no_new_high_security_findings` in the evidence array it passes to `transition`. With runtime authority that call now throws. Replace the assertion with a real scan before the transition:
 
@@ -509,17 +509,17 @@ In `runtime/tools.mjs`, extend the derivation at line 268:
 
 `invokeTool` is already imported in this module.
 
-- [ ] **Step 6: Run everything that touches the VERIFY gate**
+- [x] **Step 6: Run everything that touches the VERIFY gate**
 
 Run: `npm test && npm run test:autonomous-runner && npm run test:gates && npm run test:simulate-e2e`
 Expected: PASS. `scripts/simulate-e2e-run.mjs:175` also passes this token in an evidence array — if it fails, make it run the scan the same way rather than reinstating the assertion.
 
-- [ ] **Step 7: Run the full gate**
+- [x] **Step 7: Run the full gate**
 
 Run: `npm run check`
 Expected: 46/46 PASS.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add runtime/tools.mjs runtime/autonomous-runner.mjs policies/stage-policy.json evals/run-deterministic.mjs scripts/simulate-e2e-run.mjs
