@@ -228,4 +228,18 @@ test('the-detected-commands-reach-the-persisted-project-config',()=>{
   assert(persisted.stacks.includes('go'),JSON.stringify(persisted.stacks));
 });
 
+test('init-does-not-leave-an-untracked-file-in-the-project-root',()=>{
+  const d=repo({'.gitignore':'.agent-sdlc/\n','README.md':'# fixture\n'});
+  execFileSync('git',['add','.'],{cwd:d});
+  execFileSync('git',['-c','user.email=t@t.local','-c','user.name=t','commit','-qm','init'],{cwd:d});
+  const out=cli(['init'],d);
+  assert(out.status===0,out.stderr.slice(0,160));
+
+  // The harness's own scope audit treats a dirty tree as a scope violation, so
+  // initialization must not create one.
+  const status=execFileSync('git',['status','--porcelain'],{cwd:d,encoding:'utf8'}).trim();
+  assert(status==='',`init left the tree dirty:\n${status}`);
+});
+
 finish();
+

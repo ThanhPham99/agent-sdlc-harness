@@ -15,9 +15,6 @@ export const commands={
     const {initProject}=await import('../store.mjs');
     const cfg=detectProject(projectRoot);
     initProject(projectRoot,cfg);
-    const reviewTemplate=path.join(ROOT,'templates','REVIEW.md');
-    const targetReview=path.join(projectRoot,'REVIEW.md');
-    if(fs.existsSync(reviewTemplate)&&!fs.existsSync(targetReview)){try{fs.copyFileSync(reviewTemplate,targetReview);}catch{}}
     print({status:'INITIALIZED',project_root:projectRoot,config:cfg});
   },
   doctor:async ctx=>{
