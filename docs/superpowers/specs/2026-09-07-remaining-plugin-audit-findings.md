@@ -1,4 +1,4 @@
-# Remaining Plugin Audit Findings — agent-sdlc-harness 3.0.0-rc1
+# Remaining Plugin Audit Findings — agent-sdlc-harness 3.0.0-rc2
 
 Source: plugin-surface audit run 2026-09-06 against `6458ca8`, plus limitations
 observed while driving the harness through its own workflow to land F1.

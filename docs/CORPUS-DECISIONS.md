@@ -383,7 +383,7 @@ guidance body deleted and the two output-format sentences kept, so extraction
 stays viable in both arms. The two prompts differ on exactly one line, and that
 diff is checked before any host call. Five repetitions per case per arm, because
 D4 had already shown one run per arm cannot decide anything here. Evidence:
-`evals/live/experiments/contract-ab-claude-3.0.0-rc1.json`.
+`evals/live/experiments/contract-ab-claude-3.0.0-rc1.json` (v3.0.0-rc1).
 
 | Arm | `profile` correct | SEM007 | SEM023 | SEM033 |
 |---|---|---|---|---|

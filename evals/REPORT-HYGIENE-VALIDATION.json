@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/report-hygiene-validation/v1",
-  "checks": 7,
-  "passes": 7,
+  "checks": 8,
+  "passes": 8,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -27,6 +27,10 @@
     },
     {
       "name": "an-untracked-report-is-left-alone",
+      "status": "PASS"
+    },
+    {
+      "name": "a-hand-edited-file-in-a-subdirectory-is-left-alone",
       "status": "PASS"
     },
     {

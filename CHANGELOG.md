@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0-rc2] - 2026-09-07
+
 ### Added
 - AI-Native SDLC Playbook enhancements:
   - Proto-spec and intent intake: added `templates/intent.md` proto-spec template, scaffolded `.agent-sdlc/intent/` directory in `runtime/store.mjs`, and updated `runtime/normalize.mjs` to recognize `# Intent:` headers and flag `is_intent: true`.

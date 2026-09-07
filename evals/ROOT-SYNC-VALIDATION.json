@@ -1,48 +1,49 @@
 {
   "schema": "agent-sdlc/root-sync-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc2",
   "checks": 9,
   "passes": 9,
+  "fixed": 0,
   "failures": 0,
   "mirrors": [
     {
       "source": "adapters/hooks/pretool-guard.mjs",
       "root_copy": "hooks/pretool-guard.mjs",
       "status": "PASS",
-      "source_sha256": "f930147396c48370",
-      "root_sha256": "f930147396c48370",
+      "source_sha256": "0648288613af94f5",
+      "root_sha256": "0648288613af94f5",
       "problems": []
     },
     {
       "source": "adapters/hooks/test-output-guard.mjs",
       "root_copy": "hooks/test-output-guard.mjs",
       "status": "PASS",
-      "source_sha256": "d9ad54730624d14a",
-      "root_sha256": "d9ad54730624d14a",
+      "source_sha256": "06ce2b51ab4c75dc",
+      "root_sha256": "06ce2b51ab4c75dc",
       "problems": []
     },
     {
       "source": "adapters/hooks/statusline.mjs",
       "root_copy": "hooks/statusline.mjs",
       "status": "PASS",
-      "source_sha256": "42b33ad59f2b7ba9",
-      "root_sha256": "42b33ad59f2b7ba9",
+      "source_sha256": "0638b02085fcc3af",
+      "root_sha256": "0638b02085fcc3af",
       "problems": []
     },
     {
       "source": "adapters/hooks/claude-session-start.mjs",
       "root_copy": "hooks/claude-session-start.mjs",
       "status": "PASS",
-      "source_sha256": "383d9a46e866d3d6",
-      "root_sha256": "383d9a46e866d3d6",
+      "source_sha256": "f58962f771a69128",
+      "root_sha256": "f58962f771a69128",
       "problems": []
     },
     {
       "source": "adapters/hooks/antigravity-preinvocation.mjs",
       "root_copy": "hooks/antigravity-preinvocation.mjs",
       "status": "PASS",
-      "source_sha256": "bc45cb723ea2402b",
-      "root_sha256": "bc45cb723ea2402b",
+      "source_sha256": "5bc90f565ba5332f",
+      "root_sha256": "5bc90f565ba5332f",
       "problems": []
     },
     {

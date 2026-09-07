@@ -1,19 +1,26 @@
 {
   "schema": "agent-sdlc/cli-surface-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc2",
   "commands": [
     "activation",
     "approval",
     "artifact-get",
     "artifact-list",
     "artifact-put",
+    "auto",
+    "auto-task",
     "ci",
+    "ci-check",
     "compat-check",
+    "completion",
     "config-show",
     "context",
+    "dashboard",
     "delivery",
     "design",
+    "diff",
     "doctor",
+    "explain",
     "fallback",
     "feature",
     "gate",
@@ -39,7 +46,10 @@
     "replay-validate",
     "repo",
     "requirement-update",
+    "review",
+    "rewind",
     "route",
+    "serve",
     "start",
     "status",
     "task",
@@ -48,9 +58,57 @@
     "trace",
     "transition",
     "usage-add",
-    "usage-report"
+    "usage-report",
+    "webhook"
   ],
-  "command_count": 47,
+  "command_count": 58,
+  "documented_count": 58,
+  "undocumented": [],
+  "reference_docs": [
+    "AUTO-ACTIVATION.md",
+    "CONFIGURATION.md",
+    "GITHUB-DISTRIBUTION.md",
+    "INSTALLATION.md",
+    "MCP-AND-TOOLS.md",
+    "MIGRATION.md",
+    "QUICKSTART.md",
+    "TUTORIAL-STEP-BY-STEP.md",
+    "USAGE.md",
+    "architecture/ARCHITECTURE.md",
+    "architecture/ARTIFACT-MODEL.md",
+    "architecture/CONTEXT-AND-TOKEN.md",
+    "architecture/DEEP-RESEARCH-BLUEPRINT.md",
+    "architecture/DESIGN-DISCOVERY.md",
+    "architecture/PLAN-QUALITY.md",
+    "architecture/REPOSITORY-INTELLIGENCE.md",
+    "architecture/TASK-ENGINE.md",
+    "architecture/TASK-SCHEDULER.md",
+    "architecture/TRACEABILITY-GRAPH.md",
+    "compatibility/COMPATIBILITY.md",
+    "guides/MULTI-LANGUAGE-INTEGRATION.md",
+    "runbooks/FAILURE-RECOVERY.md",
+    "threat-model/THREAT-MODEL.md"
+  ],
+  "non_reference_docs": [
+    "CORPUS-DECISIONS.md",
+    "EVALS.md",
+    "IMPLEMENTATION-STATUS.md",
+    "QUALIFICATION.md",
+    "releases/RELEASE-NOTES-v3.0.0-alpha4.md",
+    "releases/RELEASE-NOTES-v3.0.0-alpha5.md",
+    "releases/RELEASE-NOTES-v3.0.0-alpha6.md",
+    "releases/RELEASE-NOTES-v3.0.0-rc1.md",
+    "releases/RELEASE-NOTES-v3.0.0-rc2.md",
+    "superpowers/plans/2026-09-07-gate-honesty.md",
+    "superpowers/plans/2026-09-07-harness-hygiene.md",
+    "superpowers/plans/2026-09-07-mcp-authored-artifacts.md",
+    "superpowers/plans/2026-09-07-remaining-audit-index.md",
+    "superpowers/plans/2026-09-07-surface-coverage.md",
+    "superpowers/plans/2026-09-07-task-engine-ergonomics.md",
+    "superpowers/specs/2026-08-27-harness-spike-findings.md",
+    "superpowers/specs/2026-08-30-remaining-audit-findings.md",
+    "superpowers/specs/2026-09-07-remaining-plugin-audit-findings.md"
+  ],
   "groups": [
     "project",
     "run",
@@ -62,7 +120,10 @@
     "task",
     "repo",
     "feature",
-    "delivery"
+    "delivery",
+    "completion",
+    "dashboard",
+    "auto"
   ],
   "help_generated": true,
   "subcommand_groups": [
@@ -75,22 +136,22 @@
     },
     {
       "command": "approval",
-      "implemented": 3,
-      "declared": 3,
+      "implemented": 6,
+      "declared": 6,
       "missing": [],
       "phantom": []
     },
     {
       "command": "ci",
-      "implemented": 4,
-      "declared": 4,
+      "implemented": 6,
+      "declared": 6,
       "missing": [],
       "phantom": []
     },
     {
       "command": "delivery",
-      "implemented": 7,
-      "declared": 7,
+      "implemented": 9,
+      "declared": 9,
       "missing": [],
       "phantom": []
     },
@@ -124,8 +185,8 @@
     },
     {
       "command": "govern",
-      "implemented": 4,
-      "declared": 4,
+      "implemented": 6,
+      "declared": 6,
       "missing": [],
       "phantom": []
     },
@@ -152,8 +213,8 @@
     },
     {
       "command": "repo",
-      "implemented": 13,
-      "declared": 13,
+      "implemented": 17,
+      "declared": 17,
       "missing": [],
       "phantom": []
     },
@@ -161,6 +222,13 @@
       "command": "requirement-update",
       "implemented": 2,
       "declared": 2,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "review",
+      "implemented": 1,
+      "declared": 1,
       "missing": [],
       "phantom": []
     },
@@ -175,6 +243,13 @@
       "command": "trace",
       "implemented": 8,
       "declared": 8,
+      "missing": [],
+      "phantom": []
+    },
+    {
+      "command": "webhook",
+      "implemented": 2,
+      "declared": 2,
       "missing": [],
       "phantom": []
     }

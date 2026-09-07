@@ -1,4 +1,4 @@
-# Qualification — 3.0.0-rc1
+# Qualification — 3.0.0-rc2
 
 Qualification is intentionally split into three gates so an unavailable provider can never be reported as a behavioral PASS.
 

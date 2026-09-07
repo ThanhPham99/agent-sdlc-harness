@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/coding-standards-policy/v1",
-  "version": "3.0.0-rc1",
+  "version": "3.0.0-rc2",
   "naming_conventions": {
     "variables_and_properties": {
       "style": "snake_case",

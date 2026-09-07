@@ -1,4 +1,4 @@
-// TypeScript Type Definitions for Agent SDLC Harness (v3.0.0-rc1)
+// TypeScript Type Definitions for Agent SDLC Harness (v3.0.0-rc2)
 
 export type SDLCStage =
   | 'INTAKE'

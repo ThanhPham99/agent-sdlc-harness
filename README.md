@@ -1,4 +1,4 @@
-# Agent SDLC Harness 3.0.0-rc1
+# Agent SDLC Harness 3.0.0-rc2
 
 A provider-neutral, token-aware, evidence-driven software-development harness for **Claude Code, OpenAI Codex, and Google Antigravity**.
 

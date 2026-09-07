@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/model-routing/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc2",
   "strategy": "cheapest-qualified-first-with-risk-floor",
   "principles": [
     "no model for mechanical deterministic work",
@@ -29,12 +29,12 @@
     "codex": {
       "economy": "gpt-5.6-luna",
       "standard": "gpt-5.6-terra",
-      "high": "o3-pro"
+      "high": "gpt-6-astra"
     },
     "antigravity": {
-      "economy": "gemini-3.5-flash-lite",
-      "standard": "gemini-3.7-flash",
-      "high": "gemini-3.1-pro"
+      "economy": "gemini-3.8-flash-low",
+      "standard": "gemini-3.8-flash-medium",
+      "high": "gemini-3.8-flash-high"
     }
   },
   "model_registry": {
@@ -51,6 +51,11 @@
       },
       "claude-sonnet-5": {
         "tier": "standard",
+        "context_window": 1000000,
+        "structured_output": true
+      },
+      "claude-sonnet-4-6": {
+        "tier": "standard",
         "context_window": 200000,
         "structured_output": true
       },
@@ -64,19 +69,34 @@
         "context_window": 200000,
         "structured_output": true
       },
-      "claude-opus-5": {
+      "claude-fable-5.1": {
         "tier": "high",
-        "context_window": 200000,
+        "context_window": 1000000,
         "structured_output": true
       },
       "claude-fable-5": {
         "tier": "high",
+        "context_window": 1000000,
+        "structured_output": true
+      },
+      "claude-opus-5": {
+        "tier": "high",
+        "context_window": 1000000,
+        "structured_output": true
+      },
+      "claude-opus-4-6-thinking": {
+        "tier": "high",
         "context_window": 200000,
+        "structured_output": true
+      },
+      "claude-mythos-5.1": {
+        "tier": "high",
+        "context_window": 1000000,
         "structured_output": true
       },
       "claude-mythos-5": {
         "tier": "high",
-        "context_window": 200000,
+        "context_window": 1000000,
         "structured_output": true
       },
       "claude-3-7-sonnet-20250219": {
@@ -89,6 +109,11 @@
       "gpt-5.6-luna": {
         "tier": "economy",
         "context_window": 1050000,
+        "structured_output": true
+      },
+      "gpt-oss-120b-medium": {
+        "tier": "economy",
+        "context_window": 131072,
         "structured_output": true
       },
       "gpt-4o-mini": {
@@ -104,6 +129,11 @@
       "gpt-4o": {
         "tier": "standard",
         "context_window": 128000,
+        "structured_output": true
+      },
+      "gpt-6-astra": {
+        "tier": "high",
+        "context_window": 1050000,
         "structured_output": true
       },
       "gpt-5.6-sol": {
@@ -138,6 +168,21 @@
       }
     },
     "antigravity": {
+      "gemini-3.8-flash-low": {
+        "tier": "economy",
+        "context_window": 1048576,
+        "structured_output": true
+      },
+      "gemini-3.7-flash-low": {
+        "tier": "economy",
+        "context_window": 1048576,
+        "structured_output": true
+      },
+      "gemini-3.6-flash-low": {
+        "tier": "economy",
+        "context_window": 1048576,
+        "structured_output": true
+      },
       "gemini-3.5-flash-lite": {
         "tier": "economy",
         "context_window": 1048576,
@@ -153,7 +198,27 @@
         "context_window": 1048576,
         "structured_output": true
       },
+      "gemini-3.8-flash-medium": {
+        "tier": "standard",
+        "context_window": 2097152,
+        "structured_output": true
+      },
+      "gemini-3.8-flash": {
+        "tier": "standard",
+        "context_window": 2097152,
+        "structured_output": true
+      },
+      "gemini-3.7-flash-medium": {
+        "tier": "standard",
+        "context_window": 2097152,
+        "structured_output": true
+      },
       "gemini-3.7-flash": {
+        "tier": "standard",
+        "context_window": 2097152,
+        "structured_output": true
+      },
+      "gemini-3.6-flash-medium": {
         "tier": "standard",
         "context_window": 2097152,
         "structured_output": true
@@ -163,8 +228,33 @@
         "context_window": 2097152,
         "structured_output": true
       },
+      "gemini-3.1-pro-low": {
+        "tier": "standard",
+        "context_window": 2097152,
+        "structured_output": true
+      },
       "gemini-2.5-pro": {
         "tier": "standard",
+        "context_window": 2097152,
+        "structured_output": true
+      },
+      "gemini-3.8-flash-high": {
+        "tier": "high",
+        "context_window": 2097152,
+        "structured_output": true
+      },
+      "gemini-3.7-flash-high": {
+        "tier": "high",
+        "context_window": 2097152,
+        "structured_output": true
+      },
+      "gemini-3.6-flash-high": {
+        "tier": "high",
+        "context_window": 2097152,
+        "structured_output": true
+      },
+      "gemini-3.1-pro-high": {
+        "tier": "high",
         "context_window": 2097152,
         "structured_output": true
       },
@@ -176,6 +266,21 @@
       "gemini-3-pro": {
         "tier": "high",
         "context_window": 2097152,
+        "structured_output": true
+      },
+      "claude-sonnet-4-6": {
+        "tier": "standard",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "claude-opus-4-6-thinking": {
+        "tier": "high",
+        "context_window": 200000,
+        "structured_output": true
+      },
+      "gpt-oss-120b-medium": {
+        "tier": "economy",
+        "context_window": 131072,
         "structured_output": true
       }
     }

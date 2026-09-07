@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
-  "version": "3.0.0-alpha6",
-  "checks": 333,
-  "passes": 333,
+  "version": "3.0.0-rc2",
+  "checks": 439,
+  "passes": 439,
   "failures": 0,
   "results": [
     {
@@ -43,6 +43,50 @@
     },
     {
       "name": "router-continue-feature-semantic-rule",
+      "status": "PASS"
+    },
+    {
+      "name": "router-technical-spike-vietnamese-audit",
+      "status": "PASS"
+    },
+    {
+      "name": "router-bug-fix-vietnamese-logic-error",
+      "status": "PASS"
+    },
+    {
+      "name": "router-test-only-vietnamese-retest",
+      "status": "PASS"
+    },
+    {
+      "name": "router-refactor-vietnamese-clean-code",
+      "status": "PASS"
+    },
+    {
+      "name": "router-spike-vietnamese-overall-check",
+      "status": "PASS"
+    },
+    {
+      "name": "router-agent-discretion-flag",
+      "status": "PASS"
+    },
+    {
+      "name": "router-profile-agrees-between-keyword-and-explicit-paths",
+      "status": "PASS"
+    },
+    {
+      "name": "router-rules-declares-no-profile-or-overlays",
+      "status": "PASS"
+    },
+    {
+      "name": "router-rejects-a-rule-naming-an-undefined-workflow",
+      "status": "PASS"
+    },
+    {
+      "name": "router-skill-states-the-same-mapping-as-the-workflow-table",
+      "status": "PASS"
+    },
+    {
+      "name": "router-skill-mapping-check-fails-on-drift",
       "status": "PASS"
     },
     {
@@ -103,6 +147,94 @@
     },
     {
       "name": "router-tied-score-prefers-strict-profile",
+      "status": "PASS"
+    },
+    {
+      "name": "router-pre-existing-fields-are-unchanged",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-explicit-deny-language",
+      "status": "PASS"
+    },
+    {
+      "name": "router-does-not-report-ordinary-uses-of-the-same-words",
+      "status": "PASS"
+    },
+    {
+      "name": "router-does-not-report-deny-language-quoted-from-untrusted-data",
+      "status": "PASS"
+    },
+    {
+      "name": "router-always-returns-a-deny-language-array",
+      "status": "PASS"
+    },
+    {
+      "name": "nothing-outside-the-router-reads-deny-language",
+      "status": "PASS"
+    },
+    {
+      "name": "router-does-not-quarantine-a-sentence-on-contractions",
+      "status": "PASS"
+    },
+    {
+      "name": "router-does-not-quarantine-on-unusual-contractions",
+      "status": "PASS"
+    },
+    {
+      "name": "router-keeps-keywords-between-a-contraction-and-a-possessive",
+      "status": "PASS"
+    },
+    {
+      "name": "router-does-not-turn-mask-characters-in-the-objective-into-quotes",
+      "status": "PASS"
+    },
+    {
+      "name": "router-still-quarantines-single-quoted-untrusted-text",
+      "status": "PASS"
+    },
+    {
+      "name": "router-quarantines-quotations-however-they-are-glued-to-the-sentence",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-secret-disclosure-demands",
+      "status": "PASS"
+    },
+    {
+      "name": "router-does-not-report-ordinary-work-on-secrets",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-the-phrases-even-in-defensive-sentences",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-demands-whose-justification-contains-a-negation",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-a-phrase-even-inside-a-longer-noun",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-demands-with-an-ordinary-tail",
+      "status": "PASS"
+    },
+    {
+      "name": "router-matches-across-a-line-break-but-not-across-a-full-stop",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-a-repeated-phrase-exactly-once",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-the-generated-secret-phrasings",
+      "status": "PASS"
+    },
+    {
+      "name": "router-reports-override-and-idiomatic-waivers",
       "status": "PASS"
     },
     {
@@ -171,6 +303,10 @@
     },
     {
       "name": "side-state-wrong-resume-blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "implement-can-reenter-plan",
       "status": "PASS"
     },
     {
@@ -278,6 +414,10 @@
       "status": "PASS"
     },
     {
+      "name": "a-second-run-storing-identical-content-does-not-take-over-the-first-runs-artifact",
+      "status": "PASS"
+    },
+    {
       "name": "replay-hash-validation",
       "status": "PASS"
     },
@@ -291,6 +431,26 @@
     },
     {
       "name": "sensitive-read-blocked",
+      "status": "PASS"
+    },
+    {
+      "name": "git-credential-files-are-sensitive-reads",
+      "status": "PASS"
+    },
+    {
+      "name": "sensitive-read-patterns-match-below-the-repository-root",
+      "status": "PASS"
+    },
+    {
+      "name": "sensitive-read-patterns-do-not-block-ordinary-source",
+      "status": "PASS"
+    },
+    {
+      "name": "repo-search-finds-a-file-the-task-just-created",
+      "status": "PASS"
+    },
+    {
+      "name": "repo-diff-says-which-new-files-it-cannot-show",
       "status": "PASS"
     },
     {
@@ -314,6 +474,10 @@
       "status": "PASS"
     },
     {
+      "name": "secret-scan-sees-a-file-the-task-created-and-never-staged",
+      "status": "PASS"
+    },
+    {
       "name": "secret-scan-honours-the-policy-allowlist",
       "status": "PASS"
     },
@@ -327,6 +491,10 @@
     },
     {
       "name": "targeted-test-substitutes-the-selector",
+      "status": "PASS"
+    },
+    {
+      "name": "a-recognised-test-report-is-summarised-not-pasted",
       "status": "PASS"
     },
     {
@@ -367,6 +535,22 @@
     },
     {
       "name": "web-search-honours-registry-return-limit-not-hardcoded-24000",
+      "status": "PASS"
+    },
+    {
+      "name": "an-uncompilable-blocked-query-pattern-refuses-the-query-instead-of-ignoring-the-rule",
+      "status": "PASS"
+    },
+    {
+      "name": "every-shipped-blocked-query-pattern-compiles",
+      "status": "PASS"
+    },
+    {
+      "name": "an-empty-blocked_query_patterns-list-is-how-sanitization-is-turned-off",
+      "status": "PASS"
+    },
+    {
+      "name": "project-json-cannot-grant-a-tool-the-stage-denies",
       "status": "PASS"
     },
     {
@@ -430,11 +614,19 @@
       "status": "PASS"
     },
     {
+      "name": "caller-cannot-assert-the-security-gate-either",
+      "status": "PASS"
+    },
+    {
       "name": "a-real-test-run-satisfies-the-verify-gate",
       "status": "PASS"
     },
     {
       "name": "stale-verify-evidence-blocks-the-gate",
+      "status": "PASS"
+    },
+    {
+      "name": "a-new-untracked-file-makes-verify-evidence-stale-too",
       "status": "PASS"
     },
     {
@@ -630,6 +822,10 @@
       "status": "PASS"
     },
     {
+      "name": "a-full-design-decision-of-placeholders-does-not-pass-the-gate",
+      "status": "PASS"
+    },
+    {
       "name": "design-mode-evidence-tokens-are-policy-canonical",
       "status": "PASS"
     },
@@ -695,6 +891,10 @@
     },
     {
       "name": "feature-and-phase-round-trip",
+      "status": "PASS"
+    },
+    {
+      "name": "feature-and-phase-listing-is-sorted-by-id",
       "status": "PASS"
     },
     {
@@ -790,6 +990,110 @@
       "status": "PASS"
     },
     {
+      "name": "control-bands-calculates-mean-and-stddev",
+      "status": "PASS"
+    },
+    {
+      "name": "control-bands-handles-empty-and-single-point-baseline",
+      "status": "PASS"
+    },
+    {
+      "name": "control-bands-classifies-normal-under-one-sigma",
+      "status": "PASS"
+    },
+    {
+      "name": "control-bands-classifies-diagnose-at-two-sigma",
+      "status": "PASS"
+    },
+    {
+      "name": "control-bands-classifies-breach-at-three-sigma-and-generates-intent",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/entropy-shannon-calculation",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/entropy-secret-redaction",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/task-failure-diagnostics-parsing",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/event-merkle-chain-verification",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/dashboard-html-generation",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/condense-log-noise-reduction",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/compact-artifact-summaries",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/repo-impacted-tests-and-transitive-closure",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/rewind-to-stage-prunes-evidence-and-resets-state",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/webhook-signature-and-pattern-matching",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/webhook-dispatcher-execution",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/arch-linter-detects-circular-dependencies",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/quarantine-lifecycle-add-remove-check",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/cost-simulation-estimates-tokens-and-usd",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/live-server-creation-and-routes",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/mutation-testing-engine-and-report",
+      "status": "PASS"
+    },
+    {
+      "name": "pr-body-governance-section-reports-the-runs-real-profile",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/pr-generator-and-changelog-markdown",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/dead-code-detection-and-health-score",
+      "status": "PASS"
+    },
+    {
+      "name": "optimization/static-code-review-persona-scorecard",
+      "status": "PASS"
+    },
+    {
+      "name": "the-reviewer-agent-states-the-verdicts-the-validator-accepts",
+      "status": "PASS"
+    },
+    {
       "name": "task-state_machine/legal-forward-flow-reaches-done",
       "status": "PASS"
     },
@@ -838,7 +1142,35 @@
       "status": "PASS"
     },
     {
+      "name": "task-state_machine/a-task-id-that-is-not-TASK-NNN-is-still-a-task",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/sidecars-are-never-returned-as-tasks",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/a-task-id-cannot-write-outside-its-run-directory",
+      "status": "PASS"
+    },
+    {
       "name": "task-state_machine/materialization-is-idempotent",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/an-amended-plan-redefines-a-task-that-has-not-started",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/an-amended-plan-reports-a-conflict-when-work-is-already-bound",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/a-task-the-new-plan-dropped-is-retired-not-left-blocking",
+      "status": "PASS"
+    },
+    {
+      "name": "task-state_machine/a-dropped-task-with-bound-work-is-reported-not-retired",
       "status": "PASS"
     },
     {
@@ -902,6 +1234,10 @@
       "status": "PASS"
     },
     {
+      "name": "task-scheduler/the-plan-gate-and-the-scheduler-share-one-overlap-predicate",
+      "status": "PASS"
+    },
+    {
       "name": "task-context/task-context-carries-only-this-task-scope",
       "status": "PASS"
     },
@@ -954,6 +1290,10 @@
       "status": "PASS"
     },
     {
+      "name": "task-verification_review/advance-uses-a-review-that-was-already-recorded",
+      "status": "PASS"
+    },
+    {
       "name": "task-verification_review/quality-blocker-re-enters-running",
       "status": "PASS"
     },
@@ -963,6 +1303,10 @@
     },
     {
       "name": "task-verification_review/review-must-be-bound-to-the-current-diff-and-attempt",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/a-review-that-declares-no-diff-is-not-bound-to-anything",
       "status": "PASS"
     },
     {
@@ -990,7 +1334,51 @@
       "status": "PASS"
     },
     {
+      "name": "task-verification_review/a-task-that-breaks-the-file-it-changed-fails-its-own-verification",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/the-parse-check-covers-the-diff-and-nothing-else",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/a-bare-js-file-is-left-unparsed-where-nothing-declares-its-module-system",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/a-task-that-changed-no-javascript-adds-no-parse-check",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/verification-side-effects-outside-the-write-scope-are-restored",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/an-untracked-file-a-command-created-is-left-alone",
+      "status": "PASS"
+    },
+    {
       "name": "task-verification_review/verification-evidence-is-bound-to-a-revision-and-diff",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/an-isolated-workspace-records-the-new-files-it-cannot-see-either",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/the-per-task-secret-scan-searches-the-files-the-task-just-wrote",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/diff_hash-covers-the-content-of-files-the-task-created-and-never-staged",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/a-failed-verification-does-not-satisfy-the-verification-gate",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/a-verification-record-with-no-scope-audit-does-not-satisfy-the-scope-gate",
       "status": "PASS"
     },
     {
@@ -1082,6 +1470,14 @@
       "status": "PASS"
     },
     {
+      "name": "task-migration_telemetry/workspace-cleanup-allows-a-provably-empty-workspace",
+      "status": "PASS"
+    },
+    {
+      "name": "task-migration_telemetry/workspace-cleanup-refuses-when-emptiness-cannot-be-proven",
+      "status": "PASS"
+    },
+    {
       "name": "a6-repo_intelligence/index-is-built-and-classifies-files",
       "status": "PASS"
     },
@@ -1094,7 +1490,15 @@
       "status": "PASS"
     },
     {
+      "name": "a6-repo_intelligence/a-new-file-the-task-wrote-makes-the-index-stale",
+      "status": "PASS"
+    },
+    {
       "name": "a6-repo_intelligence/index-records-truncation-for-oversized-files",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-repo_intelligence/the-maxFiles-budget-is-spent-on-indexable-files-not-on-skipped-dirs",
       "status": "PASS"
     },
     {
@@ -1190,6 +1594,14 @@
       "status": "PASS"
     },
     {
+      "name": "a6-invalidation/graph_sha256-identifies-the-graph-state-not-the-order-nodes-happened-to-be-built-in",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-invalidation/the-anchor-orders-node-ids-by-code-point-not-by-locale",
+      "status": "PASS"
+    },
+    {
       "name": "a6-invalidation/invalidation-reason-and-path-are-replayable",
       "status": "PASS"
     },
@@ -1230,6 +1642,14 @@
       "status": "PASS"
     },
     {
+      "name": "a6-delivery/a-revoked-or-expired-approval-no-longer-authorizes-a-protected-push",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/protection-survives-the-spellings-a-ref-actually-arrives-in",
+      "status": "PASS"
+    },
+    {
       "name": "a6-delivery/ci-evidence-is-revision-bound",
       "status": "PASS"
     },
@@ -1247,6 +1667,10 @@
     },
     {
       "name": "a6-delivery/ci-evidence-on-another-revision-does-not-vouch-for-this-one",
+      "status": "PASS"
+    },
+    {
+      "name": "a6-delivery/ci-evidence-bound-to-no-revision-does-not-vouch-for-anything",
       "status": "PASS"
     },
     {
