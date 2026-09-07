@@ -8,12 +8,13 @@ import {requireTask,taskProgress} from './task-engine.mjs';
 import {readySet,scheduleTasks,scheduleView,renderTaskDagMermaid} from './task-scheduler.mjs';
 import {buildTaskContext,renderTaskPrompt} from './task-context.mjs';
 import {route} from './router.mjs';
-import {newRun,transition,nextState} from './orchestrator.mjs';
+import {newRun,transition,nextState,recordDesignDecision} from './orchestrator.mjs';
+import {selectDesignDiscoveryMode,scaffoldDesignDecision,validateDesignDecision} from './design-discovery.mjs';
 import {buildContext} from './context.mjs';
 import {checkTool} from './policy.mjs';
 import {invokeTool} from './tools.mjs';
 import {routeModel} from './model-router.mjs';
-import {listApprovals,requestApprovalTicket,grantApprovalTicket,listApprovalTickets} from './approvals.mjs';
+import {listApprovals,requestApprovalTicket,grantApprovalTicket,listApprovalTickets,activeCapabilities} from './approvals.mjs';
 import {evaluateGate} from './gates.mjs';
 import {runAutoPipeline,runAutoTaskLoop} from './autonomous-runner.mjs';
 
@@ -42,6 +43,11 @@ const toolDefs=[
   {name:'agent_sdlc_transition',description:'Transition a run only when gate evidence is satisfied. There is no force/bypass parameter and none is honoured; a privileged capability is authorized only through a trusted approval recorded outside this tool (see agent_sdlc_approval_status, and `agent-sdlc approval grant` run interactively by a human).',inputSchema:{type:'object',required:['run_id','to'],properties:{project_root:{type:'string'},run_id:{type:'string'},to:{type:'string'},evidence:{type:'array',items:{type:'string'}}}}},
   {name:'agent_sdlc_approval_status',description:'Read the approval records on a run: capability, authority, and whether each is ACTIVE, EXPIRED or REVOKED. Supports tickets, request, or grant_ticket.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},op:{type:'string',enum:['status','tickets','request','grant_ticket']},capability:{type:'string'},ticket_id:{type:'string'},reason:{type:'string'},expires_in:{type:'number'},actor:{type:'string'}}}},
   {name:'agent_sdlc_gate_status',description:'Explain the gate for the run\'s current stage: which required evidence is satisfied, missing, or stale for the current workspace.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'}}}},
+  // The DESIGN gate is machine-checked, and sdlc-orchestrator tells an agent to
+  // fall back to "the corresponding MCP tools" when the CLI is unavailable.
+  // There was no corresponding tool: the only MCP route through this gate was
+  // the scaffold the `pipeline` op records for you.
+  {name:'agent_sdlc_design',description:'Design gate: read the required discovery depth, scaffold a correctly shaped decision, validate one, or record an authored decision. Recording enforces the same structural gate as the CLI; there is no bypass.',inputSchema:{type:'object',required:['run_id','op'],properties:{project_root:{type:'string'},run_id:{type:'string'},op:{type:'string',enum:['mode','scaffold','validate','record']},decision:{type:'object'}}}},
   {name:'agent_sdlc_tool_check',description:'Check canonical stage/tool policy before execution.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id','tool'],properties:{project_root:{type:'string'},run_id:{type:'string'},tool:{type:'string'}}}},
   {name:'agent_sdlc_tool_run',description:'Run a deterministic built-in project tool through stage policy and bounded-output handling.',inputSchema:{type:'object',required:['run_id','tool'],properties:{project_root:{type:'string'},run_id:{type:'string'},tool:{type:'string'},args:{type:'object'}}}},
   {name:'agent_sdlc_artifact_put',description:'Store durable external memory as a content-addressed artifact and attach it to a run.',inputSchema:{type:'object',required:['run_id','kind','content'],properties:{project_root:{type:'string'},run_id:{type:'string'},kind:{type:'string'},content:{type:'string'}}}},
@@ -192,6 +198,17 @@ export function execute(name,a={}){
     return listApprovals(ROOT,run);
   }
   if(name==='agent_sdlc_gate_status')return evaluateGate(ROOT,projectRoot,run,run.state);
+  if(name==='agent_sdlc_design'){
+    const selection=selectDesignDiscoveryMode({profile:run.profile,objective:run.objective});
+    if(a.op==='mode')return selection;
+    if(a.op==='scaffold'){
+      const draft=scaffoldDesignDecision(selection,{objective:run.objective});
+      return {schema:'agent-sdlc/design-decision-scaffold/v1',selection,draft,validation:validateDesignDecision(draft)};
+    }
+    if(!a.decision||typeof a.decision!=='object')throw new Error('agent_sdlc_design op requires a `decision` object');
+    if(a.op==='validate')return validateDesignDecision(a.decision);
+    return recordDesignDecision(ROOT,projectRoot,run,a.decision,{approvals:activeCapabilities(ROOT,run)});
+  }
   if(name==='agent_sdlc_tool_check')return checkTool(ROOT,run,a.tool);
   if(name==='agent_sdlc_tool_run')return invokeTool(ROOT,projectRoot,run,a.tool,a.args||{});
   if(name==='agent_sdlc_artifact_put'){

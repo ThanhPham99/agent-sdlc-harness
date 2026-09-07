@@ -122,7 +122,7 @@ await test('garbage-input-does-not-kill-the-server',async()=>{
 });
 await test('every-advertised-tool-declares-a-schema',async()=>{
   const tools=(await c.call('tools/list')).result.tools;
-  assert(tools.length===18,`expected 18 tools, got ${tools.length}`);
+  assert(tools.length===19,`expected 19 tools, got ${tools.length}`);
   for(const t of tools){
     assert(t.name.startsWith('agent_sdlc_'),t.name);
     assert(t.description&&t.description.length>20,`${t.name} has no usable description`);
@@ -262,6 +262,22 @@ await test('a-missing-run-is-an-error-result-not-a-crash',async()=>{
   const ping=await c.call('ping',{});
   assert(JSON.stringify(ping.result)==='{}','server died on a missing run');
 });
+await test('mcp-design-tool-scaffolds-validates-and-records',async ()=>{
+  const started=payload(await c.tool('agent_sdlc_start',{objective:'Add a caching layer'}));
+  const runId=started.run_id;
+  await c.tool('agent_sdlc_transition',{run_id:runId,to:'REQUIREMENTS'});
+  await c.tool('agent_sdlc_transition',{run_id:runId,to:'DESIGN',evidence:['requirements_confirmed']});
+
+  const mode=payload(await c.tool('agent_sdlc_design',{run_id:runId,op:'mode'}));
+  assert(mode.schema==='agent-sdlc/design-discovery-decision/v1','mode returns a discovery decision');
+
+  const scaffold=payload(await c.tool('agent_sdlc_design',{run_id:runId,op:'scaffold'}));
+  assert(scaffold.draft&&scaffold.draft.schema==='agent-sdlc/design-decision/v1','scaffold returns a draft');
+
+  const rec=payload(await c.tool('agent_sdlc_design',{run_id:runId,op:'record',decision:scaffold.draft}));
+  assert(rec.recorded===true,`a valid decision records over MCP, got ${JSON.stringify(rec.validation&&rec.validation.errors)}`);
+});
+
 await test('an-unknown-tool-is-an-error-result',async()=>{
   const r=await c.tool('agent_sdlc_not_a_tool',{});
   assert(r.result.isError===true,'an unknown tool succeeded');
