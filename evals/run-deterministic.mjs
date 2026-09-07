@@ -1888,6 +1888,23 @@ test('design-scaffold-full-mode-is-correctly-shaped-but-still-needs-content',()=
   // is what's left, not shape.
   if(!selection.human_approval_required||!v.errors.includes('APPROVAL_REQUIRED_NOT_APPROVED'))throw Error(JSON.stringify(v));
 });
+test('a-full-design-decision-of-placeholders-does-not-pass-the-gate',()=>{
+  const selection=selectDesignDiscoveryMode({profile:'STRICT',objective:'database schema migration with backfill'});
+  const draft=scaffoldDesignDecision(selection,{objective:'database schema migration with backfill'});
+  const v=validateDesignDecision(draft);
+  // The scaffold is shaped right and says TODO in every field that needs
+  // judgement. Structure is not content: it must not emit gate evidence.
+  if(v.valid)throw Error('a scaffold of TODOs validated');
+  if(!v.errors.some(e=>e.startsWith('PLACEHOLDER_TEXT_NOT_REPLACED:')))throw Error(JSON.stringify(v.errors));
+  if(v.gate_evidence.length)throw Error(`emitted gate evidence anyway: ${JSON.stringify(v.gate_evidence)}`);
+
+  // Filling the fields in is all it takes to pass.
+  const filled={...draft,
+    decision:'Backfill in batches behind a feature flag.',
+    options:draft.options.map((o,i)=>({...o,summary:`Option ${i}`,benefits:['ships incrementally'],tradeoffs:['slower']}))};
+  const v2=validateDesignDecision(filled);
+  if(v2.errors.some(e=>e.startsWith('PLACEHOLDER_TEXT_NOT_REPLACED:')))throw Error(JSON.stringify(v2.errors));
+});
 test('design-mode-evidence-tokens-are-policy-canonical',()=>{
   for(const m of ['SKIP','COMPACT','FULL']){
     const ev=requiredGateEvidence(m,false);

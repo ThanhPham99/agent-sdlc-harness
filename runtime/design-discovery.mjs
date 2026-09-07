@@ -190,6 +190,14 @@ export function scaffoldDesignDecision(selection,{objective='',decisionId=null}=
   return draft;
 }
 
+// A scaffold hands back `TODO` in every free-text field a FULL decision needs,
+// and validation only ever asked whether those fields were non-empty -- so the
+// scaffold validated, emitted full_design_approved_or_policy_auto, and the gate
+// passed on text nobody had written. Anchored at the start: prose that merely
+// mentions a TODO elsewhere in a sentence is not a placeholder.
+const PLACEHOLDER=/^\s*TODO\b/i;
+const isPlaceholder=(v)=>typeof v==='string'&&PLACEHOLDER.test(v);
+
 /**
  * Structural validation of a DesignDecision artifact. Deterministic: it checks
  * the contract the internal module promised, not the quality of the prose.
@@ -200,6 +208,7 @@ export function validateDesignDecision(decision,{policy=getDesignDiscoveryPolicy
   if(d.schema!=='agent-sdlc/design-decision/v1')errors.push('SCHEMA_MISMATCH');
   if(!d.decision_id)errors.push('MISSING_DECISION_ID');
   if(!d.objective)errors.push('MISSING_OBJECTIVE');
+  else if(isPlaceholder(d.objective))errors.push('PLACEHOLDER_TEXT_NOT_REPLACED:objective');
   if(!MODES.includes(d.mode))errors.push('INVALID_MODE');
   const options=Array.isArray(d.options)?d.options:[];
   if(d.mode==='FULL'){
@@ -214,11 +223,15 @@ export function validateDesignDecision(decision,{policy=getDesignDiscoveryPolicy
     if(!d.recommended_option)errors.push('MISSING_RECOMMENDED_OPTION');
     else if(options.length&&!options.some(o=>o.id===d.recommended_option))errors.push('RECOMMENDED_OPTION_NOT_IN_OPTIONS');
     if(!d.decision)errors.push('MISSING_DECISION_STATEMENT');
+    else if(isPlaceholder(d.decision))errors.push('PLACEHOLDER_TEXT_NOT_REPLACED:decision');
     for(const o of options){
       if(!o.id)errors.push('OPTION_MISSING_ID');
       if(!o.summary)errors.push(`OPTION_MISSING_SUMMARY:${o.id||'?'}`);
+      else if(isPlaceholder(o.summary))errors.push(`PLACEHOLDER_TEXT_NOT_REPLACED:options[${o.id||'?'}].summary`);
       if(!(o.benefits||[]).length)errors.push(`OPTION_MISSING_BENEFITS:${o.id||'?'}`);
+      else if((o.benefits||[]).some(isPlaceholder))errors.push(`PLACEHOLDER_TEXT_NOT_REPLACED:options[${o.id||'?'}].benefits`);
       if(!(o.tradeoffs||[]).length)errors.push(`OPTION_MISSING_TRADEOFFS:${o.id||'?'}`);
+      else if((o.tradeoffs||[]).some(isPlaceholder))errors.push(`PLACEHOLDER_TEXT_NOT_REPLACED:options[${o.id||'?'}].tradeoffs`);
     }
   }
   if(d.mode==='SKIP'&&!(d.skip_reason||d.decision))errors.push('SKIP_WITHOUT_REASON');
