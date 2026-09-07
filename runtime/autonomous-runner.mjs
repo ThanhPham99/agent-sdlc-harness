@@ -487,7 +487,11 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
 
       const next=nextState(currentRun);
       if(!next)break;
-      const ev=['targeted_verification_pass','no_new_high_security_findings'];
+
+      // The token is derived from the scan now, not asserted alongside the test
+      // result, so the scan has to actually run here.
+      invokeTool(root,projectRoot,currentRun,'security.sast',{});
+      const ev=['targeted_verification_pass'];
       if(next==='CLOSE')ev.push('handoff_written','docs_reconciled');
       currentRun=transition(root,projectRoot,currentRun,next,{
         evidence:ev,

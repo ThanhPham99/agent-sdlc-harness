@@ -1461,7 +1461,8 @@ function runAtDeploy(objective){
   transition(ROOT,tmp,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
   transition(ROOT,tmp,r,'VERIFY',{evidence:['implementation_artifact','task_graph_complete'],internal:true});
   invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'}); // records targeted_verification_pass for real
-  transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});
+  invokeTool(ROOT,tmp,r,'security.sast',{});
+  transition(ROOT,tmp,r,'REVIEW');
   transition(ROOT,tmp,r,'RELEASE',{evidence:['required_reviews_resolved']});
   transition(ROOT,tmp,r,'DEPLOY',{evidence:['release_evidence_current']});
   return r;
@@ -1576,24 +1577,34 @@ test('caller-cannot-assert-verify-evidence-directly',()=>{
   catch(e){ok=/deterministic validator/.test(e.message);}
   if(!ok)throw Error('targeted_verification_pass was accepted as caller-asserted evidence');
 });
+test('caller-cannot-assert-the-security-gate-either',()=>{
+  const r=toVerify('Add no-security-direct-assert capability');
+  let threw=null;
+  try{transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});}catch(e){threw=e;}
+  if(!threw)throw Error('the security gate token was accepted as a bare assertion');
+  if(!/must be produced by the deterministic validator/.test(threw.message))throw Error(threw.message);
+});
 test('a-real-test-run-satisfies-the-verify-gate',()=>{
   const r=toVerify('Add real-test-run capability');
   invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
-  const out=transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});
+  invokeTool(ROOT,tmp,r,'security.sast',{});
+  const out=transition(ROOT,tmp,r,'REVIEW');
   if(out.state!=='REVIEW')throw Error(JSON.stringify(out));
 });
 test('stale-verify-evidence-blocks-the-gate',()=>{
   const r=toVerify('Add stale-check capability');
   invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
+  invokeTool(ROOT,tmp,r,'security.sast',{});
   fs.appendFileSync(path.join(tmp,'README.md'),'dirty\n'); // a tracked edit; the case below covers a new untracked file
   let ok=false;
-  try{transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});}
+  try{transition(ROOT,tmp,r,'REVIEW');}
   catch(e){ok=/stale evidence/.test(e.message)&&/targeted_verification_pass/.test(e.message);}
   execFileSync('git',['checkout','--','README.md'],{cwd:tmp});
   if(!ok)throw Error('stale test evidence satisfied the VERIFY gate');
   // Re-running the tool against the now-clean workspace refreshes it.
   invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
-  const out=transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});
+  invokeTool(ROOT,tmp,r,'security.sast',{});
+  const out=transition(ROOT,tmp,r,'REVIEW');
   if(out.state!=='REVIEW')throw Error('a fresh re-run did not reopen the gate');
 });
 test('a-new-untracked-file-makes-verify-evidence-stale-too',()=>{
@@ -1605,18 +1616,20 @@ test('a-new-untracked-file-makes-verify-evidence-stale-too',()=>{
   // stayed fresh after it appeared.
   const r=toVerify('Add untracked-staleness capability');
   invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
+  invokeTool(ROOT,tmp,r,'security.sast',{});
   const added=path.join(tmp,'newly-added-module.js');
   fs.writeFileSync(added,'export const x=1;\n');
   let ok=false;
-  try{transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});}
+  try{transition(ROOT,tmp,r,'REVIEW');}
   catch(e){ok=/stale evidence/.test(e.message)&&/targeted_verification_pass/.test(e.message);}
   if(!ok){fs.rmSync(added,{force:true});throw Error('a new untracked file left the evidence fresh');}
 
   // Its CONTENT counts, not just its name: rewriting it keeps the gate shut.
   invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
+  invokeTool(ROOT,tmp,r,'security.sast',{});
   fs.writeFileSync(added,'export const x=2;\nexport function other(){}\n');
   let ok2=false;
-  try{transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});}
+  try{transition(ROOT,tmp,r,'REVIEW');}
   catch(e){ok2=/stale evidence/.test(e.message);}
   if(!ok2){fs.rmSync(added,{force:true});throw Error('rewriting an untracked file left the evidence fresh');}
 
@@ -1625,7 +1638,7 @@ test('a-new-untracked-file-makes-verify-evidence-stale-too',()=>{
   // one-way "something happened" flag.
   fs.writeFileSync(added,'export const x=1;\n');
   let out;
-  try{out=transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});}
+  try{out=transition(ROOT,tmp,r,'REVIEW');}
   finally{fs.rmSync(added,{force:true});}
   if(out.state!=='REVIEW')throw Error('a restored workspace did not reopen the gate');
 });
@@ -2180,7 +2193,8 @@ test('run-completion-and-feature-completion-are-tracked-independently',()=>{
   transition(ROOT,tmp,r,'IMPLEMENT',{evidence:planGateEvidence(),internal:true});
   transition(ROOT,tmp,r,'VERIFY',{evidence:['implementation_artifact','task_graph_complete'],internal:true});
   invokeTool(ROOT,tmp,r,'test.run_targeted',{selector:'x'});
-  transition(ROOT,tmp,r,'REVIEW',{evidence:['no_new_high_security_findings']});
+  invokeTool(ROOT,tmp,r,'security.sast',{});
+  transition(ROOT,tmp,r,'REVIEW');
   transition(ROOT,tmp,r,'RELEASE',{evidence:['required_reviews_resolved']});
   transition(ROOT,tmp,r,'DEPLOY',{evidence:['release_evidence_current']});
   transition(ROOT,tmp,r,'OBSERVE',{evidence:['deployment_receipt']});

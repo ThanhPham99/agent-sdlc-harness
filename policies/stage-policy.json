@@ -340,6 +340,7 @@
     "plan_ready": "runtime",
     "implementation_artifact": "runtime",
     "task_graph_complete": "runtime",
-    "targeted_verification_pass": "runtime"
+    "targeted_verification_pass": "runtime",
+    "no_new_high_security_findings": "runtime"
   }
 }

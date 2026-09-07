@@ -305,5 +305,8 @@ export function invokeTool(root,projectRoot,run,tool,args={}){
   // deterministic tool run that produced it, instead of letting a caller
   // assert the same string, is what makes it evidence rather than a claim.
   if(tool==='test.run_targeted')recordEvidence(projectRoot,run,{stage:run.state,claim:'targeted_verification_pass',status:result.status,tool,exitCode:result.exit_code,artifactRef:full});
+  if(tool==='security.sast'||tool==='security.secret_scan'){
+    recordEvidence(projectRoot,run,{stage:run.state,claim:'no_new_high_security_findings',status:result.status,tool,exitCode:result.exit_code,artifactRef:full});
+  }
   const out={tool,status:result.status,reason:result.reason??null,exit_code:result.exit_code,summary:result.summary,failures:[],full_log_artifact:full,truncated:result.truncated};emit(projectRoot,run,{type:'tool.completed',payload:{tool,status:out.status,reason:out.reason,exit_code:out.exit_code,truncated:out.truncated},artifact_refs:full?[full]:[]});return out;
 }
