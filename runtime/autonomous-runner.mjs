@@ -15,8 +15,16 @@ import {generatePrBody,generateChangelog} from './pr-generator.mjs';
 import {recordDelivery} from './git-delivery.mjs';
 import {invokeTool} from './tools.mjs';
 import {integrateTaskWorkspace} from './workspace.mjs';
+import {reviewTaskPair} from './task-reviewer.mjs';
 
 export const MAX_SELF_HEAL_ATTEMPTS=3;
+
+/**
+ * Marker written onto a task whose spec/quality reviews were synthesised by the
+ * runner rather than produced by a reviewer. The REVIEW gate refuses to resolve
+ * on tasks carrying it.
+ */
+export const AUTO_REVIEW_STUB='AUTO_RUNNER_STUB';
 
 export const HUMAN_GATES={
   GATE_1_SCOPE_AND_ARCHITECTURE:'GATE_1_SCOPE_AND_ARCHITECTURE',
@@ -153,7 +161,30 @@ export function scaffoldTaskPlan(run,projectRoot=null){
  * Execute the automated task loop for all READY / PENDING tasks in IMPLEMENT stage.
  * Performs self-healing up to MAX_SELF_HEAL_ATTEMPTS before triggering Gate 2.
  */
-export function runAutoTaskLoop(root,projectRoot,run,{customWriter=null,workerCallback=null}={}){
+/**
+ * Where a task's two reviews come from, in order of preference.
+ *
+ * A caller-supplied reviewer wins -- an interactive orchestrator is already
+ * reviewing and should not pay for a second opinion it did not ask for. With
+ * none, spawn one. With no provider reachable, say so and hand back the marked
+ * placeholders: an unreachable reviewer must never read as a clean review.
+ */
+export function resolveTaskReviews(root,projectRoot,run,task,{reviewerCallback=null,spawnReviewer=true}={}){
+  if(reviewerCallback){
+    const supplied=reviewerCallback(task)||{};
+    return {specReview:supplied.specReview??null,qualityReview:supplied.qualityReview??null,source:'CALLBACK'};
+  }
+  if(!spawnReviewer)return {specReview:null,qualityReview:null,source:'DISABLED'};
+  try{
+    const pair=reviewTaskPair(root,projectRoot,run,task);
+    return {...pair,source:'SPAWNED'};
+  }catch(e){
+    return {specReview:null,qualityReview:null,source:'SPAWN_FAILED',
+      attempts:[{kind:'both',status:'UNAVAILABLE',reason:e.message}]};
+  }
+}
+
+export function runAutoTaskLoop(root,projectRoot,run,{customWriter=null,workerCallback=null,reviewerCallback=null,spawnReviewer=true}={}){
   let loops=0;
   const steps=[];
   const failureContexts=new Map();
@@ -189,26 +220,39 @@ export function runAutoTaskLoop(root,projectRoot,run,{customWriter=null,workerCa
       }catch{/* ignore */}
       currentTask=loadTask(projectRoot,run.run_id,t.task_id);
 
-      const specReview={
+      // Both reviews used to be constructed here as COMPLIANT/ACCEPTED with no
+      // findings, whatever the diff contained -- a rubber stamp wearing the
+      // shape of the two-stage review contract.
+      //
+      // Now: a caller-supplied reviewer if there is one, otherwise a reviewer
+      // agent spawned as its own process against the diff. Only when neither is
+      // available do the placeholders reappear, and they are stamped so the run
+      // cannot pass REVIEW on them.
+      const reviews=resolveTaskReviews(root,projectRoot,run,currentTask,{reviewerCallback,spawnReviewer});
+      const is_reviewed=Boolean(reviews.specReview&&reviews.qualityReview);
+      if(reviews.attempts)steps.push({task_id:currentTask.task_id,action:'REVIEWED',source:reviews.source,attempts:reviews.attempts});
+      const specReview=reviews.specReview??{
         schema:'agent-sdlc/spec-compliance-review/v1',
         task_id:currentTask.task_id,
         attempt:currentTask.attempt||0,
         diff_hash:currentTask.diff_hash,
         verdict:'COMPLIANT',
-        findings:[]
+        findings:[],
+        generated_by:AUTO_REVIEW_STUB
       };
 
-      const qualityReview={
+      const qualityReview=reviews.qualityReview??{
         schema:'agent-sdlc/code-quality-review/v1',
         task_id:currentTask.task_id,
         attempt:currentTask.attempt||0,
         diff_hash:currentTask.diff_hash,
         verdict:'ACCEPTED',
         findings:[],
+        generated_by:AUTO_REVIEW_STUB,
         independence:{
           requested:false,
           achieved:false,
-          limitation:'not required'
+          limitation:'no reviewer was supplied to the autonomous runner; no agent read this diff'
         }
       };
 
@@ -217,7 +261,15 @@ export function runAutoTaskLoop(root,projectRoot,run,{customWriter=null,workerCa
         qualityReview
       });
 
+      // Persisted on the task, because the REVIEW gate is reached in a later
+      // call to the pipeline than the one that ran the task. recordTaskReview
+      // has just cleared the marker, so only the stub case writes anything.
       currentTask=loadTask(projectRoot,run.run_id,t.task_id);
+      if(!is_reviewed&&currentTask.reviews_generated_by!==AUTO_REVIEW_STUB){
+        currentTask.reviews_generated_by=AUTO_REVIEW_STUB;
+        saveTask(projectRoot,currentTask);
+      }
+
       steps.push({task_id:currentTask.task_id,action:'ADVANCED',to:currentTask.status});
 
       if(currentTask.status==='DONE'){
@@ -284,10 +336,66 @@ export function runAutoTaskLoop(root,projectRoot,run,{customWriter=null,workerCa
 }
 
 /**
+ * Re-run the project's tests over the integrated result of every DONE task.
+ *
+ * Per-task verification proves a task's own diff in its own workspace. It says
+ * nothing about the merge, which is exactly where the interesting regressions
+ * live. Prefer the full suite; fall back to the targeted command with the
+ * selectors the plan already named, so a project that configured only
+ * `test_targeted` still gets a real run rather than an asserted token.
+ *
+ * Returns UNAVAILABLE rather than PASS when no test command is configured: a
+ * missing suite is a fact the caller has to act on, not a pass.
+ */
+export function runIntegratedVerification(root,projectRoot,run){
+  const attempts=[];
+  const targetedSelectors=[...new Set(
+    listTasks(projectRoot,run.run_id)
+      .flatMap(t=>Array.isArray(t.verification?.targeted_tests)?t.verification.targeted_tests:[])
+      .filter(Boolean)
+  )];
+  const candidates=[
+    {tool:'test.run_full',args:{}},
+    ...targetedSelectors.map(selector=>({tool:'test.run_targeted',args:{selector}}))
+  ];
+  for(const {tool,args} of candidates){
+    let res;
+    try{res=invokeTool(root,projectRoot,run,tool,args);}
+    catch(e){attempts.push({tool,status:'UNAVAILABLE',reason:e.message});continue;}
+    if(res.status==='DENY'||res.status==='APPROVAL_REQUIRED'){
+      attempts.push({tool,status:'UNAVAILABLE',reason:`${res.status}: ${JSON.stringify(res.summary)}`});
+      continue;
+    }
+    attempts.push({tool,status:res.status,exit_code:res.exit_code,reason:res.reason??null});
+    if(res.status!=='PASS'){
+      // A suite that ran and failed and a command that never launched both stop
+      // the run, but they are not the same fact and the operator fixes them in
+      // different places. `exec` already distinguishes them; keep that here
+      // rather than reporting a launch failure as a failing test.
+      return {schema:'agent-sdlc/integrated-verification/v1',
+        status:res.status==='ERROR'?'ERROR':'FAIL',
+        tool,exit_code:res.exit_code,reason:res.reason??null,summary:res.summary,
+        full_log_artifact:res.full_log_artifact??null,attempts};
+    }
+    // The full suite settles it. A targeted command only settles the selector it
+    // was given, so keep going through the rest of them.
+    if(tool==='test.run_full')return {schema:'agent-sdlc/integrated-verification/v1',status:'PASS',tool,exit_code:res.exit_code,attempts};
+  }
+  const ran=attempts.filter(a=>a.status==='PASS');
+  if(ran.length)return {schema:'agent-sdlc/integrated-verification/v1',status:'PASS',tool:ran.at(-1).tool,exit_code:0,attempts};
+  return {
+    schema:'agent-sdlc/integrated-verification/v1',
+    status:'UNAVAILABLE',
+    reason:attempts.map(a=>`${a.tool}: ${a.reason||a.status}`).join('; ')||'no test command configured',
+    attempts
+  };
+}
+
+/**
  * Execute the automated SDLC pipeline across multiple stages until reaching completion
  * or pausing at one of the 5 Human Confirmation Gates.
  */
-export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCallback=null,skipCiCheck=false}={}){
+export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCallback=null,reviewerCallback=null,spawnReviewer=true,skipCiCheck=false}={}){
   let currentRun=loadRun(projectRoot,run.run_id);
   const stageSteps=[];
 
@@ -421,7 +529,7 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
 
     // --- STAGE: IMPLEMENT ---
     if(stage==='IMPLEMENT'){
-      const loopResult=runAutoTaskLoop(root,projectRoot,currentRun,{workerCallback});
+      const loopResult=runAutoTaskLoop(root,projectRoot,currentRun,{workerCallback,reviewerCallback,spawnReviewer});
       if(loopResult.is_paused){
         return {
           status:'PAUSED',
@@ -485,13 +593,36 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
         }
       }catch{/* ignore if policy not configured */}
 
+      // Every task verified its own workspace diff during IMPLEMENT, and those
+      // workspaces were merged into the project root a few lines above. Nothing
+      // had run a suite over the merged result: this stage used to assert
+      // targeted_verification_pass and move on, so a regression that only
+      // appears once two tasks are combined reached RELEASE unseen. The token
+      // now comes from the run recorded by invokeTool, not from this list.
+      const regression=runIntegratedVerification(root,projectRoot,currentRun);
+      if(regression.status!=='PASS'){
+        return {
+          status:'PAUSED',
+          current_stage:'VERIFY',
+          pause_gate:HUMAN_GATES.GATE_2_ESCALATION_BLOCKER,
+          run:currentRun,
+          verification:regression,
+          stage_steps:stageSteps,
+          message:regression.status==='UNAVAILABLE'
+            ? `Post-integration verification could not run: ${regression.reason}. Configure commands.test_full (or commands.test_targeted) in .agent-sdlc/project.json before the run can pass VERIFY.`
+            : regression.status==='ERROR'
+              ? `Post-integration verification never started: ${regression.tool} could not be launched (${regression.reason}). Fix the configured command before the run can pass VERIFY.`
+              : `Post-integration verification failed (${regression.tool}, exit ${regression.exit_code}). The merged result of all tasks does not pass; fix it before RELEASE.`
+        };
+      }
+
       const next=nextState(currentRun);
       if(!next)break;
 
       // The token is derived from the scan now, not asserted alongside the test
       // result, so the scan has to actually run here.
       invokeTool(root,projectRoot,currentRun,'security.sast',{});
-      const ev=['targeted_verification_pass'];
+      const ev=[];
       if(next==='CLOSE')ev.push('handoff_written','docs_reconciled');
       currentRun=transition(root,projectRoot,currentRun,next,{
         evidence:ev,
@@ -504,6 +635,24 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
 
     // --- STAGE: REVIEW ---
     if(stage==='REVIEW'){
+      // `required_reviews_resolved` was asserted here unconditionally, which is
+      // how a run whose every review was a runner-generated stub reached
+      // RELEASE describing itself as reviewed. A stub is not a resolved review.
+      const unreviewed=listTasks(projectRoot,currentRun.run_id)
+        .filter(t=>t.reviews_generated_by===AUTO_REVIEW_STUB)
+        .map(t=>t.task_id);
+      if(unreviewed.length){
+        return {
+          status:'PAUSED',
+          current_stage:'REVIEW',
+          pause_gate:HUMAN_GATES.GATE_2_ESCALATION_BLOCKER,
+          run:currentRun,
+          unreviewed_tasks:unreviewed,
+          stage_steps:stageSteps,
+          message:`No reviewer produced the spec-compliance and code-quality reviews for ${unreviewed.length} task(s): ${unreviewed.join(', ')}. Supply a reviewer to the runner, or record the reviews with \`agent-sdlc task review\`, before REVIEW can resolve.`
+        };
+      }
+
       const next=nextState(currentRun);
       if(!next)break;
       const ev=['required_reviews_resolved'];

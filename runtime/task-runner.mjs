@@ -9,18 +9,130 @@
 // this module owns every transition, and every transition goes through the task
 // state machine, so an unverified or badly-reviewed task cannot reach DONE by
 // any path a worker controls.
+import fs from 'node:fs';
+import path from 'node:path';
 import {now} from './util.mjs';
 import {loadTask,listTasks,saveTask,emitTaskEvent,getArtifact} from './store.mjs';
 import {transitionTask,evaluateTransition,dependencyState,requireTask} from './task-engine.mjs';
 import {buildTaskContext,renderTaskPrompt} from './task-context.mjs';
 import {createTaskWorkspace,checkpointTaskWorkspace,workspaceDiff,getTaskWorkspace,cleanupTaskWorkspace} from './workspace.mjs';
 import {verifyTask} from './task-verification.mjs';
-import {recordTaskReview} from './task-review.mjs';
+import {recordTaskReview,BLOCKING} from './task-review.mjs';
 import {classifyTaskFailure,planRecovery,applyRecovery,evidenceFingerprint,hasNewEvidence,outerEscalation} from './task-recovery.mjs';
 import {routeModel} from './model-router.mjs';
 import {addUsage} from './cost.mjs';
+import {auditCodingStandards} from './coding-standards-linter.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
+
+/** Files the standards linter understands. Anything else it cannot judge. */
+const LINTABLE=/\.(mjs|cjs|js|jsx|ts|tsx)$/;
+
+/**
+ * How many non-blocking standards violations travel in a review. A file with
+ * twenty unprefixed booleans would otherwise bury the reviewer's own findings
+ * in machine noise, and the reader needs the pattern, not every instance. The
+ * blocking ones are never dropped -- they decide the gate.
+ */
+export const MAX_REPORTED_STANDARDS_NITS=10;
+
+/**
+ * Which policy governs this project, and whether the audit runs at all.
+ *
+ * The harness policy is opinionated -- snake_case properties, no `var`, no
+ * `any` -- and applying it unasked to an arbitrary target repository would
+ * block every task in a codebase with different conventions. So a project may
+ * override it or switch it off through `.agent-sdlc/project.json`:
+ *
+ *   "coding_standards": { "enabled": false }
+ *   "coding_standards": { "policy_path": "config/our-standards.json" }
+ *
+ * A relative `policy_path` is resolved against the project root. With nothing
+ * configured, a project-level `policies/coding-standards.json` wins over the
+ * harness's, which is what a project that vendored its own would expect.
+ */
+export function resolveCodingStandardsPolicy(root,projectRoot){
+  let configured={};
+  try{
+    const cfg=JSON.parse(fs.readFileSync(path.join(projectRoot,'.agent-sdlc','project.json'),'utf8'));
+    configured=cfg.coding_standards||{};
+  }catch{/* no project config: the defaults below still apply */}
+  if(configured.enabled===false)return {is_enabled:false,policy_path:null,reason:'disabled in .agent-sdlc/project.json'};
+  if(configured.policy_path){
+    const resolved=path.resolve(projectRoot,configured.policy_path);
+    return {is_enabled:true,policy_path:resolved,source:'project_config'};
+  }
+  const vendored=path.join(projectRoot,'policies','coding-standards.json');
+  if(fs.existsSync(vendored))return {is_enabled:true,policy_path:vendored,source:'project_policies'};
+  return {is_enabled:true,policy_path:path.join(root,'policies','coding-standards.json'),source:'harness'};
+}
+
+/**
+ * Audit the task's own changed files against the coding-standards policy and
+ * return the violations as code-quality findings.
+ *
+ * The policy was enforced by prompt alone: implementation.md told the writer the
+ * rules and code-review.md told the reviewer to check them, and a reviewer that
+ * simply did not look produced an ACCEPTED verdict indistinguishable from one
+ * that did. The linter existed the whole time and nothing called it. This runs
+ * it over the diff -- never the repository, so a task does not inherit debt it
+ * did not write -- and merges the result into the review, where a BLOCKING
+ * violation decides the verdict rather than being argued about.
+ *
+ * The returned `status` is the point of the return shape. An audit that found
+ * nothing and an audit that never ran produce the same empty finding list, and
+ * a review artifact that cannot tell them apart is exactly the kind of clean
+ * document proving nothing that this change exists to remove. So the status
+ * travels into the review, and a failure to run is recorded rather than passed
+ * off as compliance -- but it does not block, because a broken linter must not
+ * become a new way for a task to be stuck.
+ */
+export function codingStandardsFindings(root,projectRoot,run,task){
+  const skipped=(status,reason)=>({status,reason,findings:[],files_checked:0,report:null});
+  const policy=resolveCodingStandardsPolicy(root,projectRoot);
+  if(!policy.is_enabled)return skipped('DISABLED',policy.reason);
+  try{
+    const ws=getTaskWorkspace(projectRoot,run.run_id,task.task_id);
+    // Without a workspace there is no diff to scope the audit to, and linting
+    // the whole project root here would judge the task on code it never wrote.
+    if(!ws)return skipped('SKIPPED','the task has no workspace to diff');
+    const diff=workspaceDiff(projectRoot,ws);
+    const changed=arr(diff?.changed_paths).map(String);
+    const files=changed.filter(p=>LINTABLE.test(p));
+    if(!files.length){
+      return {...skipped('NO_LINTABLE_FILES',changed.length?`${changed.length} changed path(s), none in a language the linter reads`:'the diff is empty'),status:'NO_LINTABLE_FILES'};
+    }
+    const report=auditCodingStandards({root_dir:ws.root,files,policy_path:policy.policy_path});
+    const toFinding=v=>({
+      severity:v.severity,
+      // `category` is an enum in CodeQualityReview.schema.json, and a standards
+      // violation is a maintainability one. An invented category validated fine
+      // against the hand-rolled checks in task-review.mjs and would have been
+      // rejected by the published contract -- which now matters concretely,
+      // because that schema is handed to the reviewer host as --json-schema.
+      category:'MAINTAINABILITY',
+      rule_id:v.rule_id,
+      summary:v.message,
+      // The validator rejects a finding with no evidence, and rightly: the
+      // file:line the linter already knows is exactly that evidence.
+      evidence:`${v.file_path}:${v.line_number}`
+    });
+    const violations=arr(report.violations);
+    const blocking=violations.filter(v=>v.severity===BLOCKING);
+    const rest=violations.filter(v=>v.severity!==BLOCKING);
+    const kept=rest.slice(0,MAX_REPORTED_STANDARDS_NITS);
+    return {
+      status:'RAN',
+      findings:[...blocking,...kept].map(toFinding),
+      files_checked:report.total_files_checked,
+      violations_omitted:rest.length-kept.length,
+      policy_source:policy.source,
+      report
+    };
+  }catch(e){
+    return skipped('ERROR',e.message);
+  }
+}
 
 /**
  * Prepare one READY task for execution: bind the writer, compile the bounded
@@ -90,10 +202,17 @@ export function advanceTask(root,projectRoot,run,taskId,{specReview=null,quality
   const tasks=listTasks(projectRoot,run.run_id);
   const steps=[];
 
+  // The quality review the gate actually judged, which is the reviewer's
+  // document plus whatever the standards linter proved. Classification and the
+  // retry fingerprint have to see the same thing the gate saw, or a task that
+  // failed on standards violations would look like a repeat of an untouched
+  // attempt and the engine would refuse the retry that fixes it.
+  let effectiveQualityReview=qualityReview;
+
   const fail=(verification=null)=>{
     const dep=dependencyState(tasks,task);
-    const failure=classifyTaskFailure({verification,specReview,qualityReview,dependency:dep,providerError,permissionDenied,budgetExhausted,designInvalidated,requirementAmbiguity});
-    const fingerprint=evidenceFingerprint({task,verification,specReview,qualityReview});
+    const failure=classifyTaskFailure({verification,specReview,qualityReview:effectiveQualityReview,dependency:dep,providerError,permissionDenied,budgetExhausted,designInvalidated,requirementAmbiguity});
+    const fingerprint=evidenceFingerprint({task,verification,specReview,qualityReview:effectiveQualityReview});
     const plan=planRecovery(root,task,failure,{infrastructureAttempts,newEvidence:hasNewEvidence(task,fingerprint)});
     task=applyRecovery(root,projectRoot,task,plan,{tasks,fingerprint,recoveryDecision});
     steps.push({step:'recovery',failure_class:failure.class,action:plan.action,to:plan.to,reason:plan.reason});
@@ -164,7 +283,34 @@ export function advanceTask(root,projectRoot,run,taskId,{specReview=null,quality
     if(!review)return {schema:'agent-sdlc/task-advance/v1',advanced:false,task,steps,
       awaiting:'CODE_QUALITY_REVIEW',verification,
       review_contract:'agent-sdlc/code-quality-review/v1'};
-    const rec=recordTaskReview(projectRoot,run,task,review,{kind:'quality'});
+    // Deterministic evidence before model inference: the reviewer's verdict is
+    // merged with what the linter can prove, and a BLOCKING standards violation
+    // makes an ACCEPTED verdict invalid rather than being argued about.
+    const standards=codingStandardsFindings(root,projectRoot,run,task);
+    const standardsBlocking=standards.findings.filter(f=>f.severity===BLOCKING);
+    // Recorded on every review, including the ones with nothing to report: the
+    // artifact has to say whether the audit ran, or a reader cannot tell a
+    // compliant diff from an audit that silently did not happen.
+    let merged={...review,standards_audit:{
+      status:standards.status,
+      files_checked:standards.files_checked,
+      violations:standards.findings.length,
+      blocking:standardsBlocking.length,
+      violations_omitted:standards.violations_omitted??0,
+      policy_source:standards.policy_source??null,
+      reason:standards.reason??null
+    }};
+    if(standards.findings.length){
+      merged={...merged,findings:[...arr(review.findings),...standards.findings]};
+      // A proven BLOCKING violation settles the verdict. Leaving it ACCEPTED
+      // would fail validation as reviewer malpractice; CHANGES_REQUIRED is what
+      // actually happened, and it classifies as QUALITY_BLOCKER so the recovery
+      // path hands the writer the violations to fix.
+      if(standardsBlocking.length)merged={...merged,verdict:'CHANGES_REQUIRED'};
+    }
+    steps.push({step:'coding_standards',status:standards.status,violations:standards.findings.length,blocking:standardsBlocking.length});
+    effectiveQualityReview=merged;
+    const rec=recordTaskReview(projectRoot,run,task,merged,{kind:'quality'});
     task=loadTask(projectRoot,run.run_id,taskId);
     steps.push({step:'quality_review',valid:rec.validation.valid,clean:rec.validation.clean,errors:rec.validation.errors});
     if(!rec.validation.clean)return fail(verification);
@@ -175,7 +321,7 @@ export function advanceTask(root,projectRoot,run,taskId,{specReview=null,quality
       task=loadTask(projectRoot,run.run_id,taskId);
       if(verification.status!=='PASS')return fail(verification);
     }
-    task=transitionTask(root,projectRoot,task,'DONE',{tasks,verification,specReview:specReview??recorded('spec'),qualityReview:review,reason:'verified and reviewed'});
+    task=transitionTask(root,projectRoot,task,'DONE',{tasks,verification,specReview:specReview??recorded('spec'),qualityReview:merged,reason:'verified and reviewed'});
     steps.push({step:'done'});
     const cleanup=cleanupTaskWorkspace(projectRoot,{run,task});
     steps.push({step:'workspace',status:cleanup.status});

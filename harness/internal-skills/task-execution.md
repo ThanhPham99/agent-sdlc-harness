@@ -37,6 +37,14 @@ bin/agent-sdlc task implementation-complete --run-id <id>
 
 Run the quality pass only after spec compliance is clean, so it never re-argues what the task was for.
 
+The quality gate is not your verdict alone. Before it accepts the review, the engine lints the task's changed files against the coding-standards policy and merges the violations in as findings with `file:line` evidence. A `BLOCKING` violation overrides an `ACCEPTED` verdict to `CHANGES_REQUIRED` — so review what the linter cannot prove (design, safety, error paths, resource handling) rather than re-checking `var`, `any`, parameter counts and filenames by eye.
+
+Every quality review carries a `standards_audit` block saying whether that audit ran (`RAN`, `DISABLED`, `NO_LINTABLE_FILES`, `SKIPPED`, `ERROR`), over how many files, and under which policy. Read it before trusting an empty finding list: a diff nobody could lint is not a compliant diff. A project chooses its own policy — or opts out — through `coding_standards` in `.agent-sdlc/project.json`; if it did, that is its decision to make and not a gap for you to work around.
+
+Neither review may be a formality. Under `agent-sdlc auto` each review is produced by a reviewer agent spawned as its own process against the diff, shown the specification and nothing the writer said about its own work — which is what makes `independence.achieved` true rather than claimed. The harness writes every identifier, attempt and `diff_hash` onto the returned document itself; the reviewer supplies the verdict and the findings and nothing else.
+
+A reviewer that cannot be reached does not produce a clean review. The run falls back to marked placeholders, and `REVIEW` refuses to resolve on them until someone records real reviews with `agent-sdlc task review`.
+
 ## Parallelism
 
 The scheduler decides, not you. It admits a second writer only when dependencies are satisfied, write and interface scopes are disjoint, no serialized boundary (migration, release, high security or data risk, destructive change) is involved, the wall-time benefit is real, and risk and budget policy permit. Every ready task it does not dispatch appears in `deferred` or `excluded` with a reason.

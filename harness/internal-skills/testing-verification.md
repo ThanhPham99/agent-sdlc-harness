@@ -9,6 +9,8 @@
 The orchestrator's context compiler only loads this skill when the run's current stage authorizes it — there is no separate legacy state file to check. If you believe you were invoked out of order regardless, return `BLOCKED` with the required next logical skill rather than proceeding. Load only the artifacts required for this step.
 
 
+Every task verified its own diff in its own workspace during `IMPLEMENT`; those workspaces have since been merged. This stage verifies the merge, which is where the regressions that no single task could see actually live — so a suite has to run here, over the integrated tree, and the gate token comes from that run rather than from a claim. If no test command is configured, say so and let the orchestrator decide; a missing suite is not a pass.
+
 Create/update `test-plan.md` as needed, then execute the smallest sufficient verification set plus required regression coverage. Consider unit, integration, contract, migration, security, performance, build/lint/static checks, and manual validation only when relevant.
 
 Update `verification.md` with acceptance-criterion traceability, actual checks run, results, gaps, and blockers. A claimed check without execution evidence is not a pass. If a required environment/check is unavailable, record it explicitly and let the orchestrator decide whether completion is blocked.

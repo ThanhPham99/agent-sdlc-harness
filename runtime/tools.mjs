@@ -324,7 +324,11 @@ export function invokeTool(root,projectRoot,run,tool,args={}){
   // A gate token is only as trustworthy as what wrote it. Binding it to the
   // deterministic tool run that produced it, instead of letting a caller
   // assert the same string, is what makes it evidence rather than a claim.
-  if(tool==='test.run_targeted')recordEvidence(projectRoot,run,{stage:run.state,claim:'targeted_verification_pass',status:result.status,tool,exitCode:result.exit_code,artifactRef:full});
+  // A full-suite run is strictly stronger than a targeted one, so it earns the
+  // same gate token. Recording the token only for test.run_targeted meant a
+  // stage that verified itself with the full suite got no credit for it -- and
+  // the caller that wanted to move on asserted the string instead.
+  if(tool==='test.run_targeted'||tool==='test.run_full')recordEvidence(projectRoot,run,{stage:run.state,claim:'targeted_verification_pass',status:result.status,tool,exitCode:result.exit_code,artifactRef:full});
   if(tool==='security.sast'||tool==='security.secret_scan'){
     recordEvidence(projectRoot,run,{stage:run.state,claim:'no_new_high_security_findings',status:result.status,tool,exitCode:result.exit_code,artifactRef:full});
   }

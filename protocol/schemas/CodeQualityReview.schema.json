@@ -93,6 +93,13 @@
           },
           "resolved": {
             "type": "boolean"
+          },
+          "rule_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Identifier of the deterministic rule that produced this finding, when a linter rather than a reviewer found it (e.g. NO_VAR_DECLARATION)."
           }
         }
       }
@@ -142,6 +149,18 @@
     },
     "recorded_at": {
       "type": "string"
+    },
+    "standards_audit": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Written by the harness, not the reviewer: whether the deterministic coding-standards audit ran over this diff (RAN, DISABLED, NO_LINTABLE_FILES, SKIPPED, ERROR), how many files it read, which policy applied, and why it did not run. An audit that found nothing and an audit that never happened produce the same empty findings list; this is what tells them apart."
+    },
+    "generated_by": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "Set when the document was synthesised by the harness rather than produced by a reviewer. A review carrying this is not a resolved review and the REVIEW gate refuses it."
     }
   }
 }

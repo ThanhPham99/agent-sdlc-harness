@@ -17,25 +17,70 @@ import {makeTempDir} from './lib/tempdir.mjs';
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const {test,assert,finish}=createSuite('agent-sdlc/autonomous-runner-validation/v1','AUTONOMOUS-RUNNER-VALIDATION.json');
 
-function fixture(name='auto-test-service'){
+function fixture(name='auto-test-service',{commands=null}={}){
   const d=makeTempDir(`agent-sdlc-${name}-`);
   execFileSync('git',['init','-q'],{cwd:d});
   fs.writeFileSync(path.join(d,'README.md'),'# fixture\n');
   execFileSync('git',['add','.'],{cwd:d});
   execFileSync('git',['-c','user.email=test@test.local','-c','user.name=test','commit','-qm','init'],{cwd:d});
+  const resolved=commands??{
+    test_targeted:['node','-e','process.exit(0)'],
+    test_full:['node','-e','process.exit(0)']
+  };
   initProject(d,{
     schema:'agent-sdlc/project/v1',
     project:name,
-    commands:{
-      test_targeted:['node','-e','process.exit(0)'],
-      test_full:['node','-e','process.exit(0)']
-    },
-    test_commands:{
-      test_targeted:['node','-e','process.exit(0)'],
-      test_full:['node','-e','process.exit(0)']
-    }
+    commands:resolved,
+    test_commands:resolved
   });
   return d;
+}
+
+/**
+ * Put a run at VERIFY so a stage-gated tool is actually reachable.
+ *
+ * `checkTool` denies `test.run_full` everywhere but VERIFY, and a DENY reads
+ * back as UNAVAILABLE -- which is the same word this stage uses for "no test
+ * command is configured". A unit test that skips this asserts UNAVAILABLE and
+ * passes without ever reaching the code it means to exercise.
+ */
+function atVerifyStage(projectRoot,run){
+  const staged=loadRun(projectRoot,run.run_id);
+  const index=staged.stages.indexOf('VERIFY');
+  if(index<0)throw new Error(`workflow ${staged.workflow} has no VERIFY stage`);
+  staged.state='VERIFY';
+  staged.stage_index=index;
+  saveRun(projectRoot,staged);
+  return staged;
+}
+
+/**
+ * A reviewer of the shape the runner now requires. The runner no longer
+ * synthesises COMPLIANT/ACCEPTED on its own, so a pipeline test that wants to
+ * reach RELEASE has to supply one -- which is the point: the tests used to pass
+ * through a review stage nothing had reviewed.
+ */
+function passingReviewer(task){
+  return {
+    specReview:{
+      schema:'agent-sdlc/spec-compliance-review/v1',
+      task_id:task.task_id,
+      attempt:task.attempt||0,
+      diff_hash:task.diff_hash,
+      verdict:'COMPLIANT',
+      acceptance_criteria_checked:[...(task.acceptance_criteria||[])],
+      findings:[]
+    },
+    qualityReview:{
+      schema:'agent-sdlc/code-quality-review/v1',
+      task_id:task.task_id,
+      attempt:task.attempt||0,
+      diff_hash:task.diff_hash,
+      verdict:'ACCEPTED',
+      findings:[],
+      independence:{requested:false,achieved:false,limitation:'test reviewer'}
+    }
+  };
 }
 
 await test('ci-guard-detects-configuration-and-runs-local-validation',async ()=>{
@@ -169,7 +214,7 @@ await test('auto-pipeline-executes-low-risk-tasks-until-gate-4-pre-commit',async
     fs.writeFileSync(path.join(targetDir,'src','helper.js'),'export function format() { return "date"; }\n');
   };
 
-  const res=runAutoPipeline(ROOT,d,run,{workerCallback});
+  const res=runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback:passingReviewer});
   // Low-risk FAST/STANDARD skips Gate 1, executes PLAN and IMPLEMENT, and pauses at Gate 4 before commit/push
   assert(res.status==='PAUSED','pipeline should pause at Gate 4');
   assert(res.pause_gate===HUMAN_GATES.GATE_4_PRE_COMMIT_PUSH_APPROVAL,'paused gate must be GATE_4_PRE_COMMIT_PUSH_APPROVAL');
@@ -230,7 +275,7 @@ await test('auto-pipeline-plans-a-repository-with-many-top-level-directories',as
     fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
     fs.writeFileSync(path.join(targetDir,'src','helper.js'),'export function format() { return "date"; }\n');
   };
-  const res=runAutoPipeline(ROOT,d,run,{workerCallback});
+  const res=runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback:passingReviewer});
   assert(res.status==='PAUSED','pipeline should reach the pre-commit gate');
   assert(res.pause_gate===HUMAN_GATES.GATE_4_PRE_COMMIT_PUSH_APPROVAL,'paused gate must be GATE_4_PRE_COMMIT_PUSH_APPROVAL');
   assert(res.current_stage==='RELEASE','paused stage must be RELEASE');
@@ -303,7 +348,7 @@ await test('an-unrecognised-but-boundable-layout-scopes-to-the-directories-that-
     fs.mkdirSync(path.join(targetDir,'engine'),{recursive:true});
     fs.writeFileSync(path.join(targetDir,'engine','helper.js'),'export function format() { return "date"; }\n');
   };
-  const res=runAutoPipeline(ROOT,d,run,{workerCallback});
+  const res=runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback:passingReviewer});
   assert(res.pause_gate===HUMAN_GATES.GATE_4_PRE_COMMIT_PUSH_APPROVAL,
     `a write inside the detected scope must reach the pre-commit gate, stopped at ${res.pause_gate} in ${res.current_stage}`);
 });
@@ -394,7 +439,7 @@ await test('the-gate-1-scope-pause-names-a-recovery-that-actually-works',async (
     fs.mkdirSync(path.join(targetDir,'engine'),{recursive:true});
     fs.writeFileSync(path.join(targetDir,'engine','placeholder.js'),'export const placeholder = 2;\n');
   };
-  const resumed=runAutoPipeline(ROOT,d,run,{workerCallback});
+  const resumed=runAutoPipeline(ROOT,d,run,{workerCallback,spawnReviewer:false});
   assert(resumed.pause_gate!==HUMAN_GATES.GATE_1_SCOPE_AND_ARCHITECTURE,
     `the documented recovery must clear the scope pause, still at ${resumed.pause_gate}`);
   assert(resumed.current_stage!=='PLAN',`the run must be past PLAN, still at ${resumed.current_stage}`);
@@ -550,7 +595,7 @@ await test('gate-5-pauses-on-privileged-production-deployment-until-approved',as
     fs.writeFileSync(path.join(targetDir,'src','service.js'),'export const billing = 1;\n');
   };
 
-  const res=runAutoPipeline(ROOT,d,run,{skipCiCheck:true,workerCallback});
+  const res=runAutoPipeline(ROOT,d,run,{skipCiCheck:true,workerCallback,reviewerCallback:passingReviewer});
   assert(res.status==='PAUSED','pipeline should pause at Gate 5');
   assert(res.pause_gate===HUMAN_GATES.GATE_5_PRIVILEGED_ACTION,'paused gate must be GATE_5_PRIVILEGED_ACTION');
   assert(res.current_stage==='DEPLOY','paused stage must be DEPLOY');
@@ -736,7 +781,7 @@ await test('auto-pipeline-executes-heterogeneous-workflows-technical-spike-and-m
     fs.writeFileSync(path.join(targetDir,'src','clean.js'),'export const cleaned = true;\n');
   };
 
-  const resMaint=runAutoPipeline(ROOT,dMaint,runMaint,{workerCallback});
+  const resMaint=runAutoPipeline(ROOT,dMaint,runMaint,{workerCallback,reviewerCallback:passingReviewer});
   assert(resMaint.status==='COMPLETED','maintenance should complete to CLOSE');
   assert(resMaint.current_stage==='CLOSE','final stage must be CLOSE');
   const stagesMaint=resMaint.stage_steps.map(s=>s.to);
@@ -947,6 +992,393 @@ await test('a-scaffolded-plan-says-so-and-an-authored-one-does-not',async ()=>{
   const authored={...plan};delete authored.generated_by;
   const v2=validateTaskPlan(authored);
   assert(!v2.warnings.some(w=>w.code==='SCAFFOLDED_PLAN_NOT_AUTHORED'),'an authored plan carries no such warning');
+});
+
+await test('verify-stage-runs-the-suite-over-the-integrated-result',async ()=>{
+  // Each task verified its own workspace diff and then the workspaces were
+  // merged. VERIFY used to assert targeted_verification_pass over that merge
+  // without running anything, so a failure that only exists in the integrated
+  // tree reached RELEASE. The fixture separates the two: the per-task command
+  // passes, the suite does not.
+  const d=fixture('verify-integrated-fail',{commands:{
+    test_targeted:['node','-e','process.exit(0)','{selector}'],
+    test_full:['node','-e','process.exit(1)']
+  }});
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const workerCallback=(task)=>{
+    const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','helper.js'),'export function format() { return "date"; }\n');
+  };
+
+  const res=runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback:passingReviewer});
+  assert(res.status==='PAUSED',`a failing integrated suite must stop the pipeline, got ${res.status}`);
+  assert(res.current_stage==='VERIFY',`it must stop at VERIFY, stopped at ${res.current_stage}`);
+  assert(res.pause_gate===HUMAN_GATES.GATE_2_ESCALATION_BLOCKER,'a failing suite is an escalation blocker');
+  assert(res.verification?.status==='FAIL','the pause carries the failed verification record');
+  assert(res.verification?.tool==='test.run_full','the full suite is what ran');
+
+  // And the gate token was never written, so no later call can walk past it.
+  const stored=loadRun(d,run.run_id);
+  assert(!(stored.evidence?.VERIFY||[]).includes('targeted_verification_pass'),
+    'a failed run must not leave the gate token behind');
+});
+
+await test('verify-stage-reports-unavailable-when-no-test-command-is-configured',async ()=>{
+  // A missing suite is a fact to act on, not a pass. The pipeline-level path is
+  // unreachable without also breaking per-task verification, so this exercises
+  // the function the VERIFY stage calls.
+  const {runIntegratedVerification}=await import('../runtime/autonomous-runner.mjs');
+  const d=fixture('verify-no-command',{commands:{}});
+  const r=route(ROOT,'Update readme text');
+  const run=newRun(ROOT,d,{objective:'Update readme text',route:r});
+
+  const res=runIntegratedVerification(ROOT,d,atVerifyStage(d,run));
+  assert(res.status==='UNAVAILABLE',`no configured command must report UNAVAILABLE, got ${res.status}`);
+  assert(res.status!=='PASS','it must never be reported as a pass');
+  assert(/not configured/.test(res.reason),
+    `the reason must name the missing configuration rather than a policy denial, got ${res.reason}`);
+});
+
+await test('quality-gate-blocks-a-proven-coding-standards-violation',async ()=>{
+  // policies/coding-standards.json was enforced by prompt alone: the linter
+  // existed and nothing called it, so an ACCEPTED verdict from a reviewer that
+  // never looked was indistinguishable from one that did.
+  const d=fixture('standards-violation');
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const workerCallback=(task)=>{
+    const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','helper.js'),'var total = 1;\nexport function calcTotal() { return total; }\n');
+  };
+
+  // The reviewer says ACCEPTED with no findings, exactly as before. The gate
+  // must not agree with it.
+  const res=runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback:passingReviewer});
+  assert(res.status==='PAUSED',`a BLOCKING standards violation must stop the run, got ${res.status}`);
+  assert(res.pause_gate===HUMAN_GATES.GATE_2_ESCALATION_BLOCKER,'it escalates rather than passing');
+
+  const [task]=listTasks(d,run.run_id);
+  assert(task.status!=='DONE',`the task must not be DONE, it is ${task.status}`);
+
+  // And for the right reason: the recorded review must carry the violation the
+  // linter proved, with the verdict overridden from what the reviewer claimed.
+  const {getArtifact}=await import('../runtime/store.mjs');
+  const quality=(task.review_refs||[])
+    .map(ref=>JSON.parse(getArtifact(d,ref).content))
+    .filter(doc=>doc.schema==='agent-sdlc/code-quality-review/v1');
+  assert(quality.length>0,'a quality review was recorded');
+  const violation=quality.at(-1).findings.find(f=>f.rule_id==='NO_VAR_DECLARATION');
+  assert(violation&&violation.severity==='BLOCKING',
+    `the review carries the BLOCKING standards finding, got ${JSON.stringify(quality.at(-1).findings)}`);
+  assert(violation.evidence==='src/helper.js:1','the finding cites file:line as its evidence');
+  assert(quality.at(-1).verdict==='CHANGES_REQUIRED',
+    `the reviewer said ACCEPTED; the proven violation must override it, got ${quality.at(-1).verdict}`);
+});
+
+await test('a-clean-diff-still-clears-the-coding-standards-audit',async ()=>{
+  // The other half of the previous test: the audit must not fail everything.
+  const {codingStandardsFindings}=await import('../runtime/task-runner.mjs');
+  const d=fixture('standards-clean');
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  let audited=null;
+  const workerCallback=(task)=>{
+    const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','helper.js'),'const is_ready = true;\nexport function calcTotal() { return is_ready ? 1 : 0; }\n');
+    audited=codingStandardsFindings(ROOT,d,loadRun(d,run.run_id),task);
+  };
+
+  const res=runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback:passingReviewer});
+  assert(audited&&audited.findings.length===0,
+    `a compliant file must produce no findings, got ${JSON.stringify(audited?.findings)}`);
+  assert(audited.status==='RAN'&&audited.files_checked===1,
+    `the audit must report that it actually ran, got ${JSON.stringify({status:audited.status,files:audited.files_checked})}`);
+  assert(res.pause_gate===HUMAN_GATES.GATE_4_PRE_COMMIT_PUSH_APPROVAL,
+    `a compliant task must reach the pre-commit gate, stopped at ${res.pause_gate} in ${res.current_stage}`);
+
+  // An audit that found nothing and an audit that never ran produce the same
+  // empty finding list. The recorded review has to distinguish them, or a clean
+  // document once again proves nothing.
+  const {getArtifact}=await import('../runtime/store.mjs');
+  const [task]=listTasks(d,run.run_id);
+  const quality=(task.review_refs||[])
+    .map(ref=>JSON.parse(getArtifact(d,ref).content))
+    .filter(doc=>doc.schema==='agent-sdlc/code-quality-review/v1').at(-1);
+  assert(quality?.standards_audit?.status==='RAN',
+    `every quality review records the audit status, got ${JSON.stringify(quality?.standards_audit)}`);
+  assert(quality.standards_audit.files_checked===1,'and how many files it read');
+  assert(quality.standards_audit.policy_source==='harness','and which policy it applied');
+});
+
+await test('a-project-can-point-the-standards-audit-elsewhere-or-switch-it-off',async ()=>{
+  // The harness policy is opinionated. Enforcing it unasked on a repository
+  // with different conventions would block every task there, so the project
+  // decides -- and whichever way it decides is recorded on the review.
+  const {resolveCodingStandardsPolicy}=await import('../runtime/task-runner.mjs');
+  const {getArtifact}=await import('../runtime/store.mjs');
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+
+  const runWith=async (name,codingStandards)=>{
+    const d=fixture(name);
+    if(codingStandards){
+      const cfgPath=path.join(d,'.agent-sdlc','project.json');
+      const cfg=JSON.parse(fs.readFileSync(cfgPath,'utf8'));
+      fs.writeFileSync(cfgPath,JSON.stringify({...cfg,coding_standards:codingStandards},null,2));
+    }
+    const r=route(ROOT,'Fix calculation bug in helper');
+    const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+    const workerCallback=(task)=>{
+      const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+      const targetDir=ws?.root||d;
+      fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+      fs.writeFileSync(path.join(targetDir,'src','helper.js'),'var total = 1;\nexport function calcTotal() { return total; }\n');
+    };
+    const res=runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback:passingReviewer});
+    const [task]=listTasks(d,run.run_id);
+    const quality=(task.review_refs||[])
+      .map(ref=>JSON.parse(getArtifact(d,ref).content))
+      .filter(doc=>doc.schema==='agent-sdlc/code-quality-review/v1').at(-1);
+    return {res,audit:quality?.standards_audit};
+  };
+
+  const off=await runWith('standards-disabled',{enabled:false});
+  assert(off.res.pause_gate===HUMAN_GATES.GATE_4_PRE_COMMIT_PUSH_APPROVAL,
+    `a disabled audit must let the same var through, stopped at ${off.res.pause_gate}`);
+  assert(off.audit?.status==='DISABLED',`and say so, got ${JSON.stringify(off.audit)}`);
+
+  // A policy path that does not resolve is an error, not a silent pass. It does
+  // not block -- a broken linter must not strand a task -- but the review says
+  // the audit did not happen.
+  const broken=await runWith('standards-missing-policy',{policy_path:'nope.json'});
+  assert(broken.audit?.status==='ERROR',`a missing policy is recorded as ERROR, got ${JSON.stringify(broken.audit)}`);
+  assert(broken.audit.status!=='RAN','it must never be reported as a completed audit');
+
+  const d=fixture('standards-resolution');
+  const harness=resolveCodingStandardsPolicy(ROOT,d);
+  assert(harness.is_enabled&&harness.source==='harness','with nothing configured the harness policy applies');
+  fs.mkdirSync(path.join(d,'policies'),{recursive:true});
+  fs.writeFileSync(path.join(d,'policies','coding-standards.json'),'{}');
+  assert(resolveCodingStandardsPolicy(ROOT,d).source==='project_policies',
+    'a project that vendored its own policy wins over the harness');
+});
+
+await test('a-review-recorded-after-the-pause-lets-the-run-continue',async ()=>{
+  // The REVIEW pause names `agent-sdlc task review` as the way forward. If that
+  // does not actually clear the marker the pause is a dead end, and the honest
+  // gate becomes an unusable one.
+  const {recordTaskReview}=await import('../runtime/task-review.mjs');
+  const d=fixture('review-escape-hatch');
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const workerCallback=(task)=>{
+    const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','helper.js'),'export function calcTotal() { return 1; }\n');
+  };
+
+  const paused=runAutoPipeline(ROOT,d,run,{workerCallback,spawnReviewer:false});
+  assert(paused.current_stage==='REVIEW','the unreviewed run stops at REVIEW');
+
+  let fresh=loadRun(d,run.run_id);
+  for(const task of listTasks(d,run.run_id)){
+    const bind={task_id:task.task_id,attempt:task.attempt||0,diff_hash:task.diff_hash};
+    const spec=recordTaskReview(d,fresh,task,{schema:'agent-sdlc/spec-compliance-review/v1',...bind,
+      verdict:'COMPLIANT',acceptance_criteria_checked:[],findings:[]},{kind:'spec'});
+    const quality=recordTaskReview(d,fresh,task,{schema:'agent-sdlc/code-quality-review/v1',...bind,
+      verdict:'ACCEPTED',findings:[],independence:{requested:false,achieved:false,limitation:'recorded by hand'}},{kind:'quality'});
+    assert(spec.validation.valid&&quality.validation.valid,'both recorded reviews validate against the DONE task');
+  }
+  assert(listTasks(d,run.run_id).every(t=>!t.reviews_generated_by),'recording a real review clears the stub marker');
+
+  fresh=loadRun(d,run.run_id);
+  const resumed=runAutoPipeline(ROOT,d,fresh,{skipCiCheck:true});
+  assert(resumed.pause_gate===HUMAN_GATES.GATE_4_PRE_COMMIT_PUSH_APPROVAL,
+    `the reviewed run continues to the pre-commit gate, stopped at ${resumed.pause_gate} in ${resumed.current_stage}`);
+});
+
+await test('a-test-command-that-cannot-launch-is-not-reported-as-a-failing-suite',async ()=>{
+  // A configured command that does not exist and a suite that ran and failed
+  // both stop the run, but the operator fixes them in different places.
+  const {runIntegratedVerification}=await import('../runtime/autonomous-runner.mjs');
+  const d=fixture('verify-unlaunchable',{commands:{
+    test_targeted:['node','-e','process.exit(0)'],
+    test_full:['nonexistent-cmd-xyz-999','--all']
+  }});
+  const r=route(ROOT,'Update readme text');
+  const run=newRun(ROOT,d,{objective:'Update readme text',route:r});
+
+  const res=runIntegratedVerification(ROOT,d,atVerifyStage(d,run));
+  assert(res.status==='ERROR',`a command that never launched reports ERROR, got ${res.status}`);
+  assert(res.status!=='PASS','and never a pass');
+  assert(res.tool==='test.run_full','the failure is attributed to the command that could not start');
+  assert(typeof res.reason==='string'&&res.reason.length>0,'with the launch reason attached');
+});
+
+await test('review-stage-refuses-runner-generated-review-stubs',async ()=>{
+  // With no reviewer supplied the runner still has to produce the documents the
+  // task engine requires, but it marks them, and REVIEW will not resolve on
+  // them. Before this, a run whose every review was a stub described itself as
+  // reviewed and went on to RELEASE.
+  const {AUTO_REVIEW_STUB}=await import('../runtime/autonomous-runner.mjs');
+  const d=fixture('unreviewed-run');
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const workerCallback=(task)=>{
+    const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','helper.js'),'export function format() { return "date"; }\n');
+  };
+
+  // spawnReviewer:false on purpose. With it left on, this test's outcome would
+  // depend on whether a host CLI happens to be installed and authenticated on
+  // the machine running the suite -- and a green run would be spawning real,
+  // billable agents. The spawning path is covered below with an injected host.
+  const res=runAutoPipeline(ROOT,d,run,{workerCallback,spawnReviewer:false});
+  assert(res.status==='PAUSED',`an unreviewed run must not proceed, got ${res.status}`);
+  assert(res.current_stage==='REVIEW',`it must stop at REVIEW, stopped at ${res.current_stage}`);
+  assert(Array.isArray(res.unreviewed_tasks)&&res.unreviewed_tasks.length===1,
+    `the pause names the tasks nobody reviewed, got ${JSON.stringify(res.unreviewed_tasks)}`);
+
+  const [task]=listTasks(d,run.run_id);
+  assert(task.reviews_generated_by===AUTO_REVIEW_STUB,'the stub marker is persisted on the task');
+
+  const stored=loadRun(d,run.run_id);
+  assert(!(stored.evidence?.REVIEW||[]).includes('required_reviews_resolved'),
+    'a stubbed run must not record the review gate token');
+});
+
+await test('a-spawned-reviewer-produces-a-bound-review-and-never-supplies-its-own-ids',async ()=>{
+  // The runner no longer invents reviews; it spawns a reviewer. Every path here
+  // uses an injected host, so the suite never starts a real, billable agent.
+  const {reviewTaskWithAgent,extractReviewJson,buildReviewPrompt,reviewDiff}=
+    await import('../runtime/task-reviewer.mjs');
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const d=fixture('spawned-reviewer');
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+  const workerCallback=(task)=>{
+    const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','helper.js'),'export function calcTotal() { return 1; }\n');
+  };
+  let seenPrompt=null;
+  const host=(hostName,prompt)=>{
+    seenPrompt=prompt;
+    // A reviewer that gets the bindings wrong, to prove they are not read back.
+    return {status:'PASS',stdout:JSON.stringify({type:'result',result:JSON.stringify({
+      schema:'agent-sdlc/code-quality-review/v1',
+      task_id:'TASK-999',run_id:'run_wrong',attempt:41,diff_hash:'deadbeef',
+      verdict:'CHANGES_REQUIRED',
+      findings:[{category:'ERROR_HANDLING',severity:'MAJOR',summary:'unchecked read',evidence:'src/helper.js:1'}]
+    })})};
+  };
+  // A reviewer only ever runs at one moment: after the diff is captured and
+  // before the task advances, while the workspace still exists. reviewerCallback
+  // fires exactly there, so driving the reviewer from inside it exercises the
+  // real call site instead of a reconstruction of it.
+  let out=null;let task=null;let staged=null;
+  const reviewerCallback=(t)=>{
+    task=t;staged=loadRun(d,run.run_id);
+    out=reviewTaskWithAgent(ROOT,d,staged,t,{kind:'quality',runner:host});
+    return {};
+  };
+  runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback});
+
+  assert(out&&out.status==='REVIEWED',`the reviewer must produce a review, got ${out?.status}: ${out?.reason}`);
+  assert(out.review.task_id===task.task_id&&out.review.run_id===staged.run_id,
+    'ids come from the harness, not from the model');
+  assert(out.review.attempt===(task.attempt||0)&&out.review.diff_hash===task.diff_hash,
+    'the diff binding is written by the harness; a model that echoed it wrongly must not break the review');
+  assert(out.review.verdict==='CHANGES_REQUIRED'&&out.review.findings.length===1,
+    'the judgement, and only the judgement, comes from the model');
+  assert(out.review.independence.achieved===true&&out.review.independence.worker_reasoning_withheld===true,
+    'a separate process with a harness-built prompt is genuinely independent');
+
+  // Independence is a property of what the reviewer was shown.
+  assert(/DIFF UNDER REVIEW/.test(seenPrompt),'the reviewer is shown the diff');
+  assert(!/reasoning|previous attempt|the worker/i.test(seenPrompt),
+    'and never the worker\'s account of its own work');
+
+  // The recorded review must be one the gate accepts.
+  const {validateCodeQualityReview}=await import('../runtime/task-review.mjs');
+  const validation=validateCodeQualityReview(out.review,task);
+  assert(validation.valid===true,`a spawned review must satisfy the contract, got ${JSON.stringify(validation.errors)}`);
+  assert(validation.clean===false,'CHANGES_REQUIRED is not a clean gate');
+
+  // The extractor has to survive the shapes real hosts print.
+  const wanted={verdict:'ACCEPTED',findings:[]};
+  assert(extractReviewJson(JSON.stringify(wanted))?.verdict==='ACCEPTED','bare JSON');
+  assert(extractReviewJson('```json\n'+JSON.stringify(wanted)+'\n```')?.verdict==='ACCEPTED','fenced JSON');
+  assert(extractReviewJson('noise\n'+JSON.stringify({type:'result',result:JSON.stringify(wanted)}))?.verdict==='ACCEPTED','result envelope');
+  assert(extractReviewJson('not json at all')===null,'and returns nothing rather than guessing');
+
+  const diff=reviewDiff(d,staged,task);
+  assert(typeof buildReviewPrompt(ROOT,d,staged,task,{kind:'spec',diff})==='string','the spec prompt renders too');
+});
+
+await test('a-reviewer-that-cannot-be-reached-never-reads-as-a-clean-review',async ()=>{
+  // The whole point of spawning one. Every failure mode has to land on
+  // UNAVAILABLE, because the only alternative the caller has is a marked
+  // placeholder that blocks REVIEW -- and an accidental clean review here would
+  // restore exactly the rubber stamp this replaced.
+  const {reviewTaskWithAgent}=await import('../runtime/task-reviewer.mjs');
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const d=fixture('reviewer-unreachable');
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+  const workerCallback=(task)=>{
+    const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','helper.js'),'export function calcTotal() { return 1; }\n');
+  };
+  const cases=[
+    ['host failed',()=>({status:'FAIL',reason:'HOST_CLI_NOT_FOUND',stdout:''})],
+    ['host timed out',()=>({status:'FAIL',timed_out:true,stdout:''})],
+    ['unparseable output',()=>({status:'PASS',stdout:'I reviewed it and it looks fine to me.'})],
+    ['verdict outside the contract',()=>({status:'PASS',stdout:JSON.stringify({verdict:'LGTM',findings:[]})})],
+    ['a spec verdict on a quality review',()=>({status:'PASS',stdout:JSON.stringify({verdict:'COMPLIANT',findings:[]})})]
+  ];
+  const outcomes=[];let task=null;let staged=null;
+  const reviewerCallback=(t)=>{
+    task=t;staged=loadRun(d,run.run_id);
+    if(!outcomes.length){
+      for(const [label,host] of cases){
+        outcomes.push([label,reviewTaskWithAgent(ROOT,d,staged,t,{kind:'quality',runner:host})]);
+      }
+    }
+    return {};
+  };
+  runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback});
+
+  assert(outcomes.length===cases.length,'every failure mode was exercised at the real call site');
+  for(const [label,out] of outcomes){
+    assert(out.status==='UNAVAILABLE',`${label} must be UNAVAILABLE, got ${out.status}`);
+    assert(out.review===null,`${label} must not yield a review document`);
+    assert(typeof out.reason==='string'&&out.reason.length>0,`${label} must say why`);
+  }
+
+  // And an incomplete pair is not half a review: the runner treats it as
+  // unreviewed rather than advancing on the one document it got.
+  const {resolveTaskReviews}=await import('../runtime/autonomous-runner.mjs');
+  const none=resolveTaskReviews(ROOT,d,staged,task,{spawnReviewer:false});
+  assert(none.specReview===null&&none.qualityReview===null&&none.source==='DISABLED',
+    'with spawning off and no callback there is no review at all');
 });
 
 finish();

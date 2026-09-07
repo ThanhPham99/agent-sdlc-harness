@@ -8,6 +8,11 @@ export const commands={
     const run=await needRun();
     const {runAutoPipeline}=await import('../autonomous-runner.mjs');
     const result=runAutoPipeline(ROOT,projectRoot,run,{
+      // Each task's two reviews are produced by a reviewer agent spawned
+      // against the diff. `--no-reviewer` turns that off, which does not make
+      // the run unreviewed-but-fine: it makes the run stop at REVIEW until
+      // someone records the reviews with `agent-sdlc task review`.
+      spawnReviewer:!truthy(args['no-reviewer']),
       skipCiCheck:truthy(args['skip-ci'])
     });
     print(result);
@@ -17,7 +22,8 @@ export const commands={
     const run=await needRun();
     const {runAutoTaskLoop}=await import('../autonomous-runner.mjs');
     const result=runAutoTaskLoop(ROOT,projectRoot,run,{
-      customWriter:args.writer||null
+      customWriter:args.writer||null,
+      spawnReviewer:!truthy(args['no-reviewer'])
     });
     print(result);
   },

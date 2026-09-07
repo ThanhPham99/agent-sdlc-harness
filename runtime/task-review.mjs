@@ -154,6 +154,11 @@ export function recordTaskReview(projectRoot,run,task,review,{kind}={}){
     filename:`${task.task_id}-${kind}-review-attempt${task.attempt||0}.json`
   }).artifact_id;
   task.review_refs=[...new Set([...(task.review_refs||[]),ref])];
+  // A review recorded through this module came from somewhere. Whether it is a
+  // reviewer's document or a runner's placeholder is the caller's fact to state,
+  // so clear the marker here and let the caller re-stamp it if it is the one
+  // generating placeholders.
+  if(task.reviews_generated_by)task.reviews_generated_by=null;
   saveTask(projectRoot,task);
   emitTaskEvent(projectRoot,task,{
     type:kind==='spec'?'task.spec_reviewed':'task.quality_reviewed',
