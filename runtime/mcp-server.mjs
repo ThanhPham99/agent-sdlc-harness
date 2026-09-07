@@ -55,7 +55,7 @@ const toolDefs=[
   {name:'agent_sdlc_artifact_put',description:'Store durable external memory as a content-addressed artifact and attach it to a run.',inputSchema:{type:'object',required:['run_id','kind','content'],properties:{project_root:{type:'string'},run_id:{type:'string'},kind:{type:'string'},content:{type:'string'}}}},
   {name:'agent_sdlc_model_route',description:'Choose deterministic vs model execution and the cheapest qualified model tier subject to risk floor.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},task:{type:'string'},provider:{type:'string'},require_structured:{type:'boolean'}}}},
   // Unified task operation for token-aware / compact hosts.
-  {name:'agent_sdlc_task',description:'Unified task operations: list, status, ready, schedule, context, evidence, graph, auto, or pipeline.',inputSchema:{type:'object',required:['run_id','op'],properties:{project_root:{type:'string'},run_id:{type:'string'},op:{type:'string',enum:['list','status','ready','schedule','context','evidence','graph','auto','pipeline']},task_id:{type:'string'},outer_stage:{type:'string'},remaining_model_calls:{type:'number'},prompt:{type:'boolean'},mermaid:{type:'boolean'},skip_ci:{type:'boolean'}}}},
+  {name:'agent_sdlc_task',description:'Unified task operations: list, status, ready, schedule, context, evidence, graph, auto, pipeline, or materialize.',inputSchema:{type:'object',required:['run_id','op'],properties:{project_root:{type:'string'},run_id:{type:'string'},op:{type:'string',enum:['list','status','ready','schedule','context','evidence','graph','auto','pipeline','materialize']},task_id:{type:'string'},outer_stage:{type:'string'},remaining_model_calls:{type:'number'},prompt:{type:'boolean'},mermaid:{type:'boolean'},skip_ci:{type:'boolean'},plan:{type:'object'}}}},
   // Granular task runtime tools for full profile and backward compatibility.
   {name:'agent_sdlc_task_list',description:'List the persistent task records for a run with status, category and dependencies.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'}}}},
   {name:'agent_sdlc_task_status',description:'Read one task record, or the whole run task progress when task_id is omitted.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id'],properties:{project_root:{type:'string'},run_id:{type:'string'},task_id:{type:'string'}}}},
@@ -224,8 +224,12 @@ export function execute(name,a={}){
   }
   if(name==='agent_sdlc_model_route')return routeModel(ROOT,projectRoot,run,{task:a.task||'stage',provider:a.provider||'auto',requireStructured:!!a.require_structured});
   if(name==='agent_sdlc_task'){
+    if(a.op==='materialize'){
+      if(!a.plan||typeof a.plan!=='object')throw new Error("agent_sdlc_task op 'materialize' requires a `plan` object");
+      return materializeRunTasks(ROOT,projectRoot,run,a.plan);
+    }
     if(a.op==='auto')return runAutoTaskLoop(ROOT,projectRoot,run);
-    if(a.op==='pipeline')return runAutoPipeline(ROOT,projectRoot,run,{skipCiCheck:!!a.skip_ci});
+    if(a.op==='pipeline')return runAutoPipeline(ROOT,projectRoot,run,{skipCiCheck:!!a.skip_ci,customPlan:a.plan||null});
     if(a.op==='list')return execute('agent_sdlc_task_list',a);
     if(a.op==='status')return execute('agent_sdlc_task_status',a);
     if(a.op==='ready')return execute('agent_sdlc_task_ready',a);

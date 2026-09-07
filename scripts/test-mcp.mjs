@@ -303,6 +303,26 @@ await test('mcp-plan-tool-validates-and-records-an-authored-plan',async ()=>{
   assert(rec.recorded===true,'a valid authored plan records over MCP');
 });
 
+await test('mcp-task-tool-materializes-an-authored-plan',async ()=>{
+  const started=payload(await c.tool('agent_sdlc_start',{objective:'Add a caching layer',workflow:'bug-fix'}));
+  const runId=started.run_id;
+  await c.tool('agent_sdlc_transition',{run_id:runId,to:'REQUIREMENTS'});
+  await c.tool('agent_sdlc_transition',{run_id:runId,to:'PLAN',evidence:['requirements_confirmed']});
+  const plan={
+    schema:'agent-sdlc/task-plan/v1',plan_id:'plan_mcp_materialize',objective:'Add a caching layer',profile:'STANDARD',
+    requirements:['AC-1'],
+    tasks:[{task_id:'TASK-042',title:'Add the cache',goal:'Add an in-process cache to the lookup path',
+      done_conditions:['Lookups hit the cache on the second call'],category:'implementation',depends_on:[],
+      acceptance_criteria:['AC-1'],write_scope:['src/**'],
+      verification:{targeted_tests:['test/cache.test.js'],expected_behavior:['Second lookup does not hit the backend']}}]
+  };
+  await c.tool('agent_sdlc_plan',{run_id:runId,op:'record',plan});
+  const mat=payload(await c.tool('agent_sdlc_task',{run_id:runId,op:'materialize',plan}));
+  assert(mat.materialized===true,`materialize must succeed, got ${JSON.stringify(mat.validation&&mat.validation.errors)}`);
+  const list=payload(await c.tool('agent_sdlc_task',{run_id:runId,op:'list'}));
+  assert(JSON.stringify(list).includes('TASK-042'),'the authored task id reached the graph');
+});
+
 await test('an-unknown-tool-is-an-error-result',async()=>{
   const r=await c.tool('agent_sdlc_not_a_tool',{});
   assert(r.result.isError===true,'an unknown tool succeeded');
