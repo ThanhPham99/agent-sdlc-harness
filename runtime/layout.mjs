@@ -396,18 +396,43 @@ export function objectMetaPath(projectRoot,hash){
  * reproduces.
  */
 export function listObjectHashes(projectRoot){
+  return listStoreEntries(projectRoot).filter(e=>e.has_object).map(e=>e.hash);
+}
+
+/**
+ * Physical truth about the store: every hash present as an object, as metadata,
+ * or as both.
+ *
+ * `listObjectHashes` answers "which objects exist", which is the right question
+ * for a reader and the wrong one for garbage collection. An object and its
+ * metadata are two writes that cannot be made atomic, so one of the two
+ * half-states is always observable after a crash -- and a half-state that no
+ * enumeration reports is a half-state nothing can ever reclaim. Enumerating
+ * objects alone left metadata without an object permanently invisible: absent
+ * from `listArtifacts`, and therefore absent from the gc plan that is built
+ * from it.
+ *
+ * So gc enumerates this instead. Callers that want usable artifacts keep using
+ * `listObjectHashes`/`listArtifacts` and still see only complete pairs.
+ */
+export function listStoreEntries(projectRoot){
   const root=storeDir(projectRoot);
   if(!fs.existsSync(root))return [];
-  const out=[];
+  const seen=new Map();
   for(const shard of fs.readdirSync(root,{withFileTypes:true})){
     if(!shard.isDirectory()||shard.name.length!==SHARD_LENGTH)continue;
     for(const entry of fs.readdirSync(path.join(root,shard.name),{withFileTypes:true})){
-      if(!entry.isFile()||entry.name.endsWith(META_SUFFIX))continue;
-      const hash=`${shard.name}${entry.name}`;
-      if(SHA256_HEX.test(hash))out.push(hash);
+      if(!entry.isFile())continue;
+      const isMeta=entry.name.endsWith(META_SUFFIX);
+      const rest=isMeta?entry.name.slice(0,-META_SUFFIX.length):entry.name;
+      const hash=`${shard.name}${rest}`;
+      if(!SHA256_HEX.test(hash))continue;
+      const row=seen.get(hash)||{hash,has_object:false,has_meta:false};
+      if(isMeta)row.has_meta=true;else row.has_object=true;
+      seen.set(hash,row);
     }
   }
-  return out.sort();
+  return [...seen.values()].sort((a,b)=>a.hash<b.hash?-1:a.hash>b.hash?1:0);
 }
 
 // ---------------------------------------------------------------------------
@@ -506,6 +531,74 @@ export function ensureLayout(projectRoot){
   for(const entry of CACHE_ENTRIES)if(entry.create)mk(path.join(cacheDir(projectRoot),entry.rel));
   for(const entry of DOCS_ENTRIES)if(entry.create)mk(path.join(docsDir(projectRoot),entry.rel));
   return created;
+}
+
+/**
+ * Which layout shape a tree on disk actually has.
+ *
+ * A version stamp only guards anything if something reads it, and `initProject`
+ * is not that something: it runs when `project.json` is absent, so an existing
+ * v1 tree is never re-initialized and never stamped. Detection therefore cannot
+ * rely on the stamp alone -- it has to recognise the v1 shape by its own
+ * evidence.
+ *
+ * The v1 markers are the namespaces v2 does not have: a flat `runs/<id>.json`
+ * file rather than a directory, and the `artifacts/`, `events/`, `tasks/` or
+ * `task-events/` top-level directories that are now inside `runs/<run_id>/`.
+ *
+ * Returns `{layout_version, stamped, migration_required, markers}`:
+ *   - `null` version with `UNINITIALIZED` when there is no tree at all;
+ *   - `1` when v1 markers are present, which is what a migrator acts on;
+ *   - `LAYOUT_VERSION` when the stamp says so, or when a tree exists with
+ *     neither a stamp nor a v1 marker (a fresh v2 tree written before the stamp
+ *     existed, or one holding nothing but config).
+ *
+ * Pure: it reads, it never writes. The migration itself is not here.
+ */
+export function detectLayoutVersion(projectRoot){
+  const d=stateDir(projectRoot);
+  if(!fs.existsSync(d))
+    return {layout_version:null,stamped:false,migration_required:false,status:'UNINITIALIZED',markers:[]};
+
+  let stamped=null;
+  const stampPath=layoutFile(projectRoot);
+  if(fs.existsSync(stampPath)){
+    try{stamped=JSON.parse(fs.readFileSync(stampPath,'utf8'));}catch{stamped=null;}
+  }
+
+  const markers=[];
+  // A run as a flat file is the unambiguous v1 signature.
+  const runs=runsDir(projectRoot);
+  if(fs.existsSync(runs)){
+    try{
+      for(const e of fs.readdirSync(runs,{withFileTypes:true})){
+        if(e.isFile()&&e.name.endsWith('.json')){markers.push(`runs/${e.name}`);break;}
+      }
+    }catch{/* unreadable is not a marker */}
+  }
+  // Top-level namespaces v2 moved inside the run directory or into store/.
+  for(const legacy of ['artifacts','events','tasks','task-events','task-context','task-evidence',
+    'cost','evidence','ci-evidence','delivery','traceability','requirement-update',
+    'workspaces','handoffs','features','index','intent','memory','webhooks']){
+    if(fs.existsSync(path.join(d,legacy)))markers.push(legacy);
+  }
+
+  const version=Number(stamped?.layout_version);
+  // MARKERS BEAT THE STAMP, and the order matters more than it looks.
+  //
+  // `commands.init` calls `initProject` unconditionally, and `initProject`
+  // writes the stamp. So a single `agent-sdlc init` run against a v1 tree
+  // stamps it v2 while every v1 directory is still sitting there -- and if the
+  // stamp were consulted first, that one command would permanently silence the
+  // guard on a tree whose data is still unreachable. Evidence on disk outranks
+  // a claim about it.
+  if(markers.length)
+    return {layout_version:Number.isInteger(version)&&version<LAYOUT_VERSION?version:1,
+      stamped:!!stamped,migration_required:true,status:'LAYOUT_MIGRATION_REQUIRED',markers};
+  if(Number.isInteger(version)&&version>=LAYOUT_VERSION)
+    return {layout_version:version,stamped:true,migration_required:false,status:'CURRENT',markers};
+  return {layout_version:Number.isInteger(version)?version:LAYOUT_VERSION,stamped:!!stamped,
+    migration_required:false,status:stamped?'CURRENT':'CURRENT_UNSTAMPED',markers};
 }
 
 /**

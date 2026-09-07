@@ -77,10 +77,43 @@ export function auditFileContent(file_path, content, policy = null) {
     if (trimmed_line.startsWith('//')) {
       return;
     }
+    // A block-comment body is PROSE, and prose contains sentences like
+    // "status is taken from the reported checks, not from a caller's summary:
+    // any failing required check makes the whole record FAIL" -- which
+    // `/:\s*any\b/` matches exactly. That produced a BLOCKING strict-typing
+    // violation against an English sentence, and because the audit is merged
+    // into the code-quality gate it failed the task of anyone who so much as
+    // touched a file whose comments happened to read that way.
+    //
+    // Rule 1 above already skips `*` continuation lines for this reason; this
+    // rule skipped only `//` and was scanning them. It cannot skip them
+    // outright, though, because the JSDoc ANNOTATION form -- `@type {any}` --
+    // is exactly the case that is still meaningful inside a comment. So on a
+    // `*` line only the annotation patterns apply, and the bare `: any` /
+    // `as any` code patterns do not.
+    // A continuation line is `*` followed by whitespace, or a bare `*`; an
+    // opener is `/*` or `/**`, which carries prose on the same line often
+    // enough to matter. Both are comment bodies.
+    //
+    // The whitespace is load-bearing rather than tidy: a generator method in a
+    // class body also begins with `*`, so matching a bare leading `*` skipped
+    // `*gen(x: any) {}` -- turning a false POSITIVE on prose into a false
+    // NEGATIVE on real TypeScript, which is the worse of the two because a lint
+    // rule that silently stops firing looks exactly like code that passes.
+    //
+    // An opener only counts as a comment body while the comment still owns the
+    // rest of the line. `/* note */ const w: any = 1;` closes the comment and
+    // then declares something -- the shape of a pragma prefix
+    // (`/* eslint-disable-next-line */`, `/* istanbul ignore next */`) -- so
+    // treating the whole line as prose would hide a real violation behind one.
+    const opens_block = trimmed_line.startsWith('/*');
+    const code_follows_close = opens_block && /\*\/\s*\S/.test(trimmed_line);
+    const is_block_comment_body = /^\*(\s|$)/.test(trimmed_line) || (opens_block && !code_follows_close);
+    const jsdoc_any = /\*\s*@(?:type|param|returns?)\s*\{[^}]*\bany\b[^}]*\}/.test(line);
     // Match ': any' or 'as any' or JSDoc '@type {any}' or '@param {any}'
-    const has_any_type = /:\s*any\b/.test(line) ||
-                         /\bas\s+any\b/.test(line) ||
-                         /\*\s*@(?:type|param|returns?)\s*\{[^}]*\bany\b[^}]*\}/.test(line);
+    const has_any_type = is_block_comment_body
+      ? jsdoc_any
+      : (/:\s*any\b/.test(line) || /\bas\s+any\b/.test(line) || jsdoc_any);
     if (has_any_type) {
       violations.push({
         file_path,

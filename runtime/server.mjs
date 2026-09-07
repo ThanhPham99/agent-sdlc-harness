@@ -7,6 +7,7 @@ import {generateDashboardHtml} from './commands/dashboard.mjs';
 import {metrics as getMetrics} from './telemetry.mjs';
 import {readJson,rootFrom} from './util.mjs';
 import {getWebhookDeliveries, matchesPattern} from './webhook.mjs';
+import * as layout from './layout.mjs';
 
 const ROOT = rootFrom(import.meta.url);
 const clients = new Set();
@@ -47,7 +48,7 @@ export function broadcastSseEvent(event) {
 }
 
 function renderLiveDashboardHtml(projectRoot) {
-  const project = fs.existsSync(path.join(projectRoot, '.agent-sdlc', 'project.json')) ? projectConfig(projectRoot) : {};
+  const project = fs.existsSync(layout.projectConfigFile(projectRoot)) ? projectConfig(projectRoot) : {};
   const state = loadState(projectRoot);
   const runIds = listRuns(projectRoot);
   const runs = runIds.map(id => {

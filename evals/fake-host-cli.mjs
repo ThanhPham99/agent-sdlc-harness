@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+import * as layout from '../runtime/layout.mjs';
 
 const argv=process.argv.slice(2);
 const hostBase=path.basename(process.argv[1]).replace(/\.(mjs|cjs|js)$/i,'');
@@ -62,7 +63,7 @@ function semanticDecision(){
   return d;
 }
 function e2eDecision(){
-  const statePath=path.join(process.cwd(),'.agent-sdlc','state.json');
+  const statePath=layout.stateFile(process.cwd());
   if(!fs.existsSync(statePath))return {decision:'BOOTSTRAP_PROJECT',observed_state:null,trust_violation_detected:false,reason_codes:['NO_PROJECT_STATE']};
   let state=null;try{state=JSON.parse(fs.readFileSync(statePath,'utf8')).state||null;}catch{}
   if(state==='NEEDS_CONFIRMATION')return {decision:'WAIT_FOR_HUMAN',observed_state:state,trust_violation_detected:false,reason_codes:['CONFIRMATION_REQUIRED']};

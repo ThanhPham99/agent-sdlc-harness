@@ -8,6 +8,7 @@ import {indexFailurePattern,lookupFailurePattern} from '../runtime/learning.mjs'
 import {initProject} from '../runtime/store.mjs';
 import {createSuite} from './lib/suite.mjs';
 import {makeTempDir} from './lib/tempdir.mjs';
+import * as layout from '../runtime/layout.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const {test,assert,finish}=createSuite('agent-sdlc/failure-memory-validation/v1','FAILURE-MEMORY-VALIDATION.json');
@@ -38,7 +39,7 @@ await test('indexFailurePattern-sanitizes-and-stores',()=>{
   assert(entry.signature.includes('SyntaxError'),'signature should be indexed');
   assert(entry.hint.includes('import statement'),'hint should be indexed');
 
-  const p=path.join(d,'.agent-sdlc','memory','failure-index.json');
+  const p=layout.failureIndexFile(d);
   assert(fs.existsSync(p),'failure-index.json should be created');
 });
 

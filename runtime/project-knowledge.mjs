@@ -5,24 +5,23 @@
 // knowledge exists yet, so the orchestrator can decide whether to load the
 // bootstrap skill before a new feature starts, without guessing at
 // architecture it was never shown.
-import fs from 'node:fs';
-import path from 'node:path';
-import {stateDir} from './store.mjs';
+import {listArtifacts,artifactBindings} from './store.mjs';
 
 export const KNOWLEDGE_KINDS=['system-context','architecture','standards','feature-index'];
 
+// The metadata scan belongs to the store, not here: this module used to read
+// the meta directory itself, which is why sharding it broke knowledge
+// detection. `listArtifacts` is the one reader of that tree.
+//
+// A kind is matched across every binding, not just the top-level field. The
+// top-level `kind` is the FIRST binding's, so knowledge content that another
+// run had already stored byte-identically under a different kind would
+// otherwise be invisible -- and normalized authored documents are exactly the
+// content that collides.
 function artifactsByKind(projectRoot,kind){
-  const dir=path.join(stateDir(projectRoot),'artifacts','meta');
-  if(!fs.existsSync(dir))return [];
-  const rows=[];
-  for(const f of fs.readdirSync(dir)){
-    if(!f.endsWith('.json'))continue;
-    try{
-      const meta=JSON.parse(fs.readFileSync(path.join(dir,f),'utf8'));
-      if(meta.kind===kind)rows.push(meta);
-    }catch{}
-  }
-  return rows.sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
+  return listArtifacts(projectRoot)
+    .filter(meta=>artifactBindings(meta).some(b=>b.kind===kind))
+    .sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
 }
 
 export function getProjectKnowledgeStatus(projectRoot){

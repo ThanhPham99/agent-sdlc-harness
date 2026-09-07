@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import {makeTempDir} from './lib/tempdir.mjs';
-import {initProject,stateDir} from '../runtime/store.mjs';
+import {initProject} from '../runtime/store.mjs';
+import * as layout from '../runtime/layout.mjs';
 import {ensureStandardDocs,generateRunReport,updateSummaryIndex} from '../runtime/doc-generator.mjs';
 import {commands as runCommands} from '../runtime/commands/run.mjs';
 
@@ -17,14 +18,19 @@ test('initProject creates docs and reports directories and initializes template 
   const dir=makeTempProject();
   try{
     initProject(dir,{project:'test-proj'});
-    const sd=stateDir(dir);
-    assert.equal(fs.existsSync(path.join(sd,'docs')),true);
-    assert.equal(fs.existsSync(path.join(sd,'reports')),true);
-    assert.equal(fs.existsSync(path.join(sd,'SUMMARY.md')),true);
-    assert.equal(fs.existsSync(path.join(sd,'docs','README.md')),true);
-    assert.equal(fs.existsSync(path.join(sd,'docs','ARCHITECTURE-AND-STATE.md')),true);
-    assert.equal(fs.existsSync(path.join(sd,'docs','WORKFLOWS-GUIDE.md')),true);
-    assert.equal(fs.existsSync(path.join(sd,'docs','CLI-CHEAT-SHEET.md')),true);
+    // Asserted through the layout, so the destinations cannot drift from the
+    // tree the runtime actually writes -- this test asserted the v1 paths and
+    // went red unnoticed, because `test:doc-generator` was gated by neither
+    // test:integrity nor CI.
+    assert.equal(fs.existsSync(layout.docsDir(dir)),true);
+    assert.equal(fs.existsSync(layout.guidesDir(dir)),true);
+    assert.equal(fs.existsSync(layout.reportsDir(dir)),true);
+    assert.equal(fs.existsSync(layout.summaryFile(dir)),true);
+    assert.equal(fs.existsSync(layout.reviewFile(dir)),true);
+    for(const guide of ['README.md','ARCHITECTURE-AND-STATE.md','WORKFLOWS-GUIDE.md','CLI-CHEAT-SHEET.md'])
+      assert.equal(fs.existsSync(layout.guideFile(dir,guide)),true,`missing guide ${guide}`);
+    // And the tree carries its version stamp.
+    assert.equal(JSON.parse(fs.readFileSync(layout.layoutFile(dir),'utf8')).layout_version,layout.LAYOUT_VERSION);
   }finally{
     fs.rmSync(dir,{recursive:true,force:true});
   }

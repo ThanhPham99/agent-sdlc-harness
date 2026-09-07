@@ -1,13 +1,13 @@
 // Flaky Test Quarantine Manager for Agent SDLC Harness.
 import path from 'node:path';
 import fs from 'node:fs';
-import {stateDir} from './store.mjs';
 import {readJson,writeJson,now,uuid} from './util.mjs';
+import * as layout from './layout.mjs';
 
 const norm = p => String(p || '').replace(/\\/g, '/').replace(/^\.\//, '');
 
 function quarantinePath(projectRoot) {
-  return path.join(stateDir(projectRoot), 'quarantine.json');
+  return layout.quarantineFile(projectRoot);
 }
 
 /**

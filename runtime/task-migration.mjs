@@ -12,8 +12,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {now,sha256,writeJson} from './util.mjs';
-import {artifactsForRun,artifactBindings,getArtifact,loadTaskGraph,listTasks,stateDir} from './store.mjs';
+import {artifactsForRun,artifactBindings,getArtifact,loadTaskGraph,listTasks} from './store.mjs';
 import {materializeTaskGraph} from './task-engine.mjs';
+import * as layout from './layout.mjs';
 
 const KNOWN_PLAN_SCHEMAS=['agent-sdlc/task-plan/v1'];
 const POST_IMPLEMENT=['VERIFY','REVIEW','RELEASE','DEPLOY','OBSERVE','CLOSE'];
@@ -32,8 +33,8 @@ export function findPlanArtifact(projectRoot,runId){
 }
 
 function backup(projectRoot,runId){
-  const dir=path.join(stateDir(projectRoot),'backups',`task-migration-${runId}`);
-  const src=path.join(stateDir(projectRoot),'tasks',runId);
+  const dir=layout.taskMigrationBackupDir(projectRoot,runId);
+  const src=layout.runTasksDir(projectRoot,runId);
   if(!fs.existsSync(src))return null;
   fs.cpSync(src,dir,{recursive:true});
   return dir;
@@ -119,6 +120,6 @@ export function migrateRunToTaskRuntime(root,projectRoot,run,{dryRun=false}={}){
     backup:backupDir,
     migrated_at:now()
   };
-  writeJson(path.join(stateDir(projectRoot),'tasks',run.run_id,'migration.json'),record);
+  writeJson(layout.taskMigrationFile(projectRoot,run.run_id),record);
   return record;
 }

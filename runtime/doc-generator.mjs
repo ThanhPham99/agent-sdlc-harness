@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {stateDir,listRuns,loadRun,latestRunId,projectConfig,listTasks} from './store.mjs';
 import {ensureDir,now,rootFrom} from './util.mjs';
+import * as layout from './layout.mjs';
 import {generateDashboardHtml} from './commands/dashboard.mjs';
 import {metrics as getMetrics} from './telemetry.mjs';
 
@@ -10,18 +11,17 @@ import {metrics as getMetrics} from './telemetry.mjs';
  */
 export function ensureStandardDocs(projectRoot){
   const ROOT=rootFrom(import.meta.url);
-  const d=stateDir(projectRoot);
-  const docsDir=path.join(d,'docs');
-  const reportsDir=path.join(d,'reports');
-  ensureDir(docsDir);
-  ensureDir(reportsDir);
+  // ensureLayout already creates docs/, docs/guides/ and docs/reports/; the
+  // templates only need copying into the destinations the layout names.
+  layout.ensureLayout(projectRoot);
 
   const docFiles=[
-    {tpl:'SUMMARY.md',dest:path.join(d,'SUMMARY.md')},
-    {tpl:'docs-README.md',dest:path.join(docsDir,'README.md')},
-    {tpl:'ARCHITECTURE-AND-STATE.md',dest:path.join(docsDir,'ARCHITECTURE-AND-STATE.md')},
-    {tpl:'WORKFLOWS-GUIDE.md',dest:path.join(docsDir,'WORKFLOWS-GUIDE.md')},
-    {tpl:'CLI-CHEAT-SHEET.md',dest:path.join(docsDir,'CLI-CHEAT-SHEET.md')}
+    {tpl:'SUMMARY.md',dest:layout.summaryFile(projectRoot)},
+    {tpl:'REVIEW.md',dest:layout.reviewFile(projectRoot)},
+    {tpl:'docs-README.md',dest:layout.guideFile(projectRoot,'README.md')},
+    {tpl:'ARCHITECTURE-AND-STATE.md',dest:layout.guideFile(projectRoot,'ARCHITECTURE-AND-STATE.md')},
+    {tpl:'WORKFLOWS-GUIDE.md',dest:layout.guideFile(projectRoot,'WORKFLOWS-GUIDE.md')},
+    {tpl:'CLI-CHEAT-SHEET.md',dest:layout.guideFile(projectRoot,'CLI-CHEAT-SHEET.md')}
   ];
 
   for(const item of docFiles){
@@ -37,13 +37,14 @@ export function ensureStandardDocs(projectRoot){
  */
 export function generateRunReport(projectRoot,run,options={}){
   if(!run)return null;
-  const d=stateDir(projectRoot);
-  const reportsDir=path.join(d,'reports');
-  ensureDir(reportsDir);
+  ensureDir(layout.reportsDir(projectRoot));
 
   const tasks=listTasks(projectRoot,run.run_id)||[];
-  const runFileId=run.run_id.startsWith('run_')?run.run_id:`run_${run.run_id}`;
-  const reportFile=path.join(reportsDir,`${runFileId}.md`);
+  // Keyed on the raw run_id, with no `run_` normalization. The report is a
+  // run-scoped row in the layout table and gc resolves that row from the raw
+  // id, so normalizing here would write a report at a path gc looks for under
+  // a different name -- the one-path leak this table exists to prevent.
+  const reportFile=layout.runReportFile(projectRoot,run.run_id);
 
   const taskRows=tasks.length?tasks.map(t=>{
     const statusBadge=t.status==='DONE'?'✅ DONE':t.status==='RUNNING'?'⏳ RUNNING':t.status==='FAILED'?'❌ FAILED':`⚪ ${t.status}`;
@@ -109,9 +110,8 @@ ${artifactsList}
  * Updates the master SUMMARY.md in .agent-sdlc with latest runs, reports, and links.
  */
 export function updateSummaryIndex(projectRoot){
-  const d=stateDir(projectRoot);
-  const summaryFile=path.join(d,'SUMMARY.md');
-  const reportsDir=path.join(d,'reports');
+  const summaryFile=layout.summaryFile(projectRoot);
+  const reportsDir=layout.reportsDir(projectRoot);
   ensureDir(reportsDir);
 
   const runIds=listRuns(projectRoot);
@@ -152,12 +152,12 @@ export function updateSummaryIndex(projectRoot){
 
 | Tài liệu | Mô tả | Liên kết |
 | :--- | :--- | :--- |
-| **Hướng Dẫn Cấu Trúc & Tra Cứu** | Hướng dẫn cấu trúc thư mục \`.agent-sdlc\`, cách đọc artifact băm SHA-256 | [docs/README.md](file://${path.join(d,'docs','README.md')}) |
-| **Kiến Trúc & 5 Human Gates** | Chi tiết 10 giai đoạn SDLC, 5 cổng phê duyệt của con người và 3 risk profiles | [ARCHITECTURE-AND-STATE.md](file://${path.join(d,'docs','ARCHITECTURE-AND-STATE.md')}) |
-| **Cẩm Nang 21 Workflows** | Bảng đối chiếu 21 workflows (STRICT / STANDARD / FAST) và cách chọn luồng | [WORKFLOWS-GUIDE.md](file://${path.join(d,'docs','WORKFLOWS-GUIDE.md')}) |
-| **Bảng Tra Cứu Lệnh CLI** | Tra cứu nhanh các lệnh: \`auto\`, \`status\`, \`task\`, \`gate\`, \`approval\`, \`report\` | [CLI-CHEAT-SHEET.md](file://${path.join(d,'docs','CLI-CHEAT-SHEET.md')}) |
-| **Chính Sách Review Code** | Quy chuẩn 3 vòng review (Bugs, Security, Compliance) và Nit Capping | [REVIEW.md](file://${path.join(d,'REVIEW.md')}) |
-| **Dashboard Trực Quan** | Giao diện HTML xem trạng thái pipeline, tasks và runs trực quan trên trình duyệt | [dashboard.html](file://${path.join(d,'dashboard.html')}) |
+| **Hướng Dẫn Cấu Trúc & Tra Cứu** | Hướng dẫn cấu trúc thư mục \`.agent-sdlc\`, cách đọc artifact băm SHA-256 | [guides/README.md](file://${layout.guideFile(projectRoot,'README.md')}) |
+| **Kiến Trúc & 5 Human Gates** | Chi tiết 10 giai đoạn SDLC, 5 cổng phê duyệt của con người và 3 risk profiles | [ARCHITECTURE-AND-STATE.md](file://${layout.guideFile(projectRoot,'ARCHITECTURE-AND-STATE.md')}) |
+| **Cẩm Nang 21 Workflows** | Bảng đối chiếu 21 workflows (STRICT / STANDARD / FAST) và cách chọn luồng | [WORKFLOWS-GUIDE.md](file://${layout.guideFile(projectRoot,'WORKFLOWS-GUIDE.md')}) |
+| **Bảng Tra Cứu Lệnh CLI** | Tra cứu nhanh các lệnh: \`auto\`, \`status\`, \`task\`, \`gate\`, \`approval\`, \`report\` | [CLI-CHEAT-SHEET.md](file://${layout.guideFile(projectRoot,'CLI-CHEAT-SHEET.md')}) |
+| **Chính Sách Review Code** | Quy chuẩn 3 vòng review (Bugs, Security, Compliance) và Nit Capping | [REVIEW.md](file://${layout.reviewFile(projectRoot)}) |
+| **Dashboard Trực Quan** | Giao diện HTML xem trạng thái pipeline, tasks và runs trực quan trên trình duyệt | [dashboard.html](file://${layout.dashboardFile(projectRoot)}) |
 
 ---
 
@@ -213,7 +213,11 @@ export function syncDashboard(projectRoot){
     let met=null;
     try{met=getMetrics(projectRoot);}catch{}
     const html=generateDashboardHtml({project:proj,state,runs,tasks,metrics:met,version:'3.0.0-rc2'});
-    const outPath=path.join(d,'dashboard.html');
+    const outPath=layout.dashboardFile(projectRoot);
+    // cache/ is documented as safe to delete, so it may genuinely be absent
+    // here. Without this the write failed inside a swallow-all catch and the
+    // dashboard silently stopped updating for good.
+    ensureDir(path.dirname(outPath));
     fs.writeFileSync(outPath,html,'utf8');
   }catch{}
 }

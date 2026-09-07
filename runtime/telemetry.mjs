@@ -1,7 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import {stateDir,listTasks,loadTaskGraph,listTaskEvents} from './store.mjs';
+import {listRuns,listTasks,loadTaskGraph,listTaskEvents} from './store.mjs';
 import {reportUsage,reportRunTaskUsage} from './cost.mjs';
+import * as layout from './layout.mjs';
 
 const div=(a,b)=>b?Number((a/b).toFixed(4)):null;
 
@@ -56,17 +57,15 @@ export function taskMetrics(projectRoot,runId){
 }
 
 export function metrics(projectRoot){
-  const d=stateDir(projectRoot);
-  const runsDir=path.join(d,'runs');
-  const eventDir=path.join(d,'events');
-  const runs=fs.existsSync(runsDir)
-    ?fs.readdirSync(runsDir).filter(x=>x.endsWith('.json')).sort().map(x=>JSON.parse(fs.readFileSync(path.join(runsDir,x),'utf8')))
-    :[];
+  // A run is a directory holding run.json now, so the listing comes from the
+  // layout rather than from a *.json glob over a flat directory.
+  const runs=listRuns(projectRoot)
+    .map(id=>JSON.parse(fs.readFileSync(layout.runFile(projectRoot,id),'utf8')));
   const states={};const workflows={};const eventTypes={};
   for(const r of runs){
     states[r.state]=(states[r.state]||0)+1;
     workflows[r.workflow]=(workflows[r.workflow]||0)+1;
-    const p=path.join(eventDir,`${r.run_id}.jsonl`);
+    const p=layout.runEventsFile(projectRoot,r.run_id);
     if(fs.existsSync(p))for(const line of fs.readFileSync(p,'utf8').split('\n').filter(Boolean)){
       const e=JSON.parse(line);eventTypes[e.type]=(eventTypes[e.type]||0)+1;
     }

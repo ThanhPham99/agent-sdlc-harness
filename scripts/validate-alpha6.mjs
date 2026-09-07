@@ -12,6 +12,7 @@ import {DELIVERY_TARGETS} from '../runtime/git-delivery.mjs';
 import {CI_STATUSES} from '../runtime/ci-evidence.mjs';
 import {LEARNING_SOURCES} from '../runtime/learning.mjs';
 import {writeReport} from './lib/report-io.mjs';
+import * as layout from '../runtime/layout.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const rj=p=>JSON.parse(fs.readFileSync(path.join(ROOT,p),'utf8'));
@@ -37,7 +38,7 @@ out('REPO-INTELLIGENCE-VALIDATION.json',{
     every_query_reports_its_tier:true
   },
   index:{
-    location:'.agent-sdlc/index/repo-index.json',
+    location:path.relative(ROOT,layout.repoIndexFile(ROOT)).split(path.sep).join('/'),
     incremental:'content-hash cache; a clean tree re-parses nothing',
     revision_bound:true,
     scope:'git-tracked files, honouring .gitignore'

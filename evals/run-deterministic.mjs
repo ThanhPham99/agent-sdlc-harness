@@ -5,6 +5,7 @@ import {fileURLToPath} from 'node:url';
 import {execFileSync,spawnSync} from 'node:child_process';
 import {route} from '../runtime/router.mjs';
 import {initProject} from '../runtime/store.mjs';
+import * as layout from '../runtime/layout.mjs';
 import {newRun,transition,nextState,recordDesignDecision,recordTaskPlan} from '../runtime/orchestrator.mjs';
 import {selectDesignDiscoveryMode,validateDesignDecision,getDesignDiscoveryPolicy,requiredGateEvidence,scaffoldDesignDecision} from '../runtime/design-discovery.mjs';
 import {validateTaskPlan,computeTaskGraph,findCycles,computeReadySets,computeCoverage,planGateEvidence} from '../runtime/plan-validator.mjs';
@@ -969,7 +970,7 @@ test('sequential-writes-of-one-copy-are-not-a-conflict',()=>{
 test('run-write-leaves-no-temp-files',()=>{
   const r=newRun(ROOT,tmp,{objective:'atomic write',route:route(ROOT,'Add refund capability')});
   saveRun(tmp,r);
-  const leftovers=fs.readdirSync(path.join(tmp,'.agent-sdlc','runs')).filter(x=>x.endsWith('.tmp'));
+  const leftovers=fs.readdirSync(layout.runDir(tmp,r.run_id)).filter(x=>x.endsWith('.tmp'));
   if(leftovers.length)throw Error(`temp files left behind: ${leftovers.join(', ')}`);
 });
 test('event-seq-is-dense-and-monotonic',()=>{
@@ -1453,7 +1454,7 @@ test('project-json-cannot-grant-a-tool-the-stage-denies',()=>{
   execFileSync('git',['init','-q'],{cwd:d});
   initProject(d,{schema:'agent-sdlc/project/v1',project:'x',commands:{test_targeted:['node','-e','process.exit(0)']},providers:{preferred:['claude']}});
   // Every shape a project might hope grants itself something.
-  const cfgPath=path.join(d,'.agent-sdlc','project.json');
+  const cfgPath=layout.projectConfigFile(d);
   const cfg=JSON.parse(fs.readFileSync(cfgPath,'utf8'));
   fs.writeFileSync(cfgPath,JSON.stringify({
     ...cfg,
@@ -2254,7 +2255,7 @@ function gcFixture(){
  * saveRun (which always stamps updated_at=now()) so the fixture can pretend
  * to be old without transitioning through every stage for real. */
 function closeAndAge(projectRoot,run,ageDays){
-  const p=path.join(projectRoot,'.agent-sdlc','runs',`${run.run_id}.json`);
+  const p=layout.runFile(projectRoot,run.run_id);
   const disk=JSON.parse(fs.readFileSync(p,'utf8'));
   disk.state=disk.stages.at(-1);
   disk.suspended_from=null;
@@ -2267,7 +2268,7 @@ test('gc-plan-skips-a-non-terminal-run-regardless-of-age',()=>{
   const r=newRun(ROOT,d,{objective:'still open',route:route(ROOT,'Add refund capability')});
   // Old, but never left INTAKE -- this case wants NOT_TERMINAL specifically,
   // not TOO_RECENT.
-  const p=path.join(d,'.agent-sdlc','runs',`${r.run_id}.json`);
+  const p=layout.runFile(d,r.run_id);
   const disk=JSON.parse(fs.readFileSync(p,'utf8'));
   disk.updated_at=new Date(Date.now()-40*24*60*60*1000).toISOString();
   fs.writeFileSync(p,JSON.stringify(disk,null,2));
@@ -2292,9 +2293,14 @@ test('gc-plan-selects-an-old-terminal-run-and-reports-its-paths',()=>{
   const plan=planGc(d,{olderThanDays:30});
   const e=plan.eligible_runs.find(x=>x.run_id===r.run_id);
   if(!e)throw Error(JSON.stringify(plan));
-  if(!e.paths.some(p=>p===`.agent-sdlc/runs/${r.run_id}.json`))throw Error(JSON.stringify(e.paths));
+  // A run is one directory now, so gc names that directory rather than the
+  // individual files inside it.
+  // gc reports repo-relative paths; derived here so the assertion tracks the
+  // layout instead of restating it.
+  const expected=path.relative(d,layout.runDir(d,r.run_id)).split(path.sep).join('/');
+  if(!e.paths.some(p=>p===expected))throw Error(JSON.stringify({expected,got:e.paths}));
   if(plan.dry_run!==true)throw Error('planGc must never mutate disk');
-  if(!fs.existsSync(path.join(d,'.agent-sdlc','runs',`${r.run_id}.json`)))throw Error('planGc deleted something');
+  if(!fs.existsSync(layout.runFile(d,r.run_id)))throw Error('planGc deleted something');
 });
 
 test('gc-plan-orphans-only-the-artifact-no-surviving-run-references',()=>{
@@ -2331,8 +2337,8 @@ test('gc-apply-removes-exactly-what-the-plan-named-and-leaves-other-runs-alone',
   const plan=planGc(d,{olderThanDays:30});
   const result=applyGc(d,plan);
   if(!result.removed_runs.includes(goes.run_id))throw Error(JSON.stringify(result));
-  if(fs.existsSync(path.join(d,'.agent-sdlc','runs',`${goes.run_id}.json`)))throw Error('run.json survived apply');
-  if(!fs.existsSync(path.join(d,'.agent-sdlc','runs',`${stays.run_id}.json`)))throw Error('an unrelated run was deleted');
+  if(fs.existsSync(layout.runDir(d,goes.run_id)))throw Error('the run directory survived apply');
+  if(!fs.existsSync(layout.runFile(d,stays.run_id)))throw Error('an unrelated run was deleted');
 });
 
 test('gc-apply-refuses-a-run-that-stopped-being-terminal-since-the-plan-was-made',()=>{
@@ -2343,7 +2349,7 @@ test('gc-apply-refuses-a-run-that-stopped-being-terminal-since-the-plan-was-made
   const plan=planGc(d,{olderThanDays:30});
   if(!plan.eligible_runs.some(e=>e.run_id===r.run_id))throw Error('fixture assumption broke: run was not eligible');
   // Something (a resume, a bug) makes the run non-terminal again before apply runs.
-  const p=path.join(d,'.agent-sdlc','runs',`${r.run_id}.json`);
+  const p=layout.runFile(d,r.run_id);
   const disk=JSON.parse(fs.readFileSync(p,'utf8'));
   disk.state='PLAN';
   fs.writeFileSync(p,JSON.stringify(disk,null,2));
@@ -2473,7 +2479,7 @@ test('optimization/event-merkle-chain-verification',()=>{
   if(!check1.valid||check1.event_count<2)throw Error(JSON.stringify(check1));
 
   // Test tampering detection
-  const eventFile=path.join(tmp,'.agent-sdlc','events',`${r.run_id}.jsonl`);
+  const eventFile=layout.runEventsFile(tmp,r.run_id);
   const lines=fs.readFileSync(eventFile,'utf8').trim().split('\n');
   const tampered=JSON.parse(lines[1]);
   tampered.payload={value:999}; // tamper payload without updating hash

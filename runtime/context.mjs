@@ -5,6 +5,7 @@ import {getProjectKnowledgeStatus} from './project-knowledge.mjs';
 import {resolveProcedures} from './procedures.mjs';
 import {loadRequirementUpdatePlan} from './requirement-update.mjs';
 import {loadFeature,loadPhase} from './features.mjs';
+import * as layout from './layout.mjs';
 
 const CORE_SKILL_BY_STAGE={
   INTAKE:'requirements',REQUIREMENTS:'requirements',DESIGN:'architecture',PLAN:'planning',
@@ -175,7 +176,7 @@ export function projectArtifactsForStage(stage,artifacts){
 export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],constraints=[]}={}){
   const stagePolicy=readJson(path.join(root,'policies','stage-policy.json')).stages[run.state];
   if(!stagePolicy)throw new Error(`no stage policy for ${run.state}`);
-  const cfg=readJson(path.join(projectRoot,'.agent-sdlc','project.json'),{});
+  const cfg=readJson(layout.projectConfigFile(projectRoot),{});
   const policy=readJson(path.join(root,'policies','context-policy.json'));
   const charsPerToken=policy.limits?.context_estimate_chars_per_token||4;
   const maxContextTokens=stagePolicy.budget?.max_context_tokens_estimate||40000;

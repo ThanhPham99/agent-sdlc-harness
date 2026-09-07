@@ -15,13 +15,13 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {ensureDir,git,gitSha,normalizeText,now,readJson,sha256,writeJson} from './util.mjs';
-import {stateDir} from './store.mjs';
+import * as layout from './layout.mjs';
 
 export const CAPABILITY_TIERS=['LSP_OR_COMPILER','LANGUAGE_PARSER','DETERMINISTIC_SYNTAX','LLM_INFERENCE'];
 export const IMPLEMENTED_TIER='DETERMINISTIC_SYNTAX';
 
-const indexDir=projectRoot=>path.join(stateDir(projectRoot),'index');
-const indexPath=projectRoot=>path.join(indexDir(projectRoot),'repo-index.json');
+const indexDir=projectRoot=>layout.repoIndexDir(projectRoot);
+const indexPath=projectRoot=>layout.repoIndexFile(projectRoot);
 
 const LANG_BY_EXT={
   '.js':'javascript','.mjs':'javascript','.cjs':'javascript','.jsx':'javascript',

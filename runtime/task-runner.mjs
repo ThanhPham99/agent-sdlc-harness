@@ -22,6 +22,7 @@ import {classifyTaskFailure,planRecovery,applyRecovery,evidenceFingerprint,hasNe
 import {routeModel} from './model-router.mjs';
 import {addUsage} from './cost.mjs';
 import {auditCodingStandards} from './coding-standards-linter.mjs';
+import * as layout from './layout.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -54,7 +55,7 @@ export const MAX_REPORTED_STANDARDS_NITS=10;
 export function resolveCodingStandardsPolicy(root,projectRoot){
   let configured={};
   try{
-    const cfg=JSON.parse(fs.readFileSync(path.join(projectRoot,'.agent-sdlc','project.json'),'utf8'));
+    const cfg=JSON.parse(fs.readFileSync(layout.projectConfigFile(projectRoot),'utf8'));
     configured=cfg.coding_standards||{};
   }catch{/* no project config: the defaults below still apply */}
   if(configured.enabled===false)return {is_enabled:false,policy_path:null,reason:'disabled in .agent-sdlc/project.json'};

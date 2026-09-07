@@ -6,13 +6,13 @@
 // re-impact trigger, not a detail.
 import path from 'node:path';
 import {git,gitSha,now,readJson,writeJson} from './util.mjs';
-import {stateDir} from './store.mjs';
 import {loadCiEvidence,ciEvidenceState} from './ci-evidence.mjs';
 import {GATE_CAPABILITIES} from './approvals.mjs';
+import * as layout from './layout.mjs';
 
 export const DELIVERY_TARGETS=['PR_READY','MERGED','RELEASE_READY'];
 const arr=x=>Array.isArray(x)?x:[];
-const recordPath=(projectRoot,runId)=>path.join(stateDir(projectRoot),'delivery',`${runId}.json`);
+const recordPath=(projectRoot,runId)=>layout.runDeliveryFile(projectRoot,runId);
 
 export function loadDelivery(projectRoot,runId){
   const p=recordPath(projectRoot,runId);

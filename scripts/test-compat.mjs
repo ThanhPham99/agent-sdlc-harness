@@ -13,6 +13,7 @@ import {initProject} from '../runtime/store.mjs';
 import {compatCheck,migrateState,stateSchema} from '../runtime/compat.mjs';
 import {createSuite} from './lib/suite.mjs';
 import {makeTempDir} from './lib/tempdir.mjs';
+import * as layout from '../runtime/layout.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
@@ -29,7 +30,7 @@ function initialized(){
   initProject(d,{schema:'agent-sdlc/project/v1',project:'compat-fixture',commands:{}});
   return d;
 }
-const statePath=d=>path.join(d,'.agent-sdlc','state.json');
+const statePath=d=>layout.stateFile(d);
 const readState=d=>JSON.parse(fs.readFileSync(statePath(d),'utf8'));
 const writeState=(d,v)=>fs.writeFileSync(statePath(d),JSON.stringify(v,null,2)+'\n');
 
@@ -125,11 +126,11 @@ test('migration-records-the-version-change-and-backs-up-the-file-it-rewrites',()
   assert(after.created_at===before.created_at,'creation time was rewritten');
   assert(after.last_migrated_at,'no migration timestamp');
   assert(after.migrations.length===1&&after.migrations[0].from==='3.0.0-alpha4','history not recorded');
-  const backups=fs.readdirSync(path.join(d,'.agent-sdlc')).filter(f=>/^state\.backup-\d+\.json$/.test(f));
+  const backups=fs.readdirSync(layout.stateDir(d)).filter(f=>/^state\.backup-\d+\.json$/.test(f));
   assert(backups.length===1,`expected one state backup, found ${backups.length}`);
-  assert(JSON.parse(fs.readFileSync(path.join(d,'.agent-sdlc',backups[0]),'utf8')).harness_version==='3.0.0-alpha4','the backup is not the pre-migration state');
+  assert(JSON.parse(fs.readFileSync(path.join(layout.stateDir(d),backups[0]),'utf8')).harness_version==='3.0.0-alpha4','the backup is not the pre-migration state');
   // The file migration never touches must not be copied.
-  assert(!fs.readdirSync(path.join(d,'.agent-sdlc')).some(f=>f.startsWith('project.backup-')),'project.json was backed up by a migration that does not touch it');
+  assert(!fs.readdirSync(layout.stateDir(d)).some(f=>f.startsWith('project.backup-')),'project.json was backed up by a migration that does not touch it');
   assert(compatCheck(ROOT,d).status==='COMPATIBLE','the recorded change did not settle the project');
 });
 test('migration-history-accumulates-and-is-idempotent',()=>{

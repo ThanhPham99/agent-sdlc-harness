@@ -13,6 +13,7 @@ import {requestApprovalTicket,grantApprovalTicket,listApprovalTickets,GATE_CAPAB
 import {execFileSync} from 'node:child_process';
 import {createSuite} from './lib/suite.mjs';
 import {makeTempDir} from './lib/tempdir.mjs';
+import * as layout from '../runtime/layout.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const {test,assert,finish}=createSuite('agent-sdlc/autonomous-runner-validation/v1','AUTONOMOUS-RUNNER-VALIDATION.json');
@@ -563,7 +564,7 @@ await test('gate-2-escalates-when-task-fails-verification-exceeding-attempts',as
   };
 
   const workerCallback=(task)=>{
-    const wsDir=path.join(d,'.agent-sdlc','workspaces',run.run_id,task.task_id);
+    const wsDir=path.join(layout.runWorkspacesDir(d,run.run_id),task.task_id);
     const targetDir=fs.existsSync(wsDir)?wsDir:d;
     fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
     fs.writeFileSync(path.join(targetDir,'src','math.js'),'export function calc() { return 1; }\n');
@@ -805,7 +806,7 @@ await test('self-healing-loop-passes-failure-context-to-worker-callback-on-retry
     }else{
       // Second attempt: verify failureContext was provided
       receivedFailure=failureContext;
-      const wsDir=path.join(d,'.agent-sdlc','workspaces',run.run_id,task.task_id);
+      const wsDir=path.join(layout.runWorkspacesDir(d,run.run_id),task.task_id);
       const targetDir=fs.existsSync(wsDir)?wsDir:d;
       fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
       fs.writeFileSync(path.join(targetDir,'src','helper.js'),'export function ok() { return true; }\n');
@@ -1131,7 +1132,7 @@ await test('a-project-can-point-the-standards-audit-elsewhere-or-switch-it-off',
   const runWith=async (name,codingStandards)=>{
     const d=fixture(name);
     if(codingStandards){
-      const cfgPath=path.join(d,'.agent-sdlc','project.json');
+      const cfgPath=layout.projectConfigFile(d);
       const cfg=JSON.parse(fs.readFileSync(cfgPath,'utf8'));
       fs.writeFileSync(cfgPath,JSON.stringify({...cfg,coding_standards:codingStandards},null,2));
     }
@@ -1432,7 +1433,7 @@ await test('auto-command-with-objective-inits-and-runs-zero-config',async ()=>{
     needRun:async()=>null
   });
 
-  assert(fs.existsSync(path.join(d,'.agent-sdlc','project.json')),'project should be automatically initialized');
+  assert(fs.existsSync(layout.projectConfigFile(d)),'project should be automatically initialized');
   assert(printed&&printed.status!==undefined,'pipeline ran and returned status');
   assert(printed.run&&printed.run.objective==='Update readme docs','run created with objective');
 });

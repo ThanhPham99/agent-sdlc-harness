@@ -8,6 +8,7 @@ import {normalizeInput} from './normalize.mjs';
 import {recordEvidence} from './evidence.mjs';
 import {resolveLaunch,describeSpawn} from './launcher.mjs';
 import {lintSecurityRisks} from './security-linter.mjs';
+import * as layout from './layout.mjs';
 
 // A command the harness was told to run, resolved the same way host binaries
 // are, and a result that distinguishes "it ran and failed" from "it never ran".
@@ -251,7 +252,7 @@ function summariseReport(raw){
 }
 
 export function invokeTool(root,projectRoot,run,tool,args={}){
-  const cfg=JSON.parse(fs.readFileSync(path.join(projectRoot,'.agent-sdlc','project.json'),'utf8'));const decision=checkTool(root,run,tool);if(decision.decision!=='ALLOW')return {tool,status:decision.decision==='DENY'?'DENY':'APPROVAL_REQUIRED',exit_code:null,summary:decision,failures:[],full_log_artifact:null,truncated:false};let result;
+  const cfg=JSON.parse(fs.readFileSync(layout.projectConfigFile(projectRoot),'utf8'));const decision=checkTool(root,run,tool);if(decision.decision!=='ALLOW')return {tool,status:decision.decision==='DENY'?'DENY':'APPROVAL_REQUIRED',exit_code:null,summary:decision,failures:[],full_log_artifact:null,truncated:false};let result;
   // config/tools.json declares these per tool and nothing read them, so a budget
   // tightened in config had no effect. The literals stay as the fallback for a
   // tool the registry does not size.
@@ -276,7 +277,7 @@ export function invokeTool(root,projectRoot,run,tool,args={}){
     // entry has nothing to diff against. The content stays unshown, but the
     // report must not imply there is nothing there -- an agent reading this to
     // answer "what did I change?" was told only about tracked edits.
-    const newFiles=(untrackedFiles(projectRoot)||[]).filter(rel=>!rel.startsWith('.agent-sdlc/'));
+    const newFiles=(untrackedFiles(projectRoot)||[]).filter(rel=>!rel.startsWith(`${layout.STATE_DIRNAME}/`));
     if(newFiles.length&&result.status!=='ERROR'){
       const shown=newFiles.slice(0,50);
       const more=newFiles.length-shown.length;

@@ -1,6 +1,7 @@
 // Automated SDLC Runner & CI Guard command handlers.
 import path from 'node:path';
 import {truthy} from '../util.mjs';
+import * as layout from '../layout.mjs';
 
 export const commands={
   auto:async ctx=>{
@@ -17,7 +18,7 @@ export const commands={
       const {newRun}=await import('../orchestrator.mjs');
       const {resolveFeatureBinding}=await import('../features.mjs');
 
-      if(!fs.existsSync(path.join(projectRoot,'.agent-sdlc','project.json'))){
+      if(!fs.existsSync(layout.projectConfigFile(projectRoot))){
         initProject(projectRoot,detectProject(projectRoot));
       }
       const isSemantic=truthy(args.semantic)||truthy(args.ai);
