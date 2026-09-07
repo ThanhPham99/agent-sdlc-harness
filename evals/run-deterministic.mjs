@@ -663,6 +663,7 @@ function legacyReferenceOffenders(){
     'templates/knowledge-index.yaml',
     'templates/workflow-meta.yaml',
     'scripts/test-compat.mjs', // fixture: creates a fake legacy dir to test detection
+    'scripts/test-layout-migration.mjs', // fixture: asserts the v1->v2 migrator still REFUSES a legacy tree
     'evals/run-deterministic.mjs', // this guard names the legacy path itself
     'docs/superpowers/plans/2026-08-28-gate-signal-correctness.md' // historical plan quoting this guard's own message
   ]);

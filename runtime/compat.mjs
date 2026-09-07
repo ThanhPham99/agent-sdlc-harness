@@ -4,6 +4,7 @@ import {readJson,writeJson,now} from './util.mjs';
 import {stateDir} from './store.mjs';
 import * as layout from './layout.mjs';
 import {detectLayoutVersion,LAYOUT_VERSION} from './layout.mjs';
+import {migrateLayout} from './layout-migration.mjs';
 
 // Compatibility between a project's persisted state and the harness operating
 // it. Two rules shape this module:
@@ -75,6 +76,28 @@ export function migrateState(root,projectRoot){
     throw new Error(`automatic migration refused: ${check.status}`);
   }
   if(check.status==='UNINITIALIZED')throw new Error('project is not initialized');
+
+  // The on-disk SHAPE is migrated before the state metadata, because every
+  // branch below reads state.json and a v1 tree's state.json is the one file
+  // that sits at the same path in both layouts -- so this is the only ordering
+  // where the rest of this function is operating on a tree it can see.
+  //
+  // `migrateLayout` returns ALREADY_CURRENT on a tree that is already v2 and
+  // has no recorded unfinished work, so this stays a single idempotent entry
+  // point rather than a mode the caller has to choose.
+  const layoutResult=migrateLayout(projectRoot);
+  if(layoutResult.status==='INCOMPLETE'){
+    // Name every reason, not just one of the three. This interpolated
+    // `retained_legacy_dirs` alone, so the commonest case -- a filename v2
+    // cannot address -- threw `layout migration incomplete: []`, which reads
+    // like a harness bug rather than like a file to rename.
+    const why=[
+      layoutResult.retained_legacy_dirs?.length&&`legacy directories still populated: ${layoutResult.retained_legacy_dirs.map(r=>r.name).join(', ')}`,
+      layoutResult.unaddressable?.length&&`names v2 cannot address (rename them, then re-run): ${layoutResult.unaddressable.map(u=>u.what).join(', ')}`,
+      layoutResult.errors?.length&&`moves that failed: ${layoutResult.errors.map(e=>`${e.what} (${e.code||'error'})`).join(', ')}`
+    ].filter(Boolean).join('; ')||'no cause recorded';
+    throw new Error(`layout migration incomplete: ${why}; the pre-migration tree is preserved at ${layoutResult.backup}`);
+  }
   const d=stateDir(projectRoot);
   const metaPath=layout.stateFile(projectRoot);
   const version=harnessVersion(root);
@@ -83,9 +106,16 @@ export function migrateState(root,projectRoot){
   if(!present){
     const fresh={schema:STATE_SCHEMA,harness_version:version,created_at:now(),last_migrated_at:now(),migrations:[]};
     writeJson(metaPath,fresh);
-    return {status:'MIGRATED',state:fresh};
+    return {status:'MIGRATED',state:fresh,layout:layoutResult};
   }
-  if(state.harness_version===version)return {status:'NOOP',state};
+  // Not a no-op if the SHAPE changed: the harness version can match while the
+  // tree was v1 a moment ago, and reporting NOOP there would hide the
+  // migration that just ran.
+  if(state.harness_version===version){
+    return layoutResult.migrated
+      ?{status:'LAYOUT_MIGRATED',state,layout:layoutResult}
+      :{status:'NOOP',state,layout:layoutResult};
+  }
 
   // The file about to be rewritten is the one worth backing up. The previous
   // implementation copied project.json instead, which migration never touches.
@@ -98,7 +128,7 @@ export function migrateState(root,projectRoot){
       {from:state.harness_version??null,to:version,at:now()}]
   };
   writeJson(metaPath,updated);
-  return {status:'HARNESS_VERSION_RECORDED',from:state.harness_version??null,to:version,state:updated};
+  return {status:'HARNESS_VERSION_RECORDED',from:state.harness_version??null,to:version,state:updated,layout:layoutResult};
 }
 
 export const stateSchema=STATE_SCHEMA;
