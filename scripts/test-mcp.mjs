@@ -122,7 +122,7 @@ await test('garbage-input-does-not-kill-the-server',async()=>{
 });
 await test('every-advertised-tool-declares-a-schema',async()=>{
   const tools=(await c.call('tools/list')).result.tools;
-  assert(tools.length===19,`expected 19 tools, got ${tools.length}`);
+  assert(tools.length===20,`expected 20 tools, got ${tools.length}`);
   for(const t of tools){
     assert(t.name.startsWith('agent_sdlc_'),t.name);
     assert(t.description&&t.description.length>20,`${t.name} has no usable description`);
@@ -276,6 +276,31 @@ await test('mcp-design-tool-scaffolds-validates-and-records',async ()=>{
 
   const rec=payload(await c.tool('agent_sdlc_design',{run_id:runId,op:'record',decision:scaffold.draft}));
   assert(rec.recorded===true,`a valid decision records over MCP, got ${JSON.stringify(rec.validation&&rec.validation.errors)}`);
+});
+
+await test('mcp-plan-tool-validates-and-records-an-authored-plan',async ()=>{
+  const started=payload(await c.tool('agent_sdlc_start',{objective:'Add a caching layer',workflow:'bug-fix'}));
+  const runId=started.run_id;
+  await c.tool('agent_sdlc_transition',{run_id:runId,to:'REQUIREMENTS'});
+  await c.tool('agent_sdlc_transition',{run_id:runId,to:'PLAN',evidence:['requirements_confirmed']});
+
+  const plan={
+    schema:'agent-sdlc/task-plan/v1',plan_id:'plan_mcp_authored',objective:'Add a caching layer',profile:'STANDARD',
+    requirements:['AC-1'],
+    tasks:[{task_id:'TASK-001',title:'Add the cache',goal:'Add an in-process cache to the lookup path',
+      done_conditions:['Lookups hit the cache on the second call'],category:'implementation',depends_on:[],
+      acceptance_criteria:['AC-1'],write_scope:['src/**'],
+      verification:{targeted_tests:['test/cache.test.js'],expected_behavior:['Second lookup does not hit the backend']}}]
+  };
+
+  const invalid=payload(await c.tool('agent_sdlc_plan',{run_id:runId,op:'validate',plan:{...plan,tasks:[]}}));
+  assert(invalid.valid===false,'an empty plan must not validate');
+
+  const v=payload(await c.tool('agent_sdlc_plan',{run_id:runId,op:'validate',plan}));
+  assert(v.valid===true,`the authored plan must validate, got ${JSON.stringify(v.errors)}`);
+
+  const rec=payload(await c.tool('agent_sdlc_plan',{run_id:runId,op:'record',plan}));
+  assert(rec.recorded===true,'a valid authored plan records over MCP');
 });
 
 await test('an-unknown-tool-is-an-error-result',async()=>{

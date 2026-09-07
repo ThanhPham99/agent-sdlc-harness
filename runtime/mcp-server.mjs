@@ -8,8 +8,9 @@ import {requireTask,taskProgress} from './task-engine.mjs';
 import {readySet,scheduleTasks,scheduleView,renderTaskDagMermaid} from './task-scheduler.mjs';
 import {buildTaskContext,renderTaskPrompt} from './task-context.mjs';
 import {route} from './router.mjs';
-import {newRun,transition,nextState,recordDesignDecision} from './orchestrator.mjs';
+import {newRun,transition,nextState,recordDesignDecision,recordTaskPlan,materializeRunTasks} from './orchestrator.mjs';
 import {selectDesignDiscoveryMode,scaffoldDesignDecision,validateDesignDecision} from './design-discovery.mjs';
+import {validateTaskPlan,computeTaskGraph} from './plan-validator.mjs';
 import {buildContext} from './context.mjs';
 import {checkTool} from './policy.mjs';
 import {invokeTool} from './tools.mjs';
@@ -48,6 +49,7 @@ const toolDefs=[
   // There was no corresponding tool: the only MCP route through this gate was
   // the scaffold the `pipeline` op records for you.
   {name:'agent_sdlc_design',description:'Design gate: read the required discovery depth, scaffold a correctly shaped decision, validate one, or record an authored decision. Recording enforces the same structural gate as the CLI; there is no bypass.',inputSchema:{type:'object',required:['run_id','op'],properties:{project_root:{type:'string'},run_id:{type:'string'},op:{type:'string',enum:['mode','scaffold','validate','record']},decision:{type:'object'}}}},
+  {name:'agent_sdlc_plan',description:'Plan gate: validate a task plan, record a validated one, or read its derived task graph. Recording runs the same deterministic plan-quality gate as the CLI; an invalid plan is refused, not forced.',inputSchema:{type:'object',required:['run_id','op'],properties:{project_root:{type:'string'},run_id:{type:'string'},op:{type:'string',enum:['validate','record','graph']},plan:{type:'object'}}}},
   {name:'agent_sdlc_tool_check',description:'Check canonical stage/tool policy before execution.',annotations:{readOnlyHint:true},inputSchema:{type:'object',required:['run_id','tool'],properties:{project_root:{type:'string'},run_id:{type:'string'},tool:{type:'string'}}}},
   {name:'agent_sdlc_tool_run',description:'Run a deterministic built-in project tool through stage policy and bounded-output handling.',inputSchema:{type:'object',required:['run_id','tool'],properties:{project_root:{type:'string'},run_id:{type:'string'},tool:{type:'string'},args:{type:'object'}}}},
   {name:'agent_sdlc_artifact_put',description:'Store durable external memory as a content-addressed artifact and attach it to a run.',inputSchema:{type:'object',required:['run_id','kind','content'],properties:{project_root:{type:'string'},run_id:{type:'string'},kind:{type:'string'},content:{type:'string'}}}},
@@ -208,6 +210,12 @@ export function execute(name,a={}){
     if(!a.decision||typeof a.decision!=='object')throw new Error('agent_sdlc_design op requires a `decision` object');
     if(a.op==='validate')return validateDesignDecision(a.decision);
     return recordDesignDecision(ROOT,projectRoot,run,a.decision,{approvals:activeCapabilities(ROOT,run)});
+  }
+  if(name==='agent_sdlc_plan'){
+    if(!a.plan||typeof a.plan!=='object')throw new Error('agent_sdlc_plan op requires a `plan` object');
+    if(a.op==='validate')return validateTaskPlan(a.plan,{profile:a.plan.profile||run.profile});
+    if(a.op==='graph')return computeTaskGraph(a.plan);
+    return recordTaskPlan(ROOT,projectRoot,run,a.plan);
   }
   if(name==='agent_sdlc_tool_check')return checkTool(ROOT,run,a.tool);
   if(name==='agent_sdlc_tool_run')return invokeTool(ROOT,projectRoot,run,a.tool,a.args||{});
