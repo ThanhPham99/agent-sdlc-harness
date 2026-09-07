@@ -8,12 +8,12 @@
 
 | Tài liệu | Mô tả | Liên kết |
 | :--- | :--- | :--- |
-| **Hướng Dẫn Cấu Trúc & Tra Cứu** | Hướng dẫn cấu trúc thư mục `.agent-sdlc`, cách đọc artifact băm SHA-256 | [docs/README.md](file:///media/moe_mint/D/Moevuive/agent-sdlc-harness/.agent-sdlc/docs/README.md) |
-| **Kiến Trúc & 5 Human Gates** | Chi tiết 10 giai đoạn SDLC, 5 cổng phê duyệt của con người và 3 risk profiles | [ARCHITECTURE-AND-STATE.md](file:///media/moe_mint/D/Moevuive/agent-sdlc-harness/.agent-sdlc/docs/ARCHITECTURE-AND-STATE.md) |
-| **Cẩm Nang 21 Workflows** | Bảng đối chiếu 21 workflows (STRICT / STANDARD / FAST) và cách chọn luồng | [WORKFLOWS-GUIDE.md](file:///media/moe_mint/D/Moevuive/agent-sdlc-harness/.agent-sdlc/docs/WORKFLOWS-GUIDE.md) |
-| **Bảng Tra Cứu Lệnh CLI** | Tra cứu nhanh các lệnh: `auto`, `status`, `task`, `gate`, `approval`, `report` | [CLI-CHEAT-SHEET.md](file:///media/moe_mint/D/Moevuive/agent-sdlc-harness/.agent-sdlc/docs/CLI-CHEAT-SHEET.md) |
-| **Chính Sách Review Code** | Quy chuẩn 3 vòng review (Bugs, Security, Compliance) và Nit Capping | [REVIEW.md](file:///media/moe_mint/D/Moevuive/agent-sdlc-harness/.agent-sdlc/REVIEW.md) |
-| **Dashboard Trực Quan** | Giao diện HTML xem trạng thái pipeline, tasks và runs trực quan trên trình duyệt | [dashboard.html](file:///media/moe_mint/D/Moevuive/agent-sdlc-harness/.agent-sdlc/dashboard.html) |
+| **Hướng Dẫn Cấu Trúc & Tra Cứu** | Hướng dẫn cấu trúc thư mục `.agent-sdlc`, cách đọc artifact băm SHA-256 | [guides/README.md](./guides/README.md) |
+| **Kiến Trúc & 5 Human Gates** | Chi tiết 10 giai đoạn SDLC, 5 cổng phê duyệt của con người và 3 risk profiles | [ARCHITECTURE-AND-STATE.md](./guides/ARCHITECTURE-AND-STATE.md) |
+| **Cẩm Nang 21 Workflows** | Bảng đối chiếu 21 workflows (STRICT / STANDARD / FAST) và cách chọn luồng | [WORKFLOWS-GUIDE.md](./guides/WORKFLOWS-GUIDE.md) |
+| **Bảng Tra Cứu Lệnh CLI** | Tra cứu nhanh các lệnh: `auto`, `status`, `task`, `gate`, `approval`, `report` | [CLI-CHEAT-SHEET.md](./guides/CLI-CHEAT-SHEET.md) |
+| **Chính Sách Review Code** | Quy chuẩn 3 vòng review (Bugs, Security, Compliance) và Nit Capping | [REVIEW.md](../REVIEW.md) |
+| **Dashboard Trực Quan** | Giao diện HTML xem trạng thái pipeline, tasks và runs trực quan trên trình duyệt | [dashboard.html](../cache/dashboard.html) |
 
 ---
 
@@ -21,17 +21,22 @@
 
 | Báo cáo | Nội dung chính | Liên kết |
 | :--- | :--- | :--- |
-| **Báo Cáo Sửa Lỗi & Cập Nhật Mới Nhất** | 3 lỗi blocking trong runner đã xử lý, 45/45 test checks PASS | [LATEST-WORK-SUMMARY.md](file:///media/moe_mint/D/Moevuive/agent-sdlc-harness/.agent-sdlc/reports/LATEST-WORK-SUMMARY.md) |
-| **Báo Cáo Nghiệm Thu 22/22 Workflows E2E** | Kết quả chạy kiểm định E2E tự động toàn bộ 21 workflows + delta update | [WORKFLOWS-E2E-REPORT.md](file:///media/moe_mint/D/Moevuive/agent-sdlc-harness/.agent-sdlc/reports/WORKFLOWS-E2E-REPORT.md) |
+| **Báo Cáo Sửa Lỗi & Cập Nhật Mới Nhất** | 3 lỗi blocking trong runner đã xử lý, 45/45 test checks PASS | [LATEST-WORK-SUMMARY.md](./reports/LATEST-WORK-SUMMARY.md) |
+| **Báo Cáo Nghiệm Thu 22/22 Workflows E2E** | Kết quả chạy kiểm định E2E tự động toàn bộ 21 workflows + delta update | [WORKFLOWS-E2E-REPORT.md](./reports/WORKFLOWS-E2E-REPORT.md) |
 
 ---
 
 ## 3. Trạng Thái Tổng Thể Codebase & Kiểm Thử
 
-- **Phiên bản Harness:** `v3.0.0-rc2`
-- **Bộ kiểm thử toàn diện (Local Gate):** `47/47 test suites PASS (100%)`
-- **Kiểm thử E2E 21 SDLC Workflows:** `22/22 checks PASS` ([scripts/test-all-workflows-e2e.mjs](file:///media/moe_mint/D/Moevuive/agent-sdlc-harness/scripts/test-all-workflows-e2e.mjs))
-- **Autonomous Runner:** `45/45 checks PASS` ([scripts/test-autonomous-runner.mjs](file:///media/moe_mint/D/Moevuive/agent-sdlc-harness/scripts/test-autonomous-runner.mjs))
+Đây là tệp mẫu được sao chép vào mỗi dự án, nên nó **không khẳng định** số liệu kiểm thử của dự án bạn — hãy tự chạy và đọc kết quả:
+
+| Kiểm tra | Lệnh |
+|---|---|
+| Cổng kiểm định đầy đủ (local gate) | `npm run check` |
+| Bộ kiểm thử tất định | `npm test` |
+| Kiểm tra tính toàn vẹn | `npm run test:integrity` |
+| E2E 21 SDLC workflows | `npm run test:workflows-e2e` |
+| Autonomous runner | `npm run test:autonomous-runner` |
 
 ---
 
