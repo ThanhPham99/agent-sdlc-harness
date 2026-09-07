@@ -933,5 +933,21 @@ await test('an-authored-design-decision-clears-the-placeholder-pause',async ()=>
   assert(rec.recorded===true,`an authored decision must be accepted, got ${JSON.stringify(rec.validation&&rec.validation.errors)}`);
 });
 
+await test('a-scaffolded-plan-says-so-and-an-authored-one-does-not',async ()=>{
+  const {scaffoldTaskPlan}=await import('../runtime/autonomous-runner.mjs');
+  const d=fixture('auto-plan-provenance');
+  fs.mkdirSync(path.join(d,'src'),{recursive:true});
+  const plan=scaffoldTaskPlan({objective:'Add payment endpoint',profile:'STANDARD'},d);
+  assert(plan.generated_by==='auto-scaffold','a scaffolded plan records its provenance');
+  const v=validateTaskPlan(plan);
+  assert(v.valid===true,'provenance must not make the plan invalid; auto depends on it validating');
+  assert(v.warnings.some(w=>w.code==='SCAFFOLDED_PLAN_NOT_AUTHORED'),
+    `a scaffolded plan must be surfaced as a warning, got ${JSON.stringify(v.warnings)}`);
+
+  const authored={...plan};delete authored.generated_by;
+  const v2=validateTaskPlan(authored);
+  assert(!v2.warnings.some(w=>w.code==='SCAFFOLDED_PLAN_NOT_AUTHORED'),'an authored plan carries no such warning');
+});
+
 finish();
 

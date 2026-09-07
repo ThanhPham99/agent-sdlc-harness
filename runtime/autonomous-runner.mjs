@@ -112,6 +112,10 @@ export function scaffoldTaskPlan(run,projectRoot=null){
   return {
     schema:'agent-sdlc/task-plan/v1',
     plan_id:uuid('plan'),
+    // A guess and a decision are the same shape, which is how a scaffolded plan
+    // came to look like something a person had thought about. Provenance is one
+    // field, and plan-validator turns it into a warning a reader will see.
+    generated_by:'auto-scaffold',
     objective:run.objective,
     profile:run.profile||'STANDARD',
     tasks:[

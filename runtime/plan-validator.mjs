@@ -279,6 +279,8 @@ export function validateTaskPlan(plan,context={}){
     unreachable_task_count:ready.unreachable.length
   };
 
+  if(p.generated_by==='auto-scaffold')warn('SCAFFOLDED_PLAN_NOT_AUTHORED',{plan_id:p.plan_id??null});
+
   return {
     schema:'agent-sdlc/plan-validation/v1',
     valid:errors.length===0,
