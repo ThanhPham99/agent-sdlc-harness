@@ -146,6 +146,20 @@ export function materializeTaskGraph(root,projectRoot,run,plan,{planArtifactRef=
     emitTaskEvent(projectRoot,task,{type:'task.created',payload:{plan_id:planId,category:task.category,depends_on:task.depends_on}});
     created.push(task.task_id);
   }
+  const planned=new Set(arr(plan.tasks).map(t=>t?.task_id).filter(Boolean));
+  const retired=[];const orphaned=[];
+  for(const existing of listTasks(projectRoot,run.run_id)){
+    if(planned.has(existing.task_id))continue;
+    if(existing.status==='SUPERSEDED'||existing.status==='DONE')continue;
+    if(hasBoundWork(existing)){
+      orphaned.push({task_id:existing.task_id,status:existing.status,reason:'DROPPED_FROM_PLAN_BUT_WORK_ALREADY_BOUND'});
+      continue;
+    }
+    const gone={...existing,status:'SUPERSEDED',plan_id:planId,updated_at:now()};
+    saveTask(projectRoot,gone);
+    emitTaskEvent(projectRoot,gone,{type:'task.superseded',payload:{plan_id:planId,from_status:existing.status,reason:'DROPPED_FROM_PLAN'}});
+    retired.push(existing.task_id);
+  }
   const graph={
     schema:'agent-sdlc/task-graph/v1',
     run_id:run.run_id,
@@ -163,7 +177,7 @@ export function materializeTaskGraph(root,projectRoot,run,plan,{planArtifactRef=
     updated_at:now()
   };
   saveTaskGraph(projectRoot,graph);
-  return {schema:'agent-sdlc/task-graph-record/v1',materialized:true,validation,graph,created,preserved,updated,conflicts};
+  return {schema:'agent-sdlc/task-graph-record/v1',materialized:true,validation,graph,created,preserved,updated,conflicts,retired,orphaned};
 }
 
 /** The fields a plan owns. Status, attempt, history and evidence are the engine's. */

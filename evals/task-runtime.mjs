@@ -367,6 +367,28 @@ export function runTaskRuntimeSuite(root){
       if(after.scope.write.includes('runtime/extra-file.mjs'))fail('scope changed despite the conflict');
     });
 
+    t('a-task-the-new-plan-dropped-is-retired-not-left-blocking',()=>{
+      const {run}=runAtImplement(root,projectRoot,{plan:basePlan({tasks:[TASK({task_id:'TASK-001'}),TASK({task_id:'TASK-002'})]})});
+      const amended=basePlan({plan_id:'PLAN-002',tasks:[TASK({task_id:'TASK-001'})]});
+      const out=materializeTaskGraph(root,projectRoot,run,amended);
+      if(!out.retired||!out.retired.includes('TASK-002'))fail(`expected TASK-002 retired, got ${JSON.stringify(out)}`);
+      if(loadTask(projectRoot,run.run_id,'TASK-002').status!=='SUPERSEDED')fail('the dropped task should be SUPERSEDED');
+      if(loadTask(projectRoot,run.run_id,'TASK-001').status==='SUPERSEDED')fail('a task still in the plan must not be retired');
+    });
+
+    t('a-dropped-task-with-bound-work-is-reported-not-retired',()=>{
+      const {run}=runAtImplement(root,projectRoot,{plan:basePlan({tasks:[TASK({task_id:'TASK-001'}),TASK({task_id:'TASK-002'})]})});
+      let t2=requireTask(projectRoot,run.run_id,'TASK-002');
+      t2=transitionTask(root,projectRoot,t2,'RUNNING',{force:true});
+      t2.diff_hash='abc';t2.attempt=1;saveTask(projectRoot,t2);
+
+      const amended=basePlan({plan_id:'PLAN-002',tasks:[TASK({task_id:'TASK-001'})]});
+      const out=materializeTaskGraph(root,projectRoot,run,amended);
+      if(out.retired&&out.retired.includes('TASK-002'))fail('a task with bound work must not be retired silently');
+      if(!out.orphaned||!out.orphaned.some(o=>o.task_id==='TASK-002'))fail(`expected TASK-002 reported as orphaned, got ${JSON.stringify(out.orphaned)}`);
+      if(loadTask(projectRoot,run.run_id,'TASK-002').status!=='RUNNING')fail('its status must be untouched');
+    });
+
     t('implement-gate-closed-until-every-task-is-done',()=>{
       const {run}=runAtImplement(root,projectRoot);
       const gate=recordImplementationComplete(root,projectRoot,run);
