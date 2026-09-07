@@ -1,7 +1,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import {appendJsonl,now} from './util.mjs';
-import {stateDir} from './store.mjs';
+import * as layout from './layout.mjs';
 
 const FIELDS=['input_tokens','cached_input_tokens','output_tokens','reasoning_tokens','wall_ms'];
 const COST_NOTE='Pricing is intentionally external; populate a current pricing registry before calculating billing estimates.';
@@ -29,12 +29,12 @@ export function addUsage(projectRoot,run,entry){
     workspace_ms:Number(entry.workspace_ms||0),
     source:entry.source||'HOST_REPORTED_OR_USER_SUPPLIED'
   };
-  appendJsonl(path.join(stateDir(projectRoot),'cost',`${run.run_id}.jsonl`),full);
+  appendJsonl(layout.runCostFile(projectRoot,run.run_id),full);
   return full;
 }
 
 function rows(projectRoot,runId){
-  const p=path.join(stateDir(projectRoot),'cost',`${runId}.jsonl`);
+  const p=layout.runCostFile(projectRoot,runId);
   return fs.existsSync(p)?fs.readFileSync(p,'utf8').split('\n').filter(Boolean).map(l=>JSON.parse(l)):[];
 }
 const sum=(list,fields)=>{

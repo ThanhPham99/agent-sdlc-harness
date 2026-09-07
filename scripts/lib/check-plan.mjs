@@ -30,7 +30,7 @@ export const STAGES=[
       'test:flaky','test:mcp-gateway','test:test-impact','test:pr-synthesizer','test:security-linter',
       'test:error-triage','test:webhook','test:sse','test:dead-code','test:arch-linter',
       'test:mutation','test:simulator','test:commands-expansion','test:web-dashboard','test:simulate-e2e',
-      'test:autonomous-runner','typecheck']
+      'test:autonomous-runner','test:layout','test:cache-regeneration','test:doc-generator','typecheck']
   },
   {
     name:'build',

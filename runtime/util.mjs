@@ -4,6 +4,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import * as layout from './layout.mjs';
 export const now=()=>new Date().toISOString();
 export const sha256=(x)=>crypto.createHash('sha256').update(x).digest('hex');
 export const ensureDir=(p)=>fs.mkdirSync(p,{recursive:true});
@@ -46,8 +47,8 @@ export function userHome(){
   const override=process.env.AGENT_SDLC_HOME;
   return override&&override.trim()?path.resolve(override):os.homedir();
 }
-export function globalConfigPath(){return path.join(userHome(),'.agent-sdlc','config.json');}
-export function findProjectRoot(start=process.cwd()){let p=path.resolve(start); while(true){if(fs.existsSync(path.join(p,'.agent-sdlc','project.json')))return p; const parent=path.dirname(p); if(parent===p)return path.resolve(start); p=parent;}}
+export function globalConfigPath(){return path.join(userHome(),layout.STATE_DIRNAME,'config.json');}
+export function findProjectRoot(start=process.cwd()){let p=path.resolve(start); while(true){if(fs.existsSync(layout.projectConfigFile(p)))return p; const parent=path.dirname(p); if(parent===p)return path.resolve(start); p=parent;}}
 export function git(args,cwd){const r=spawnSync('git',args,{cwd,encoding:'utf8'});return {code:r.status??1,stdout:r.stdout||'',stderr:r.stderr||''};}
 export function gitSha(cwd){const r=git(['rev-parse','HEAD'],cwd);return r.code===0?r.stdout.trim():null;}
 /**
@@ -75,7 +76,7 @@ export function untrackedDigest(cwd,listed=null){
   // A project that has not gitignored it would otherwise invalidate every piece
   // of evidence the moment the harness recorded any -- the fingerprint would
   // move on its own writes and no gate could ever be satisfied.
-  const rows=all.filter(rel=>rel!=='.agent-sdlc/'&&!rel.startsWith('.agent-sdlc/')).sort();
+  const rows=all.filter(rel=>rel!==`${layout.STATE_DIRNAME}/`&&!rel.startsWith(`${layout.STATE_DIRNAME}/`)).sort();
   return rows.map(rel=>{
     if(rel.endsWith('/'))return `${rel}\0OPAQUE_DIRECTORY`;
     try{return `${rel}\0${sha256(fs.readFileSync(path.join(cwd,rel)))}`;}

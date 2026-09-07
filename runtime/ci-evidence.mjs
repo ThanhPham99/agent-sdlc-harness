@@ -6,18 +6,19 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {gitSha,now,readJson,sha256,writeJson,appendJsonl} from './util.mjs';
-import {stateDir,putArtifact} from './store.mjs';
+import {putArtifact} from './store.mjs';
+import * as layout from './layout.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
-const dir=projectRoot=>path.join(stateDir(projectRoot),'ci-evidence');
-const recPath=(projectRoot,runId)=>path.join(dir(projectRoot),`${runId}.json`);
+const recPath=(projectRoot,runId)=>layout.runCiEvidenceFile(projectRoot,runId);
+const logPath=(projectRoot,runId)=>layout.runCiEvidenceLogFile(projectRoot,runId);
 
 export const CI_STATUSES=['PASS','FAIL','PENDING','BLOCKED','UNKNOWN'];
 
 /**
  * Record a CI result for one revision. `status` is taken from the reported
- * checks, not from a caller's summary: any failing required check makes the
- * whole record FAIL.
+ * checks, not from a caller's summary. If one required check fails, the whole
+ * record is FAIL.
  */
 export function recordCiEvidence(projectRoot,run,{revision=null,provider='unknown',workflow=null,run_url=null,checks=[],logs=null}={}){
   const rev=revision||gitSha(projectRoot);
@@ -52,7 +53,7 @@ export function recordCiEvidence(projectRoot,run,{revision=null,provider='unknow
     recorded_at:now()
   };
   writeJson(recPath(projectRoot,run.run_id),record);
-  appendJsonl(path.join(dir(projectRoot),`${run.run_id}.jsonl`),record);
+  appendJsonl(logPath(projectRoot,run.run_id),record);
   return record;
 }
 
@@ -90,7 +91,7 @@ export function ciEvidenceCurrent(projectRoot,runId,{revision=null}={}){
 
 /** History of CI records for a run, oldest first. */
 export function ciEvidenceHistory(projectRoot,runId){
-  const p=path.join(dir(projectRoot),`${runId}.jsonl`);
+  const p=logPath(projectRoot,runId);
   if(!fs.existsSync(p))return [];
   return fs.readFileSync(p,'utf8').split('\n').filter(Boolean).map(l=>JSON.parse(l));
 }

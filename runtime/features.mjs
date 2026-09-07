@@ -14,12 +14,12 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {now,readJson,writeJson,uuid} from './util.mjs';
-import {stateDir} from './store.mjs';
+import * as layout from './layout.mjs';
 
-const featuresDir=projectRoot=>path.join(stateDir(projectRoot),'features');
-const featurePath=(projectRoot,featureId)=>path.join(featuresDir(projectRoot),`${featureId}.json`);
-const phasesDir=(projectRoot,featureId)=>path.join(featuresDir(projectRoot),featureId,'phases');
-const phasePath=(projectRoot,featureId,phaseId)=>path.join(phasesDir(projectRoot,featureId),`${phaseId}.json`);
+const featuresDir=projectRoot=>layout.featuresDir(projectRoot);
+const featurePath=(projectRoot,featureId)=>layout.featureFile(projectRoot,featureId);
+const phasesDir=(projectRoot,featureId)=>layout.featurePhasesDir(projectRoot,featureId);
+const phasePath=(projectRoot,featureId,phaseId)=>layout.featurePhaseFile(projectRoot,featureId,phaseId);
 
 export const FEATURE_STATUSES=['ACTIVE','NEEDS_CONFIRMATION','BLOCKED','DEFERRED','COMPLETE','SUPERSEDED'];
 export const PHASE_STATUSES=['PLANNED','ACTIVE','NEEDS_CONFIRMATION','BLOCKED','COMPLETE','DEFERRED','SUPERSEDED'];

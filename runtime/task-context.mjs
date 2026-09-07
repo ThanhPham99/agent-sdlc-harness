@@ -14,6 +14,7 @@ import path from 'node:path';
 import {estimateTokens,gitSha,readJson,readTextFile,sha256,truncateUtf8,now} from './util.mjs';
 import {getArtifact,listTasks,putTaskContextManifest} from './store.mjs';
 import {openIntelligence,findTestsForFiles,findPublicInterfaces,findDataEntities,findDependents} from './repo-intelligence.mjs';
+import * as layout from './layout.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -61,7 +62,7 @@ function dependencyOutputs(projectRoot,task,tasks){
 }
 
 function verificationCommands(projectRoot,task){
-  const cfg=readJson(path.join(projectRoot,'.agent-sdlc','project.json'),{});
+  const cfg=readJson(layout.projectConfigFile(projectRoot),{});
   const targeted=arr(task.verification?.targeted_tests);
   const configured=arr(cfg.commands?.test_targeted).join(' ');
   const out=[...targeted];
@@ -129,7 +130,7 @@ export function buildTaskContext(root,projectRoot,run,task,{extraArtifactRefs=[]
   const contextPolicy=readJson(path.join(root,'policies','context-policy.json'));
   const stagePolicy=readJson(path.join(root,'policies','stage-policy.json')).stages[run.state]
     ||readJson(path.join(root,'policies','stage-policy.json')).stages.IMPLEMENT;
-  const cfg=readJson(path.join(projectRoot,'.agent-sdlc','project.json'),{});
+  const cfg=readJson(layout.projectConfigFile(projectRoot),{});
   const charsPerToken=contextPolicy.limits?.context_estimate_chars_per_token||4;
   const stageMax=stagePolicy.budget?.max_context_tokens_estimate||40000;
   // A task is a slice of a stage, so it gets a slice of the stage budget.

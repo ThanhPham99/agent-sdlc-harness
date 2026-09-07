@@ -1,6 +1,7 @@
 // Intelligent Test Impact Analysis (TIA) Engine for Agent SDLC Harness.
 import fs from 'node:fs';
 import path from 'node:path';
+import * as layout from './layout.mjs';
 
 /**
  * Scan a test file for static imports or require calls targeting source files.
@@ -32,7 +33,7 @@ function findTestFiles(dir, extList = ['.mjs', '.js', '.ts', '.py', '.go']) {
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      if (!['node_modules', '.git', '.agent-sdlc', '.tmp'].includes(entry.name)) {
+      if (!['node_modules', '.git', layout.STATE_DIRNAME, '.tmp'].includes(entry.name)) {
         results.push(...findTestFiles(fullPath, extList));
       }
     } else if (entry.isFile()) {

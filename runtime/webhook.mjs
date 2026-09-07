@@ -4,10 +4,11 @@ import https from 'node:https';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import {projectConfig, stateDir} from './store.mjs';
+import {projectConfig} from './store.mjs';
 import {now, ensureDir, readJson, writeJson} from './util.mjs';
+import * as layout from './layout.mjs';
 
-const deliveriesPath = projectRoot => path.join(stateDir(projectRoot), 'webhooks', 'deliveries.json');
+const deliveriesPath = projectRoot => layout.webhookDeliveriesFile(projectRoot);
 
 /**
  * Send an HTTP/HTTPS JSON POST webhook with optional HMAC-SHA256 signature.

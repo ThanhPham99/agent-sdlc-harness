@@ -17,6 +17,7 @@ import {fileURLToPath} from 'node:url';
 import {execFileSync,spawnSync} from 'node:child_process';
 import {createSuite} from './lib/suite.mjs';
 import {makeTempDir} from './lib/tempdir.mjs';
+import * as layout from '../runtime/layout.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const CLI=path.join(ROOT,'runtime','cli.mjs');
@@ -72,7 +73,7 @@ function failure(args,cwd=PROJECT){
 test('init-creates-project-state',()=>{
   const out=json(['init']);
   if(out.status!=='INITIALIZED')throw new Error(JSON.stringify(out));
-  if(!fs.existsSync(path.join(PROJECT,'.agent-sdlc','project.json')))throw new Error('project.json missing');
+  if(!fs.existsSync(layout.projectConfigFile(PROJECT)))throw new Error('project.json missing');
 });
 test('doctor-reports-version-and-project-state',()=>{
   const out=json(['doctor']);
@@ -471,7 +472,7 @@ test('tool-run-passes-and-binds-its-evidence-to-the-revision',()=>{
   // The project fixture has no test runner, so the targeted command is declared
   // explicitly: what is under test is the tool gateway and the evidence record,
   // not the detector.
-  const cfgPath=path.join(PROJECT,'.agent-sdlc','project.json');
+  const cfgPath=layout.projectConfigFile(PROJECT);
   const cfg=JSON.parse(fs.readFileSync(cfgPath,'utf8'));
   cfg.commands={...(cfg.commands||{}),test_targeted:[process.execPath,'-e','console.log("targeted {selector} ok")']};
   fs.writeFileSync(cfgPath,JSON.stringify(cfg,null,2));
@@ -488,7 +489,7 @@ test('tool-run-passes-and-binds-its-evidence-to-the-revision',()=>{
   // exact revision it was produced at -- otherwise stale evidence would pass a
   // gate for code that has since changed.
   const runId=at[1];
-  const ledger=path.join(PROJECT,'.agent-sdlc','evidence',`${runId}.jsonl`);
+  const ledger=layout.runEvidenceFile(PROJECT,runId);
   const rec=fs.readFileSync(ledger,'utf8').trim().split('\n').map(l=>JSON.parse(l))
     .find(e=>e.tool==='test.run_targeted');
   if(!rec)throw new Error('tool-run wrote no evidence record');
@@ -504,7 +505,7 @@ test('tool-run-passes-and-binds-its-evidence-to-the-revision',()=>{
 // --args substitutes; this one proves the flag form works and that a missing
 // selector is refused rather than silently satisfying the gate.
 test('tool-run-reads-the-selector-flag-and-refuses-an-empty-one',()=>{
-  const cfgPath=path.join(PROJECT,'.agent-sdlc','project.json');
+  const cfgPath=layout.projectConfigFile(PROJECT);
   const before=fs.readFileSync(cfgPath,'utf8');
   try{
     const cfg=JSON.parse(before);

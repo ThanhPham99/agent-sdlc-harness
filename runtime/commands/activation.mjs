@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {readJson,writeJson,appendJsonl,globalConfigPath} from '../util.mjs';
+import * as layout from '../layout.mjs';
 
 export const commands={
   activation:async ctx=>{
@@ -19,7 +20,7 @@ export const commands={
     const cfg=()=>resolveConfig(projectRoot).effective;
     const codexState=host=>host==='codex'?codexBootstrap.status({home:args['codex-home']||null,version}):null;
     const setEnabled=(value)=>{
-      const target=args.global?globalConfigPath():path.join(projectRoot,'.agent-sdlc','project.json');
+      const target=args.global?globalConfigPath():layout.projectConfigFile(projectRoot);
       const current=fs.existsSync(target)?readJson(target):{};
       current.auto_activation={...(current.auto_activation||{}),enabled:value};
       writeJson(target,current);
@@ -35,7 +36,7 @@ export const commands={
     else if(sub==='events')print({schema:'agent-sdlc/activation-events/v1',events:ACTIVATION_EVENTS});
     else if(sub==='record'){
       const ev={...buildActivationEvent(args.event||'activation.bootstrap_delivered',{host:args.host||null,delivery_mode:args['delivery-mode']||null,reason:args.reason||null,run_id:args['run-id']||null,fixture_id:args.fixture||null}),timestamp:new Date().toISOString()};
-      const p=path.join(projectRoot,'.agent-sdlc','activation.jsonl');
+      const p=layout.activationLogFile(projectRoot);
       if(!args['dry-run'])appendJsonl(p,ev);
       print({status:args['dry-run']?'DRY_RUN':'RECORDED',log:p,event:ev});
     }

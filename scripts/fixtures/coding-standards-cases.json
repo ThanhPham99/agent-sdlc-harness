@@ -1,0 +1,23 @@
+{
+  "schema": "agent-sdlc/coding-standards-fixtures/v1",
+  "why": "The linter's test fixtures are code samples that must contain the very constructs the linter forbids -- 'var', ': any', 'as any'. Held inline they were source text in a lintable file, so the deterministic standards audit that gates every task read the suite's own test data as 16 BLOCKING violations, and the file became uneditable: any task touching it failed a gate on strings that exist to prove the gate works. Fixtures are data, not code, so they live in data. The audit reads .mjs/.cjs/.js/.jsx/.ts/.tsx only.",
+  "cases": {
+    "var_declaration": "var obsolete_variable = 10;",
+    "any_in_typescript": "function processData(payload: any): void {}",
+    "any_in_jsdoc": "/** @type {any} */\nconst untyped = JSON.parse(\"{}\");",
+    "excessive_parameters": "function sendEmail(recipient, subject, body, attachment, priority) {}",
+
+    "block_comment_prose": "/**\n * Record a CI result for one revision. `status` is taken from the reported\n * checks, not from a caller's summary: any failing required check makes the\n * whole record FAIL.\n */\nexport function recordCiEvidence(projectRoot, run) { return null; }",
+    "jsdoc_annotation_in_comment": "/**\n * @param {any} payload\n */\nfunction f(payload) {}",
+    "one_line_jsdoc_prose": "/** summary: any failing check makes it FAIL */",
+    "one_line_block_prose": "/* summary: any failing check makes it FAIL */",
+    "one_line_jsdoc_annotation": "/** @type {any} */",
+
+    "generator_method_in_class": "class C {\n  *items(x: any) {}\n}",
+    "real_any_annotation": "const x: any = 1;",
+    "real_as_any_cast": "const y = z as any;",
+
+    "inline_comment_then_violation": "/* note */ const w: any = 1;",
+    "pragma_comment_then_violation": "/* eslint-disable-next-line */ const v = u as any;"
+  }
+}

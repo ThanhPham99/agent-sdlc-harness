@@ -11,14 +11,15 @@ import {newRun,materializeRunTasks} from '../runtime/orchestrator.mjs';
 import {route} from '../runtime/router.mjs';
 import {createTaskWorkspace} from '../runtime/workspace.mjs';
 import {runAutoTaskLoop} from '../runtime/autonomous-runner.mjs';
+import {makeTempDir as registerTempDir} from './lib/tempdir.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 
-function makeTempDir(prefix='agent-sdlc-worker-test-'){
-  const base=path.join(ROOT,'.agent-sdlc','test-scratch');
-  fs.mkdirSync(base,{recursive:true});
-  return fs.mkdtempSync(path.join(base,prefix));
-}
+// The shared helper, rather than a scratch base of this suite's own. The
+// previous base was inside the project's own .agent-sdlc tree, which is neither
+// config, evidence, cache nor docs -- it was a namespace only this suite used,
+// and it left fixtures behind in the state directory it was testing.
+const makeTempDir=(prefix='agent-sdlc-worker-test-')=>registerTempDir(prefix);
 
 let passed=0;let failed=0;
 async function test(name,fn){

@@ -75,20 +75,35 @@ function gitBranch(startDir){
 // This hook stays free of runtime imports so it cannot slow down or break a
 // prompt; that is why it repeats the resolution in store.mjs rather than
 // importing resolveRunId.
+// Layout note: these paths are spelled out rather than taken from
+// runtime/layout.mjs, which is the authority for every other reader. Two things
+// force it, and both are properties of this file rather than preferences:
+// the module is dependency-free by contract so it starts fast enough to run on
+// every prompt render, and it is byte-mirrored to hooks/statusline.mjs, so a
+// relative import would have to resolve from two different directories.
+//
+// scripts/test-layout.mjs therefore asserts that what is written here still
+// matches what layout.mjs resolves, so the duplication cannot drift silently --
+// which it did: this reader was still looking for the v1 `runs/<id>.json` after
+// the tree moved to `runs/<id>/run.json`, and because every failure here is
+// swallowed to protect the prompt, the effect was the `sdlc:` segment quietly
+// disappearing rather than any error anyone could see.
 function activeSdlcStage(startDir){
   try{
     const stateDir=path.join(startDir,'.agent-sdlc');
     const runsDir=path.join(stateDir,'runs');
     if(!fs.existsSync(runsDir))return null;
-    const readRun=id=>{try{return JSON.parse(fs.readFileSync(path.join(runsDir,`${id}.json`),'utf8'));}catch{return null;}};
+    const readRun=id=>{try{return JSON.parse(fs.readFileSync(path.join(runsDir,id,'run.json'),'utf8'));}catch{return null;}};
     let run=null;
     try{
       const active=JSON.parse(fs.readFileSync(path.join(stateDir,'state.json'),'utf8')).active_run_id;
       if(active)run=readRun(active);
     }catch{}
     if(!run){
-      const runs=fs.readdirSync(runsDir).filter(x=>x.endsWith('.json'))
-        .map(f=>readRun(f.replace(/\.json$/,''))).filter(Boolean)
+      // A run is a directory holding run.json; a directory without one is a
+      // half-built run and not a candidate.
+      const runs=fs.readdirSync(runsDir,{withFileTypes:true}).filter(e=>e.isDirectory())
+        .map(e=>readRun(e.name)).filter(Boolean)
         .sort((a,b)=>String(a.created_at||'')<String(b.created_at||'')?-1:1);
       run=runs.length?runs[runs.length-1]:null;
     }

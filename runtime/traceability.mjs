@@ -12,7 +12,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {now,readJson,sha256,writeJson} from './util.mjs';
-import {stateDir,listTasks,loadTaskGraph,artifactsForRun,artifactBindings} from './store.mjs';
+import {listTasks,loadTaskGraph,artifactsForRun,artifactBindings} from './store.mjs';
+import * as layout from './layout.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -20,7 +21,7 @@ export const NODE_KINDS=['REQUIREMENT','ACCEPTANCE_CRITERION','DESIGN_DECISION',
 export const EDGE_KINDS=['decomposes_to','addressed_by','implemented_by','changes','affects','verified_by','produces','reviewed_by','supports','contains','deploys','validates','documents'];
 
 export const nodeId=(kind,key)=>`${kind}:${key}`;
-const graphPath=(projectRoot,runId)=>path.join(stateDir(projectRoot),'traceability',`${runId}.json`);
+const graphPath=(projectRoot,runId)=>layout.traceabilityGraphFile(projectRoot,runId);
 
 export function loadTraceabilityGraph(projectRoot,runId){
   const p=graphPath(projectRoot,runId);
@@ -327,7 +328,7 @@ export function applyInvalidation(projectRoot,graph,closure,{reason='upstream ch
     time:now()
   };
   saveTraceabilityGraph(projectRoot,graph);
-  const p=path.join(stateDir(projectRoot),'traceability',`${graph.run_id}-invalidations.jsonl`);
+  const p=layout.traceabilityInvalidationsFile(projectRoot,graph.run_id);
   fs.mkdirSync(path.dirname(p),{recursive:true});
   fs.appendFileSync(p,JSON.stringify(record)+'\n');
   return record;
@@ -335,7 +336,7 @@ export function applyInvalidation(projectRoot,graph,closure,{reason='upstream ch
 
 /** Replay the recorded invalidation decisions for a run. */
 export function invalidationHistory(projectRoot,runId){
-  const p=path.join(stateDir(projectRoot),'traceability',`${runId}-invalidations.jsonl`);
+  const p=layout.traceabilityInvalidationsFile(projectRoot,runId);
   if(!fs.existsSync(p))return [];
   return fs.readFileSync(p,'utf8').split('\n').filter(Boolean).map(l=>JSON.parse(l));
 }

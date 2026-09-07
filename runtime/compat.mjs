@@ -2,6 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {readJson,writeJson,now} from './util.mjs';
 import {stateDir} from './store.mjs';
+import * as layout from './layout.mjs';
+import {detectLayoutVersion,LAYOUT_VERSION} from './layout.mjs';
 
 // Compatibility between a project's persisted state and the harness operating
 // it. Two rules shape this module:
@@ -33,7 +35,23 @@ export function compatCheck(root,projectRoot){
     if(fs.existsSync(legacy))return {status:'LEGACY_V2_DETECTED',compatible:false,harness_version:version,action:'Do not auto-convert. Export durable artifacts/confirmed requirements from .ai-workflow, initialize v3, then import them as artifacts.'};
     return {status:'UNINITIALIZED',compatible:true,harness_version:version,action:'run init'};
   }
-  const metaPath=path.join(d,'state.json');
+  // The SHAPE of the tree is checked before anything about its contents.
+  //
+  // Every branch below reasons about state.json, and a v1 tree reaches several
+  // of them first -- it was reported `MIGRATION_AVAILABLE, compatible: true`,
+  // i.e. "your state metadata is a little behind", for a tree whose runs,
+  // artifacts and history are all unreachable to this harness. Layout
+  // invisibility is both the most serious of these conditions and the only one
+  // that returns `compatible: false`, so it is answered first.
+  //
+  // Reported, not repaired: the migration is a separate, backed-up operation.
+  const layoutState=detectLayoutVersion(projectRoot);
+  if(layoutState.migration_required){
+    return {status:'LAYOUT_MIGRATION_REQUIRED',compatible:false,harness_version:version,
+      layout:layoutState,
+      action:`this project's .agent-sdlc is on layout v${layoutState.layout_version} but this harness reads v${LAYOUT_VERSION}; run migrate to convert it (the old tree is copied to a backup first). Markers: ${layoutState.markers.slice(0,6).join(', ')}`};
+  }
+  const metaPath=layout.stateFile(projectRoot);
   const {present,state,error}=readState(metaPath);
   if(!present)return {status:'MIGRATION_AVAILABLE',compatible:true,harness_version:version,action:'run migrate to add state metadata'};
   if(error)return {status:'CORRUPT_STATE',compatible:false,harness_version:version,state_file:metaPath,detail:error,
@@ -48,7 +66,7 @@ export function compatCheck(root,projectRoot){
       state_harness_version:state.harness_version,state,
       action:`state was written by ${state.harness_version}; run migrate to record the change to ${version}`};
   }
-  return {status:'COMPATIBLE',compatible:true,harness_version:version,state};
+  return {status:'COMPATIBLE',compatible:true,harness_version:version,state,layout:layoutState};
 }
 
 export function migrateState(root,projectRoot){
@@ -58,7 +76,7 @@ export function migrateState(root,projectRoot){
   }
   if(check.status==='UNINITIALIZED')throw new Error('project is not initialized');
   const d=stateDir(projectRoot);
-  const metaPath=path.join(d,'state.json');
+  const metaPath=layout.stateFile(projectRoot);
   const version=harnessVersion(root);
   const {present,state}=readState(metaPath);
 
@@ -71,7 +89,7 @@ export function migrateState(root,projectRoot){
 
   // The file about to be rewritten is the one worth backing up. The previous
   // implementation copied project.json instead, which migration never touches.
-  fs.copyFileSync(metaPath,path.join(d,`state.backup-${Date.now()}.json`));
+  fs.copyFileSync(metaPath,layout.stateBackupFile(projectRoot,Date.now()));
   const updated={
     ...state,
     harness_version:version,

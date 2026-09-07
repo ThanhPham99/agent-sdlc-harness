@@ -18,6 +18,7 @@ import {routeModel} from './model-router.mjs';
 import {listApprovals,requestApprovalTicket,grantApprovalTicket,listApprovalTickets,activeCapabilities} from './approvals.mjs';
 import {evaluateGate} from './gates.mjs';
 import {runAutoPipeline,runAutoTaskLoop} from './autonomous-runner.mjs';
+import * as layout from './layout.mjs';
 
 const ROOT=rootFrom(import.meta.url);
 const MANIFEST_VERSION=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8')).version;
@@ -109,7 +110,7 @@ export function readResource(uri,projectRoot=process.cwd()){
     return {uri,mimeType:'application/json',text:JSON.stringify({project:p,status:'ACTIVE'})};
   }
   if(uri==='sdlc://intelligence/summary'){
-    return {uri,mimeType:'application/json',text:JSON.stringify({project_root:root,indexed:fs.existsSync(path.join(root,'.agent-sdlc','index.json'))})};
+    return {uri,mimeType:'application/json',text:JSON.stringify({project_root:root,indexed:fs.existsSync(layout.repoIndexFile(root))})};
   }
   if(uri.startsWith('sdlc://runs/')){
     const rest=uri.slice('sdlc://runs/'.length);
@@ -178,7 +179,7 @@ export function execute(name,a={}){
   const projectRoot=pr(a);
   if(name==='agent_sdlc_route')return route(ROOT,a.objective,a.workflow||null,a.profile||null);
   if(name==='agent_sdlc_start'){
-    if(!fs.existsSync(path.join(projectRoot,'.agent-sdlc','project.json')))initProject(projectRoot,detectProject(projectRoot));
+    if(!fs.existsSync(layout.projectConfigFile(projectRoot)))initProject(projectRoot,detectProject(projectRoot));
     const r=route(ROOT,a.objective,a.workflow||null,a.profile||null);return newRun(ROOT,projectRoot,{objective:a.objective,route:r});
   }
   const run=loadRun(projectRoot,a.run_id);

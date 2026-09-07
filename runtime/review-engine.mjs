@@ -1,6 +1,7 @@
 // Multi-Dimensional Static Code-Review & Security Persona Auditor for Agent SDLC Harness.
 import fs from 'node:fs';
 import path from 'node:path';
+import * as layout from './layout.mjs';
 
 const AUDIT_RULES = [
   {
@@ -79,7 +80,7 @@ export function auditCodebase(projectRoot, { paths = [], strict = false } = {}) 
   for (const file of targetFiles) {
     const relPath = path.relative(projectRoot, file).replace(/\\/g, '/');
     // Skip test fixtures and node_modules
-    if (relPath.startsWith('.agent-sdlc') || relPath.startsWith('evals/fixtures')) continue;
+    if (relPath.startsWith(layout.STATE_DIRNAME) || relPath.startsWith('evals/fixtures')) continue;
 
     const content = fs.readFileSync(file, 'utf8');
     const lines = content.split('\n');

@@ -10,7 +10,7 @@
 import path from 'node:path';
 import fs from 'node:fs';
 import {now,sha256,redactHighEntropySecrets} from './util.mjs';
-import {stateDir} from './store.mjs';
+import * as layout from './layout.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -161,7 +161,7 @@ export function toEvalCase(candidate){
 }
 
 function memoryPath(projectRoot) {
-  return path.join(stateDir(projectRoot), 'memory', 'failure-index.json');
+  return layout.failureIndexFile(projectRoot);
 }
 
 /**

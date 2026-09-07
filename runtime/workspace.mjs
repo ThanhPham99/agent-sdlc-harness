@@ -16,12 +16,40 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {ensureDir,git,gitSha,now,readJson,sha256,untrackedDigest,untrackedFiles,writeJson} from './util.mjs';
-import {stateDir,emitTaskEvent} from './store.mjs';
+import {emitTaskEvent} from './store.mjs';
+import * as layout from './layout.mjs';
 
 export const WORKSPACE_MODES=['shared-readonly','isolated-worktree','provider-sandbox'];
 
-const wsRoot=projectRoot=>path.join(stateDir(projectRoot),'workspaces');
-const wsRecordPath=(projectRoot,runId,taskId)=>path.join(wsRoot(projectRoot),runId,`${taskId}.json`);
+/**
+ * Emit a task event bound to the run this function was given.
+ *
+ * `emitTaskEvent` addresses the stream by `task.run_id`, and every entry point
+ * here already knows the run -- but a caller can hand over a task object that
+ * does not carry it, which the workspace functions otherwise tolerate. The
+ * event then addressed a path built from `undefined` and, before the layout
+ * authority started rejecting unsafe segments, was appended to
+ * `task-events/undefined.jsonl`: a real stream of real events, in a file no
+ * reader ever looks at. The run is the authority on its own id here, not the
+ * task record that happened to be passed in.
+ */
+const emitFor=(projectRoot,runId,task,event)=>
+  emitTaskEvent(projectRoot,{...task,run_id:task.run_id??runId},event);
+
+/**
+ * Whether a `git status --porcelain` line describes the harness's own state
+ * directory rather than the work under verification.
+ *
+ * The directory name comes from the layout, not from a regex literal repeated
+ * at each call site: this predicate and the two other places that skip the
+ * state directory used to spell `.agent-sdlc` out independently, which is one
+ * rename away from a fingerprint that moves on the harness's own writes.
+ */
+const STATE_DIR_ENTRY=new RegExp(`^\\?\\?\\s+${layout.STATE_DIRNAME.replace(/\./g,'\\.')}/`);
+const isStateDirEntry=(line)=>STATE_DIR_ENTRY.test(line);
+
+const wsRoot=projectRoot=>layout.workspacesDir(projectRoot);
+const wsRecordPath=(projectRoot,runId,taskId)=>layout.taskWorkspaceRecordFile(projectRoot,runId,taskId);
 export const taskBranch=(runId,taskId)=>`agent-sdlc/${String(runId).replace(/^run_/,'')}/${taskId.toLowerCase()}`;
 
 function record(projectRoot,runId,taskId){
@@ -87,7 +115,7 @@ export function createTaskWorkspace(projectRoot,{run,task,writer=null,mode=null,
   };
 
   if(resolvedMode==='isolated-worktree'){
-    const dir=path.join(wsRoot(projectRoot),runId,`${task.task_id}-tree`);
+    const dir=layout.taskWorkspaceTreeDir(projectRoot,runId,task.task_id);
     const branch=taskBranch(runId,task.task_id);
     ensureDir(path.dirname(dir));
     if(!base){
@@ -105,7 +133,7 @@ export function createTaskWorkspace(projectRoot,{run,task,writer=null,mode=null,
       // `.agent-sdlc/` is the harness's own state, not work being excluded.
       const modified=git(['status','--porcelain','--untracked-files=all'],projectRoot).stdout
         .split('\n').map(l=>l.trim()).filter(Boolean)
-        .filter(l=>!/^\?\?\s+\.agent-sdlc\//.test(l)).join('\n');
+        .filter(l=>!isStateDirEntry(l)).join('\n');
       const existingBranch=git(['branch','--list',branch],projectRoot);
       const branchExists=existingBranch.code===0&&existingBranch.stdout.trim().length>0;
       const worktreeArgs=branchExists
@@ -123,7 +151,7 @@ export function createTaskWorkspace(projectRoot,{run,task,writer=null,mode=null,
   }
   ws.credentials_scrubbed=ws.writable?scrubbedEnv().removed:[];
   writeJson(wsRecordPath(projectRoot,runId,task.task_id),ws);
-  emitTaskEvent(projectRoot,task,{type:'task.workspace_created',payload:{mode:ws.mode,writable:ws.writable,branch:ws.branch,degraded:ws.degraded??null,base_revision:ws.base_revision}});
+  emitFor(projectRoot,runId,task,{type:'task.workspace_created',payload:{mode:ws.mode,writable:ws.writable,branch:ws.branch,degraded:ws.degraded??null,base_revision:ws.base_revision}});
   return ws;
 }
 
@@ -183,7 +211,7 @@ export function commitTaskWorkspace(projectRoot,{run,task,message=null}){
   ws.commit_sha=commitSha;
   ws.last_committed_at=now();
   writeJson(wsRecordPath(projectRoot,run.run_id,task.task_id),ws);
-  emitTaskEvent(projectRoot,task,{type:'task.workspace_committed',payload:{branch:ws.branch,commit_sha:commitSha}});
+  emitFor(projectRoot,run.run_id,task,{type:'task.workspace_committed',payload:{branch:ws.branch,commit_sha:commitSha}});
   return {committed:r.code===0,commit_sha:commitSha,output:r.stdout||r.stderr};
 }
 
@@ -201,7 +229,7 @@ export function integrateTaskWorkspace(projectRoot,{run,task,targetRoot=null}){
   if(ws.mode==='isolated-worktree'&&ws.branch){
     const r=git(['-c','user.email=agent-sdlc@localhost','-c','user.name=Agent SDLC','merge','--no-ff','-m',`Merge task ${task.task_id} from ${ws.branch}`,ws.branch],dest);
     const integrated=r.code===0;
-    emitTaskEvent(projectRoot,task,{type:'task.workspace_integrated',payload:{branch:ws.branch,integrated,target:dest}});
+    emitFor(projectRoot,run.run_id,task,{type:'task.workspace_integrated',payload:{branch:ws.branch,integrated,target:dest}});
     return {integrated,branch:ws.branch,commit_sha:ws.commit_sha,output:r.stdout||r.stderr};
   }
   return {integrated:true,mode:ws.mode,reason:'NON_ISOLATED_WORKSPACE'};
@@ -245,13 +273,13 @@ export function cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted=nul
   }
   ws.status='CLEANED';ws.cleaned_at=now();
   writeJson(wsRecordPath(projectRoot,run.run_id,task.task_id),ws);
-  emitTaskEvent(projectRoot,task,{type:'task.workspace_cleaned',payload:{mode:ws.mode,branch:ws.branch,checkpoints:(ws.checkpoints||[]).length}});
+  emitFor(projectRoot,run.run_id,task,{type:'task.workspace_cleaned',payload:{mode:ws.mode,branch:ws.branch,checkpoints:(ws.checkpoints||[]).length}});
   return {status:'CLEANED',workspace:ws,reason:empty?'WORKSPACE_EMPTY':null};
 }
 
 /** Every workspace bound in one run; used to assert the one-writer invariant. */
 export function listTaskWorkspaces(projectRoot,runId){
-  const d=path.join(wsRoot(projectRoot),runId);
+  const d=layout.runWorkspacesDir(projectRoot,runId);
   if(!fs.existsSync(d))return [];
   return fs.readdirSync(d).filter(x=>x.endsWith('.json')).sort().map(x=>readJson(path.join(d,x)));
 }

@@ -1,0 +1,30 @@
+{
+  "schema": "agent-sdlc/eval-report/v1",
+  "suite": "cache-regeneration",
+  "checks": 5,
+  "passes": 5,
+  "failures": 0,
+  "results": [
+    {
+      "name": "cache-is-declared-with-the-cache-lifetime-and-nothing-durable-shares-it",
+      "status": "PASS"
+    },
+    {
+      "name": "deleting-the-cache-tree-loses-no-durable-state",
+      "status": "PASS"
+    },
+    {
+      "name": "consumers-still-enumerate-runs-after-the-layout-change",
+      "status": "PASS"
+    },
+    {
+      "name": "a-runtime-write-succeeds-after-the-cache-tree-is-deleted",
+      "status": "PASS"
+    },
+    {
+      "name": "the-cache-tree-is-recreated-on-demand-after-deletion",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS"
+}
