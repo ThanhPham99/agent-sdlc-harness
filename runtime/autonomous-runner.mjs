@@ -20,6 +20,7 @@ export const MAX_SELF_HEAL_ATTEMPTS=3;
 
 export const HUMAN_GATES={
   GATE_1_SCOPE_AND_ARCHITECTURE:'GATE_1_SCOPE_AND_ARCHITECTURE',
+  GATE_1_SCOPE_AND_ARCH:'GATE_1_SCOPE_AND_ARCHITECTURE',
   GATE_2_ESCALATION_BLOCKER:'GATE_2_ESCALATION_BLOCKER',
   GATE_3_SECURITY_EXCEPTION:'GATE_3_SECURITY_EXCEPTION',
   GATE_4_PRE_COMMIT_PUSH_APPROVAL:'GATE_4_PRE_COMMIT_PUSH_APPROVAL',
@@ -336,9 +337,26 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
 
       // Auto-record design decision
       const decision=builtinScaffoldDesignDecision(modeResult,{objective:currentRun.objective});
+      if(has_human_approval&&decision.approval?.required){
+        decision.approval.status='APPROVED';
+      }
       const rec=recordDesignDecision(root,projectRoot,currentRun,decision,{approvals:activeCapabilities(root,currentRun)});
       if(!rec.recorded){
-        throw new Error(`Failed to record design decision: ${JSON.stringify(rec.validation.errors)}`);
+        // The scaffold is a shape, not a decision: FULL mode leaves TODOs where
+        // real judgement has to go, and validation now refuses them. Throwing
+        // would punish the operator for having approved the direction; asking
+        // again, with the field names, is the same answer Gate 1 already gives
+        // for "no safe automatic answer".
+        return {
+          status:'PAUSED',
+          current_stage:'DESIGN',
+          pause_gate:HUMAN_GATES.GATE_1_SCOPE_AND_ARCHITECTURE,
+          run:currentRun,
+          stage_steps:stageSteps,
+          mode_result:modeResult,
+          validation_errors:rec.validation.errors,
+          message:'The auto-scaffolded design decision still has unwritten fields. Author it and record it: `agent-sdlc design scaffold --run-id <id> > decision.json`, fill the TODO fields, then `agent-sdlc design record --run-id <id> --file decision.json`. `agent-sdlc auto` resumes from there.'
+        };
       }
 
       const next=nextState(currentRun);

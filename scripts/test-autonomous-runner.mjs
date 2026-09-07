@@ -9,7 +9,7 @@ import {route} from '../runtime/router.mjs';
 import {runAutoPipeline,runAutoTaskLoop,HUMAN_GATES} from '../runtime/autonomous-runner.mjs';
 import {validateTaskPlan,PLAN_QUALITY_DEFAULTS} from '../runtime/plan-validator.mjs';
 import {detectProjectCi,runLocalCiValidation,ensureCiPassedBeforeDelivery} from '../runtime/ci-guard.mjs';
-import {requestApprovalTicket,grantApprovalTicket,listApprovalTickets} from '../runtime/approvals.mjs';
+import {requestApprovalTicket,grantApprovalTicket,listApprovalTickets,GATE_CAPABILITIES} from '../runtime/approvals.mjs';
 import {execFileSync} from 'node:child_process';
 import {createSuite} from './lib/suite.mjs';
 import {makeTempDir} from './lib/tempdir.mjs';
@@ -888,6 +888,49 @@ await test('run-commands-surface-pretty-diff-and-rewind',async ()=>{
   ctx.args={_:['gate','explain'],run_id:run.run_id,stage:'REQUIREMENTS'};
   await commands.gate(ctx);
   assert(output.schema==='agent-sdlc/gate-decision/v1'&&output.stage==='REQUIREMENTS','gate explain outputs for specified stage');
+});
+
+await test('an-unfillable-scaffolded-design-decision-pauses-rather-than-throwing',async ()=>{
+  // Gate 1 clears on approval, then the FULL scaffold still has TODOs in it.
+  // Throwing there would punish the operator for approving; asking again is
+  // the honest move, and the errors say which fields need writing.
+  const d=fixture('auto-design-placeholder');
+  const r=route(ROOT,'Fix high severity CVE security vulnerability in auth module');
+  const run=newRun(ROOT,d,{objective:'Fix high severity CVE security vulnerability in auth module',route:r});
+  const ticket=requestApprovalTicket(ROOT,d,run,{capability:GATE_CAPABILITIES.DESIGN_HUMAN_APPROVED});
+  grantApprovalTicket(ROOT,d,run,{ticketId:ticket.ticket_id,actor:'operator'});
+
+  let threw=null;let res=null;
+  try{res=runAutoPipeline(ROOT,d,loadRun(d,run.run_id));}catch(e){threw=e;}
+  assert(threw===null,`must not throw, got: ${threw&&threw.message}`);
+  assert(res.status==='PAUSED','an unfillable scaffold must pause');
+  assert(res.current_stage==='DESIGN','paused stage must be DESIGN');
+  assert(res.pause_gate===HUMAN_GATES.GATE_1_SCOPE_AND_ARCHITECTURE,'paused gate must be GATE_1_SCOPE_AND_ARCHITECTURE');
+  assert(Array.isArray(res.validation_errors)&&res.validation_errors.some(e=>String(e).startsWith('PLACEHOLDER_TEXT_NOT_REPLACED:')),
+    `the pause must name the unwritten fields, got ${JSON.stringify(res.validation_errors)}`);
+});
+
+await test('an-authored-design-decision-clears-the-placeholder-pause',async ()=>{
+  const {recordDesignDecision}=await import('../runtime/orchestrator.mjs');
+  const {scaffoldDesignDecision,selectDesignDiscoveryMode}=await import('../runtime/design-discovery.mjs');
+  const d=fixture('auto-design-authored');
+  const r=route(ROOT,'Fix high severity CVE security vulnerability in auth module');
+  let run=newRun(ROOT,d,{objective:'Fix high severity CVE security vulnerability in auth module',route:r});
+  const ticket=requestApprovalTicket(ROOT,d,run,{capability:GATE_CAPABILITIES.DESIGN_HUMAN_APPROVED});
+  grantApprovalTicket(ROOT,d,run,{ticketId:ticket.ticket_id,actor:'operator'});
+  run=loadRun(d,run.run_id);
+  const paused=runAutoPipeline(ROOT,d,run);
+  assert(paused.current_stage==='DESIGN','precondition: paused in DESIGN');
+
+  const selection=selectDesignDiscoveryMode({profile:run.profile,objective:run.objective});
+  const draft=scaffoldDesignDecision(selection,{objective:run.objective});
+  const authored={...draft,
+    decision:'Patch the dependency and add a regression test for the CVE path.',
+    approval:{...draft.approval,status:'APPROVED'},
+    options:draft.options.map((o,i)=>({...o,summary:`Option ${i}`,benefits:['closes the CVE'],tradeoffs:['touches auth']}))};
+  run=loadRun(d,run.run_id);
+  const rec=recordDesignDecision(ROOT,d,run,authored,{approvals:[GATE_CAPABILITIES.DESIGN_HUMAN_APPROVED]});
+  assert(rec.recorded===true,`an authored decision must be accepted, got ${JSON.stringify(rec.validation&&rec.validation.errors)}`);
 });
 
 finish();
