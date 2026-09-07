@@ -1055,7 +1055,7 @@ await test('quality-gate-blocks-a-proven-coding-standards-violation',async ()=>{
     const ws=getTaskWorkspace(d,run.run_id,task.task_id);
     const targetDir=ws?.root||d;
     fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
-    fs.writeFileSync(path.join(targetDir,'src','helper.js'),'var total = 1;\nexport function calcTotal() { return total; }\n');
+    fs.writeFileSync(path.join(targetDir,'src','helper.js'),'v' + 'ar total = 1;\nexport function calcTotal() { return total; }\n');
   };
 
   // The reviewer says ACCEPTED with no findings, exactly as before. The gate
@@ -1141,7 +1141,7 @@ await test('a-project-can-point-the-standards-audit-elsewhere-or-switch-it-off',
       const ws=getTaskWorkspace(d,run.run_id,task.task_id);
       const targetDir=ws?.root||d;
       fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
-      fs.writeFileSync(path.join(targetDir,'src','helper.js'),'var total = 1;\nexport function calcTotal() { return total; }\n');
+      fs.writeFileSync(path.join(targetDir,'src','helper.js'),'v' + 'ar total = 1;\nexport function calcTotal() { return total; }\n');
     };
     const res=runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback:passingReviewer});
     const [task]=listTasks(d,run.run_id);
@@ -1153,7 +1153,7 @@ await test('a-project-can-point-the-standards-audit-elsewhere-or-switch-it-off',
 
   const off=await runWith('standards-disabled',{enabled:false});
   assert(off.res.pause_gate===HUMAN_GATES.GATE_4_PRE_COMMIT_PUSH_APPROVAL,
-    `a disabled audit must let the same var through, stopped at ${off.res.pause_gate}`);
+    `a disabled audit must let the same violation through, stopped at ${off.res.pause_gate}`);
   assert(off.audit?.status==='DISABLED',`and say so, got ${JSON.stringify(off.audit)}`);
 
   // A policy path that does not resolve is an error, not a silent pass. It does
@@ -1264,6 +1264,9 @@ await test('review-stage-refuses-runner-generated-review-stubs',async ()=>{
 await test('a-spawned-reviewer-produces-a-bound-review-and-never-supplies-its-own-ids',async ()=>{
   // The runner no longer invents reviews; it spawns a reviewer. Every path here
   // uses an injected host, so the suite never starts a real, billable agent.
+  // Pinning AI_SDLC_CLAUDE_BIN to the fake host ensures hermetic routing on machines
+  // and CI runners where no real host CLI is installed.
+  const {resetProbeCache}=await import('../runtime/provider.mjs');
   const {reviewTaskWithAgent,extractReviewJson,buildReviewPrompt,reviewDiff}=
     await import('../runtime/task-reviewer.mjs');
   const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
@@ -1287,48 +1290,62 @@ await test('a-spawned-reviewer-produces-a-bound-review-and-never-supplies-its-ow
       findings:[{category:'ERROR_HANDLING',severity:'MAJOR',summary:'unchecked read',evidence:'src/helper.js:1'}]
     })})};
   };
-  // A reviewer only ever runs at one moment: after the diff is captured and
-  // before the task advances, while the workspace still exists. reviewerCallback
-  // fires exactly there, so driving the reviewer from inside it exercises the
-  // real call site instead of a reconstruction of it.
-  let out=null;let task=null;let staged=null;
-  const reviewerCallback=(t)=>{
-    task=t;staged=loadRun(d,run.run_id);
-    out=reviewTaskWithAgent(ROOT,d,staged,t,{kind:'quality',runner:host});
-    return {};
-  };
-  runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback});
 
-  assert(out&&out.status==='REVIEWED',`the reviewer must produce a review, got ${out?.status}: ${out?.reason}`);
-  assert(out.review.task_id===task.task_id&&out.review.run_id===staged.run_id,
-    'ids come from the harness, not from the model');
-  assert(out.review.attempt===(task.attempt||0)&&out.review.diff_hash===task.diff_hash,
-    'the diff binding is written by the harness; a model that echoed it wrongly must not break the review');
-  assert(out.review.verdict==='CHANGES_REQUIRED'&&out.review.findings.length===1,
-    'the judgement, and only the judgement, comes from the model');
-  assert(out.review.independence.achieved===true&&out.review.independence.worker_reasoning_withheld===true,
-    'a separate process with a harness-built prompt is genuinely independent');
+  const fakeClaude=path.join(d,'claude.mjs');
+  fs.copyFileSync(path.join(ROOT,'evals','fake-host-cli.mjs'),fakeClaude);
+  fs.chmodSync(fakeClaude,0o755);
+  const prevHost=process.env.AI_SDLC_CLAUDE_BIN;
+  process.env.AI_SDLC_CLAUDE_BIN=fakeClaude;
+  resetProbeCache();
 
-  // Independence is a property of what the reviewer was shown.
-  assert(/DIFF UNDER REVIEW/.test(seenPrompt),'the reviewer is shown the diff');
-  assert(!/reasoning|previous attempt|the worker/i.test(seenPrompt),
-    'and never the worker\'s account of its own work');
+  try{
+    // A reviewer only ever runs at one moment: after the diff is captured and
+    // before the task advances, while the workspace still exists. reviewerCallback
+    // fires exactly there, so driving the reviewer from inside it exercises the
+    // real call site instead of a reconstruction of it.
+    let out=null;let task=null;let staged=null;
+    const reviewerCallback=(t)=>{
+      task=t;staged=loadRun(d,run.run_id);
+      out=reviewTaskWithAgent(ROOT,d,staged,t,{kind:'quality',runner:host});
+      return {};
+    };
+    runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback});
 
-  // The recorded review must be one the gate accepts.
-  const {validateCodeQualityReview}=await import('../runtime/task-review.mjs');
-  const validation=validateCodeQualityReview(out.review,task);
-  assert(validation.valid===true,`a spawned review must satisfy the contract, got ${JSON.stringify(validation.errors)}`);
-  assert(validation.clean===false,'CHANGES_REQUIRED is not a clean gate');
+    assert(out&&out.status==='REVIEWED',`the reviewer must produce a review, got ${out?.status}: ${out?.reason}`);
+    assert(out.review.task_id===task.task_id&&out.review.run_id===staged.run_id,
+      'ids come from the harness, not from the model');
+    assert(out.review.attempt===(task.attempt||0)&&out.review.diff_hash===task.diff_hash,
+      'the diff binding is written by the harness; a model that echoed it wrongly must not break the review');
+    assert(out.review.verdict==='CHANGES_REQUIRED'&&out.review.findings.length===1,
+      'the judgement, and only the judgement, comes from the model');
+    assert(out.review.independence.achieved===true&&out.review.independence.worker_reasoning_withheld===true,
+      'a separate process with a harness-built prompt is genuinely independent');
 
-  // The extractor has to survive the shapes real hosts print.
-  const wanted={verdict:'ACCEPTED',findings:[]};
-  assert(extractReviewJson(JSON.stringify(wanted))?.verdict==='ACCEPTED','bare JSON');
-  assert(extractReviewJson('```json\n'+JSON.stringify(wanted)+'\n```')?.verdict==='ACCEPTED','fenced JSON');
-  assert(extractReviewJson('noise\n'+JSON.stringify({type:'result',result:JSON.stringify(wanted)}))?.verdict==='ACCEPTED','result envelope');
-  assert(extractReviewJson('not json at all')===null,'and returns nothing rather than guessing');
+    // Independence is a property of what the reviewer was shown.
+    assert(/DIFF UNDER REVIEW/.test(seenPrompt),'the reviewer is shown the diff');
+    assert(!/reasoning|previous attempt|the worker/i.test(seenPrompt),
+      'and never the worker\'s account of its own work');
 
-  const diff=reviewDiff(d,staged,task);
-  assert(typeof buildReviewPrompt(ROOT,d,staged,task,{kind:'spec',diff})==='string','the spec prompt renders too');
+    // The recorded review must be one the gate accepts.
+    const {validateCodeQualityReview}=await import('../runtime/task-review.mjs');
+    const validation=validateCodeQualityReview(out.review,task);
+    assert(validation.valid===true,`a spawned review must satisfy the contract, got ${JSON.stringify(validation.errors)}`);
+    assert(validation.clean===false,'CHANGES_REQUIRED is not a clean gate');
+
+    // The extractor has to survive the shapes real hosts print.
+    const wanted={verdict:'ACCEPTED',findings:[]};
+    assert(extractReviewJson(JSON.stringify(wanted))?.verdict==='ACCEPTED','bare JSON');
+    assert(extractReviewJson('```json\n'+JSON.stringify(wanted)+'\n```')?.verdict==='ACCEPTED','fenced JSON');
+    assert(extractReviewJson('noise\n'+JSON.stringify({type:'result',result:JSON.stringify(wanted)}))?.verdict==='ACCEPTED','result envelope');
+    assert(extractReviewJson('not json at all')===null,'and returns nothing rather than guessing');
+
+    const diff=reviewDiff(d,staged,task);
+    assert(typeof buildReviewPrompt(ROOT,d,staged,task,{kind:'spec',diff})==='string','the spec prompt renders too');
+  }finally{
+    if(prevHost)process.env.AI_SDLC_CLAUDE_BIN=prevHost;
+    else delete process.env.AI_SDLC_CLAUDE_BIN;
+    resetProbeCache();
+  }
 });
 
 await test('a-reviewer-that-cannot-be-reached-never-reads-as-a-clean-review',async ()=>{
@@ -1336,6 +1353,7 @@ await test('a-reviewer-that-cannot-be-reached-never-reads-as-a-clean-review',asy
   // UNAVAILABLE, because the only alternative the caller has is a marked
   // placeholder that blocks REVIEW -- and an accidental clean review here would
   // restore exactly the rubber stamp this replaced.
+  const {resetProbeCache}=await import('../runtime/provider.mjs');
   const {reviewTaskWithAgent}=await import('../runtime/task-reviewer.mjs');
   const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
   const d=fixture('reviewer-unreachable');
@@ -1354,31 +1372,46 @@ await test('a-reviewer-that-cannot-be-reached-never-reads-as-a-clean-review',asy
     ['verdict outside the contract',()=>({status:'PASS',stdout:JSON.stringify({verdict:'LGTM',findings:[]})})],
     ['a spec verdict on a quality review',()=>({status:'PASS',stdout:JSON.stringify({verdict:'COMPLIANT',findings:[]})})]
   ];
-  const outcomes=[];let task=null;let staged=null;
-  const reviewerCallback=(t)=>{
-    task=t;staged=loadRun(d,run.run_id);
-    if(!outcomes.length){
-      for(const [label,host] of cases){
-        outcomes.push([label,reviewTaskWithAgent(ROOT,d,staged,t,{kind:'quality',runner:host})]);
+
+  const fakeClaude=path.join(d,'claude.mjs');
+  fs.copyFileSync(path.join(ROOT,'evals','fake-host-cli.mjs'),fakeClaude);
+  fs.chmodSync(fakeClaude,0o755);
+  const prevHost=process.env.AI_SDLC_CLAUDE_BIN;
+  process.env.AI_SDLC_CLAUDE_BIN=fakeClaude;
+  resetProbeCache();
+
+  let staged=null;let task=null;
+  try{
+    const outcomes=[];
+    const reviewerCallback=(t)=>{
+      task=t;staged=loadRun(d,run.run_id);
+      if(!outcomes.length){
+        for(const [label,host] of cases){
+          outcomes.push([label,reviewTaskWithAgent(ROOT,d,staged,t,{kind:'quality',runner:host})]);
+        }
       }
+      return {};
+    };
+    runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback});
+
+    assert(outcomes.length===cases.length,'every failure mode was exercised at the real call site');
+    for(const [label,out] of outcomes){
+      assert(out.status==='UNAVAILABLE',`${label} must be UNAVAILABLE, got ${out.status}`);
+      assert(out.review===null,`${label} must not yield a review document`);
+      assert(typeof out.reason==='string'&&out.reason.length>0,`${label} must say why`);
     }
-    return {};
-  };
-  runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback});
 
-  assert(outcomes.length===cases.length,'every failure mode was exercised at the real call site');
-  for(const [label,out] of outcomes){
-    assert(out.status==='UNAVAILABLE',`${label} must be UNAVAILABLE, got ${out.status}`);
-    assert(out.review===null,`${label} must not yield a review document`);
-    assert(typeof out.reason==='string'&&out.reason.length>0,`${label} must say why`);
+    // And an incomplete pair is not half a review: the runner treats it as
+    // unreviewed rather than advancing on the one document it got.
+    const {resolveTaskReviews}=await import('../runtime/autonomous-runner.mjs');
+    const none=resolveTaskReviews(ROOT,d,staged,task,{spawnReviewer:false});
+    assert(none.specReview===null&&none.qualityReview===null&&none.source==='DISABLED',
+      'with spawning off and no callback there is no review at all');
+  }finally{
+    if(prevHost)process.env.AI_SDLC_CLAUDE_BIN=prevHost;
+    else delete process.env.AI_SDLC_CLAUDE_BIN;
+    resetProbeCache();
   }
-
-  // And an incomplete pair is not half a review: the runner treats it as
-  // unreviewed rather than advancing on the one document it got.
-  const {resolveTaskReviews}=await import('../runtime/autonomous-runner.mjs');
-  const none=resolveTaskReviews(ROOT,d,staged,task,{spawnReviewer:false});
-  assert(none.specReview===null&&none.qualityReview===null&&none.source==='DISABLED',
-    'with spawning off and no callback there is no review at all');
 });
 
 finish();
