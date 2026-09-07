@@ -16,6 +16,7 @@ import {putArtifact,getArtifact,listArtifacts,artifactsForRun,loadRun,saveRun,em
 import {validateReplay} from '../runtime/replay.mjs';
 import {normalizeText,sha256,calculateEntropy,redactHighEntropySecrets} from '../runtime/util.mjs';
 import {parseFailureDiagnostics} from '../runtime/task-recovery.mjs';
+import {SPEC_VERDICTS,QUALITY_VERDICTS} from '../runtime/task-review.mjs';
 import {generateDashboardHtml} from '../runtime/commands/dashboard.mjs';
 import {openIntelligence,findTransitiveImpact,findImpactedTests} from '../runtime/repo-intelligence.mjs';
 import {rewindRun} from '../runtime/rewind.mjs';
@@ -2651,6 +2652,19 @@ test('optimization/static-code-review-persona-scorecard',()=>{
   if(scorecard.schema!=='agent-sdlc/review-scorecard/v1')throw Error(`invalid review scorecard schema: ${scorecard.schema}`);
   if(typeof scorecard.overall_score!=='number'||scorecard.overall_score<=0)throw Error('invalid overall score');
   if(typeof scorecard.dimensions?.security!=='number'||typeof scorecard.dimensions?.performance!=='number')throw Error('missing dimension scores');
+});
+
+test('the-reviewer-agent-states-the-verdicts-the-validator-accepts',()=>{
+  const files=['agents/independent-reviewer/agent.md','adapters/common-independent-reviewer.md'];
+  for(const f of files){
+    const text=fs.readFileSync(path.join(ROOT,f),'utf8');
+    for(const v of [...SPEC_VERDICTS,...QUALITY_VERDICTS]){
+      if(!text.includes(v))throw Error(`${f} does not mention the verdict ${v}`);
+    }
+    for(const s of ['agent-sdlc/spec-compliance-review/v1','agent-sdlc/code-quality-review/v1']){
+      if(!text.includes(s))throw Error(`${f} does not name the schema ${s}`);
+    }
+  }
 });
 
 // ---------------------------------------------------------------------------

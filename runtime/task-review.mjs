@@ -17,6 +17,11 @@ import {putArtifact,emitTaskEvent,saveTask} from './store.mjs';
 const arr=x=>Array.isArray(x)?x:[];
 export const BLOCKING='BLOCKING';
 
+// Exported because the agent that produces these documents has to be told what
+// they are. An undocumented enum is a contract only the validator knows.
+export const SPEC_VERDICTS=['COMPLIANT','NON_COMPLIANT','PENDING'];
+export const QUALITY_VERDICTS=['ACCEPTED','CHANGES_REQUIRED','PENDING'];
+
 const blockingFindings=r=>arr(r?.findings).filter(f=>f.severity===BLOCKING&&f.resolved!==true);
 
 function validateIndependence(review,task){
@@ -52,7 +57,7 @@ export function validateSpecComplianceReview(review,task){
   // RUNNING -> VERIFYING requires diff_captured.
   if(task?.diff_hash&&!r.diff_hash)errors.push('REVIEW_NOT_BOUND_TO_A_DIFF');
   else if(r.diff_hash&&task?.diff_hash&&r.diff_hash!==task.diff_hash)errors.push('REVIEW_NOT_BOUND_TO_CURRENT_DIFF');
-  if(!['COMPLIANT','NON_COMPLIANT','PENDING'].includes(r.verdict))errors.push('INVALID_VERDICT');
+  if(!SPEC_VERDICTS.includes(r.verdict))errors.push('INVALID_VERDICT');
   const blocking=blockingFindings(r);
   if(r.verdict==='COMPLIANT'&&blocking.length)errors.push('COMPLIANT_WITH_BLOCKING_FINDINGS');
   if(r.verdict==='NON_COMPLIANT'&&!arr(r.findings).length)errors.push('NON_COMPLIANT_WITHOUT_FINDINGS');
@@ -103,7 +108,7 @@ export function validateCodeQualityReview(review,task){
   // RUNNING -> VERIFYING requires diff_captured.
   if(task?.diff_hash&&!r.diff_hash)errors.push('REVIEW_NOT_BOUND_TO_A_DIFF');
   else if(r.diff_hash&&task?.diff_hash&&r.diff_hash!==task.diff_hash)errors.push('REVIEW_NOT_BOUND_TO_CURRENT_DIFF');
-  if(!['ACCEPTED','CHANGES_REQUIRED','PENDING'].includes(r.verdict))errors.push('INVALID_VERDICT');
+  if(!QUALITY_VERDICTS.includes(r.verdict))errors.push('INVALID_VERDICT');
   const blocking=blockingFindings(r);
   if(r.verdict==='ACCEPTED'&&blocking.length)errors.push('ACCEPTED_WITH_BLOCKING_FINDINGS');
   if(r.verdict==='CHANGES_REQUIRED'&&!arr(r.findings).length)errors.push('CHANGES_REQUIRED_WITHOUT_FINDINGS');
