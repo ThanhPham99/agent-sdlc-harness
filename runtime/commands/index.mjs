@@ -88,6 +88,7 @@ export const COMMANDS={
   dashboard:{group:"dashboard"},
   serve:{group:"dashboard"},
   rewind:{group:"run"},
+  report:{group:"run"},
   webhook:{group:"project",subcommands:["list","test"]},
   auto:{group:"auto"},
   "auto-task":{group:"auto"},

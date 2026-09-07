@@ -326,6 +326,7 @@ spaces.
 
 ```bash
 ./bin/agent-sdlc dashboard [--out <path>] [--tui] [--serve --port <n> --host <h>]
+./bin/agent-sdlc report [--run-id <id>]
 ./bin/agent-sdlc serve [--port <n>] [--host <h>]
 ./bin/agent-sdlc webhook list
 ./bin/agent-sdlc webhook test --url <url> [--secret <secret>]
@@ -338,7 +339,9 @@ spaces.
 `dashboard` writes a static HTML snapshot of run and task status to
 `.agent-sdlc/dashboard.html` (or `--out`); `--tui` renders the same data as text
 instead; `--serve` (or `--watch`/`--web`) starts the live dashboard server
-in-process rather than writing a file. `serve` starts that same built-in live
+in-process rather than writing a file. `report` generates a human-readable Markdown
+run report under `.agent-sdlc/reports/` and refreshes `.agent-sdlc/SUMMARY.md`
+and the visual dashboard. `serve` starts that same built-in live
 dashboard with an SSE event stream directly, defaulting to `127.0.0.1:4100`.
 
 `webhook list` prints the project's configured webhooks. `webhook test` posts a

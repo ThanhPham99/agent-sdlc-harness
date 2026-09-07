@@ -232,5 +232,24 @@ export const commands={
       preserveEvidence:truthy(args['preserve-evidence'])
     });
     print(res);
+  },
+  report:async ctx=>{
+    const {projectRoot,print,needRun,args}=ctx;
+    const {generateRunReport,updateSummaryIndex,ensureStandardDocs,syncDashboard}=await import('../doc-generator.mjs');
+    ensureStandardDocs(projectRoot);
+    let rep=null;
+    try{
+      const run=await needRun();
+      rep=generateRunReport(projectRoot,run);
+    }catch{}
+    const summaryPath=updateSummaryIndex(projectRoot);
+    await syncDashboard(projectRoot);
+    print({
+      status:'REPORT_GENERATED',
+      run_report:rep?.report_file||null,
+      summary_file:summaryPath,
+      dashboard_file:path.join(projectRoot,'.agent-sdlc','dashboard.html')
+    });
   }
 };
+

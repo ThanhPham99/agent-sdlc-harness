@@ -10,12 +10,27 @@ export function initProject(projectRoot,config){
   ensureDir(path.join(d,'events'));ensureDir(path.join(d,'cost'));ensureDir(path.join(d,'handoffs'));ensureDir(path.join(d,'tasks'));
   ensureDir(path.join(d,'task-events'));ensureDir(path.join(d,'task-evidence'));ensureDir(path.join(d,'task-context'));
   ensureDir(path.join(d,'intent'));
+  ensureDir(path.join(d,'docs'));
+  ensureDir(path.join(d,'reports'));
   const intentTemplate=path.join(ROOT,'templates','intent.md');
   const targetIntent=path.join(d,'intent','template.md');
   if(fs.existsSync(intentTemplate)&&!fs.existsSync(targetIntent)){try{fs.copyFileSync(intentTemplate,targetIntent);}catch{}}
   const reviewTemplate=path.join(ROOT,'templates','REVIEW.md');
   const targetReview=path.join(d,'REVIEW.md');
   if(fs.existsSync(reviewTemplate)&&!fs.existsSync(targetReview)){try{fs.copyFileSync(reviewTemplate,targetReview);}catch{}}
+  const standardDocs=[
+    {tpl:'SUMMARY.md',dest:path.join(d,'SUMMARY.md')},
+    {tpl:'docs-README.md',dest:path.join(d,'docs','README.md')},
+    {tpl:'ARCHITECTURE-AND-STATE.md',dest:path.join(d,'docs','ARCHITECTURE-AND-STATE.md')},
+    {tpl:'WORKFLOWS-GUIDE.md',dest:path.join(d,'docs','WORKFLOWS-GUIDE.md')},
+    {tpl:'CLI-CHEAT-SHEET.md',dest:path.join(d,'docs','CLI-CHEAT-SHEET.md')}
+  ];
+  for(const doc of standardDocs){
+    const src=path.join(ROOT,'templates',doc.tpl);
+    if(fs.existsSync(src)&&!fs.existsSync(doc.dest)){
+      try{fs.copyFileSync(src,doc.dest);}catch{}
+    }
+  }
   writeJson(path.join(d,'project.json'),config);
   const statePath=path.join(d,'state.json');
   if(!fs.existsSync(statePath))writeJson(statePath,{schema:'agent-sdlc/state/v1',harness_version:HARNESS_VERSION,created_at:now()});

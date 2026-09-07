@@ -75,7 +75,8 @@ const ENTRIES=[
   'scripts/test-web-dashboard.mjs',
   'scripts/simulate-e2e-run.mjs',
   'scripts/test-coding-standards.mjs',
-  'scripts/test-autonomous-runner.mjs'
+  'scripts/test-autonomous-runner.mjs',
+  'scripts/test-doc-generator.mjs'
 ];
 
 // Suites deliberately not measured, each with the reason. Naming them rather

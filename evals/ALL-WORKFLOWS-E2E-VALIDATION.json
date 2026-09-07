@@ -1,0 +1,97 @@
+{
+  "schema": "agent-sdlc/all-workflows-e2e-validation/v1",
+  "checks": 22,
+  "passes": 22,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "e2e-workflow-autonomous-pipeline-new-feature",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-continue-feature",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-bug-fix",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-hotfix",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-refactor",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-performance",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-dependency-upgrade",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-database-migration",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-api-breaking-change",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-security-remediation",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-ci-cd-change",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-infrastructure-change",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-observability-change",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-incident-response",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-maintenance",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-modernization",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-compliance-change",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-documentation",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-technical-spike",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-test-only",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-deprecation-removal",
+      "status": "PASS"
+    },
+    {
+      "name": "e2e-workflow-autonomous-pipeline-requirement-update",
+      "status": "PASS"
+    }
+  ]
+}

@@ -18,6 +18,7 @@ import {invokeTool} from './tools.mjs';
 import {integrateTaskWorkspace} from './workspace.mjs';
 import {reviewTaskPair} from './task-reviewer.mjs';
 import {executeTaskWithAgent} from './task-worker.mjs';
+import {generateRunReport,updateSummaryIndex,syncDashboard} from './doc-generator.mjs';
 
 export const MAX_SELF_HEAL_ATTEMPTS=3;
 
@@ -264,7 +265,12 @@ export function runAutoTaskLoop(root,projectRoot,run,{customWriter=null,workerCa
         diff_hash:currentTask.diff_hash,
         verdict:'COMPLIANT',
         findings:[],
-        generated_by:AUTO_REVIEW_STUB
+        generated_by:AUTO_REVIEW_STUB,
+        independence:{
+          requested:false,
+          achieved:false,
+          limitation:'no reviewer was supplied to the autonomous runner; no agent read this diff'
+        }
       };
 
       const qualityReview=reviews.qualityReview??{
@@ -475,28 +481,31 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
         };
       }
 
-      // Auto-record design decision
-      const decision=builtinScaffoldDesignDecision(modeResult,{objective:currentRun.objective});
-      if(has_human_approval&&decision.approval?.required){
-        decision.approval.status='APPROVED';
-      }
-      const rec=recordDesignDecision(root,projectRoot,currentRun,decision,{approvals:activeCapabilities(root,currentRun)});
-      if(!rec.recorded){
-        // The scaffold is a shape, not a decision: FULL mode leaves TODOs where
-        // real judgement has to go, and validation now refuses them. Throwing
-        // would punish the operator for having approved the direction; asking
-        // again, with the field names, is the same answer Gate 1 already gives
-        // for "no safe automatic answer".
-        return {
-          status:'PAUSED',
-          current_stage:'DESIGN',
-          pause_gate:HUMAN_GATES.GATE_1_SCOPE_AND_ARCHITECTURE,
-          run:currentRun,
-          stage_steps:stageSteps,
-          mode_result:modeResult,
-          validation_errors:rec.validation.errors,
-          message:'The auto-scaffolded design decision still has unwritten fields. Author it and record it: `agent-sdlc design scaffold --run-id <id> > decision.json`, fill the TODO fields, then `agent-sdlc design record --run-id <id> --file decision.json`. `agent-sdlc auto` resumes from there.'
-        };
+      const hasDesignEvidence=currentRun.evidence?.DESIGN?.includes('design_or_skip_decision');
+      if(!hasDesignEvidence){
+        // Auto-record design decision
+        const decision=builtinScaffoldDesignDecision(modeResult,{objective:currentRun.objective});
+        if(has_human_approval&&decision.approval?.required){
+          decision.approval.status='APPROVED';
+        }
+        const rec=recordDesignDecision(root,projectRoot,currentRun,decision,{approvals:activeCapabilities(root,currentRun)});
+        if(!rec.recorded){
+          // The scaffold is a shape, not a decision: FULL mode leaves TODOs where
+          // real judgement has to go, and validation now refuses them. Throwing
+          // would punish the operator for having approved the direction; asking
+          // again, with the field names, is the same answer Gate 1 already gives
+          // for "no safe automatic answer".
+          return {
+            status:'PAUSED',
+            current_stage:'DESIGN',
+            pause_gate:HUMAN_GATES.GATE_1_SCOPE_AND_ARCHITECTURE,
+            run:currentRun,
+            stage_steps:stageSteps,
+            mode_result:modeResult,
+            validation_errors:rec.validation.errors,
+            message:'The auto-scaffolded design decision still has unwritten fields. Author it and record it: `agent-sdlc design scaffold --run-id <id> > decision.json`, fill the TODO fields, then `agent-sdlc design record --run-id <id> --file decision.json`. `agent-sdlc auto` resumes from there.'
+          };
+        }
       }
 
       const next=nextState(currentRun);
@@ -511,36 +520,40 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
 
     // --- STAGE: PLAN ---
     if(stage==='PLAN'){
-      const plan=customPlan||scaffoldTaskPlan(currentRun,projectRoot);
-      const rec=recordTaskPlan(root,projectRoot,currentRun,plan);
-      if(!rec.recorded){
-        // A scaffold that cannot bound its own write scope is asking a scope
-        // question, not reporting a crash. Throwing here is what made `auto`
-        // unusable on ordinary repositories; widening the scope until the gate
-        // accepts it would be the runner approving its own reach. Neither: ask
-        // a human, which is what Gate 1 is for. A caller-supplied plan gets the
-        // error, because its author is the one who can fix it.
-        //
-        // `every`, not `some`: a plan that is also invalid for unrelated
-        // reasons is not a scope question, and telling the operator it is one
-        // would bury the errors they can actually act on.
-        const errs=rec.validation.errors;
-        const unbounded=!customPlan&&errs.length>0&&errs.every(e=>e.code==='GIANT_TASK_WITHOUT_JUSTIFICATION');
-        if(unbounded){
-          return {
-            status:'PAUSED',
-            current_stage:'PLAN',
-            pause_gate:HUMAN_GATES.GATE_1_SCOPE_AND_ARCHITECTURE,
-            run:currentRun,
-            stage_steps:stageSteps,
-            detected_write_scope:plan.tasks?.[0]?.write_scope??[],
-            validation_errors:errs,
-            message:'No source layout could be inferred for this repository, so an auto-scaffolded plan cannot bound its write scope. Author a plan and hand it to the run: `agent-sdlc plan record --run-id <id> --file <plan.json>`, then `agent-sdlc task materialize --run-id <id> --file <plan.json>`, then `agent-sdlc transition --run-id <id> --to IMPLEMENT`. `agent-sdlc auto` resumes from there. Re-running `auto` without those steps scaffolds the same unbounded plan and stops here again.'
-          };
+      const hasPlanEvidence=currentRun.evidence?.PLAN?.includes('plan_schema_valid')&&currentRun.evidence?.PLAN?.includes('plan_graph_valid');
+      let plan=customPlan;
+      if(!hasPlanEvidence||customPlan){
+        plan=customPlan||scaffoldTaskPlan(currentRun,projectRoot);
+        const rec=recordTaskPlan(root,projectRoot,currentRun,plan);
+        if(!rec.recorded){
+          // A scaffold that cannot bound its own write scope is asking a scope
+          // question, not reporting a crash. Throwing here is what made `auto`
+          // unusable on ordinary repositories; widening the scope until the gate
+          // accepts it would be the runner approving its own reach. Neither: ask
+          // a human, which is what Gate 1 is for. A caller-supplied plan gets the
+          // error, because its author is the one who can fix it.
+          //
+          // `every`, not `some`: a plan that is also invalid for unrelated
+          // reasons is not a scope question, and telling the operator it is one
+          // would bury the errors they can actually act on.
+          const errs=rec.validation.errors;
+          const unbounded=!customPlan&&errs.length>0&&errs.every(e=>e.code==='GIANT_TASK_WITHOUT_JUSTIFICATION');
+          if(unbounded){
+            return {
+              status:'PAUSED',
+              current_stage:'PLAN',
+              pause_gate:HUMAN_GATES.GATE_1_SCOPE_AND_ARCHITECTURE,
+              run:currentRun,
+              stage_steps:stageSteps,
+              detected_write_scope:plan.tasks?.[0]?.write_scope??[],
+              validation_errors:errs,
+              message:'No source layout could be inferred for this repository, so an auto-scaffolded plan cannot bound its write scope. Author a plan and hand it to the run: `agent-sdlc plan record --run-id <id> --file <plan.json>`, then `agent-sdlc task materialize --run-id <id> --file <plan.json>`, then `agent-sdlc transition --run-id <id> --to IMPLEMENT`. `agent-sdlc auto` resumes from there. Re-running `auto` without those steps scaffolds the same unbounded plan and stops here again.'
+            };
+          }
+          throw new Error(`Task plan validation failed: ${JSON.stringify(rec.validation.errors)}`);
         }
-        throw new Error(`Task plan validation failed: ${JSON.stringify(rec.validation.errors)}`);
+        materializeRunTasks(root,projectRoot,currentRun,plan);
       }
-      materializeRunTasks(root,projectRoot,currentRun,plan);
 
       const next=nextState(currentRun);
       if(!next)break;
@@ -789,6 +802,12 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
     break;
   }
 
+  try{
+    generateRunReport(projectRoot,currentRun);
+    updateSummaryIndex(projectRoot);
+    syncDashboard(projectRoot);
+  }catch{}
+
   return {
     status:currentRun.state==='CLOSE'?'COMPLETED':'IN_PROGRESS',
     current_stage:currentRun.state,
@@ -796,3 +815,4 @@ export function runAutoPipeline(root,projectRoot,run,{customPlan=null,workerCall
     stage_steps:stageSteps
   };
 }
+
