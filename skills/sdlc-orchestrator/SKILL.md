@@ -57,8 +57,10 @@ Before declaring completion, the workflow must reach `CLOSE` with the required v
 ## Autonomous Execution & 5 Human Confirmation Gates
 
 To eliminate repetitive manual transitions while guaranteeing human authority over critical decisions, use:
-- `bin/agent-sdlc auto --run-id <id>`: Runs the SDLC stages automatically until complete or paused at a human gate.
-- `bin/agent-sdlc auto-task --run-id <id>`: Automates the task scheduling, verification, and review loop inside `IMPLEMENT`.
+- `bin/agent-sdlc auto --objective "<goal>"`: Zero-config single-command start. Automatically initializes project, routes the objective, starts a run, dispatches autonomous worker subagents to write task code, dispatches independent reviewer subagents to verify, and executes SDLC stages automatically until complete or paused at a human gate.
+- `bin/agent-sdlc auto --run-id <id>`: Runs or resumes an existing SDLC run.
+- `bin/agent-sdlc auto --approve`: Automatically grants the pending human gate approval ticket and resumes pipeline execution in one step.
+- `bin/agent-sdlc auto-task --run-id <id>`: Automates the task scheduling, worker execution, verification, and review loop inside `IMPLEMENT`. Pass `--no-worker` to disable automatic worker agent spawning if implementing manually.
 - `bin/agent-sdlc ci-check`: Validates that local test suites pass before commit/push.
 
 ### The 5 Human Confirmation Gates
@@ -69,9 +71,9 @@ The runner automatically pauses and returns `status: "PAUSED"` at the following 
 4. **Gate 4 - Pre-Commit & Push Approval**: Triggered at `RELEASE` stage. **RULE**: If project has CI/CD, all local CI checks must pass 100% before requesting human approval to commit and push to remote.
 5. **Gate 5 - Privileged Production Action**: Triggered on production deployments, schema drop, IAM modification, or root policy edits.
 
-### Non-TTY Approval Tickets
+### Non-TTY Approval Tickets & One-Click Resumption
 When pausing at a Human Gate in chat/non-TTY environments:
-1. Request a ticket: `bin/agent-sdlc approval request --run-id <id> --capability <cap> --reason "<why>"`.
-2. Present the choice to the human in chat.
-3. Once the user approves, record grant: `bin/agent-sdlc approval grant-ticket --run-id <id> --ticket-id <ticket_id>`.
-4. Resume pipeline: `bin/agent-sdlc auto --run-id <id>`.
+1. An approval ticket is **automatically generated** in `approval_ticket: { ticket_id, capability, reason }` attached to the paused response payload.
+2. Present the choice and summary (e.g. PR body, changelog, architecture review) to the human in chat.
+3. Once the user approves, simply run `bin/agent-sdlc auto --approve` (or `bin/agent-sdlc approval grant-ticket --ticket-id <ticket_id>` followed by `bin/agent-sdlc auto`).
+

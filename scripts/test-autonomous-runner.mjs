@@ -3,7 +3,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-import {initProject,saveRun,loadRun,putArtifact,listTasks,saveTask} from '../runtime/store.mjs';
+import {initProject,saveRun,loadRun,putArtifact,listTasks,saveTask,loadTask} from '../runtime/store.mjs';
 import {newRun} from '../runtime/orchestrator.mjs';
 import {route} from '../runtime/router.mjs';
 import {runAutoPipeline,runAutoTaskLoop,HUMAN_GATES} from '../runtime/autonomous-runner.mjs';
@@ -675,7 +675,7 @@ await test('auto-cli-commands-dispatch',async ()=>{
   // auto-task loop
   printed=null;
   await commands['auto-task']({
-    args:{writer:null},
+    args:{writer:null,'no-worker':true,'no-reviewer':true},
     ROOT,
     projectRoot:d,
     print,
@@ -686,7 +686,7 @@ await test('auto-cli-commands-dispatch',async ()=>{
   // auto pipeline
   printed=null;
   await commands['auto']({
-    args:{'skip-ci':true},
+    args:{'skip-ci':true,'no-worker':true,'no-reviewer':true},
     ROOT,
     projectRoot:d,
     print,
@@ -1414,5 +1414,136 @@ await test('a-reviewer-that-cannot-be-reached-never-reads-as-a-clean-review',asy
   }
 });
 
+await test('auto-command-with-objective-inits-and-runs-zero-config',async ()=>{
+  const {commands}=await import('../runtime/commands/auto.mjs');
+  const d=makeTempDir('agent-sdlc-zero-config-');
+  execFileSync('git',['init','-q'],{cwd:d});
+  fs.writeFileSync(path.join(d,'README.md'),'# Zero Config Repo\n');
+  fs.writeFileSync(path.join(d,'package.json'),JSON.stringify({name:'zero-config',scripts:{test:'node -e "process.exit(0)"'}}));
+  execFileSync('git',['add','.'],{cwd:d});
+  execFileSync('git',['-c','user.email=t@t.local','-c','user.name=t','commit','-qm','init'],{cwd:d});
+
+  let printed=null;
+  await commands['auto']({
+    args:{objective:'Update readme docs',_:[ 'auto', 'Update readme docs' ],'no-worker':true,'no-reviewer':true,'skip-ci':true},
+    ROOT,
+    projectRoot:d,
+    print:(v)=>{printed=v;},
+    needRun:async()=>null
+  });
+
+  assert(fs.existsSync(path.join(d,'.agent-sdlc','project.json')),'project should be automatically initialized');
+  assert(printed&&printed.status!==undefined,'pipeline ran and returned status');
+  assert(printed.run&&printed.run.objective==='Update readme docs','run created with objective');
+});
+
+await test('auto-command-auto-creates-ticket-and-resumes-with-approve',async ()=>{
+  const {commands}=await import('../runtime/commands/auto.mjs');
+  const d=fixture('auto-ticket-gate4');
+  const r=route(ROOT,'Fix calculation bug in helper');
+  const run=newRun(ROOT,d,{objective:'Fix calculation bug in helper',route:r});
+  const {getTaskWorkspace}=await import('../runtime/workspace.mjs');
+  const workerCallback=(task)=>{
+    const ws=getTaskWorkspace(d,run.run_id,task.task_id);
+    const targetDir=ws?.root||d;
+    fs.mkdirSync(path.join(targetDir,'src'),{recursive:true});
+    fs.writeFileSync(path.join(targetDir,'src','helper.js'),'export function calc() { return 42; }\n');
+  };
+
+  let printed=null;
+  const res=runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback:passingReviewer,skipCiCheck:true});
+  assert(res.status==='PAUSED',`must pause at gate 4, got ${res.status}`);
+  assert(res.current_stage==='RELEASE',`must pause at RELEASE, got ${res.current_stage}`);
+  assert(res.approval_ticket&&res.approval_ticket.capability===GATE_CAPABILITIES.DELIVERY_COMMIT_APPROVED,
+    'approval ticket must be auto-created at Gate 4');
+  assert(res.approval_ticket.status==='PENDING','ticket must be PENDING');
+
+  await commands['auto']({
+    args:{approve:true,_:['auto'],'no-worker':true,'no-reviewer':true,'skip-ci':true},
+    ROOT,
+    projectRoot:d,
+    print:(v)=>{printed=v;},
+    needRun:async()=>loadRun(d,run.run_id)
+  });
+
+  assert(printed&&['COMPLETED','IN_PROGRESS'].includes(printed.status),`pipeline must resume after --approve, got ${printed?.status}`);
+  const stored=loadRun(d,run.run_id);
+  const ticket=stored.approval_tickets.find(t=>t.ticket_id===res.approval_ticket.ticket_id);
+  assert(ticket&&ticket.status==='GRANTED','ticket was granted by auto --approve');
+});
+
+await test('verify-stage-transitions-cleanly-on-zero-test-repository',async ()=>{
+  const d=makeTempDir('agent-sdlc-zero-test-');
+  execFileSync('git',['init','-q'],{cwd:d});
+  fs.writeFileSync(path.join(d,'README.md'),'# Documentation Repo\n');
+  execFileSync('git',['add','.'],{cwd:d});
+  execFileSync('git',['-c','user.email=t@t.local','-c','user.name=t','commit','-qm','init'],{cwd:d});
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'doc-repo',commands:{}});
+
+  const r=route(ROOT,'Update documentation details');
+  const run=newRun(ROOT,d,{objective:'Update documentation details',route:r});
+  const workerCallback=(task)=>{
+    fs.appendFileSync(path.join(d,'README.md'),'Extra documentation.\n');
+  };
+
+  const res=runAutoPipeline(ROOT,d,run,{workerCallback,reviewerCallback:passingReviewer,skipCiCheck:true});
+  assert(res.status==='PAUSED'||res.status==='COMPLETED',`got ${res.status}`);
+  assert(res.current_stage!=='VERIFY'||res.status!=='PAUSED',`must not block at VERIFY on zero-test repo, got stage ${res.current_stage}`);
+});
+
+await test('autonomous-worker-subagent-spawns-and-executes-task-without-callback',async ()=>{
+  const d=fixture('auto-worker-subagent');
+  const r=route(ROOT,'Add calculator multiply feature');
+  const run=newRun(ROOT,d,{objective:'Add calculator multiply feature',route:r});
+
+  const plan={
+    schema:'agent-sdlc/task-plan/v1',
+    plan_id:'plan_worker_subagent_test',
+    run_id:run.run_id,
+    objective:run.objective,
+    tasks:[{
+      task_id:'TASK-001',
+      title:'Multiply feature',
+      goal:'Implement multiply function',
+      category:'implementation',
+      changes_behavior:true,
+      scope:{write:['src/**']},
+      write_scope:['src/**'],
+      depends_on:[],
+      acceptance_criteria:['multiply works'],
+      done_conditions:['code written'],
+      design_decisions:[],
+      verification:{targeted_tests:['src/index.js'],expected_behavior:['multiply works']}
+    }]
+  };
+
+  let mockWorkerRan=false;
+  const mockWorkerRunner=(host,prompt,schemaPath,budget)=>{
+    mockWorkerRan=true;
+    fs.mkdirSync(path.join(budget.cwd,'src'),{recursive:true});
+    fs.writeFileSync(path.join(budget.cwd,'src','index.js'),'module.exports={multiply:(a,b)=>a*b};\n');
+    return {
+      status:'PASS',
+      exit_code:0,
+      stdout:'Implemented multiply function',
+      stderr:''
+    };
+  };
+
+  const res=runAutoPipeline(ROOT,d,run,{
+    customPlan:plan,
+    spawnWorker:true,
+    workerRunner:mockWorkerRunner,
+    reviewerCallback:passingReviewer,
+    skipCiCheck:true
+  });
+
+  assert(mockWorkerRan,'mock worker runner was spawned');
+  assert(res.status==='PAUSED'||res.status==='COMPLETED',`pipeline ran, got ${res.status}`);
+  const task=loadTask(d,run.run_id,'TASK-001');
+  assert(task.status==='DONE','task reached DONE via worker subagent');
+});
+
 finish();
+
 

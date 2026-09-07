@@ -33,9 +33,28 @@ const DETECTORS=[
     const hasPnpmLock=fs.existsSync(path.join(root,'pnpm-lock.yaml'));
     const hasYarnLock=fs.existsSync(path.join(root,'yarn.lock'));
     const pm=hasPnpmLock?'pnpm':hasYarnLock?'yarn':'npm';
-    if(pkg.scripts?.test){
+    const testScript=pkg.scripts?.test;
+    const isDummyTest=typeof testScript==='string'&&(testScript.includes('no test specified')||testScript.trim()==='exit 1'||testScript.trim()==='false'||testScript.trim()==='');
+    if(testScript&&!isDummyTest){
       c.test_full=[pm,'test'];
       c.test_targeted=pm==='yarn'?[pm,'test','{selector}']:[pm,'test','--','{selector}'];
+    }else{
+      const hasVitest=fs.existsSync(path.join(root,'vitest.config.ts'))||fs.existsSync(path.join(root,'vitest.config.js'))||pkg.devDependencies?.vitest||pkg.dependencies?.vitest;
+      const hasJest=fs.existsSync(path.join(root,'jest.config.js'))||fs.existsSync(path.join(root,'jest.config.ts'))||pkg.devDependencies?.jest||pkg.dependencies?.jest;
+      if(hasVitest){
+        c.test_full=['npx','vitest','run'];
+        c.test_targeted=['npx','vitest','run','{selector}'];
+      }else if(hasJest){
+        c.test_full=['npx','jest'];
+        c.test_targeted=['npx','jest','{selector}'];
+      }else{
+        const testCandidates=['test','tests','evals','spec','__tests__'];
+        const hasTestDir=testCandidates.some(d=>fs.existsSync(path.join(root,d)));
+        if(hasTestDir){
+          c.test_full=['node','--test'];
+          c.test_targeted=['node','--test','{selector}'];
+        }
+      }
     }
     if(pkg.scripts?.build){
       c.build=pm==='yarn'?[pm,'build']:[pm,'run','build'];

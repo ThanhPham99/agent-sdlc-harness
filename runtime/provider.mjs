@@ -167,8 +167,13 @@ export function buildInvocation(host,prompt,schemaPath,budget={},{spawn=spawnSyn
 export function runHost(host,prompt,schemaPath,budget={},{spawn=spawnSync,launch=resolveLaunch}={}){
   const inv=buildInvocation(host,prompt,schemaPath,budget,{spawn,launch});
   if(inv.status!=='READY')return inv;
-  const r=spawnHost(spawn,inv.argv[0],inv.argv.slice(1),
-    {encoding:'utf8',timeout:inv.max_wall_ms,maxBuffer:20*1024*1024},launch);
+  const spawnOpts={
+    encoding:'utf8',
+    timeout:inv.max_wall_ms,
+    maxBuffer:20*1024*1024,
+    ...(budget?.cwd?{cwd:budget.cwd}:{})
+  };
+  const r=spawnHost(spawn,inv.argv[0],inv.argv.slice(1),spawnOpts,launch);
   // A spawn that timed out or never started has no exit code. Reporting 1 there
   // made a wall-clock timeout indistinguishable from a host that ran and failed,
   // which is exactly the distinction the fallback policy needs.

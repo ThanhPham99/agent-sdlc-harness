@@ -241,5 +241,24 @@ test('init-does-not-leave-an-untracked-file-in-the-project-root',()=>{
   assert(status==='',`init left the tree dirty:\n${status}`);
 });
 
+test('dummy-npm-test-script-is-filtered-out-and-falls-back-to-test-runner',()=>{
+  const d=repo({'package.json':pkg({name:'x',scripts:{test:'echo "Error: no test specified" && exit 1'}}),'test/app.test.js':'console.log("ok");'});
+  const cfg=detectProject(d);
+  assert(cfg.commands.test_full?.[0]==='node'&&cfg.commands.test_full?.[1]==='--test',JSON.stringify(cfg.commands));
+});
+
+test('vitest-config-is-detected-when-no-test-script-configured',()=>{
+  const d=repo({'package.json':pkg({name:'x'}),'vitest.config.ts':'export default {};'});
+  const cfg=detectProject(d);
+  assert(cfg.commands.test_full?.[0]==='npx'&&cfg.commands.test_full?.[1]==='vitest',JSON.stringify(cfg.commands));
+});
+
+test('jest-config-is-detected-when-no-test-script-configured',()=>{
+  const d=repo({'package.json':pkg({name:'x'}),'jest.config.js':'module.exports={};'});
+  const cfg=detectProject(d);
+  assert(cfg.commands.test_full?.[0]==='npx'&&cfg.commands.test_full?.[1]==='jest',JSON.stringify(cfg.commands));
+});
+
 finish();
+
 
