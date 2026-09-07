@@ -136,6 +136,17 @@ export function updateSummaryIndex(projectRoot){
 
 > **Lưu ý:** Thư mục \`.agent-sdlc/\` lưu trữ toàn bộ trạng thái thực thi, bằng chứng kiểm định (evidence), và các tài liệu con người có thể đọc trực tiếp (human-readable docs).
 
+### Bốn vòng đời dữ liệu (layout v${layout.LAYOUT_VERSION})
+
+| Vòng đời | Ở đâu | Bạn cần làm gì |
+|---|---|---|
+| **CONFIG** | \`project.json\`, \`workflows/\` | Nên **commit** vào git |
+| **DURABLE** | \`runs/\`, \`store/\`, \`shared/\`, \`state.json\` | Cần **sao lưu**; đừng sửa tay |
+| **CACHE** | \`cache/\` | **Xoá lúc nào cũng được** — nên gitignore |
+| **DOCS** | \`docs/\` | Sinh lại bằng \`report\` |
+
+Mỗi run nằm gọn trong một thư mục \`runs/<run_id>/\`. Chi tiết đầy đủ: [guides/README.md](file://${layout.guideFile(projectRoot,'README.md')}).
+
 ---
 
 ## 1. Trạng Thái Hoạt Động Hiện Tại

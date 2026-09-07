@@ -47,7 +47,7 @@ orchestrator performs.
 
 ```text
 validated TaskPlan
-  -> materialized TaskGraph + durable Task records (.agent-sdlc/tasks/<run_id>/)
+  -> materialized TaskGraph + durable Task records (.agent-sdlc/runs/<run_id>/tasks/)
   -> scheduler: dependency-satisfied, conflict-free, budget-bounded dispatch
   -> per task: bounded context manifest + exactly one primary writer + one workspace
   -> verification evidence bound to (base revision, diff hash, attempt)
