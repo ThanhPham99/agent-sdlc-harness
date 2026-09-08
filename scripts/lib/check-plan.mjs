@@ -23,7 +23,7 @@ export const STAGES=[
     // Everything that needs no built package. Each suite writes only its own
     // evals/*.json report and works in mkdtemp fixtures, so concurrency here is
     // safe; the only shared reads are policy/registry files nothing mutates.
-    parallel:['test','test:integrity','test:activation','test:gates','test:tasks','test:alpha6',
+    parallel:['test','test:integrity','test:activation','test:gates','test:tasks','test:skill-navigation','test:alpha6',
       'test:cli-contract','test:normalize','test:provider','test:compat','test:mcp',
       'test:detection','test:dev-link','test:prompt-caching','test:worktree','test:dashboard',
       'test:parallel','test:secret-scan','test:budget','test:tui','test:fallback','test:memory',

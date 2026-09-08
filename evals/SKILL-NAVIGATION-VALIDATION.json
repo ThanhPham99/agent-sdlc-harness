@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/skill-navigation-validation/v1",
   "harness_root": ".",
-  "checks": 7,
-  "passes": 7,
+  "checks": 8,
+  "passes": 8,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -27,11 +27,15 @@
       "status": "PASS"
     },
     {
-      "name": "navigable-ids-are-registered-procedures-or-guidance",
+      "name": "navigable-ids-are-registered-skills-or-guidance",
       "status": "PASS"
     },
     {
       "name": "resolve-is-deterministic-for-a-fixed-run",
+      "status": "PASS"
+    },
+    {
+      "name": "resolved-core-skill-ids-match-pinned-fixtures-exactly",
       "status": "PASS"
     }
   ]

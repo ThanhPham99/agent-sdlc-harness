@@ -2,17 +2,17 @@
   "schema": "agent-sdlc/skill-navigation/v1",
   "version": "3.0.0-rc2",
   "stages": {
-    "INTAKE": {"stage_skill": "sdlc-requirements", "core": ["requirements"], "procedures": ["requirements-intake", "requirements-normalize", "requirements-clarify"]},
-    "REQUIREMENTS": {"stage_skill": "sdlc-requirements", "core": ["requirements"], "procedures": ["requirements-intake", "requirements-normalize", "requirements-clarify", "impact-analysis"]},
-    "DESIGN": {"stage_skill": "sdlc-design", "core": ["architecture"], "procedures": ["design-discovery", "solution-design", "technical-spike"]},
-    "PLAN": {"stage_skill": "sdlc-plan", "core": ["planning"], "procedures": ["implementation-plan", "coordination-analysis"]},
-    "IMPLEMENT": {"stage_skill": "sdlc-implement", "core": ["implementation"], "procedures": ["task-execution", "repository-intelligence", "systematic-debugging", "tdd"]},
-    "VERIFY": {"stage_skill": "sdlc-verify", "core": ["testing"], "procedures": ["testing-verification"]},
-    "REVIEW": {"stage_skill": "sdlc-review", "core": ["code-review"], "procedures": ["traceability", "docs-update", "knowledge-maintenance"]},
-    "RELEASE": {"stage_skill": "sdlc-release", "core": ["ci-cd"], "procedures": ["release-deployment", "git-delivery", "operability-engineering"]},
-    "DEPLOY": {"stage_skill": "sdlc-release", "core": ["deployment"], "procedures": ["release-deployment", "git-delivery", "operability-engineering"]},
-    "OBSERVE": {"stage_skill": "sdlc-release", "core": ["monitoring"], "procedures": ["operability-engineering"]},
-    "CLOSE": {"stage_skill": "sdlc-release", "core": ["documentation"], "procedures": ["traceability", "docs-update", "knowledge-maintenance"]}
+    "INTAKE": {"stage_skill": "sdlc-requirements", "core": ["requirements"]},
+    "REQUIREMENTS": {"stage_skill": "sdlc-requirements", "core": ["requirements"]},
+    "DESIGN": {"stage_skill": "sdlc-design", "core": ["architecture"]},
+    "PLAN": {"stage_skill": "sdlc-plan", "core": ["planning"]},
+    "IMPLEMENT": {"stage_skill": "sdlc-implement", "core": ["implementation"]},
+    "VERIFY": {"stage_skill": "sdlc-verify", "core": ["testing"]},
+    "REVIEW": {"stage_skill": "sdlc-review", "core": ["code-review"]},
+    "RELEASE": {"stage_skill": "sdlc-release", "core": ["ci-cd"]},
+    "DEPLOY": {"stage_skill": "sdlc-release", "core": ["deployment"]},
+    "OBSERVE": {"stage_skill": "sdlc-release", "core": ["monitoring"]},
+    "CLOSE": {"stage_skill": "sdlc-release", "core": ["documentation"]}
   },
   "workflow_skills": {
     "security-remediation": {"skills": ["security"]},

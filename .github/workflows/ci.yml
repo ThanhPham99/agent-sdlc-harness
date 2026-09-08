@@ -44,6 +44,8 @@ jobs:
         run: npm run test:gates
       - name: Task execution engine
         run: npm run test:tasks
+      - name: Skill navigation policy (stage/workflow/overlay routing)
+        run: npm run test:skill-navigation
       - name: Repository intelligence, traceability, delivery, governance, learning
         run: npm run test:alpha6
       - name: CLI contract (spawned binary, agent-facing surface)
@@ -172,6 +174,8 @@ jobs:
         run: npm run test:gates
       - name: Task execution engine
         run: npm run test:tasks
+      - name: Skill navigation policy (stage/workflow/overlay routing)
+        run: npm run test:skill-navigation
       - name: Repository intelligence, traceability, delivery, governance, learning
         run: npm run test:alpha6
       - name: CLI contract (spawned binary, agent-facing surface)

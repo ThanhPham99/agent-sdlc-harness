@@ -40,7 +40,7 @@ function conditionHolds(when,ctx){
 
 /**
  * @returns {{stage:string,stage_skill:string|null,core_skill_ids:string[],
- *            procedure_ids:string[],guidance:Array<{id:string,text:string}>}}
+ *            guidance:Array<{id:string,text:string}>}}
  */
 export function resolveNavigation(root,projectRoot,run){
   const policy=loadNavigationPolicy(root);
@@ -66,7 +66,6 @@ export function resolveNavigation(root,projectRoot,run){
     stage:run.state,
     stage_skill:stageEntry.stage_skill||null,
     core_skill_ids:live,
-    procedure_ids:arr(stageEntry.procedures),
     guidance:retired
       .filter(id=>policy.guidance?.[id])
       .map(id=>({id,text:policy.guidance[id]}))
@@ -83,7 +82,6 @@ export function navigableSkillIds(root){
   for(const e of Object.values(policy.stages||{})){
     for(const id of arr(e.core))ids.add(id);
     for(const id of arr(e.retired_core))ids.add(id);
-    for(const id of arr(e.procedures))ids.add(id);
   }
   for(const group of [policy.workflow_skills,policy.overlay_skills]){
     for(const e of Object.values(group||{})){
