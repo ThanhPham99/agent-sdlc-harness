@@ -33,6 +33,7 @@
     "package:release": "node scripts/package-release.mjs",
     "test:gates": "node scripts/validate-gates.mjs",
     "test:tasks": "node scripts/validate-task-engine.mjs",
+    "test:skill-navigation": "node scripts/test-skill-navigation.mjs",
     "test:alpha6": "node scripts/validate-alpha6.mjs",
     "test:compliance": "node scripts/test-compliance-evals.mjs",
     "learn:promote": "node scripts/promote-regression-case.mjs",

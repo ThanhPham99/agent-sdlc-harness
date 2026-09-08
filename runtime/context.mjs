@@ -1,39 +1,11 @@
 import path from 'node:path';
 import {estimateTokens,gitSha,readJson,readTextFile,sha256,truncateUtf8} from './util.mjs';
 import {getArtifact} from './store.mjs';
-import {getProjectKnowledgeStatus} from './project-knowledge.mjs';
 import {resolveProcedures} from './procedures.mjs';
 import {loadRequirementUpdatePlan} from './requirement-update.mjs';
 import {loadFeature,loadPhase} from './features.mjs';
 import * as layout from './layout.mjs';
-
-const CORE_SKILL_BY_STAGE={
-  INTAKE:'requirements',REQUIREMENTS:'requirements',DESIGN:'architecture',PLAN:'planning',
-  IMPLEMENT:'implementation',VERIFY:'testing',REVIEW:'code-review',RELEASE:'ci-cd',
-  DEPLOY:'deployment',OBSERVE:'monitoring',CLOSE:'documentation'
-};
-const WORKFLOW_SKILLS={
-  'security-remediation':['security'],'incident-response':['incident'],'dependency-upgrade':['upgrade'],
-  'database-migration':['database'],'performance':['performance'],'maintenance':['maintenance'],
-  'refactor':['maintenance'],'modernization':['modernization'],'compliance-change':['compliance'],
-  'documentation':['documentation'],'ci-cd-change':['ci-cd'],'infrastructure-change':['ci-cd'],
-  'observability-change':['monitoring'],'api-breaking-change':['documentation'],'deprecation-removal':['upgrade','documentation']
-};
-const OVERLAY_SKILLS={security:'security',incident:'incident','db-migration':'database','api-breaking-change':'documentation','client-impact':'frontend-integration'};
-// Extra ids resolveSkills adds outside the three maps above (see resolveSkills
-// below): deployment/security are stage- and profile-driven, project-bootstrap
-// is G0-driven. The procedure-coverage audit (runtime/procedures.mjs) treats
-// every id reachable through this function as accounted for, so a file only
-// needs registering in config/procedures.json when nothing here already
-// reaches it.
-export function legacyReachableSkillIds(){
-  return new Set([
-    ...Object.values(CORE_SKILL_BY_STAGE),
-    ...Object.values(WORKFLOW_SKILLS).flat(),
-    ...Object.values(OVERLAY_SKILLS),
-    'deployment','security','project-bootstrap'
-  ]);
-}
+import {resolveNavigation} from './skill-navigation.mjs';
 
 function resolveFeatureContext(projectRoot,run){
   if(!run.feature_id)return null;
@@ -56,23 +28,15 @@ function resolveRoles(root,stagePolicy){
 
 function resolveSkills(root,projectRoot,run){
   const registry=readJson(path.join(root,'config','skills.json')).internal||{};
-  const ids=[]; const add=id=>{if(id&&registry[id]&&!ids.includes(id)&&registry[id].stages?.includes(run.state))ids.push(id);};
-  add(CORE_SKILL_BY_STAGE[run.state]);
-  for(const id of WORKFLOW_SKILLS[run.workflow]||[])add(id);
-  for(const overlay of run.overlays||[])add(OVERLAY_SKILLS[overlay]);
-  // Release/deploy work always needs deployment semantics; strict stages also carry security review guidance.
-  if(['RELEASE','DEPLOY'].includes(run.state))add('deployment');
-  if(run.profile==='STRICT'&&['DESIGN','VERIFY','REVIEW','RELEASE'].includes(run.state))add('security');
-  // G0: a new feature with no captured project knowledge bootstraps it first,
-  // rather than the model guessing at architecture it was never shown. Scoped
-  // to new-feature only -- a missing doc does not turn every other workflow
-  // into a project bootstrap.
-  if(run.workflow==='new-feature'&&['INTAKE','REQUIREMENTS'].includes(run.state)){
-    if(getProjectKnowledgeStatus(projectRoot).status!=='READY')add('project-bootstrap');
-  }
+  const nav=resolveNavigation(root,projectRoot,run);
+  const ids=nav.core_skill_ids.filter(id=>registry[id]&&registry[id].stages?.includes(run.state));
   // readTextFile, not readFileSync: skill text is hashed into context_hash, so a
   // CRLF checkout must not change the hash for the same commit.
-  return ids.map(id=>{const spec=registry[id];let instructions='';try{instructions=readTextFile(path.join(root,spec.instructions)).trim();}catch{}return {id,description:spec.description,instructions,max_response_words:spec.max_response_words};});
+  const loaded=ids.map(id=>{const spec=registry[id];let instructions='';try{instructions=readTextFile(path.join(root,spec.instructions)).trim();}catch{}return {id,description:spec.description,instructions,max_response_words:spec.max_response_words};});
+  // A retired stub contributed one sentence, not a file. It still ships, as
+  // guidance, so deleting the file did not delete what it said.
+  for(const g of nav.guidance)loaded.push({id:g.id,description:g.text,instructions:'',max_response_words:0});
+  return loaded;
 }
 
 /**

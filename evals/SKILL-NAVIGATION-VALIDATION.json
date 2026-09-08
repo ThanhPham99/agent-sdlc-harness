@@ -1,0 +1,38 @@
+{
+  "schema": "agent-sdlc/skill-navigation-validation/v1",
+  "harness_root": ".",
+  "checks": 7,
+  "passes": 7,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "policy-reproduces-frozen-core-map",
+      "status": "PASS"
+    },
+    {
+      "name": "policy-reproduces-frozen-workflow-map",
+      "status": "PASS"
+    },
+    {
+      "name": "policy-reproduces-frozen-overlay-map",
+      "status": "PASS"
+    },
+    {
+      "name": "every-lifecycle-stage-maps-to-one-stage-skill",
+      "status": "PASS"
+    },
+    {
+      "name": "resolve-returns-guidance-for-every-retired-id",
+      "status": "PASS"
+    },
+    {
+      "name": "navigable-ids-are-registered-procedures-or-guidance",
+      "status": "PASS"
+    },
+    {
+      "name": "resolve-is-deterministic-for-a-fixed-run",
+      "status": "PASS"
+    }
+  ]
+}

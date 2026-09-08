@@ -73,15 +73,15 @@ export function validateProcedureRegistry(root){
   return {valid:problems.length===0,problems};
 }
 
-// D5 orphan check: every procedure file under harness/internal-skills/ must be
-// accounted for either by this registry or by the broad-skill resolver in
-// runtime/context.mjs (legacyReachableSkillIds) -- never silently unreachable.
-export function auditProcedureCoverage(root,legacyReachableIds){
+// D5 orphan check: every guidance file under harness/internal-skills/ must be
+// reachable -- registered in this registry, or named by
+// policies/skill-navigation.json. There is no third path and no legacy set.
+export function auditProcedureCoverage(root,navigableIds){
   const dir=path.join(root,'harness','internal-skills');
   const files=fs.readdirSync(dir).filter(f=>f.endsWith('.md')).map(f=>f.replace(/\.md$/,''));
   const registry=loadRegistry(root);
   const registered=new Set(Object.keys(registry));
-  const legacy=new Set(legacyReachableIds);
-  const orphaned=files.filter(id=>!registered.has(id)&&!legacy.has(id));
+  const navigable=new Set(navigableIds||[]);
+  const orphaned=files.filter(id=>!registered.has(id)&&!navigable.has(id));
   return {schema:'agent-sdlc/procedure-coverage-audit/v1',total:files.length,orphaned};
 }

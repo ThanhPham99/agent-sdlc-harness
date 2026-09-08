@@ -2,8 +2,8 @@
   "schema": "agent-sdlc/syntax-validation/v1",
   "version": "3.0.0-rc2",
   "checked": "node --check (parse only, not executed)",
-  "checks": 211,
-  "passes": 211,
+  "checks": 213,
+  "passes": 213,
   "failures": 0,
   "results": [
     {
@@ -463,6 +463,11 @@
     },
     {
       "file": "runtime/simulator.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/skill-navigation.mjs",
       "status": "PASS",
       "error": null
     },
@@ -938,6 +943,11 @@
     },
     {
       "file": "scripts/test-simulator.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-skill-navigation.mjs",
       "status": "PASS",
       "error": null
     },

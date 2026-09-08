@@ -47,7 +47,7 @@ import {recordApproval,revokeApproval,findValidApproval,listApprovals} from '../
 import {evaluateGate} from '../runtime/gates.mjs';
 import {getProjectKnowledgeStatus} from '../runtime/project-knowledge.mjs';
 import {resolveProcedures,validateProcedureRegistry,auditProcedureCoverage} from '../runtime/procedures.mjs';
-import {legacyReachableSkillIds} from '../runtime/context.mjs';
+import {navigableSkillIds} from '../runtime/skill-navigation.mjs';
 import {createFeature,loadFeature,updateFeature,listFeatures,createPhase,loadPhase,updatePhase,listPhases,attachRun,resolveActiveFeature,resolveActivePhase,resolveFeatureBinding} from '../runtime/features.mjs';
 import {planGc,applyGc} from '../runtime/retention.mjs';
 import {jobBlock,jobScriptSequence} from '../scripts/lib/ci-workflow.mjs';
@@ -824,7 +824,7 @@ test('procedure-registry-is-internally-valid',()=>{
   if(!v.valid)throw Error(JSON.stringify(v.problems));
 });
 test('no-orphaned-procedure-files',()=>{
-  const a=auditProcedureCoverage(ROOT,legacyReachableSkillIds());
+  const a=auditProcedureCoverage(ROOT,navigableSkillIds(ROOT));
   if(a.orphaned.length)throw Error(`orphaned procedure files: ${JSON.stringify(a.orphaned)}`);
   if(a.total<37)throw Error(`expected at least 37 procedure files, found ${a.total}`);
 });

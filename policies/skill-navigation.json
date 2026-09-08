@@ -1,0 +1,47 @@
+{
+  "schema": "agent-sdlc/skill-navigation/v1",
+  "version": "3.0.0-rc2",
+  "stages": {
+    "INTAKE": {"stage_skill": "sdlc-requirements", "core": ["requirements"], "procedures": ["requirements-intake", "requirements-normalize", "requirements-clarify"]},
+    "REQUIREMENTS": {"stage_skill": "sdlc-requirements", "core": ["requirements"], "procedures": ["requirements-intake", "requirements-normalize", "requirements-clarify", "impact-analysis"]},
+    "DESIGN": {"stage_skill": "sdlc-design", "core": ["architecture"], "procedures": ["design-discovery", "solution-design", "technical-spike"]},
+    "PLAN": {"stage_skill": "sdlc-plan", "core": ["planning"], "procedures": ["implementation-plan", "coordination-analysis"]},
+    "IMPLEMENT": {"stage_skill": "sdlc-implement", "core": ["implementation"], "procedures": ["task-execution", "repository-intelligence", "systematic-debugging", "tdd"]},
+    "VERIFY": {"stage_skill": "sdlc-verify", "core": ["testing"], "procedures": ["testing-verification"]},
+    "REVIEW": {"stage_skill": "sdlc-review", "core": ["code-review"], "procedures": ["traceability", "docs-update", "knowledge-maintenance"]},
+    "RELEASE": {"stage_skill": "sdlc-release", "core": ["ci-cd"], "procedures": ["release-deployment", "git-delivery", "operability-engineering"]},
+    "DEPLOY": {"stage_skill": "sdlc-release", "core": ["deployment"], "procedures": ["release-deployment", "git-delivery", "operability-engineering"]},
+    "OBSERVE": {"stage_skill": "sdlc-release", "core": ["monitoring"], "procedures": ["operability-engineering"]},
+    "CLOSE": {"stage_skill": "sdlc-release", "core": ["documentation"], "procedures": ["traceability", "docs-update", "knowledge-maintenance"]}
+  },
+  "workflow_skills": {
+    "security-remediation": {"skills": ["security"]},
+    "incident-response": {"skills": ["incident"]},
+    "dependency-upgrade": {"skills": ["upgrade"]},
+    "database-migration": {"skills": ["database"]},
+    "performance": {"skills": ["performance"]},
+    "maintenance": {"skills": ["maintenance"]},
+    "refactor": {"skills": ["maintenance"]},
+    "modernization": {"skills": ["modernization"]},
+    "compliance-change": {"skills": ["compliance"]},
+    "documentation": {"skills": ["documentation"]},
+    "ci-cd-change": {"skills": ["ci-cd"]},
+    "infrastructure-change": {"skills": ["ci-cd"]},
+    "observability-change": {"skills": ["monitoring"]},
+    "api-breaking-change": {"skills": ["documentation"]},
+    "deprecation-removal": {"skills": ["upgrade", "documentation"]}
+  },
+  "overlay_skills": {
+    "security": {"skills": ["security"]},
+    "incident": {"skills": ["incident"]},
+    "db-migration": {"skills": ["database"]},
+    "api-breaking-change": {"skills": ["documentation"]},
+    "client-impact": {"skills": ["frontend-integration"]}
+  },
+  "conditional": [
+    {"id": "release-deploy-needs-deployment", "when": "stage_in:RELEASE,DEPLOY", "add": ["deployment"]},
+    {"id": "strict-needs-security-review", "when": "strict_and_stage_in:DESIGN,VERIFY,REVIEW,RELEASE", "add": ["security"]},
+    {"id": "g0-bootstrap-project-knowledge", "when": "new_feature_without_project_knowledge", "add": ["project-bootstrap"]}
+  ],
+  "guidance": {}
+}

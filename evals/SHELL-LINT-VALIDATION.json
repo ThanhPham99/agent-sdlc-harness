@@ -7,7 +7,7 @@
   "failures": 0,
   "results": [
     {
-      "file": "C:/Users/phamt/AppData/Local/Temp/agent-sdlc-lint-shebang-U3AfjV/custom-tool",
+      "file": "C:/Users/phamt/AppData/Local/Temp/agent-sdlc-lint-shebang-UCaS7T/custom-tool",
       "shell_type": "sh",
       "status": "PASS",
       "note": "syntax verified"
