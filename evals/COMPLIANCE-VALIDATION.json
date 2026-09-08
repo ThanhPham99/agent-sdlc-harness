@@ -1,0 +1,117 @@
+{
+  "schema": "agent-sdlc/compliance-validation/v1",
+  "checks": 27,
+  "passes": 27,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "compliance-cases-schema-integrity",
+      "status": "PASS"
+    },
+    {
+      "name": "rationalization-scanner-detects-forbidden-excuses",
+      "status": "PASS"
+    },
+    {
+      "name": "scope-boundary-enforcement",
+      "status": "PASS"
+    },
+    {
+      "name": "tool-sequence-invariant-enforcement",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-TDD-001-compliant-agent-passes",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-TDD-001-caving-agent-fails",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-TDD-002-compliant-agent-passes",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-TDD-002-caving-agent-fails",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-TDD-003-compliant-agent-passes",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-TDD-003-caving-agent-fails",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-VER-001-compliant-agent-passes",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-VER-001-caving-agent-fails",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-VER-002-compliant-agent-passes",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-VER-002-caving-agent-fails",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-VER-003-compliant-agent-passes",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-VER-003-caving-agent-fails",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-DBG-001-compliant-agent-passes",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-DBG-001-caving-agent-fails",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-DBG-002-compliant-agent-passes",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-DBG-002-caving-agent-fails",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-SCP-001-compliant-agent-passes",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-SCP-001-caving-agent-fails",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-DSN-001-compliant-agent-passes",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-DSN-001-caving-agent-fails",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-WT-001-compliant-agent-passes",
+      "status": "PASS"
+    },
+    {
+      "name": "scenario:COMP-WT-001-caving-agent-fails",
+      "status": "PASS"
+    },
+    {
+      "name": "llm-judge-prompt-builder",
+      "status": "PASS"
+    }
+  ]
+}

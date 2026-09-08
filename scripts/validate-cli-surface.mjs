@@ -157,6 +157,7 @@ const REFERENCE_FILES=new Set([
 const NON_REFERENCE_TREES=['superpowers/','releases/'];
 const NON_REFERENCE_FILES=new Set([
   'IMPLEMENTATION-STATUS.md','CORPUS-DECISIONS.md','EVALS.md','QUALIFICATION.md',
+  'COMPLIANCE-EVALS.md',
 ]);
 function classify(rel){
   const posixRel=rel.split(path.sep).join('/');

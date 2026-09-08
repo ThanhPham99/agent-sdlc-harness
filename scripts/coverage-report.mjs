@@ -108,6 +108,7 @@ const NOT_MEASURED={
   'scripts/test-root-sync.mjs':'exercises validate-root-sync.mjs against a throwaway file tree; never enters runtime/',
   'scripts/test-temp-hygiene.mjs':'spawns child processes to observe what a process leaves in the system temp directory when it ends; never enters runtime/',
   'scripts/validate-types.mjs':'validates type definitions; never enters runtime/',
+  'scripts/test-compliance-evals.mjs':'evaluates agent compliance test cases against evals/compliance/ verifier; never enters runtime/',
   'scripts/run-check.mjs':'runs the other suites as child processes; never enters runtime/ itself, and each child is measured on its own'
 };
 
