@@ -641,7 +641,14 @@ test('router-reports-override-and-idiomatic-waivers',()=>{
 });
 
 // Static registries and lifecycle consistency
-test('manifest-public-skill-count-8',()=>{if(manifest.public_skills.length!==8)throw Error('skill count');});
+test('manifest-public-skill-count-7',()=>{if(manifest.public_skills.length!==7)throw Error(`skill count ${manifest.public_skills.length}`);});
+test('no-slash-command-surface',()=>{
+  if(fs.existsSync(path.join(ROOT,'commands')))throw Error('commands/ still exists: skills are the only public surface');
+  for(const f of ['.claude-plugin/plugin.json','adapters/claude/plugin.json']){
+    const m=JSON.parse(fs.readFileSync(path.join(ROOT,f),'utf8'));
+    if(m.commands)throw Error(`${f} still declares a commands root`);
+  }
+});
 test('workflow-count-22',()=>{if(Object.keys(workflows).length!==22)throw Error(String(Object.keys(workflows).length));});
 test('all-workflows-have-valid-stages',()=>{for(const [name,w] of Object.entries(workflows)){if(w.stages[0]!=='INTAKE'||w.stages.at(-1)!=='CLOSE')throw Error(name);for(const s of w.stages)if(!stagePolicy[s])throw Error(`${name}:${s}`);}});
 test('all-stage-tools-registered',()=>{for(const [s,p] of Object.entries(stagePolicy))for(const t of [...(p.allowed_tools||[]),...(p.denied_tools||[])])if(!tools[t])throw Error(`${s}:${t}`);});

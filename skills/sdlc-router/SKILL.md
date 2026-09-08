@@ -52,3 +52,18 @@ waiver or secret-disclosure phrases found in the objective. It is not part of
 this contract and you are not asked to produce it: it authorises nothing, and
 what the request demands is reported through `trust_action`, `approval_required`
 and `human_stop_required`.
+
+## Presenting the route decision
+
+Report the decision compactly before handing control to `sdlc-orchestrator`:
+
+- **Selected workflow** — e.g. `bug-fix`
+- **Risk profile** — `FAST` | `STANDARD` | `STRICT`
+- **Mandatory overlays** — e.g. none, `security`, `hotfix`, `db-migration`
+- **Reason codes** — matched keywords or the semantic rationale you applied
+
+Then offer the next action rather than starting it unasked:
+
+```bash
+bin/agent-sdlc auto --objective "<objective>" --workflow <workflow>
+```

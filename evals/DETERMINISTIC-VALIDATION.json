@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-rc2",
-  "checks": 439,
-  "passes": 439,
+  "checks": 440,
+  "passes": 440,
   "failures": 0,
   "results": [
     {
@@ -238,7 +238,11 @@
       "status": "PASS"
     },
     {
-      "name": "manifest-public-skill-count-2",
+      "name": "manifest-public-skill-count-7",
+      "status": "PASS"
+    },
+    {
+      "name": "no-slash-command-surface",
       "status": "PASS"
     },
     {

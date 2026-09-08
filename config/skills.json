@@ -5,7 +5,6 @@
     "sdlc-router",
     "sdlc-orchestrator",
     "sdlc-approve",
-    "sdlc-route",
     "sdlc-status",
     "sdlc-resume",
     "sdlc-task",
