@@ -65,17 +65,8 @@ export const commands={
       ];
       print(lines.join('\n'));
     } else {
-      const {resolveNavigation}=await import('../skill-navigation.mjs');
-      const {resolveProcedures}=await import('../procedures.mjs');
-      print({...run,navigation:(()=>{
-        const nav=resolveNavigation(ROOT,projectRoot,run);
-        return {
-          stage:nav.stage,
-          stage_skill:nav.stage_skill,
-          procedure_skills:resolveProcedures(ROOT,projectRoot,run).map(p=>p.id),
-          fallback_instructions_inlined:true
-        };
-      })()});
+      const {resolveNavigationSummary}=await import('../skill-navigation.mjs');
+      print({...run,navigation:resolveNavigationSummary(ROOT,projectRoot,run)});
     }
   },
   next:async ctx=>{

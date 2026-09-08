@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/mcp-validation/v1",
-  "harness_version": "3.0.0-alpha6",
-  "checks": 26,
-  "passes": 26,
+  "harness_version": "3.0.0-rc2",
+  "checks": 33,
+  "passes": 33,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -19,6 +19,10 @@
       "status": "PASS"
     },
     {
+      "name": "resources-and-prompts-are-advertised-and-readable",
+      "status": "PASS"
+    },
+    {
       "name": "garbage-input-does-not-kill-the-server",
       "status": "PASS"
     },
@@ -32,6 +36,10 @@
     },
     {
       "name": "status-carries-the-next-stage",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-status-navigation-matches-the-cli-status-navigation",
       "status": "PASS"
     },
     {
@@ -63,6 +71,14 @@
       "status": "PASS"
     },
     {
+      "name": "model-route-and-tool-run-over-transport",
+      "status": "PASS"
+    },
+    {
+      "name": "task-granular-tools-sweep",
+      "status": "PASS"
+    },
+    {
       "name": "an-unknown-task-op-is-named-in-the-error",
       "status": "PASS"
     },
@@ -84,6 +100,18 @@
     },
     {
       "name": "a-missing-run-is-an-error-result-not-a-crash",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-design-tool-scaffolds-validates-and-records",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-plan-tool-validates-and-records-an-authored-plan",
+      "status": "PASS"
+    },
+    {
+      "name": "mcp-task-tool-materializes-an-authored-plan",
       "status": "PASS"
     },
     {

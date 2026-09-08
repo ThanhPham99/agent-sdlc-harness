@@ -10,6 +10,7 @@
 import path from 'node:path';
 import {readJson} from './util.mjs';
 import {getProjectKnowledgeStatus} from './project-knowledge.mjs';
+import {resolveProcedures} from './procedures.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -69,6 +70,25 @@ export function resolveNavigation(root,projectRoot,run){
     guidance:retired
       .filter(id=>policy.guidance?.[id])
       .map(id=>({id,text:policy.guidance[id]}))
+  };
+}
+
+/**
+ * The compact `navigation` block both the CLI `status` command and the MCP
+ * `agent_sdlc_status` tool report -- {stage, stage_skill, procedure_skills,
+ * fallback_instructions_inlined}. Defined once here so the two surfaces can
+ * never hand-drift apart on the same run. `procedure_skills` comes from
+ * resolveProcedures (the ids that survive each entry's `when` condition for
+ * this run), not from the navigation policy -- the same set `context`
+ * compiles.
+ */
+export function resolveNavigationSummary(root,projectRoot,run){
+  const nav=resolveNavigation(root,projectRoot,run);
+  return {
+    stage:nav.stage,
+    stage_skill:nav.stage_skill,
+    procedure_skills:resolveProcedures(root,projectRoot,run).map(p=>p.id),
+    fallback_instructions_inlined:true
   };
 }
 

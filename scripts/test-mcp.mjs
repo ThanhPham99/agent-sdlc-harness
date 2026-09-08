@@ -145,6 +145,20 @@ await test('status-carries-the-next-stage',async()=>{
   const s=payload(await c.tool('agent_sdlc_status',{run_id:runId}));
   assert(s.state==='INTAKE'&&s.next==='REQUIREMENTS',JSON.stringify({state:s.state,next:s.next}));
 });
+// The CLI `status` command and the MCP `agent_sdlc_status` tool must report the
+// identical navigation block for the same run -- both are built by the single
+// shared helper resolveNavigationSummary (runtime/skill-navigation.mjs). This
+// fails if either surface drifts from the other, not just if either one's
+// shape looks plausible in isolation.
+await test('mcp-status-navigation-matches-the-cli-status-navigation',async()=>{
+  const mcpStatus=payload(await c.tool('agent_sdlc_status',{run_id:runId}));
+  assert(mcpStatus.navigation,'MCP agent_sdlc_status has no navigation block');
+  const cliRaw=execFileSync(process.execPath,[path.join(ROOT,'runtime','cli.mjs'),'status','--run-id',runId,'--project',PROJECT],{encoding:'utf8'});
+  const cliStatus=JSON.parse(cliRaw);
+  assert(cliStatus.navigation,'CLI status has no navigation block');
+  assert(JSON.stringify(mcpStatus.navigation)===JSON.stringify(cliStatus.navigation),
+    `navigation diverged: mcp=${JSON.stringify(mcpStatus.navigation)} cli=${JSON.stringify(cliStatus.navigation)}`);
+});
 await test('context-is-bounded-and-hashed',async()=>{
   const m=payload(await c.tool('agent_sdlc_context',{run_id:runId}));
   assert(m.context_budget_status==='WITHIN_BUDGET',m.context_budget_status);

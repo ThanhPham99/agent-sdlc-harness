@@ -12,6 +12,7 @@ import {newRun,transition,nextState,recordDesignDecision,recordTaskPlan,material
 import {selectDesignDiscoveryMode,scaffoldDesignDecision,validateDesignDecision} from './design-discovery.mjs';
 import {validateTaskPlan,computeTaskGraph} from './plan-validator.mjs';
 import {buildContext} from './context.mjs';
+import {resolveNavigationSummary} from './skill-navigation.mjs';
 import {checkTool} from './policy.mjs';
 import {invokeTool} from './tools.mjs';
 import {routeModel} from './model-router.mjs';
@@ -183,7 +184,7 @@ export function execute(name,a={}){
     const r=route(ROOT,a.objective,a.workflow||null,a.profile||null);return newRun(ROOT,projectRoot,{objective:a.objective,route:r});
   }
   const run=loadRun(projectRoot,a.run_id);
-  if(name==='agent_sdlc_status')return {...run,next:nextState(run)};
+  if(name==='agent_sdlc_status')return {...run,next:nextState(run),navigation:resolveNavigationSummary(ROOT,projectRoot,run)};
   if(name==='agent_sdlc_context')return buildContext(ROOT,projectRoot,run,{artifactRefs:a.artifact_refs===undefined?(run.artifacts||[]):arrayArg(a.artifact_refs,'artifact_refs'),symbols:arrayArg(a.symbols,'symbols')});
   if(name==='agent_sdlc_transition'){
     // force/approval are not part of this tool's contract; a caller that still
