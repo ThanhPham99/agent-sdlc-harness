@@ -39,6 +39,10 @@ await test('coding-standards-policy-loads-and-valid', () => {
   assert(policy.security_and_data !== undefined, 'security_and_data must be defined');
   assert(policy.performance_and_resources !== undefined, 'performance_and_resources must be defined');
   assert(policy.testing_and_typing !== undefined, 'testing_and_typing must be defined');
+  assert(policy.requirements_clarification_and_planning !== undefined, 'requirements_clarification_and_planning must be defined');
+  assert(typeof policy.requirements_clarification_and_planning.input_clarification_gate === 'string', 'input_clarification_gate must be defined');
+  assert(typeof policy.requirements_clarification_and_planning.mandatory_detailed_planning === 'string', 'mandatory_detailed_planning must be defined');
+  assert(typeof policy.requirements_clarification_and_planning.logical_task_decomposition === 'string', 'logical_task_decomposition must be defined');
 });
 
 await test('linter-detects-var-declaration', () => {

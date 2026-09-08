@@ -76,5 +76,10 @@
   },
   "ci_cd_policy": {
     "mandatory_precommit_check": "All offline suites and integrity checks must pass before commit or pushing to remote."
+  },
+  "requirements_clarification_and_planning": {
+    "input_clarification_gate": "If input documentation or user requests are ambiguous, underspecified, or missing critical information (business logic, edge cases, error handling, schemas, constraints), the plugin/agent must halt and ask the user to clarify and confirm thoroughly. Speculating, guessing, or proceeding on unverified assumptions is strictly forbidden.",
+    "mandatory_detailed_planning": "Before starting implementation code, a detailed plan (task-plan.json / implementation plan) must be created and validated, specifying clear scope boundaries, architectural impact, dependencies, and verification strategy.",
+    "logical_task_decomposition": "Decompose the plan into small, logically bounded, independently verifiable tasks with explicit dependencies and minimal write scopes. Monolithic or unverified tasks are strictly prohibited."
   }
 }

@@ -8,7 +8,7 @@
 
 The orchestrator's context compiler only loads this skill when the run's current stage authorizes it — there is no separate legacy state file to check. If you believe you were invoked out of order regardless, return `BLOCKED` with the required next logical skill rather than proceeding. Load only the artifacts required for this step.
 
-Break work into small independently verifiable tasks. Prefer incremental vertical slices over large batches. Include migration/rollback and documentation tasks when relevant. The plan is a scope boundary: unexpected broad changes trigger re-impact/re-design rather than silent scope expansion.
+Before touching code, author a comprehensive plan and break work into small, logically bounded, independently verifiable tasks. Prefer incremental vertical slices over large batches. Decompose tasks reasonably: strictly avoid monolithic tasks that bundle unrelated modules or wide unconstrained write scopes. Include migration/rollback and documentation tasks when relevant. The plan is a scope boundary: unexpected broad changes trigger re-impact/re-design rather than silent scope expansion.
 
 ## The plan is a machine-checked artifact, not prose
 

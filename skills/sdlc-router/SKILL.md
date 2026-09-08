@@ -8,7 +8,7 @@ metadata:
 
 This is the only public routing entry point. It may be entered automatically by the host auto-activation bootstrap; automatic entry is not approval for destructive, production, credential or security-exception actions.
 
-1. Confirm the request changes or operates on a real software project/repository. Generic programming Q&A does not activate the workflow. If scope is unclear but a real repository/system may be changed, route anyway and confirm.
+1. Confirm the request changes or operates on a real software project/repository. Generic programming Q&A does not activate the workflow. If scope or input documentation is unclear or lacks critical information, route anyway and flag for thorough user confirmation. Never assume missing requirements.
 2. Prefer the deterministic router: `bin/agent-sdlc route --objective "<objective>"` (or `node runtime/cli.mjs route ...`).
    - The deterministic router performs keyword matching and returns `workflow`, `profile`, `overlays`, `reason_codes`, and `route_flags`.
    - **Agent Discretion & Semantic Classification**:

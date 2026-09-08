@@ -11,4 +11,4 @@ The orchestrator's context compiler only loads this skill when the run's current
 
 Inventory every supplied source, identify feature/phase association, note version/date where available, detect duplicate/superseding inputs, and record extraction completeness.
 
-Do not resolve ambiguities yet. Produce a source inventory and hand off content needing normalization to `requirements-normalize`.
+Explicitly flag missing specifications, ambiguous requirements, or incomplete documentation for user clarification. Do not silently assume or gloss over missing information. Produce a source inventory and hand off content needing normalization to `requirements-normalize` and clarification to `requirements-clarify`.

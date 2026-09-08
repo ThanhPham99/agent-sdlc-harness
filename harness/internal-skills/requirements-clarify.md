@@ -11,6 +11,8 @@ The orchestrator's context compiler only loads this skill when the run's current
 
 Check scope, actors, business rules, edge cases, error behavior, acceptance criteria, data semantics, permissions, compatibility, rollout constraints, and non-functional expectations only where relevant.
 
+Whenever input documentation or user requests are ambiguous, underspecified, or missing critical information, halt and ask the user to clarify and confirm thoroughly. Never substitute assumptions, guesswork, or silent defaults for missing product truth.
+
 Before asking a question, inspect existing `clarifications.md`, confirmed requirements, accepted decisions, and project artifacts. Never ask the user to repeat a resolved answer.
 
-Ask only questions whose answers can materially change design, behavior, acceptance criteria, safety, compatibility, or release strategy. Record confirmed answers; leave agent hypotheses explicitly unconfirmed.
+Ask focused questions whose answers materially change design, behavior, acceptance criteria, safety, compatibility, or release strategy. Record confirmed answers in `clarifications.md`; leave agent hypotheses explicitly unconfirmed until verified by the user.

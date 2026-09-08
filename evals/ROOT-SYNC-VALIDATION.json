@@ -26,8 +26,8 @@
       "source": "adapters/hooks/statusline.mjs",
       "root_copy": "hooks/statusline.mjs",
       "status": "PASS",
-      "source_sha256": "0638b02085fcc3af",
-      "root_sha256": "0638b02085fcc3af",
+      "source_sha256": "9aa44d38c905f8e5",
+      "root_sha256": "9aa44d38c905f8e5",
       "problems": []
     },
     {
@@ -74,8 +74,8 @@
       "source": "adapters/antigravity/rules.md",
       "root_copy": "rules/agent-sdlc.md",
       "status": "PASS",
-      "source_sha256": "2a3f46ea86e2e0e7",
-      "root_sha256": "2a3f46ea86e2e0e7",
+      "source_sha256": "6f1a48439c4b8ae7",
+      "root_sha256": "6f1a48439c4b8ae7",
       "problems": []
     }
   ],

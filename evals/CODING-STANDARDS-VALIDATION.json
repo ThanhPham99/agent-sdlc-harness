@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/coding-standards-validation/v1",
-  "checks": 7,
-  "passes": 7,
+  "checks": 8,
+  "passes": 8,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -15,6 +15,10 @@
     },
     {
       "name": "linter-detects-any-type",
+      "status": "PASS"
+    },
+    {
+      "name": "linter-does-not-read-prose-in-a-block-comment-as-a-type",
       "status": "PASS"
     },
     {

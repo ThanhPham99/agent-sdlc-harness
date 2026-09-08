@@ -2,8 +2,8 @@
   "schema": "agent-sdlc/syntax-validation/v1",
   "version": "3.0.0-rc2",
   "checked": "node --check (parse only, not executed)",
-  "checks": 185,
-  "passes": 185,
+  "checks": 199,
+  "passes": 199,
   "failures": 0,
   "results": [
     {
@@ -58,6 +58,11 @@
     },
     {
       "file": "hooks/antigravity-preinvocation.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "hooks/check-update.mjs",
       "status": "PASS",
       "error": null
     },
@@ -242,6 +247,11 @@
       "error": null
     },
     {
+      "file": "runtime/doc-generator.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "runtime/evidence.mjs",
       "status": "PASS",
       "error": null
@@ -283,6 +293,16 @@
     },
     {
       "file": "runtime/launcher.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/layout-migration.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/layout.mjs",
       "status": "PASS",
       "error": null
     },
@@ -467,6 +487,11 @@
       "error": null
     },
     {
+      "file": "runtime/task-reviewer.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "runtime/task-runner.mjs",
       "status": "PASS",
       "error": null
@@ -478,6 +503,11 @@
     },
     {
       "file": "runtime/task-verification.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "runtime/task-worker.mjs",
       "status": "PASS",
       "error": null
     },
@@ -652,6 +682,11 @@
       "error": null
     },
     {
+      "file": "scripts/test-all-workflows-e2e.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "scripts/test-antigravity-bootstrap-hook.mjs",
       "status": "PASS",
       "error": null
@@ -673,6 +708,16 @@
     },
     {
       "file": "scripts/test-budget-governor.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-cache-regeneration.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-check-update.mjs",
       "status": "PASS",
       "error": null
     },
@@ -717,6 +762,11 @@
       "error": null
     },
     {
+      "file": "scripts/test-doc-generator.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "scripts/test-error-triage.mjs",
       "status": "PASS",
       "error": null
@@ -733,6 +783,21 @@
     },
     {
       "file": "scripts/test-github-installers.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-layout-boundary.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-layout-migration.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-layout.mjs",
       "status": "PASS",
       "error": null
     },
@@ -828,6 +893,11 @@
     },
     {
       "file": "scripts/test-statusline.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-task-worker.mjs",
       "status": "PASS",
       "error": null
     },

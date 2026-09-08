@@ -17,6 +17,8 @@ You are the workflow authority after `sdlc-router`. You may be entered automatic
 - Load only the internal skill matching the current stage and workflow. Internal skills are references, not public/discoverable skills.
 
 ## Non-negotiable invariants
+- Clarification before execution: When input documentation or user requests are ambiguous, underspecified, or missing critical information (business logic, schemas, error behavior, edge cases), halt and ask the user to confirm thoroughly. Record answers in `clarifications.md`; never proceed on unverified assumptions.
+- Mandatory planning & task decomposition before code: Before touching implementation code, create a detailed plan and decompose work into small, logically bounded, independently verifiable tasks. No code may be written without a validated task plan.
 - One bounded task/slice ≈ one bounded context. Artifactize decisions before a context reset or handoff.
 - Deterministic-first: symbol/search/diff/compiler/test/scanner before model inference.
 - Evidence before claims: transition only when the current gate evidence exists.
@@ -36,9 +38,11 @@ You are the workflow authority after `sdlc-router`. You may be entered automatic
 6. Write artifacts/handoff.
 7. Transition with evidence using `bin/agent-sdlc transition`.
 
-## DESIGN -> PLAN -> IMPLEMENT
+## REQUIREMENTS -> DESIGN -> PLAN -> IMPLEMENT
 
-Two gates are machine-checked and their evidence cannot be asserted by hand.
+Gates are machine-checked and their evidence cannot be asserted by hand.
+
+**REQUIREMENTS.** Validate input completeness. If specifications or user requests lack critical context, halt and confirm with the user. Only confirmed answers in `clarifications.md` are accepted as product truth.
 
 **DESIGN.** Ask `bin/agent-sdlc design mode --run-id <id>` for the discovery depth (`SKIP` / `COMPACT` / `FULL`) and obey it; declare a missing signal with `--signals` rather than overriding the answer in prose. Load `design-discovery` internal module, produce a `agent-sdlc/design-decision/v1` object, then `bin/agent-sdlc design record --run-id <id> --file design-decision.json`. When the selector reports `human_approval_required`, suspend to `NEEDS_CONFIRMATION` and obtain real user approval; never write your own.
 
