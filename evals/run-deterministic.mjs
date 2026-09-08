@@ -641,7 +641,7 @@ test('router-reports-override-and-idiomatic-waivers',()=>{
 });
 
 // Static registries and lifecycle consistency
-test('manifest-public-skill-count-2',()=>{if(manifest.public_skills.length!==2)throw Error('skill count');});
+test('manifest-public-skill-count-8',()=>{if(manifest.public_skills.length!==8)throw Error('skill count');});
 test('workflow-count-22',()=>{if(Object.keys(workflows).length!==22)throw Error(String(Object.keys(workflows).length));});
 test('all-workflows-have-valid-stages',()=>{for(const [name,w] of Object.entries(workflows)){if(w.stages[0]!=='INTAKE'||w.stages.at(-1)!=='CLOSE')throw Error(name);for(const s of w.stages)if(!stagePolicy[s])throw Error(`${name}:${s}`);}});
 test('all-stage-tools-registered',()=>{for(const [s,p] of Object.entries(stagePolicy))for(const t of [...(p.allowed_tools||[]),...(p.denied_tools||[])])if(!tools[t])throw Error(`${s}:${t}`);});
@@ -1857,7 +1857,7 @@ const ddAdversarial=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','design-di
 
 test('design-discovery-is-internal-only',()=>{
   const reg=skills;
-  if(reg.public.length!==2)throw Error(`public skills ${reg.public.join(',')}`);
+  if(reg.public.includes('design-discovery'))throw Error('design-discovery leaked into public skills');
   const dd=reg.internal['design-discovery'];
   if(!dd)throw Error('design-discovery is not registered as an internal module');
   if(!dd.instructions.startsWith('harness/internal-skills/'))throw Error(dd.instructions);

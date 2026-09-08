@@ -10,11 +10,29 @@ The orchestrator's context compiler only loads this skill when the run's current
 
 
 Review the actual diff and verification artifacts. Prioritize correctness defects, requirement misses, regressions, security issues, data/compatibility risks, race/error handling, and missing tests over style preferences.
-The mechanical half of `policies/coding-standards.json` is already enforced deterministically at the task quality gate — `var`, `any`, parameter counts, boolean prefixes and filename casing arrive as findings with `file:line` evidence, and a `BLOCKING` one fails the gate on its own. Spend your attention on what a linter cannot see, and audit the diff for the rest of the policy:
-- Verify strict adherence to naming conventions (`snake_case`, boolean prefixes, `camelCase` functions, `PascalCase` types, `kebab-case` filenames).
-- Verify clean code principles: maximum 3 parameters per function, single responsibility, no duplicate logic, no dead code or unhandled promises.
-- Verify domain modeling & boundary isolation: reject semantic redundancy / alias sprawl in enums (e.g., both `BOY` and `MALE` in a single enum). Ensure external inputs are normalized at system boundaries (DTOs/transformers) rather than polluting domain models.
-- Verify anti-patching integrity: reject band-aid fixes (type loosening, enum inflation, or hacky branches added solely to pass tests without addressing root cause). Classify unnormalized domain pollution as BLOCKING.
-- Verify typing and safety: absolute ban on `any`, all external I/O wrapped in safe try/catch or typed schemas, proper resource cleanup in finally.
 
-Classify findings as blocking or non-blocking. Do not redesign unrelated code. If the diff diverges materially from approved design/plan, return it to the appropriate gate.
+The review operates under two distinct, hardened rubrics:
+
+## 1. Spec Compliance Review Rubric (Verdict: COMPLIANT | NON_COMPLIANT)
+You evaluate ONLY whether the diff fulfills the task specification — no less, and nothing extra.
+- **Acceptance Criteria Coverage**: Check 100% of acceptance criteria. Every criterion must cite concrete line-by-line evidence (`file:line`).
+- **Zero Tolerance for Scope Creep**: Any unrequested library, speculative feature, extra endpoint, or unapproved architectural refactor must be marked `NON_COMPLIANT` (`SCOPE_CREEP`).
+- **Write Scope Adherence**: The diff must touch ONLY files declared in `write_scope`. Any file modified outside the boundary is an immediate security/gate failure.
+- **Design Decisions**: Confirm that implementation faithfully follows approved design decisions.
+
+## 2. Code Quality Review Rubric (Verdict: ACCEPTED | CHANGES_REQUIRED)
+The specification is already accepted. You evaluate safety, robustness, and maintainability.
+- **Correctness & Edge Cases**: A `BLOCKING` correctness finding MUST carry a concrete `failure_scenario` (exact inputs, state, and expected vs actual outcome). Speculation without failure scenario is rejected by the harness.
+- **Domain Modeling & Boundary Integrity**: Reject semantic redundancy or alias sprawl in enums (e.g. `BOY` and `MALE` in a single enum). External inputs MUST be sanitized and normalized at system boundaries (DTOs/transformers), never by polluting domain models.
+- **Anti-Patching Defense**: Strictly reject band-aid fixes (type loosening, enum inflation, or hacky conditional branches added solely to pass tests without addressing root cause).
+- **Clean Code & SOLID**: Maximum 3 parameters per function, single responsibility, no duplicated logic, no dead code, and zero use of `any`.
+- **Resource & Concurrency Safety**: Ensure database connections, streams, and timers are released in `finally` blocks. Check for race conditions, idempotency violations, and unhandled promise rejections.
+- **Testing Rigor**: Reject testing anti-patterns (tests asserting mocks, tautological assertions like `expect(true).toBe(true)`, or missing failure assertions).
+
+## Severity Calibration
+- `BLOCKING`: Correctness bugs with failure scenarios, security vulnerabilities, resource leaks, scope creep, or unapproved schema changes. Blocks task progression.
+- `MAJOR`: High maintenance hazard, missing critical edge-case test coverage, or SOLID violations.
+- `MINOR`: Minor clarity, naming, or non-critical refactoring recommendations.
+- `INFO`: Contextual observations or future suggestions.
+
+Do not redesign unrelated code. If the diff diverges materially from approved design/plan, return it to the appropriate gate.

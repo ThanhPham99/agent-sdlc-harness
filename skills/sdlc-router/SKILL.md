@@ -6,6 +6,22 @@ metadata:
 ---
 # SDLC Router
 
+<EXTREMELY-IMPORTANT>
+If a request changes, investigates, operates on, or ships a real software repository or system, YOU MUST ROUTE VIA THIS SKILL BEFORE taking ANY implementation action, editing code, creating plans, or running unguided commands.
+
+Routing is not optional. You cannot rationalize your way out of routing.
+</EXTREMELY-IMPORTANT>
+
+## Anti-Rationalization: Red Flags (Thoughts that mean STOP)
+
+| Thought / Rationalization | Reality |
+|---|---|
+| "This is just a simple question or tiny fix" | Any real codebase change is an SDLC task. Route it first. |
+| "Let me explore files / git before routing" | The router determines the workflow scope. Route BEFORE exploring. |
+| "I already know the solution, I can just do it" | Skipping routing bypasses verification gates, audits, and safety policies. |
+| "The request is too vague to route" | Route to `technical-spike` or `new-feature` and clarify in REQUIREMENTS. Never assume. |
+| "A full SDLC process is overkill here" | Use `FAST` workflows (`maintenance`, `technical-spike`) for lightweight needs. Do not skip. |
+
 This is the only public routing entry point. It may be entered automatically by the host auto-activation bootstrap; automatic entry is not approval for destructive, production, credential or security-exception actions.
 
 1. Confirm the request changes or operates on a real software project/repository. Generic programming Q&A does not activate the workflow. If scope or input documentation is unclear or lacks critical information, route anyway and flag for thorough user confirmation. Never assume missing requirements.

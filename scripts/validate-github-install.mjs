@@ -24,9 +24,10 @@ const agy=readJson('plugin.json');
 check('version-sync',()=>{
   for(const [name,v] of Object.entries({package:readJson('package.json').version,canonical:manifest.version,claude:claude.version,codex:codex.version,claude_market:claudeMarket.plugins?.[0]?.version})) assert(v===version,`${name}=${v} != ${version}`);
 });
-check('public-skills-exactly-two',()=>{
+check('public-skills-match-manifest',()=>{
   const dirs=fs.readdirSync(path.join(ROOT,'skills'),{withFileTypes:true}).filter(x=>x.isDirectory()&&exists(`skills/${x.name}/SKILL.md`)).map(x=>x.name).sort();
-  assert(JSON.stringify(dirs)===JSON.stringify(['sdlc-orchestrator','sdlc-router']),`discoverable skills=${dirs.join(',')}`);
+  const expected=(manifest.public_skills||['sdlc-orchestrator','sdlc-router']).slice().sort();
+  assert(JSON.stringify(dirs)===JSON.stringify(expected),`discoverable skills=${dirs.join(',')}`);
 });
 check('internal-skills-outside-native-root',()=>{
   assert(exists('harness/internal-skills/requirements.md'),'internal skills missing');

@@ -5,7 +5,13 @@
   "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for Claude Code, Codex, and Antigravity.",
   "public_skills": [
     "sdlc-router",
-    "sdlc-orchestrator"
+    "sdlc-orchestrator",
+    "sdlc-approve",
+    "sdlc-route",
+    "sdlc-status",
+    "sdlc-resume",
+    "sdlc-task",
+    "sdlc-doctor"
   ],
   "canonical": {
     "state_machine": "config/state-machine.json",

@@ -8,13 +8,29 @@ metadata:
 
 You are the workflow authority after `sdlc-router`. You may be entered automatically once the router has produced a route decision; automatic entry changes nothing about the gates, approvals or budgets below.
 
+<EXTREMELY-IMPORTANT>
+THE IRON LAWS OF ORCHESTRATION:
+1. NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE. Expressing satisfaction ("All done!", "Tests should pass") without running the test command in this turn is strictly forbidden.
+2. NO CODE WITHOUT VALIDATED TASK PLAN. Never modify implementation files without an active, validated task plan.
+3. ROOT CAUSE BEFORE FIXES. Never blindly retry failed tasks or patch superficial symptoms without diagnosing root cause.
+</EXTREMELY-IMPORTANT>
+
+## Anti-Rationalization: Red Flags for Orchestration
+
+| Thought / Rationalization | Reality |
+|---|---|
+| "The changes look straightforward, tests will probably pass" | Run the exact test command and inspect output for 0 failures. Assumptions fail gates. |
+| "I don't need a task plan for a small change" | Every behavior-changing edit requires a validated `task-plan`. Small changes cause subtle regressions. |
+| "Let me bypass or approve the gate myself" | Agents cannot self-grant approval. Gates require explicit human confirmation. |
+| "The test failed, let me quickly change this one line" | Investigate root cause before modifying code. Blind retries waste budget. |
+| "I'll dump 10 questions on the user at once" | Ask clarifying questions ONE AT A TIME with clear recommendations. |
+
 ## Runtime first
-- Initialize once with `bin/agent-sdlc init` if `.agent-sdlc/project.json` does not exist.
-- Start work with `bin/agent-sdlc start --objective "..." --workflow <route>` or resume by run ID.
-- If `bin/agent-sdlc` is not in the current shell `$PATH` or local directory, use the corresponding MCP tools (`agent_sdlc_start`, `agent_sdlc_task`, `agent_sdlc_status`) or invoke via `node "${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-.}}/runtime/cli.mjs" <command>`.
-- Read `bin/agent-sdlc status --run-id <id>` before acting.
+- **Autonomous Engine First**: Prefer running `bin/agent-sdlc auto --objective "..." --workflow <route>` (or `node "${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-.}}/runtime/cli.mjs" auto ...`). This automatically executes the stage loop, dispatches workers/reviewers, and manages context deterministically without polluting chat context, pausing only at Human Confirmation Gates.
+- If manually driving or resuming: Read `bin/agent-sdlc status --run-id <id>` before acting.
 - Build compact context with `bin/agent-sdlc context --run-id <id>`. Do not load whole chat/repo/log history.
 - Load only the internal skill matching the current stage and workflow. Internal skills are references, not public/discoverable skills.
+- Available public utility skills: `sdlc-approve` (grant gate ticket), `sdlc-status` (check progress), `sdlc-resume` (resume run), `sdlc-task` (task graph), `sdlc-doctor` (system health).
 
 ## Non-negotiable invariants
 - Clarification before execution: When input documentation or user requests are ambiguous, underspecified, or missing critical information (business logic, schemas, error behavior, edge cases), halt and ask the user to confirm thoroughly. Record answers in `clarifications.md`; never proceed on unverified assumptions.
@@ -42,9 +58,9 @@ You are the workflow authority after `sdlc-router`. You may be entered automatic
 
 Gates are machine-checked and their evidence cannot be asserted by hand.
 
-**REQUIREMENTS.** Validate input completeness. If specifications or user requests lack critical context, halt and confirm with the user. Only confirmed answers in `clarifications.md` are accepted as product truth.
+**REQUIREMENTS.** Validate input completeness. If specifications or user requests lack critical context, halt and confirm with the user using Socratic dialogue: ask one question at a time, provide 2-3 concrete options with trade-offs and your recommendation. Only confirmed answers in `clarifications.md` are accepted as product truth.
 
-**DESIGN.** Ask `bin/agent-sdlc design mode --run-id <id>` for the discovery depth (`SKIP` / `COMPACT` / `FULL`) and obey it; declare a missing signal with `--signals` rather than overriding the answer in prose. Load `design-discovery` internal module, produce a `agent-sdlc/design-decision/v1` object, then `bin/agent-sdlc design record --run-id <id> --file design-decision.json`. When the selector reports `human_approval_required`, suspend to `NEEDS_CONFIRMATION` and obtain real user approval; never write your own.
+**DESIGN.** Ask `bin/agent-sdlc design mode --run-id <id>` for the discovery depth (`SKIP` / `COMPACT` / `FULL`) and obey it; declare a missing signal with `--signals` rather than overriding the answer in prose. Present design in bite-sized sections (150-250 words) for incremental user feedback before finalizing. Load `design-discovery` internal module, produce a `agent-sdlc/design-decision/v1` object, then `bin/agent-sdlc design record --run-id <id> --file design-decision.json`. When the selector reports `human_approval_required`, suspend to `NEEDS_CONFIRMATION` and obtain real user approval; never write your own.
 
 **PLAN.** Produce a structured `agent-sdlc/task-plan/v1` object, not Markdown prose. `bin/agent-sdlc plan validate` first, then `bin/agent-sdlc plan record --run-id <id> --file task-plan.json`. An invalid dependency graph, an uncovered acceptance criterion, a behaviour-changing task without verification, or two overlapping parallel candidates keeps `PLAN -> IMPLEMENT` closed. Fix the plan; do not `--force` past it.
 
@@ -79,5 +95,5 @@ The runner automatically pauses and returns `status: "PAUSED"` at the following 
 When pausing at a Human Gate in chat/non-TTY environments:
 1. An approval ticket is **automatically generated** in `approval_ticket: { ticket_id, capability, reason }` attached to the paused response payload.
 2. Present the choice and summary (e.g. PR body, changelog, architecture review) to the human in chat.
-3. Once the user approves, simply run `bin/agent-sdlc auto --approve` (or `bin/agent-sdlc approval grant-ticket --ticket-id <ticket_id>` followed by `bin/agent-sdlc auto`).
+3. Once the user approves, run `bin/agent-sdlc auto --approve` (or invoke `sdlc-approve`, or `bin/agent-sdlc approval grant-ticket --ticket-id <ticket_id>` followed by `bin/agent-sdlc auto`).
 

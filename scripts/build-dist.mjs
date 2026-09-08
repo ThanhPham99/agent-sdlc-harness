@@ -44,7 +44,7 @@ function host(name){
   for(const c of common)cp(c,out);
   copyInternalSkills(out);
   fs.mkdirSync(path.join(out,'skills'),{recursive:true});
-  for(const pub of ['sdlc-router','sdlc-orchestrator']){
+  for(const pub of manifest.public_skills||['sdlc-router','sdlc-orchestrator']){
     fs.cpSync(path.join(ROOT,'skills',pub),path.join(out,'skills',pub),{recursive:true});
   }
   fs.copyFileSync(path.join(ROOT,'README.md'),path.join(out,'README.md'));
@@ -104,4 +104,4 @@ for(const name of ['claude','codex','antigravity']){
   const zip=path.join(dist,`agent-sdlc-${name}-${manifest.version}.zip`);
   archiver=zipDir(dir,zip).tool;
 }
-console.log(JSON.stringify({status:'BUILT',version:manifest.version,dist,public_discovery_skills:2,internal_skills:Object.keys(skillRegistry.internal||{}).length,archiver,bootstrap:{version:activationPolicy.bootstrap_version,hash:bootstrapHash(),rough_tokens:estimateBootstrapCost().rough_tokens}},null,2));
+console.log(JSON.stringify({status:'BUILT',version:manifest.version,dist,public_discovery_skills:(manifest.public_skills||[]).length,internal_skills:Object.keys(skillRegistry.internal||{}).length,archiver,bootstrap:{version:activationPolicy.bootstrap_version,hash:bootstrapHash(),rough_tokens:estimateBootstrapCost().rough_tokens}},null,2));

@@ -17,9 +17,13 @@ export const TASK_CATEGORIES=['implementation','migration','verification','secur
 export const PLAN_QUALITY_DEFAULTS={
   giant_task_module_threshold:3,
   giant_task_write_scope_threshold:12,
+  oversized_task_ac_threshold:5,
+  oversized_task_write_scope_threshold:6,
   micro_plan_profiles:['FAST'],
   required_task_fields:['goal','scope','done_condition','verification']
 };
+
+const PLACEHOLDER_RE=/\b(?:TODO|TBD|FIXME)\b|(?:\/\*|\/\/|\b)(?:implement\s+later|fill\s+in\s+later|placeholder)(?:\*\/|\b)/i;
 
 const arr=(x)=>Array.isArray(x)?x:[];
 
@@ -217,6 +221,37 @@ export function validateTaskPlan(plan,context={}){
     const tooWide=writeScope.length>=cfg.giant_task_write_scope_threshold;
     if((tooManyModules||tooWide)&&!t?.scope_justification){
       push('GIANT_TASK_WITHOUT_JUSTIFICATION',{task_id:id,modules:modules.length,write_scope:writeScope.length});
+    }
+
+    // Placeholder detection (anti-pattern from Superpowers methodology)
+    const textsToCheck=[
+      t?.title,
+      t?.goal,
+      ...arr(t?.done_conditions),
+      ...arr(t?.acceptance_criteria),
+      ...arr(t?.steps),
+      t?.code_snippet
+    ].filter(Boolean);
+    const hasPlaceholder=textsToCheck.some(txt=>typeof txt==='string'&&PLACEHOLDER_RE.test(txt));
+    if(hasPlaceholder){
+      if(cfg.strict_placeholders||context.strict_placeholders||profile==='STRICT'){
+        push('TASK_CONTAINS_PLACEHOLDER',{task_id:id,recommendation:'Provide complete code or explicit specifications without placeholder comments'});
+      }else{
+        warn('TASK_CONTAINS_PLACEHOLDER',{task_id:id,recommendation:'Provide complete code or explicit specifications without placeholder comments'});
+      }
+    }
+
+    // Bite-sized granularity check (2-5 min task recommendation)
+    const acCount=arr(t?.acceptance_criteria).length;
+    const acTooMany=acCount>=cfg.oversized_task_ac_threshold;
+    const writeTooMany=writeScope.length>=cfg.oversized_task_write_scope_threshold;
+    if((acTooMany||writeTooMany)&&!t?.scope_justification){
+      warn('OVERSIZED_TASK_GRANULARITY',{
+        task_id:id,
+        acceptance_criteria:acCount,
+        write_scope:writeScope.length,
+        recommendation:'Decompose into smaller 2-5 minute bite-sized tasks with single responsibility'
+      });
     }
   }
 

@@ -3,7 +3,13 @@
   "version": "3.0.0-alpha6",
   "public": [
     "sdlc-router",
-    "sdlc-orchestrator"
+    "sdlc-orchestrator",
+    "sdlc-approve",
+    "sdlc-route",
+    "sdlc-status",
+    "sdlc-resume",
+    "sdlc-task",
+    "sdlc-doctor"
   ],
   "internal": {
     "requirements": {

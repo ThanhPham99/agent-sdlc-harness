@@ -87,13 +87,15 @@ export function buildReviewPrompt(root,projectRoot,run,task,{kind,diff}){
   const question=kind==='spec'
     ? [
       'You are reviewing SPEC COMPLIANCE only. The single question: does this diff implement exactly the task goal, acceptance criteria, design decisions and scope -- no less, and nothing extra?',
+      'Check rigorously for scope creep: reject extra libraries, unrelated refactoring, or unrequested features as NON_COMPLIANT.',
       'Say nothing about style, naming or maintainability; a separate review owns those and yours must not pre-empt it.',
       'List every acceptance criterion you checked in `acceptance_criteria_checked`, using the criterion text.',
       `Verdict is ${spec.verdicts}. Use NON_COMPLIANT when any required behavior is missing, any criterion is unmet, or the diff writes outside the declared scope.`
     ].join('\n')
     : [
       'You are reviewing CODE QUALITY. The specification is already accepted -- do not re-argue what the task was for.',
-      'The question: given that specification, is this implementation safe and maintainable? Look at correctness, error paths, concurrency and idempotency, security and privacy, resource handling, test quality and performance.',
+      'The question: given that specification, is this implementation safe, robust, and maintainable? Look at correctness, error paths, resource cleanup (finally blocks), concurrency, security, and test quality.',
+      'Reject testing anti-patterns: tests that assert nothing, tautological assertions, or mocking out the behavior being tested.',
       'Audit domain modeling integrity and reject patch-to-pass workarounds: boundary inputs must be normalized in DTOs/adapters, never by corrupting core domain models or adding synonymous aliases to enums (e.g. BOY+MALE, GIRL+FEMALE). Reject band-aid type loosening.',
       'Mechanical coding-standards rules (var, any, parameter counts, filename casing, boolean prefixes) are already enforced deterministically and merged into your review afterwards. Do not spend the review on them.',
       `Verdict is ${spec.verdicts}. A BLOCKING correctness finding must carry a concrete \`failure_scenario\` -- inputs or state that produce the wrong outcome. Without one it is a guess, and the harness rejects it.`
@@ -103,7 +105,7 @@ export function buildReviewPrompt(root,projectRoot,run,task,{kind,diff}){
     'You are an independent reviewer in an SDLC harness. You did not write this code and you have not been told how it was written. Judge only what the diff shows.',
     question,
     shared,
-    `Every finding needs concrete \`evidence\`: a file:line, a symbol, or a test name. Allowed categories: ${spec.categories}. Allowed severities: BLOCKING, MAJOR, MINOR, INFO.`,
+    `Every finding needs concrete \`evidence\`: a file:line, a symbol, or a test name. Allowed categories: ${spec.categories}. Allowed severities: BLOCKING, MAJOR, MINOR, INFO. Severity calibration: BLOCKING (correctness failure with failure_scenario, security vulnerability, resource leak, unapproved scope creep; prevents task completion), MAJOR (high maintenance risk, missing critical edge case tests, SOLID violation), MINOR (minor styling or clean code recommendation), INFO (contextual observation).`,
     `Return ONE JSON object matching ${spec.schema} and nothing else -- no prose, no code fence. Set only \`verdict\` and \`findings\`${kind==='spec'?', plus `acceptance_criteria_checked`':''}; the harness fills in every identifier itself.`,
     'An empty `findings` list is a real answer when the diff is sound. Do not invent findings to look thorough, and do not withhold a blocking one to look agreeable.'
   ].join('\n\n');

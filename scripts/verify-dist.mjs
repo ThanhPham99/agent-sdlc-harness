@@ -49,7 +49,7 @@ for(const host of hosts){
     check(host,'manifest-version',()=>{const m=JSON.parse(fs.readFileSync(path.join(root,'agent-sdlc.manifest.json'),'utf8'));if(m.version!==version)throw Error(`${m.version} != ${version}`);});
     check(host,'public-discovery-surface',()=>{
       const dirs=immediateDirs(path.join(root,'skills'));
-      const expected=['sdlc-orchestrator','sdlc-router'];
+      const expected=(manifest.public_skills||['sdlc-orchestrator','sdlc-router']).slice().sort();
       if(JSON.stringify(dirs)!==JSON.stringify(expected))throw Error(`skills root contains ${dirs.join(', ')}`);
       for(const d of expected)if(!fs.existsSync(path.join(root,'skills',d,'SKILL.md')))throw Error(`missing ${d}/SKILL.md`);
       if(fs.existsSync(path.join(root,'skills','internal')))throw Error('internal skills exposed under native discovery root');

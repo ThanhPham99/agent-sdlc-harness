@@ -48,11 +48,20 @@ export function buildWorkerPrompt(root,projectRoot,run,task,{prevFailure=null}={
 
   const instructions=[
     'You are an autonomous worker agent implementing this task inside an SDLC harness.',
-    'RULES:',
-    '1. Edit ONLY files matching the DECLARED WRITE SCOPE. Edits outside the declared write scope are blocked by the security gate.',
-    '2. Implement all required behavior so that every acceptance criterion is satisfied.',
-    '3. Ensure existing tests pass and backward compatibility is preserved.',
-    '4. When finished, ensure your changes are cleanly saved. The harness will automatically capture the git diff, run verification tests, and dispatch independent reviewer agents.'
+    'CORE INVARIANTS & IRON LAWS:',
+    '1. STRICT WRITE SCOPE: Edit ONLY files matching the DECLARED WRITE SCOPE. Edits outside the declared write scope are blocked by the security gate.',
+    '2. STRICT TDD (RED-GREEN-REFACTOR CYCLE):',
+    '   - NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST.',
+    '   - STEP 1 (RED): Write or locate a minimal, focused test demonstrating the required behavior or bug.',
+    '   - STEP 2 (VERIFY RED): Run the targeted test command and watch it FAIL with the expected assertion failure. If it passes or fails on syntax/import error, fix the test first.',
+    '   - STEP 3 (GREEN): Write the MINIMAL production code to make the test pass. No premature abstractions, no extra unrequested features.',
+    '   - STEP 4 (VERIFY GREEN): Run the test command again and confirm it passes with 0 failures.',
+    '   - STEP 5 (REFACTOR): Clean up while ensuring tests remain green.',
+    '   - IRON LAW ENFORCEMENT: If you wrote production code before watching a test fail, DELETE the unverified code and start over from tests.',
+    '3. NO PLACEHOLDERS: Implement complete, functional code. Never leave TODO comments, mock shortcuts, or incomplete stubs.',
+    '4. EVIDENCE OVER CLAIMS: Before declaring completion, run the targeted verification test command yourself and confirm 0 failures with exit code 0.',
+    '5. BACKWARD COMPATIBILITY: Ensure existing tests pass and backward compatibility obligations are preserved.',
+    '6. When finished, ensure all changes are saved. The harness will automatically capture the git diff, run verification tests, and dispatch independent reviewer agents.'
   ].join('\n');
 
   return [
