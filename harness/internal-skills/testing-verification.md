@@ -9,6 +9,39 @@
 The orchestrator's context compiler only loads this skill when the run's current stage authorizes it — there is no separate legacy state file to check. If you believe you were invoked out of order regardless, return `BLOCKED` with the required next logical skill rather than proceeding. Load only the artifacts required for this step.
 
 
+## The Iron Law
+
+```
+NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE
+```
+
+If you have not run the verification command in this turn, you cannot claim it passes. Any wording implying success ("should work", "probably", "looks good", "perfect") before fresh execution evidence is captured is strictly prohibited.
+
+## The Gate Function
+
+```
+BEFORE claiming any status or expressing satisfaction:
+
+1. IDENTIFY: What command proves this claim?
+2. RUN: Execute the FULL command (fresh, complete)
+3. READ: Read full output, check exit code, count failures
+4. VERIFY: Does output explicitly confirm the claim?
+   - If NO: State actual failure status with evidence.
+   - If YES: State claim WITH verifiable evidence.
+5. ONLY THEN: Make the completion claim.
+```
+
+## Rationalization Prevention
+
+| Excuse / Rationalization | Reality |
+|---|---|
+| "Should work now" / "Probably passing" | RUN the verification command. Speculation is not evidence. |
+| "I'm confident in this change" | Confidence $\neq$ Evidence. An exit code of 0 with 0 failures is evidence. |
+| "Linter passed" | Linter $\neq$ Test suite. Passing linter proves nothing about runtime behavior. |
+| "I tested it before that small tweak" | ANY edit after a test run invalidates previous evidence. Re-run fresh. |
+| "Subagent reported success" | Never trust claims. Inspect the diff and run the verification suite yourself. |
+| "Partial check is enough" | Partial checks prove nothing about regression across the integrated tree. |
+
 Every task verified its own diff in its own workspace during `IMPLEMENT`; those workspaces have since been merged. This stage verifies the merge, which is where the regressions that no single task could see actually live — so a suite has to run here, over the integrated tree, and the gate token comes from that run rather than from a claim. If no test command is configured, say so and let the orchestrator decide; a missing suite is not a pass.
 
 Create/update `test-plan.md` as needed, then execute the smallest sufficient verification set plus required regression coverage. Consider unit, integration, contract, migration, security, performance, build/lint/static checks, and manual validation only when relevant.

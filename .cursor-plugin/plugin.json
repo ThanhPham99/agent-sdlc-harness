@@ -1,0 +1,22 @@
+{
+  "name": "agent-sdlc-harness",
+  "displayName": "Agent SDLC Harness",
+  "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for coding agents",
+  "version": "3.0.0-rc2",
+  "author": {
+    "name": "Thanh Pham"
+  },
+  "homepage": "https://github.com/ThanhPham99/agent-sdlc-harness",
+  "repository": "https://github.com/ThanhPham99/agent-sdlc-harness",
+  "license": "Apache-2.0",
+  "keywords": [
+    "sdlc",
+    "skills",
+    "tdd",
+    "orchestrator",
+    "evidence-driven",
+    "workflows"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks-cursor.json"
+}

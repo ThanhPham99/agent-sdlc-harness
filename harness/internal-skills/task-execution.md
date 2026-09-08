@@ -2,9 +2,24 @@
 
 > Internal orchestrator module. This is not a public Agent Skill and must not be independently discovered or invoked by the host. Load it only when the canonical workflow state selects this module. Return control to `sdlc-orchestrator`; never mark the global workflow COMPLETE yourself.
 
+<SUBAGENT-STOP>
+If you were dispatched as a subagent to execute a specific task, execute ONLY your assigned task slice within your declared write_scope. Do not re-bootstrap the outer SDLC orchestrator or attempt to transition the global workflow.
+</SUBAGENT-STOP>
+
 # Task Execution
 
 `IMPLEMENT` no longer means "write the code". It means **execute a persistent task graph until every required node is DONE**.
+
+## Narration Constraint
+
+Between tool calls, narrate at most one short line — the ledger and tool results carry the record. Never output verbose conversational paragraphs between CLI invocations; preserve orchestrator context for long runs.
+
+## Pre-Flight Plan Review
+
+Before dispatching Task 1, scan the materialized plan once for conflicts:
+- Tasks contradicting each other or violating global architecture constraints.
+- Requirements in the plan that review rubrics would reject as defects.
+Batch any discoveries into one single clarification before execution begins, rather than interrupting mid-execution per discovery.
 
 ## The loop
 

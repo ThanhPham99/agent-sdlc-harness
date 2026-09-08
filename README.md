@@ -1,6 +1,6 @@
 # Agent SDLC Harness 3.0.0-rc2
 
-A provider-neutral, token-aware, evidence-driven software-development harness for **Claude Code, OpenAI Codex, and Google Antigravity**.
+A provider-neutral, token-aware, evidence-driven software-development harness for **Claude Code, OpenAI Codex, Google Antigravity, Cursor, and Kimi Code**.
 
 The repository is intentionally **GitHub-installable**: the same source tree is a Claude marketplace + plugin, a Codex marketplace + plugin, and an Antigravity plugin root. The canonical SDLC runtime remains provider-neutral.
 
@@ -36,6 +36,22 @@ agy plugin install https://github.com/ThanhPham99/agent-sdlc-harness
 ```
 
 Re-run the same command to refresh/reinstall from the repository.
+
+### Cursor
+
+In Cursor Agent chat, install directly via plugin:
+
+```text
+/add-plugin ThanhPham99/agent-sdlc-harness
+```
+
+### Kimi Code
+
+In Kimi Code, install via plugin command:
+
+```text
+/plugins install https://github.com/ThanhPham99/agent-sdlc-harness
+```
 
 ### Auto-detect installer
 

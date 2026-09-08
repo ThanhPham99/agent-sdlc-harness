@@ -33,7 +33,7 @@ function fixture({copyBody=null}={}){
     ['adapters/antigravity/mcp_config.json','mcp_config.json'],['adapters/antigravity/plugin.json','plugin.json'],
     ['adapters/antigravity/rules.md','rules/agent-sdlc.md'],['adapters/hooks/test-output-guard.mjs','hooks/test-output-guard.mjs'],
     ['adapters/hooks/statusline.mjs','hooks/statusline.mjs'],['adapters/hooks/claude-session-start.mjs','hooks/claude-session-start.mjs'],
-    ['adapters/hooks/antigravity-preinvocation.mjs','hooks/antigravity-preinvocation.mjs']]){
+    ['adapters/hooks/antigravity-preinvocation.mjs','hooks/antigravity-preinvocation.mjs'],['adapters/hooks/run-hook.cmd','hooks/run-hook.cmd']]){
     for(const rel of new Set([src,dst])){
       const abs=path.join(d,rel);
       fs.mkdirSync(path.dirname(abs),{recursive:true});

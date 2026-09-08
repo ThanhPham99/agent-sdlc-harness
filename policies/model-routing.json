@@ -7,7 +7,8 @@
     "cheap model for classification/triage/summarization",
     "standard coding model for normal implementation",
     "high reasoning for architecture/root-cause/security",
-    "independent review should be a separate invocation/context"
+    "independent review should be a separate invocation/context",
+    "turn count beats token price: avoid under-powered models that take 2-3x retry turns, inflating wall-clock time and cumulative context cost"
   ],
   "provider_order": [
     "claude",

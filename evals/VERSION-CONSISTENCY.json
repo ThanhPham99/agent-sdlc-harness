@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/version-consistency/v1",
   "version": "3.0.0-rc2",
-  "checks": 65,
-  "passes": 65,
+  "checks": 71,
+  "passes": 71,
   "failures": 0,
   "behind": [
     {
@@ -96,16 +96,6 @@
       "current": "3.0.0-rc2"
     },
     {
-      "where": "evals/CI-COVERAGE-VALIDATION.json#version",
-      "found": "3.0.0-alpha6",
-      "current": "3.0.0-rc2"
-    },
-    {
-      "where": "evals/CLI-SURFACE-VALIDATION.json#version",
-      "found": "3.0.0-alpha6",
-      "current": "3.0.0-rc2"
-    },
-    {
       "where": "evals/DELIVERY-VALIDATION.json#version",
       "found": "3.0.0-alpha6",
       "current": "3.0.0-rc2"
@@ -122,11 +112,6 @@
     },
     {
       "where": "evals/GOVERNOR-VALIDATION.json#version",
-      "found": "3.0.0-alpha6",
-      "current": "3.0.0-rc2"
-    },
-    {
-      "where": "evals/GUARD-VALIDATION.json#version",
       "found": "3.0.0-alpha6",
       "current": "3.0.0-rc2"
     },
@@ -161,17 +146,7 @@
       "current": "3.0.0-rc2"
     },
     {
-      "where": "evals/REGISTRY-VALIDATION.json#version",
-      "found": "3.0.0-alpha6",
-      "current": "3.0.0-rc2"
-    },
-    {
       "where": "evals/REPO-INTELLIGENCE-VALIDATION.json#version",
-      "found": "3.0.0-alpha6",
-      "current": "3.0.0-rc2"
-    },
-    {
-      "where": "evals/SYNTAX-VALIDATION.json#version",
       "found": "3.0.0-alpha6",
       "current": "3.0.0-rc2"
     },
@@ -197,11 +172,6 @@
     },
     {
       "where": "evals/TASK-SCHEDULER-VALIDATION.json#version",
-      "found": "3.0.0-alpha6",
-      "current": "3.0.0-rc2"
-    },
-    {
-      "where": "evals/TEST-OUTPUT-GUARD-VALIDATION.json#version",
       "found": "3.0.0-alpha6",
       "current": "3.0.0-rc2"
     },

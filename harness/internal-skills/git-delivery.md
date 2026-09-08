@@ -10,6 +10,34 @@ Use this internal module when code/config/test changes must move through a branc
 - `rules/git-delivery-policy.yaml`;
 - `rules/coordination-policy.yaml` for cross-work-item ordering.
 
+## Workspace & Worktree Isolation Detection
+
+Before creating a worktree or modifying working trees:
+1. **Detect existing isolation:**
+   ```bash
+   GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)
+   GIT_COMMON=$(git rev-parse --git-common-dir 2>/dev/null)
+   ```
+2. **Submodule guard:** `GIT_DIR != GIT_COMMON` is also true inside git submodules. Verify with:
+   ```bash
+   git rev-parse --show-superproject-working-tree 2>/dev/null
+   ```
+   If a path is returned, this is a submodule, NOT an isolated worktree.
+3. **Directory safety:** If creating a project-local worktree directory (e.g. `.worktrees/`), MUST verify it is gitignored first (`git check-ignore -q .worktrees`). If not, add to `.gitignore` before creating.
+4. **Sandbox fallback:** If `git worktree add` fails due to sandbox restrictions, notify user and safely fall back to working in-place on a dedicated branch.
+
+## Finishing a Development Branch
+
+When implementation is complete and verification evidence passes, guide branch completion with structured options:
+1. **Verify tests pass first**: No completion claims without fresh verification evidence.
+2. **Detect environment**: Normal repo checkout vs named-branch worktree vs detached HEAD.
+3. **Present 4 completion options to the user**:
+   - **Option 1: Merge locally**: Merge into base branch locally, re-verify tests, and remove worktree.
+   - **Option 2: Push & Create PR**: Push branch to remote, output PR draft/url, handoff to Gate G6.
+   - **Option 3: Keep branch as-is**: Preserve branch and worktree for manual developer review.
+   - **Option 4: Discard**: Safely check for uncommitted changes, abort, and clean up worktree.
+4. **Safety guard**: Never delete a worktree with uncommitted changes without explicit user confirmation.
+
 ## Procedure
 1. Identify the configured `completion_target`: `PR_READY`, `MERGED`, or `RELEASE_READY`. Never use plain `COMPLETE` as a substitute for this distinction.
 2. Ensure the work item owns a bounded branch/worktree. Do not dispatch multiple writer agents onto the same mutable branch unless an explicit project policy overrides the default.

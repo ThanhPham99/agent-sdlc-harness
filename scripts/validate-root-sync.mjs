@@ -34,6 +34,7 @@ const MIRRORS=[
   ['adapters/hooks/statusline.mjs','hooks/statusline.mjs'],
   ['adapters/hooks/claude-session-start.mjs','hooks/claude-session-start.mjs'],
   ['adapters/hooks/antigravity-preinvocation.mjs','hooks/antigravity-preinvocation.mjs'],
+  ['adapters/hooks/run-hook.cmd','hooks/run-hook.cmd'],
   ['adapters/antigravity/hooks.json','hooks.json'],
   ['adapters/antigravity/mcp_config.json','mcp_config.json'],
   ['adapters/antigravity/plugin.json','plugin.json'],

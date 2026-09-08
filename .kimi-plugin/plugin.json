@@ -1,0 +1,34 @@
+{
+  "name": "agent-sdlc-harness",
+  "version": "3.0.0-rc2",
+  "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for coding agents.",
+  "author": {
+    "name": "Thanh Pham"
+  },
+  "homepage": "https://github.com/ThanhPham99/agent-sdlc-harness",
+  "license": "Apache-2.0",
+  "keywords": [
+    "sdlc",
+    "router",
+    "orchestrator",
+    "tdd",
+    "skills",
+    "workflows"
+  ],
+  "skills": "./skills/",
+  "sessionStart": {
+    "skill": "sdlc-router"
+  },
+  "interface": {
+    "displayName": "Agent SDLC Harness",
+    "shortDescription": "Evidence-driven SDLC operating system for coding agents",
+    "longDescription": "Provider-neutral, token-aware, evidence-driven SDLC harness featuring deterministic lifecycle routing, TDD enforcement, and DAG task orchestration.",
+    "developerName": "Thanh Pham",
+    "capabilities": [
+      "Interactive",
+      "Read",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/ThanhPham99/agent-sdlc-harness"
+  }
+}
