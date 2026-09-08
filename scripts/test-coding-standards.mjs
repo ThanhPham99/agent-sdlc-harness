@@ -33,6 +33,9 @@ await test('coding-standards-policy-loads-and-valid', () => {
   assert(policy.naming_conventions.variables_and_properties.style === 'snake_case', 'variables must be snake_case');
   assert(policy.clean_code_and_solid !== undefined, 'clean_code_and_solid must be defined');
   assert(policy.clean_code_and_solid.guidelines.max_function_parameters === 3, 'max parameters must be 3');
+  assert(policy.domain_modeling_and_data_integrity !== undefined, 'domain_modeling_and_data_integrity must be defined');
+  assert(typeof policy.domain_modeling_and_data_integrity.canonical_domain_values === 'string', 'canonical_domain_values must be defined');
+  assert(typeof policy.domain_modeling_and_data_integrity.boundary_normalization === 'string', 'boundary_normalization must be defined');
   assert(policy.security_and_data !== undefined, 'security_and_data must be defined');
   assert(policy.performance_and_resources !== undefined, 'performance_and_resources must be defined');
   assert(policy.testing_and_typing !== undefined, 'testing_and_typing must be defined');

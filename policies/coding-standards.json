@@ -46,8 +46,15 @@
       "readability_over_cleverness": "Write code so that maintainers can easily reason about it. Avoid over-engineering.",
       "max_function_parameters": 3,
       "parameter_encapsulation": "If more than 3 parameters are needed, encapsulate them in an Object/Interface DTO.",
-      "prefer_pure_functions": "Functions should ideally have no side effects, with output strictly dependent on input."
+      "prefer_pure_functions": "Functions should ideally have no side effects, with output strictly dependent on input.",
+      "anti_corruption_boundaries": "Keep domain models pristine. Translate and normalize all external data representations at boundaries before they enter business logic.",
+      "no_bandaid_fixes": "Refuse patch-to-pass workarounds: never add redundant enum values, loose type unions, or duplicate branches to make a test green."
     }
+  },
+  "domain_modeling_and_data_integrity": {
+    "canonical_domain_values": "Enums, union types, and domain models must represent distinct, mutually exclusive business concepts. Never add synonyms or aliases (e.g. BOY + MALE, GIRL + FEMALE) into the same enum.",
+    "boundary_normalization": "Disparate external representations, legacy aliases, query parameters, or casing variations must be mapped and normalized at the system boundary (DTO, Controller, Input Transformer) via an Anti-Corruption Layer, never by polluting core domain types.",
+    "no_patch_to_pass": "Never modify or loosen domain types/enums merely to satisfy a failing test or arbitrary caller. Fix the root cause by normalizing inputs at the boundary or correcting invalid test assumptions."
   },
   "security_and_data": {
     "input_validation": "Sanitize and validate all data at the system boundary (CLI args, stdin, DTOs, configs).",

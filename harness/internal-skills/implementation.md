@@ -13,6 +13,7 @@ Follow the approved plan/micro-plan. Keep changes minimal and cohesive. For beha
 All created or modified code must strictly adhere to `policies/coding-standards.json`:
 - **Naming Conventions**: `snake_case` for properties and variables, `is_`/`has_`/`can_`/`should_` prefix for booleans, `camelCase` for functions (verb-first), `PascalCase` for types/classes, `SCREAMING_SNAKE` for constants, `kebab-case` for files.
 - **Clean Code & SOLID**: Maximum 3 function parameters (use object DTOs otherwise), single responsibility per function/module, no code duplication, prefer pure functions and immutability (`const`).
+- **Domain Modeling & Boundary Isolation**: Domain types and enums must represent canonical, mutually exclusive concepts. Never introduce synonymous aliases (e.g., `BOY` and `MALE`) into the same enum. External input variations must be normalized at system boundaries (DTOs/transformers). Never apply patch-to-pass band-aids or type loosening to satisfy tests.
 - **Security & Quality**: Validate inputs at boundaries, no ambient secrets/tokens, zero `any` types, release resources in `finally` blocks, and ensure cold-start efficiency.
 
 If implementation reveals a requirement contradiction, invalid architectural assumption, or materially larger blast radius, stop the affected task and return to the orchestrator with `NEEDS_CONFIRMATION` or `BLOCKED`; do not redesign product behavior implicitly.

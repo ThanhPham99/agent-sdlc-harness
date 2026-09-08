@@ -94,6 +94,7 @@ export function buildReviewPrompt(root,projectRoot,run,task,{kind,diff}){
     : [
       'You are reviewing CODE QUALITY. The specification is already accepted -- do not re-argue what the task was for.',
       'The question: given that specification, is this implementation safe and maintainable? Look at correctness, error paths, concurrency and idempotency, security and privacy, resource handling, test quality and performance.',
+      'Audit domain modeling integrity and reject patch-to-pass workarounds: boundary inputs must be normalized in DTOs/adapters, never by corrupting core domain models or adding synonymous aliases to enums (e.g. BOY+MALE, GIRL+FEMALE). Reject band-aid type loosening.',
       'Mechanical coding-standards rules (var, any, parameter counts, filename casing, boolean prefixes) are already enforced deterministically and merged into your review afterwards. Do not spend the review on them.',
       `Verdict is ${spec.verdicts}. A BLOCKING correctness finding must carry a concrete \`failure_scenario\` -- inputs or state that produce the wrong outcome. Without one it is a guess, and the harness rejects it.`
     ].join('\n');

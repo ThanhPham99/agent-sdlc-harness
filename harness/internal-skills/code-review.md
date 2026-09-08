@@ -13,6 +13,8 @@ Review the actual diff and verification artifacts. Prioritize correctness defect
 The mechanical half of `policies/coding-standards.json` is already enforced deterministically at the task quality gate — `var`, `any`, parameter counts, boolean prefixes and filename casing arrive as findings with `file:line` evidence, and a `BLOCKING` one fails the gate on its own. Spend your attention on what a linter cannot see, and audit the diff for the rest of the policy:
 - Verify strict adherence to naming conventions (`snake_case`, boolean prefixes, `camelCase` functions, `PascalCase` types, `kebab-case` filenames).
 - Verify clean code principles: maximum 3 parameters per function, single responsibility, no duplicate logic, no dead code or unhandled promises.
+- Verify domain modeling & boundary isolation: reject semantic redundancy / alias sprawl in enums (e.g., both `BOY` and `MALE` in a single enum). Ensure external inputs are normalized at system boundaries (DTOs/transformers) rather than polluting domain models.
+- Verify anti-patching integrity: reject band-aid fixes (type loosening, enum inflation, or hacky branches added solely to pass tests without addressing root cause). Classify unnormalized domain pollution as BLOCKING.
 - Verify typing and safety: absolute ban on `any`, all external I/O wrapped in safe try/catch or typed schemas, proper resource cleanup in finally.
 
 Classify findings as blocking or non-blocking. Do not redesign unrelated code. If the diff diverges materially from approved design/plan, return it to the appropriate gate.

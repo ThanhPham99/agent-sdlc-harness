@@ -11,4 +11,4 @@ The orchestrator's context compiler only loads this skill when the run's current
 
 Reproduce or establish reliable evidence, minimize the failure, inspect recent/relevant changes, form explicit hypotheses, test one hypothesis at a time, and identify root cause before choosing a fix.
 
-Separate symptom, trigger, root cause, and contributing factors. Add regression evidence before/with the fix whenever feasible. Avoid random patching or repeated speculative edits.
+Separate symptom, trigger, root cause, and contributing factors. Add regression evidence before/with the fix whenever feasible. Avoid random patching or repeated speculative edits. Specifically avoid domain degradation (e.g., adding synonymous enum values or loosening types to satisfy unexpected test inputs); resolve mismatches by normalizing data at system boundaries (DTOs/adapters) or updating invalid test expectations.
