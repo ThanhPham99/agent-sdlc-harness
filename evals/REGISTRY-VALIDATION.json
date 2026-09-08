@@ -4,7 +4,8 @@
   "counts": {
     "registered_internal_skills": 41,
     "internal_skill_files": 41,
-    "public_skills": 7,
+    "discoverable_skills": 7,
+    "procedure_skills": 0,
     "unregistered_files": 0,
     "accepted_unregistered": 0,
     "new_orphans": 0

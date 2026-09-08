@@ -4,6 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
 import {BOOTSTRAP_TEXT as bootstrapText,estimateBootstrapCost} from '../runtime/activation.mjs';
+import {readSkillTiers} from './lib/skill-tiers.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const activationCost=estimateBootstrapCost();
@@ -25,8 +26,8 @@ check('version-sync',()=>{
   for(const [name,v] of Object.entries({package:readJson('package.json').version,canonical:manifest.version,claude:claude.version,codex:codex.version,claude_market:claudeMarket.plugins?.[0]?.version})) assert(v===version,`${name}=${v} != ${version}`);
 });
 check('public-skills-match-manifest',()=>{
-  const dirs=fs.readdirSync(path.join(ROOT,'skills'),{withFileTypes:true}).filter(x=>x.isDirectory()&&exists(`skills/${x.name}/SKILL.md`)).map(x=>x.name).sort();
-  const expected=(manifest.public_skills||['sdlc-orchestrator','sdlc-router']).slice().sort();
+  const dirs=fs.readdirSync(path.join(ROOT,'skills'),{withFileTypes:true}).filter(x=>x.isDirectory()&&x.name!=='procedures'&&exists(`skills/${x.name}/SKILL.md`)).map(x=>x.name).sort();
+  const expected=readSkillTiers(ROOT).discovery;
   assert(JSON.stringify(dirs)===JSON.stringify(expected),`discoverable skills=${dirs.join(',')}`);
 });
 check('internal-skills-outside-native-root',()=>{

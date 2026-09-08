@@ -54,6 +54,7 @@ import {jobBlock,jobScriptSequence} from '../scripts/lib/ci-workflow.mjs';
 import {calculateStats,evaluateControlBand,formatAnomalyIntent,processMetricAnomaly} from '../runtime/control-bands.mjs';
 import {writeReport} from '../scripts/lib/report-io.mjs';
 import {makeTempDir} from '../scripts/lib/tempdir.mjs';
+import {readSkillTiers} from '../scripts/lib/skill-tiers.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
@@ -641,7 +642,20 @@ test('router-reports-override-and-idiomatic-waivers',()=>{
 });
 
 // Static registries and lifecycle consistency
-test('manifest-public-skill-count-7',()=>{if(manifest.public_skills.length!==7)throw Error(`skill count ${manifest.public_skills.length}`);});
+test('skill-tiers-declared-and-disjoint',()=>{
+  const t=readSkillTiers(ROOT);
+  if(!t.entry.includes('sdlc-router')||!t.entry.includes('sdlc-orchestrator'))throw Error('entry tier must hold router and orchestrator');
+  if(t.ops.length!==5)throw Error(`ops tier is ${t.ops.length}, wanted 5`);
+  const seen=new Set();
+  for(const id of t.all){if(seen.has(id))throw Error(`${id} appears in two tiers`);seen.add(id);}
+  if(manifest.public_skills)throw Error('public_skills must be replaced by the four tier keys');
+});
+test('discovery-root-matches-tiers',()=>{
+  const t=readSkillTiers(ROOT);
+  const dirs=fs.readdirSync(path.join(ROOT,'skills'),{withFileTypes:true})
+    .filter(e=>e.isDirectory()&&e.name!=='procedures').map(e=>e.name).sort();
+  if(JSON.stringify(dirs)!==JSON.stringify(t.discovery))throw Error(`skills/ holds ${dirs.join(',')} but tiers declare ${t.discovery.join(',')}`);
+});
 test('no-slash-command-surface',()=>{
   if(fs.existsSync(path.join(ROOT,'commands')))throw Error('commands/ still exists: skills are the only public surface');
   for(const f of ['.claude-plugin/plugin.json','adapters/claude/plugin.json']){
@@ -653,7 +667,7 @@ test('workflow-count-22',()=>{if(Object.keys(workflows).length!==22)throw Error(
 test('all-workflows-have-valid-stages',()=>{for(const [name,w] of Object.entries(workflows)){if(w.stages[0]!=='INTAKE'||w.stages.at(-1)!=='CLOSE')throw Error(name);for(const s of w.stages)if(!stagePolicy[s])throw Error(`${name}:${s}`);}});
 test('all-stage-tools-registered',()=>{for(const [s,p] of Object.entries(stagePolicy))for(const t of [...(p.allowed_tools||[]),...(p.denied_tools||[])])if(!tools[t])throw Error(`${s}:${t}`);});
 test('all-internal-skill-files-exist',()=>{for(const [id,s] of Object.entries(skills.internal)){if(!fs.existsSync(path.join(ROOT,s.instructions)))throw Error(id);}});
-test('public-skill-layout-valid',()=>{for(const id of manifest.public_skills){const p=path.join(ROOT,'skills',id,'SKILL.md');const txt=fs.readFileSync(p,'utf8');if(!txt.startsWith('---')||!txt.includes(`name: ${id}`))throw Error(id);}});
+test('public-skill-layout-valid',()=>{const tiers=readSkillTiers(ROOT);for(const id of tiers.discovery){const p=path.join(ROOT,'skills',id,'SKILL.md');const txt=fs.readFileSync(p,'utf8');if(!txt.startsWith('---')||!txt.includes(`name: ${id}`))throw Error(id);}});
 test('tool-output-limit-policy',()=>{const p=JSON.parse(fs.readFileSync(path.join(ROOT,'policies','context-policy.json'),'utf8'));if(p.limits.max_tool_return_bytes>24000)throw Error('too large');});
 test('parallelism-bounded',()=>{const p=JSON.parse(fs.readFileSync(path.join(ROOT,'policies','parallelism-policy.json'),'utf8'));if(p.hard_default_max>2)throw Error('fanout too high');});
 // No active skill/procedure may depend on the legacy .ai-workflow namespace --
@@ -1864,7 +1878,7 @@ const ddAdversarial=JSON.parse(fs.readFileSync(path.join(ROOT,'evals','design-di
 
 test('design-discovery-is-internal-only',()=>{
   const reg=skills;
-  if(reg.public.includes('design-discovery'))throw Error('design-discovery leaked into public skills');
+  if(readSkillTiers(ROOT).discovery.includes('design-discovery'))throw Error('design-discovery leaked into public skills');
   const dd=reg.internal['design-discovery'];
   if(!dd)throw Error('design-discovery is not registered as an internal module');
   if(!dd.instructions.startsWith('harness/internal-skills/'))throw Error(dd.instructions);

@@ -2,10 +2,20 @@
   "schema": "agent-sdlc/syntax-validation/v1",
   "version": "3.0.0-rc2",
   "checked": "node --check (parse only, not executed)",
-  "checks": 199,
-  "passes": 199,
+  "checks": 211,
+  "passes": 211,
   "failures": 0,
   "results": [
+    {
+      "file": ".tmp/superpowers/tests/opencode/test-bootstrap-caching.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": ".tmp/superpowers/tests/pi/test-pi-extension.mjs",
+      "status": "PASS",
+      "error": null
+    },
     {
       "file": "adapters/hooks/antigravity-preinvocation.mjs",
       "status": "PASS",
@@ -33,6 +43,11 @@
     },
     {
       "file": "evals/alpha6-runtime.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "evals/compliance/compliance-verifier.mjs",
       "status": "PASS",
       "error": null
     },
@@ -562,12 +577,12 @@
       "error": null
     },
     {
-      "file": "scripts/audit.mjs",
+      "file": "scripts/build-dist.mjs",
       "status": "PASS",
       "error": null
     },
     {
-      "file": "scripts/build-dist.mjs",
+      "file": "scripts/bump-version.mjs",
       "status": "PASS",
       "error": null
     },
@@ -612,7 +627,17 @@
       "error": null
     },
     {
+      "file": "scripts/lib/dist-guard.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "scripts/lib/report-io.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/lib/skill-tiers.mjs",
       "status": "PASS",
       "error": null
     },
@@ -623,6 +648,11 @@
     },
     {
       "file": "scripts/lib/tempdir.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/lint-shell.mjs",
       "status": "PASS",
       "error": null
     },
@@ -677,6 +707,11 @@
       "error": null
     },
     {
+      "file": "scripts/sync-marketplace.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "scripts/test-adaptive-fallback.mjs",
       "status": "PASS",
       "error": null
@@ -708,6 +743,11 @@
     },
     {
       "file": "scripts/test-budget-governor.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-bump-version.mjs",
       "status": "PASS",
       "error": null
     },
@@ -752,12 +792,22 @@
       "error": null
     },
     {
+      "file": "scripts/test-compliance-evals.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
       "file": "scripts/test-dead-code.mjs",
       "status": "PASS",
       "error": null
     },
     {
       "file": "scripts/test-dev-link.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-dist-leak-guard.mjs",
       "status": "PASS",
       "error": null
     },
@@ -798,6 +848,11 @@
     },
     {
       "file": "scripts/test-layout.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-lint-shell.mjs",
       "status": "PASS",
       "error": null
     },
@@ -893,6 +948,11 @@
     },
     {
       "file": "scripts/test-statusline.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/test-sync-marketplace.mjs",
       "status": "PASS",
       "error": null
     },

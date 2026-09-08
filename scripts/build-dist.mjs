@@ -4,6 +4,7 @@ import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {zipDir} from './archive.mjs';
 import {getActivationPolicy,bootstrapHash,estimateBootstrapCost} from '../runtime/activation.mjs';
+import {readSkillTiers} from './lib/skill-tiers.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const manifest=JSON.parse(fs.readFileSync(path.join(ROOT,'agent-sdlc.manifest.json'),'utf8'));
@@ -14,9 +15,12 @@ const activationPolicy=getActivationPolicy();
 fs.rmSync(dist,{recursive:true,force:true});
 fs.mkdirSync(dist,{recursive:true});
 
-// Never place internal skills under a host-native `skills/` discovery root.
-// Only the two public entry skills are discoverable. Internal stage guidance is
-// copied under harness/internal-skills and referenced by a generated registry.
+// The host's `skills/` discovery root holds exactly the entry, ops and stage
+// tiers. Procedure skills are generated under skills/procedures/ -- inside the
+// skills tree so a Skill tool can reach them by name, in their own branch so
+// they never sit beside an entry skill and never auto-activate. The instruction
+// text they reference is copied under harness/internal-skills and addressed by
+// the generated registry, which is still the only source of that text.
 // The canonical tool registry lives at config/tools.json; there is no top-level
 // tools/ directory to copy.
 const common=['bin','runtime','protocol','config','policies','prompts','workflows','roles','templates','overlays','docs','agent-sdlc.manifest.json'];
@@ -44,8 +48,15 @@ function host(name){
   for(const c of common)cp(c,out);
   copyInternalSkills(out);
   fs.mkdirSync(path.join(out,'skills'),{recursive:true});
-  for(const pub of manifest.public_skills||['sdlc-router','sdlc-orchestrator']){
-    fs.cpSync(path.join(ROOT,'skills',pub),path.join(out,'skills',pub),{recursive:true});
+  const tiers=readSkillTiers(ROOT);
+  for(const id of tiers.discovery){
+    fs.cpSync(path.join(ROOT,'skills',id),path.join(out,'skills',id),{recursive:true});
+  }
+  if(tiers.procedure.length){
+    fs.mkdirSync(path.join(out,'skills','procedures'),{recursive:true});
+    for(const id of tiers.procedure){
+      fs.cpSync(path.join(ROOT,'skills','procedures',id),path.join(out,'skills','procedures',id),{recursive:true});
+    }
   }
   fs.copyFileSync(path.join(ROOT,'README.md'),path.join(out,'README.md'));
   fs.copyFileSync(path.join(ROOT,'VERSION'),path.join(out,'VERSION'));
@@ -104,4 +115,5 @@ for(const name of ['claude','codex','antigravity']){
   const zip=path.join(dist,`agent-sdlc-${name}-${manifest.version}.zip`);
   archiver=zipDir(dir,zip).tool;
 }
-console.log(JSON.stringify({status:'BUILT',version:manifest.version,dist,public_discovery_skills:(manifest.public_skills||[]).length,internal_skills:Object.keys(skillRegistry.internal||{}).length,archiver,bootstrap:{version:activationPolicy.bootstrap_version,hash:bootstrapHash(),rough_tokens:estimateBootstrapCost().rough_tokens}},null,2));
+const finalTiers=readSkillTiers(ROOT);
+console.log(JSON.stringify({status:'BUILT',version:manifest.version,dist,public_discovery_skills:finalTiers.discovery.length,procedure_skills:finalTiers.procedure.length,internal_skills:Object.keys(skillRegistry.internal||{}).length,archiver,bootstrap:{version:activationPolicy.bootstrap_version,hash:bootstrapHash(),rough_tokens:estimateBootstrapCost().rough_tokens}},null,2));

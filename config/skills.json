@@ -1,15 +1,6 @@
 {
   "schema": "agent-sdlc/skill-registry/v1",
   "version": "3.0.0-alpha6",
-  "public": [
-    "sdlc-router",
-    "sdlc-orchestrator",
-    "sdlc-approve",
-    "sdlc-status",
-    "sdlc-resume",
-    "sdlc-task",
-    "sdlc-doctor"
-  ],
   "internal": {
     "requirements": {
       "id": "requirements",

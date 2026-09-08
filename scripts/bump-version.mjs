@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {spawnSync} from 'node:child_process';
+import {readSkillTiers, skillBodyPath} from './lib/skill-tiers.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const EXCLUDE_DIRS = new Set([
@@ -54,10 +55,7 @@ function writeJsonFile(file_path, data) {
  * Get list of public skill directory names.
  */
 export function getPublicSkills(repo_root = ROOT) {
-  const config_path = path.join(repo_root, 'config', 'skills.json');
-  if (!fs.existsSync(config_path)) return [];
-  const config_data = readJsonFile(config_path);
-  return config_data.public || [];
+  return readSkillTiers(repo_root).all;
 }
 
 /**
@@ -77,10 +75,11 @@ export function getDeclaredManifests(repo_root = ROOT) {
     {type: 'marketplace', file: '.claude-plugin/marketplace.json', path: 'plugins[*].version'}
   ];
 
-  for (const skill_name of getPublicSkills(repo_root)) {
+  const tiers = readSkillTiers(repo_root);
+  for (const skill_name of tiers.all) {
     manifests.push({
       type: 'skill-frontmatter',
-      file: `skills/${skill_name}/SKILL.md`,
+      file: skillBodyPath(tiers, skill_name),
       path: 'metadata.version'
     });
   }
@@ -277,12 +276,14 @@ export function bumpVersion(repo_root = ROOT, new_version = null) {
   }
 
   // 4. Update public skills frontmatter
-  for (const skill_name of getPublicSkills(repo_root)) {
-    const skill_path = path.join(repo_root, 'skills', skill_name, 'SKILL.md');
+  const tiers = readSkillTiers(repo_root);
+  for (const skill_name of tiers.all) {
+    const rel_path = skillBodyPath(tiers, skill_name);
+    const skill_path = path.join(repo_root, rel_path);
     if (fs.existsSync(skill_path)) {
       const prev_version = readFrontmatterVersion(skill_path);
       updateFrontmatterVersion(skill_path, new_version);
-      updated_files.push({file: `skills/${skill_name}/SKILL.md`, old_version: prev_version, new_version});
+      updated_files.push({file: rel_path, old_version: prev_version, new_version});
     }
   }
 

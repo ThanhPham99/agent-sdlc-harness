@@ -18,6 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {writeReport} from './lib/report-io.mjs';
+import {readSkillTiers,skillBodyPath} from './lib/skill-tiers.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=p=>fs.readFileSync(path.join(ROOT,p),'utf8');
@@ -86,11 +87,12 @@ for(const [i,p] of (rj('.claude-plugin/marketplace.json').plugins||[]).entries()
   exact(`.claude-plugin/marketplace.json#plugins[${i}].version`,p.version);
 
 // Public skill metadata is rendered into the host's skill list.
-for(const pub of rj('config/skills.json').public||[]){
-  const body=read(`skills/${pub}/SKILL.md`);
+const tiers=readSkillTiers(ROOT);
+for(const pub of tiers.all){
+  const body=read(skillBodyPath(tiers,pub));
   const m=/^\s*version:\s*"?([^"\n]+)"?\s*$/m.exec(body.split('---')[1]||'');
-  if(!m)problems.push({where:`skills/${pub}/SKILL.md`,found:null,expected:VERSION,detail:'no metadata.version in frontmatter'});
-  else exact(`skills/${pub}/SKILL.md#metadata.version`,m[1].trim());
+  if(!m)problems.push({where:skillBodyPath(tiers,pub),found:null,expected:VERSION,detail:'no metadata.version in frontmatter'});
+  else exact(`${skillBodyPath(tiers,pub)}#metadata.version`,m[1].trim());
 }
 
 // Doc statements. Feature labels of the form "(v3.0.0-alphaN)" are history and

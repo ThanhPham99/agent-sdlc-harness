@@ -3,15 +3,19 @@
   "name": "agent-sdlc-harness",
   "version": "3.0.0-rc2",
   "description": "Provider-neutral, token-aware, evidence-driven SDLC harness for Claude Code, Codex, and Antigravity.",
-  "public_skills": [
+  "entry_skills": [
     "sdlc-router",
-    "sdlc-orchestrator",
+    "sdlc-orchestrator"
+  ],
+  "ops_skills": [
     "sdlc-approve",
     "sdlc-status",
     "sdlc-resume",
     "sdlc-task",
     "sdlc-doctor"
   ],
+  "stage_skills": [],
+  "procedure_skills": [],
   "canonical": {
     "state_machine": "config/state-machine.json",
     "workflow_registry": "config/workflows.json",

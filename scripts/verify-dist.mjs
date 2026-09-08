@@ -8,6 +8,7 @@ import {unzipTo} from './archive.mjs';
 import {BOOTSTRAP_TEXT,bootstrapHash,getActivationPolicy,estimateBootstrapCost} from '../runtime/activation.mjs';
 import {makeTempDir} from './lib/tempdir.mjs';
 import {assertNoForbiddenEntries} from './lib/dist-guard.mjs';
+import {readSkillTiers} from './lib/skill-tiers.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const DIST=path.join(ROOT,'dist');
@@ -36,7 +37,7 @@ function cli(root,args,cwd){
   const line=[path.join(root,'bin','agent-sdlc.cmd'),...args].map(a=>`"${a}"`).join(' ');
   return jsonCmd(process.env.ComSpec||'cmd.exe',['/d','/s','/c',`"${line}"`],cwd,{windowsVerbatimArguments:true});
 }
-function immediateDirs(dir){return fs.readdirSync(dir,{withFileTypes:true}).filter(x=>x.isDirectory()).map(x=>x.name).sort();}
+function immediateDirs(dir){return fs.readdirSync(dir,{withFileTypes:true}).filter(x=>x.isDirectory()&&x.name!=='procedures').map(x=>x.name).sort();}
 
 const packageDigests={};
 for(const host of hosts){
@@ -51,7 +52,7 @@ for(const host of hosts){
     check(host,'forbidden-paths-guard',()=>{assertNoForbiddenEntries(root);return {forbidden_paths_clean:true};});
     check(host,'public-discovery-surface',()=>{
       const dirs=immediateDirs(path.join(root,'skills'));
-      const expected=(manifest.public_skills||['sdlc-orchestrator','sdlc-router']).slice().sort();
+      const expected=readSkillTiers(ROOT).discovery;
       if(JSON.stringify(dirs)!==JSON.stringify(expected))throw Error(`skills root contains ${dirs.join(', ')}`);
       for(const d of expected)if(!fs.existsSync(path.join(root,'skills',d,'SKILL.md')))throw Error(`missing ${d}/SKILL.md`);
       if(fs.existsSync(path.join(root,'skills','internal')))throw Error('internal skills exposed under native discovery root');

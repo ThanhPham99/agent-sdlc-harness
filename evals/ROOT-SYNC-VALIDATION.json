@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/root-sync-validation/v1",
   "version": "3.0.0-rc2",
-  "checks": 9,
-  "passes": 9,
+  "checks": 10,
+  "passes": 10,
   "fixed": 0,
   "failures": 0,
   "mirrors": [
@@ -44,6 +44,14 @@
       "status": "PASS",
       "source_sha256": "5bc90f565ba5332f",
       "root_sha256": "5bc90f565ba5332f",
+      "problems": []
+    },
+    {
+      "source": "adapters/hooks/run-hook.cmd",
+      "root_copy": "hooks/run-hook.cmd",
+      "status": "PASS",
+      "source_sha256": "051456172c1c7bc8",
+      "root_sha256": "051456172c1c7bc8",
       "problems": []
     },
     {

@@ -7,6 +7,7 @@ import {fileURLToPath} from 'node:url';
 import {selectDesignDiscoveryMode,validateDesignDecision,getDesignDiscoveryPolicy,requiredGateEvidence} from '../runtime/design-discovery.mjs';
 import {validateTaskPlan,computeTaskGraph,findCycles,computeReadySets,planGateEvidence,PLAN_QUALITY_DEFAULTS} from '../runtime/plan-validator.mjs';
 import {writeReport} from './lib/report-io.mjs';
+import {readSkillTiers} from './lib/skill-tiers.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const rj=p=>JSON.parse(fs.readFileSync(path.join(ROOT,p),'utf8'));
@@ -46,7 +47,7 @@ out('DESIGN-DISCOVERY-VALIDATION.json',{
   schema:'agent-sdlc/design-discovery-validation/v1',
   version:VERSION,
   policy_version:ddPolicy.version,
-  public_skill_count:skills.public.length,
+  public_skill_count:readSkillTiers(ROOT).discovery.length,
   design_discovery_is_internal:!!skills.internal['design-discovery']&&!fs.existsSync(path.join(ROOT,'skills','design-discovery')),
   modes:ddPolicy.modes,
   gate:{

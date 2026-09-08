@@ -20,6 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {writeReport} from './lib/report-io.mjs';
+import {readSkillTiers,skillBodyPath} from './lib/skill-tiers.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const rj=p=>JSON.parse(fs.readFileSync(path.join(ROOT,p),'utf8'));
@@ -59,15 +60,18 @@ for(const [id,spec] of entries){
     fail('MISSING_FILE',id,`output_schema not found: ${spec.output_schema}`);
 }
 
-// Public skills must exist as discoverable SKILL.md files, and nothing else may.
-for(const pub of skills.public||[]){
-  const p=path.join(ROOT,'skills',pub,'SKILL.md');
-  if(!fs.existsSync(p))fail('MISSING_FILE',pub,`public skill body not found: skills/${pub}/SKILL.md`);
+// Tier members must exist as SKILL.md bodies, and the discovery root may hold
+// nothing else. Procedure skills live under skills/procedures/ by design.
+const tiers=readSkillTiers(ROOT);
+for(const id of tiers.all){
+  const rel=skillBodyPath(tiers,id);
+  if(!fs.existsSync(path.join(ROOT,rel)))fail('MISSING_FILE',id,`skill body not found: ${rel}`);
 }
-const publicDirs=fs.readdirSync(path.join(ROOT,'skills'),{withFileTypes:true}).filter(e=>e.isDirectory()).map(e=>e.name);
-for(const dir of publicDirs)
-  if(!(skills.public||[]).includes(dir))
-    fail('BAD_ENTRY',dir,'discoverable skill directory is not declared in config/skills.json public list');
+const rootDirs=fs.readdirSync(path.join(ROOT,'skills'),{withFileTypes:true})
+  .filter(e=>e.isDirectory()&&e.name!=='procedures').map(e=>e.name);
+for(const dir of rootDirs)
+  if(!tiers.discovery.includes(dir))
+    fail('BAD_ENTRY',dir,'discoverable skill directory is not declared in an agent-sdlc.manifest.json tier');
 
 // Orphan detection.
 const registeredFiles=new Set(entries.map(([,s])=>path.basename(s.instructions||'')));
@@ -96,7 +100,8 @@ const report={
   counts:{
     registered_internal_skills:entries.length,
     internal_skill_files:files.length,
-    public_skills:(skills.public||[]).length,
+    discoverable_skills:tiers.discovery.length,
+    procedure_skills:tiers.procedure.length,
     unregistered_files:unregistered.length,
     accepted_unregistered:ACCEPTED_UNREGISTERED.length,
     new_orphans:newOrphans.length

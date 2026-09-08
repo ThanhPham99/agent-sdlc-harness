@@ -2,7 +2,7 @@
   "schema": "agent-sdlc/eval-report/v1",
   "suite": "layout-boundary",
   "authority": "runtime/layout.mjs",
-  "scanned_files": 193,
+  "scanned_files": 205,
   "allowlist": [
     {
       "file": "scripts/test-layout-boundary.mjs",
