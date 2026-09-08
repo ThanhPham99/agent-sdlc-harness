@@ -5,7 +5,7 @@ import {resolveProcedures} from './procedures.mjs';
 import {loadRequirementUpdatePlan} from './requirement-update.mjs';
 import {loadFeature,loadPhase} from './features.mjs';
 import * as layout from './layout.mjs';
-import {resolveNavigation} from './skill-navigation.mjs';
+import {resolveNavigation,resolveNavigationSummary} from './skill-navigation.mjs';
 
 function resolveFeatureContext(projectRoot,run){
   if(!run.feature_id)return null;
@@ -173,14 +173,15 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
     procedure_instructions:procedures.map(p=>({id:p.id,instructions:p.instructions})),
     requirement_update:run.workflow==='requirement-update'?loadRequirementUpdatePlan(projectRoot,run.run_id):null,
     feature:resolveFeatureContext(projectRoot,run),
+    // The same {stage, stage_skill, procedure_skills} core status/agent_sdlc_status
+    // report, from the single shared assembly in skill-navigation.mjs -- built
+    // here from the nav/procedures already resolved above, not a second disk
+    // read. fallback_instructions_inlined is true only on this surface: only the
+    // compiled context actually carries instruction text (skill_instructions),
+    // so only here is "activating stage_skill by name is a convenience, not a
+    // prerequisite" a true statement.
     navigation:{
-      stage:run.state,
-      stage_skill:nav.stage_skill,
-      procedure_skills:procedures.map(p=>p.id),
-      // The compiled context always carries the instruction text, so a host
-      // with no Skill tool needs nothing else. A host that has one may
-      // activate stage_skill by name instead; the text is the floor, not a
-      // fallback that has to be requested.
+      ...resolveNavigationSummary(root,projectRoot,run,{nav,procedures}),
       fallback_instructions_inlined:true
     }
   };

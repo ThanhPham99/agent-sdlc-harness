@@ -162,10 +162,41 @@ await test('context-manifest-carries-navigation-block',async ()=>{
   const run=newRun(ROOT,d,{objective,route:route(ROOT,objective)});
   const ctx=buildContext(ROOT,d,loadRun(d,run.run_id));
   assert(ctx.navigation,'context manifest has no navigation block');
-  assert(ctx.navigation.stage===ctx.state||ctx.navigation.stage,'navigation.stage missing');
+  // ctx.state does not exist on the compiled manifest -- the field is
+  // ctx.stage (see buildContext's manifest object, runtime/context.mjs). A
+  // literal ctx.state comparison would be undefined===<real stage>, always
+  // false; comparing against the manifest's real stage field is the intended,
+  // and only correct, strict check here.
+  assert(ctx.navigation.stage===ctx.stage,'navigation.stage missing or wrong');
   assert(typeof ctx.navigation.stage_skill==='string','navigation.stage_skill must be a string');
   assert(Array.isArray(ctx.navigation.procedure_skills),'navigation.procedure_skills must be an array');
   assert(ctx.navigation.fallback_instructions_inlined===true,'text injection is the floor: the flag must report it');
+});
+
+await test('context-navigation-matches-status-navigation-for-the-same-run',async ()=>{
+  const {initProject,loadRun}=await import('../runtime/store.mjs');
+  const {newRun}=await import('../runtime/orchestrator.mjs');
+  const {route}=await import('../runtime/router.mjs');
+  const {buildContext}=await import('../runtime/context.mjs');
+  const {resolveNavigationSummary}=await import('../runtime/skill-navigation.mjs');
+  const {makeTempDir}=await import('./lib/tempdir.mjs');
+  const d=makeTempDir('agent-sdlc-nav-');
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'nav-fixture'});
+  const objective='add a login endpoint';
+  const run=newRun(ROOT,d,{objective,route:route(ROOT,objective)});
+  const loaded=loadRun(d,run.run_id);
+  const ctx=buildContext(ROOT,d,loaded);
+  // status/agent_sdlc_status report {stage, stage_skill, procedure_skills}
+  // only -- fallback_instructions_inlined is context-only, since only the
+  // compiled context actually carries instruction text. Compare just the
+  // fields the two surfaces share, but with a strict deep comparison so a
+  // divergence -- or either surface silently dropping one of the shared
+  // fields -- fails this test.
+  const {stage,stage_skill,procedure_skills}=ctx.navigation;
+  const contextShared={stage,stage_skill,procedure_skills};
+  const statusNav=resolveNavigationSummary(ROOT,d,loaded);
+  assert(JSON.stringify(contextShared)===JSON.stringify(statusNav),
+    `context.navigation and status navigation diverged: context=${JSON.stringify(contextShared)} status=${JSON.stringify(statusNav)}`);
 });
 
 finish({harness_root:'.'});

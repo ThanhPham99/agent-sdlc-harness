@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/skill-navigation-validation/v1",
   "harness_root": ".",
-  "checks": 9,
-  "passes": 9,
+  "checks": 10,
+  "passes": 10,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -40,6 +40,10 @@
     },
     {
       "name": "context-manifest-carries-navigation-block",
+      "status": "PASS"
+    },
+    {
+      "name": "context-navigation-matches-status-navigation-for-the-same-run",
       "status": "PASS"
     }
   ]

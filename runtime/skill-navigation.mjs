@@ -74,21 +74,29 @@ export function resolveNavigation(root,projectRoot,run){
 }
 
 /**
- * The compact `navigation` block both the CLI `status` command and the MCP
- * `agent_sdlc_status` tool report -- {stage, stage_skill, procedure_skills,
- * fallback_instructions_inlined}. Defined once here so the two surfaces can
- * never hand-drift apart on the same run. `procedure_skills` comes from
- * resolveProcedures (the ids that survive each entry's `when` condition for
- * this run), not from the navigation policy -- the same set `context`
- * compiles.
+ * The `{stage, stage_skill, procedure_skills}` core every surface that names
+ * a run's next skill reports -- the CLI `status` command, the MCP
+ * `agent_sdlc_status` tool, and the compiled context's `navigation` block
+ * (which adds its own `fallback_instructions_inlined:true`, true only there
+ * since only the compiled context actually carries instruction text).
+ * Defined once here so the three surfaces can never hand-drift apart on the
+ * same run. `procedure_skills` comes from resolveProcedures (the ids that
+ * survive each entry's `when` condition for this run), not from the
+ * navigation policy -- the same set `context` compiles.
+ *
+ * `buildContext` already resolves both `resolveNavigation` (which reads the
+ * policy from disk) and `resolveProcedures` for its own manifest fields, so
+ * it passes them in as `precomputed` rather than triggering a second policy
+ * read; `status`/`agent_sdlc_status` have neither on hand and let this
+ * resolve both itself.
  */
-export function resolveNavigationSummary(root,projectRoot,run){
-  const nav=resolveNavigation(root,projectRoot,run);
+export function resolveNavigationSummary(root,projectRoot,run,precomputed={}){
+  const nav=precomputed.nav||resolveNavigation(root,projectRoot,run);
+  const procedures=precomputed.procedures||resolveProcedures(root,projectRoot,run);
   return {
     stage:nav.stage,
     stage_skill:nav.stage_skill,
-    procedure_skills:resolveProcedures(root,projectRoot,run).map(p=>p.id),
-    fallback_instructions_inlined:true
+    procedure_skills:procedures.map(p=>p.id)
   };
 }
 
