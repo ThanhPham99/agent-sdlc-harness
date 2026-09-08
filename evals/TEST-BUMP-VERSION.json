@@ -1,0 +1,29 @@
+{
+  "schema": "agent-sdlc/test-bump-version/v1",
+  "checks": 5,
+  "passes": 5,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "validate-semver-format-rule",
+      "status": "PASS"
+    },
+    {
+      "name": "check-version-drift-passes-on-clean-repo",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-version-drift-when-manifest-differs",
+      "status": "PASS"
+    },
+    {
+      "name": "bump-version-updates-fixture-manifests-cleanly",
+      "status": "PASS"
+    },
+    {
+      "name": "audit-finds-undeclared-references-in-content",
+      "status": "PASS"
+    }
+  ]
+}

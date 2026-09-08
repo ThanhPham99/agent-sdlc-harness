@@ -79,13 +79,15 @@ const ENTRIES=[
   'scripts/test-doc-generator.mjs',
   'scripts/test-layout.mjs',
   'scripts/test-layout-migration.mjs',
-  'scripts/test-cache-regeneration.mjs'
+  'scripts/test-cache-regeneration.mjs',
+  'scripts/test-task-worker.mjs'
 ];
 
 // Suites deliberately not measured, each with the reason. Naming them rather
 // than merely leaving them out is what makes the completeness check below
 // possible: a new suite has to be classified, not silently forgotten.
 const NOT_MEASURED={
+  'scripts/test-check-update.mjs':'exercises the update check hook in hooks/, outside runtime/',
   'scripts/test-layout-boundary.mjs':'scans repository files statically for layout boundary violations; measures no runtime behaviour',
   'scripts/build-dist.mjs':'produces the packaged tree; measures no runtime behaviour',
   'scripts/verify-dist.mjs':'measures a built tree, not this one',
@@ -109,6 +111,10 @@ const NOT_MEASURED={
   'scripts/test-temp-hygiene.mjs':'spawns child processes to observe what a process leaves in the system temp directory when it ends; never enters runtime/',
   'scripts/validate-types.mjs':'validates type definitions; never enters runtime/',
   'scripts/test-compliance-evals.mjs':'evaluates agent compliance test cases against evals/compliance/ verifier; never enters runtime/',
+  'scripts/test-lint-shell.mjs':'verifies shell linting and syntax checking; never enters runtime/',
+  'scripts/test-bump-version.mjs':'exercises version bumping and audit scanner on fixtures; never enters runtime/',
+  'scripts/test-dist-leak-guard.mjs':'exercises packaging leak-guard on fixtures; never enters runtime/',
+  'scripts/test-sync-marketplace.mjs':'exercises marketplace sync on fixtures; never enters runtime/',
   'scripts/run-check.mjs':'runs the other suites as child processes; never enters runtime/ itself, and each child is measured on its own'
 };
 

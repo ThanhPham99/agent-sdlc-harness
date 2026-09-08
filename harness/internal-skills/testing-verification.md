@@ -37,10 +37,25 @@ BEFORE claiming any status or expressing satisfaction:
 |---|---|
 | "Should work now" / "Probably passing" | RUN the verification command. Speculation is not evidence. |
 | "I'm confident in this change" | Confidence $\neq$ Evidence. An exit code of 0 with 0 failures is evidence. |
-| "Linter passed" | Linter $\neq$ Test suite. Passing linter proves nothing about runtime behavior. |
+| "Linter passed" | Linter $\neq$ Test suite / Compiler. Passing linter proves nothing about runtime behavior. |
 | "I tested it before that small tweak" | ANY edit after a test run invalidates previous evidence. Re-run fresh. |
 | "Subagent reported success" | Never trust claims. Inspect the diff and run the verification suite yourself. |
 | "Partial check is enough" | Partial checks prove nothing about regression across the integrated tree. |
+| "Looks identical to working pattern" | Syntactic similarity $\neq$ Semantic equivalence. Small environment/import differences cause bugs. |
+| "It's just a one-line comment or typo fix" | Trivial edits have caused syntax breaks and broken builds. Verify every change. |
+| "Different wording so rule doesn't apply" | Spirit over letter. ANY communication implying success without fresh verification is forbidden. |
+
+## Common Verification Failures
+
+| Claim | Requires | Not Sufficient |
+|---|---|---|
+| Tests pass | Test command output: exit 0, 0 failures | Previous run, "should pass", partial log |
+| Linter clean | Linter output: 0 errors, 0 warnings | Partial check, extrapolation |
+| Build succeeds | Build command: exit 0 | Linter passing, code looks clean |
+| Bug fixed | Test reproducing original symptom passes | Code changed, assumed fixed |
+| Regression test works | Red-green cycle verified (fails without fix, passes with fix) | Test passes once |
+| Subagent completed | VCS diff verified + fresh test suite output | Subagent reporting "success" |
+| Requirements met | Line-by-line acceptance criteria checklist verified | Tests passing alone |
 
 Every task verified its own diff in its own workspace during `IMPLEMENT`; those workspaces have since been merged. This stage verifies the merge, which is where the regressions that no single task could see actually live — so a suite has to run here, over the integrated tree, and the gate token comes from that run rather than from a claim. If no test command is configured, say so and let the orchestrator decide; a missing suite is not a pass.
 

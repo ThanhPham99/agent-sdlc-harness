@@ -29,14 +29,47 @@ Before creating a worktree or modifying working trees:
 ## Finishing a Development Branch
 
 When implementation is complete and verification evidence passes, guide branch completion with structured options:
-1. **Verify tests pass first**: No completion claims without fresh verification evidence.
-2. **Detect environment**: Normal repo checkout vs named-branch worktree vs detached HEAD.
-3. **Present 4 completion options to the user**:
-   - **Option 1: Merge locally**: Merge into base branch locally, re-verify tests, and remove worktree.
-   - **Option 2: Push & Create PR**: Push branch to remote, output PR draft/url, handoff to Gate G6.
-   - **Option 3: Keep branch as-is**: Preserve branch and worktree for manual developer review.
-   - **Option 4: Discard**: Safely check for uncommitted changes, abort, and clean up worktree.
-4. **Safety guard**: Never delete a worktree with uncommitted changes without explicit user confirmation.
+
+### 1. Verify Tests First
+Run the full test suite before presenting options. If tests fail, STOP. Do not present completion options until all failures are resolved.
+
+### 2. Detect Environment & Workspace Provenance
+```bash
+GIT_DIR=$(git rev-parse --git-dir 2>/dev/null)
+GIT_COMMON=$(git rev-parse --git-common-dir 2>/dev/null)
+WORKTREE_PATH=$(git rev-parse --show-toplevel 2>/dev/null)
+```
+- If `GIT_DIR == GIT_COMMON`: standard repository checkout (no worktree to clean up).
+- If `GIT_DIR != GIT_COMMON`: isolated worktree. Determine provenance before removing.
+
+### 3. Present Exactly 4 Structured Options
+```text
+Implementation complete and verified. What would you like to do?
+1. Merge back to <base-branch> locally
+2. Push and create a Pull Request
+3. Keep the branch as-is (I'll handle it later)
+4. Discard this work
+```
+
+### 4. Execution Rules
+- **Option 1 (Merge Locally)**:
+  1. `cd` to the main repository root (`git -C "$(git rev-parse --git-common-dir)/.." rev-parse --show-toplevel`).
+  2. `git checkout <base-branch> && git pull && git merge <feature-branch>`.
+  3. Re-run test suite on merged tree to verify integration.
+  4. Only after tests pass: cleanup worktree (step 5), then `git branch -d <feature-branch>`.
+- **Option 2 (Push & Create PR)**:
+  1. `git push -u origin <feature-branch>`.
+  2. **Do NOT delete the worktree** — preserve it so the developer can iterate on PR review feedback.
+- **Option 3 (Keep As-Is)**:
+  - Preserve branch and worktree untouched.
+- **Option 4 (Discard)**:
+  - Require explicit typed confirmation: Prompt user to type `"discard"`. Never delete uncommitted work or branches without exact confirmation.
+  - After confirmation: cleanup worktree, then force-delete branch (`git branch -D`).
+
+### 5. Provenance-Based Worktree Cleanup
+- **Check Ownership**: Only clean up worktrees located under `.worktrees/` or `worktrees/` that were created by the harness. Never delete host-managed or external workspaces.
+- **CWD Safety**: Always `cd` to main repository root BEFORE executing `git worktree remove "$WORKTREE_PATH"` (running remove while CWD is inside the worktree causes silent failure).
+- **Self-Healing Prune**: Always run `git worktree prune` after removal to clean up stale metadata.
 
 ## Procedure
 1. Identify the configured `completion_target`: `PR_READY`, `MERGED`, or `RELEASE_READY`. Never use plain `COMPLETE` as a substitute for this distinction.

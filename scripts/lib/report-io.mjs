@@ -23,7 +23,21 @@ export function writeReport(file,report){
   fs.mkdirSync(path.dirname(file),{recursive:true});
   try{
     fs.writeFileSync(tmp,JSON.stringify(report,null,2)+'\n');
-    fs.renameSync(tmp,file);
+    let retries=5;
+    while(true){
+      try{
+        fs.renameSync(tmp,file);
+        break;
+      }catch(err){
+        if((err.code==='EPERM'||err.code==='EBUSY')&&retries>0){
+          retries--;
+          const start=Date.now();
+          while(Date.now()-start<20){}
+          continue;
+        }
+        throw err;
+      }
+    }
   }catch(e){
     try{fs.rmSync(tmp,{force:true});}catch{}
     throw e;

@@ -7,6 +7,7 @@ import {execFileSync,spawnSync} from 'node:child_process';
 import {unzipTo} from './archive.mjs';
 import {BOOTSTRAP_TEXT,bootstrapHash,getActivationPolicy,estimateBootstrapCost} from '../runtime/activation.mjs';
 import {makeTempDir} from './lib/tempdir.mjs';
+import {assertNoForbiddenEntries} from './lib/dist-guard.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const DIST=path.join(ROOT,'dist');
@@ -47,6 +48,7 @@ for(const host of hosts){
     const root=path.join(tmp,`agent-sdlc-${host}-${version}`);
     check(host,'package-root',()=>{if(!fs.existsSync(root))throw Error('expected package root missing');});
     check(host,'manifest-version',()=>{const m=JSON.parse(fs.readFileSync(path.join(root,'agent-sdlc.manifest.json'),'utf8'));if(m.version!==version)throw Error(`${m.version} != ${version}`);});
+    check(host,'forbidden-paths-guard',()=>{assertNoForbiddenEntries(root);return {forbidden_paths_clean:true};});
     check(host,'public-discovery-surface',()=>{
       const dirs=immediateDirs(path.join(root,'skills'));
       const expected=(manifest.public_skills||['sdlc-orchestrator','sdlc-router']).slice().sort();

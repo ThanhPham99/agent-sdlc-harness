@@ -60,6 +60,31 @@ Neither review may be a formality. Under `agent-sdlc auto` each review is produc
 
 A reviewer that cannot be reached does not produce a clean review. The run falls back to marked placeholders, and `REVIEW` refuses to resolve on them until someone records real reviews with `agent-sdlc task review`.
 
+## File Handoffs & Token Hygiene
+
+Everything pasted into a subagent dispatch prompt remains resident in context. To prevent context explosion across long multi-task runs:
+- **Task Brief as File**: Pass subagents the path to their isolated task brief file (requirements, acceptance criteria, and exact interfaces) rather than pasting full plan text or accumulated conversation history.
+- **Review Package Diff as File**: Generate the reviewer package (`git log --oneline`, `git diff --stat`, and `git diff -U10 BASE HEAD`) into a dedicated file. The reviewer reads this file directly rather than forcing the raw diff into the orchestrator's conversation context.
+- **Minimal Returns**: Implementers and fixers write full logs to their report file and return only structured status, commit hash, and test summary.
+
+## Receiving Review Feedback (Anti-Sycophancy & Technical Rigor)
+
+When a review returns `CHANGES_REQUIRED` or lists findings, the implementing writer must process feedback with technical rigor rather than blind compliance:
+- **Forbidden Performative Responses**:
+  - NEVER say: *"You're absolutely right!"*, *"Great point!"*, or *"Thanks for catching that!"*.
+  - Delete pleasantries. State the technical finding or immediately execute the fix.
+- **Verify Before Implementing**:
+  - Check whether the suggestion is technically sound for THIS codebase and stack.
+  - Verify whether the suggestion violates YAGNI (e.g., reviewer suggesting complex infrastructure for an unused method).
+  - Verify whether the reviewer lacked context on external constraints or upstream decisions.
+- **Reasoned Technical Pushback**:
+  - If a finding is incorrect or breaks existing functionality, push back with technical reasoning, citing test output or architectural invariants.
+  - If a finding conflicts with the approved task plan, escalate to the orchestrator rather than silently changing scope.
+- **Implementation Order for Fixes**:
+  1. Clarify any ambiguous items first.
+  2. Implement in order: `BLOCKING` (correctness/security) → Simple fixes (linting, imports) → Complex logic refactoring.
+  3. Re-run targeted tests for EACH fix to ensure zero regressions before re-submitting for review.
+
 ## Parallelism
 
 The scheduler decides, not you. It admits a second writer only when dependencies are satisfied, write and interface scopes are disjoint, no serialized boundary (migration, release, high security or data risk, destructive change) is involved, the wall-time benefit is real, and risk and budget policy permit. Every ready task it does not dispatch appears in `deferred` or `excluded` with a reason.

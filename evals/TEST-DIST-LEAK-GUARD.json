@@ -1,0 +1,25 @@
+{
+  "schema": "agent-sdlc/test-dist-leak-guard/v1",
+  "checks": 4,
+  "passes": 4,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "clean-dist-tree-passes-leak-guard",
+      "status": "PASS"
+    },
+    {
+      "name": "catches-internal-scripts-directory",
+      "status": "PASS"
+    },
+    {
+      "name": "catches-evals-directory",
+      "status": "PASS"
+    },
+    {
+      "name": "catches-env-and-logs",
+      "status": "PASS"
+    }
+  ]
+}

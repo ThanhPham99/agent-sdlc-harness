@@ -1,0 +1,17 @@
+{
+  "schema": "agent-sdlc/shell-lint-validation/v1",
+  "version": "3.0.0-rc2",
+  "checked": "shell syntax (-n), LF line-endings, and optional shellcheck",
+  "checks": 1,
+  "passes": 1,
+  "failures": 0,
+  "results": [
+    {
+      "file": "C:/Users/phamt/AppData/Local/Temp/agent-sdlc-lint-shebang-amcsOn/custom-tool",
+      "shell_type": "sh",
+      "status": "PASS",
+      "note": "syntax verified"
+    }
+  ],
+  "status": "PASS"
+}

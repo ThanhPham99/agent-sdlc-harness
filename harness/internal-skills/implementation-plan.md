@@ -40,6 +40,36 @@ bin/agent-sdlc plan record   --run-id <id> --file task-plan.json
 - one giant task spanning several unrelated `modules` (or a very wide `write_scope`) with no `scope_justification`;
 - a `required_categories` entry (migration / documentation / release / security work mandated by the workflow or risk overlay) with no task in that category.
 
+## Task Granularity & Bite-Sized TDD Flow
+
+A task is the smallest unit that carries its own test cycle and is worth a fresh reviewer gate. Break down each task into concrete 2–5 minute steps following strict TDD:
+1. **Write failing test (RED)**: Add minimal test verifying expected behavior.
+2. **Verify test fails (VERIFY RED)**: Run test suite; verify it fails meaningfully with the expected assertion error.
+3. **Write minimal implementation (GREEN)**: Implement only the minimal code necessary to make the test pass.
+4. **Verify test passes (VERIFY GREEN)**: Run test suite; confirm all tests pass.
+5. **Commit**: Create atomic commit with descriptive message.
+
+## Task Interface Contracts: `Consumes` & `Produces`
+
+Implementer subagents operate in isolated context. To ensure seamless integration across tasks, each task declaration/brief must explicitly document:
+- **Consumes**: What this task uses from earlier tasks (exact function signatures, types, or configuration keys).
+- **Produces**: What later tasks rely upon (exact exported function names, parameter and return types). Implementers must not deviate from these agreed names.
+
+## Zero-Placeholder Policy
+
+Every step must contain the actual concrete details an engineer needs. The following are **Plan Failures** — never include them:
+- `"TBD"`, `"TODO"`, `"implement later"`, `"fill in details"`.
+- `"Add appropriate error handling"` / `"handle edge cases"` without detailing exact error types and recovery behavior.
+- `"Write tests for the above"` without declaring concrete test cases and assertions.
+- `"Similar to Task N"` without explicitly defining the code/schema (tasks may be executed in fresh subagent contexts).
+
+## Pre-Flight Self-Review Checklist
+
+Before running `plan record`, perform a self-review of the materialized plan:
+1. **Spec Coverage**: Verify that every requirement and acceptance criterion maps to a concrete task.
+2. **Placeholder Scan**: Scan for any vague directives or placeholder language. Fix them inline.
+3. **Naming & Type Consistency**: Confirm that types and method signatures defined in early tasks match the names consumed by downstream tasks.
+
 ## FAST micro-plans
 
 `profile: "FAST"` is validated as a micro-plan: graph invariants and per-task invariants still apply, and coverage obligations relax to warnings. The four minimums never relax: **goal, scope, done condition, verification**.

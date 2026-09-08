@@ -34,9 +34,14 @@ The returned `mode` is authoritative. Do not perform a heavier mode than selecte
 8. Recommend exactly one approach and say why, in terms of the recorded constraints.
 9. If only one legitimate solution exists, do not manufacture filler options. Record the considered-and-rejected alternatives with concrete rejection evidence in `rejected_alternatives`.
 10. **Presentation Chunking**: Present the proposed design in bite-sized sections (150-250 words each: Component Architecture & Boundaries, State & Data Flow, Error Paths & Edge Cases, Verification Obligations). Confirm each section interactively with the user rather than outputting a monolithic block.
-11. **Spec Self-Review**: Run an internal self-review on the draft spec before finalizing: verify there are no unexamined assumptions, no placeholder language (`TODO`/`TBD`), no unrequested scope creep, and that all error cases are addressed.
-12. When `human_approval_required` is true, stop and obtain explicit user approval. Transition to `NEEDS_CONFIRMATION` rather than assuming approval. Never write your own approval.
-13. Persist the structured decision, then hand back to the orchestrator for `PLAN`.
+11. **Visual Companion (Just-in-Time)**:
+    - When a design question or tradeoff involves UI layouts, component wireframes, or complex architecture topology, visual treatment is often far clearer than prose.
+    - **Do NOT offer visual tooling upfront**. Wait until a concrete question would genuinely be clearer seen than read.
+    - Render visual artifacts (interactive HTML mockup or SVG/Mermaid diagram) just-in-time for that specific question.
+    - Use terminal/text for conceptual decisions, schemas, and trade-offs; use visual rendering only for content that is inherently visual.
+12. **Spec Self-Review**: Run an internal self-review on the draft spec before finalizing: verify there are no unexamined assumptions, no placeholder language (`TODO`/`TBD`), no unrequested scope creep, and that all error cases are addressed.
+13. When `human_approval_required` is true, stop and obtain explicit user approval. Transition to `NEEDS_CONFIRMATION` rather than assuming approval. Never write your own approval.
+14. Persist the structured decision, then hand back to the orchestrator for `PLAN`.
 
 ## Artifact
 

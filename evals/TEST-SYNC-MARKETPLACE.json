@@ -1,0 +1,21 @@
+{
+  "schema": "agent-sdlc/test-sync-marketplace/v1",
+  "checks": 3,
+  "passes": 3,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "isPathExcluded-matches-forbidden-and-ceremony-paths",
+      "status": "PASS"
+    },
+    {
+      "name": "dry-run-does-not-write-to-destination",
+      "status": "PASS"
+    },
+    {
+      "name": "sync-copies-allowed-files-and-preserves-metadata",
+      "status": "PASS"
+    }
+  ]
+}

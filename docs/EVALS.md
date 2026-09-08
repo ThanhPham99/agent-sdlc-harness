@@ -23,10 +23,10 @@ eval helper. The authoritative semantic activation decision at runtime belongs t
 Live activation measurement (prompts naming no skill) is part of `scripts/qualify-host.mjs`; see
 `docs/QUALIFICATION.md`.
 
-Run the package audit with:
+Run the package structure and registry validation with:
 
 ```bash
-node scripts/audit.mjs
+npm run test:registry
 ```
 
 Run provider preflight with:

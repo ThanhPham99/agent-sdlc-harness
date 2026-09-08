@@ -1,0 +1,26 @@
+{
+  "schema": "agent-sdlc/test-lint-shell/v1",
+  "version": "3.0.0-rc2",
+  "checks": 4,
+  "passes": 4,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "tracked-shell-files-pass-validation",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-syntax-error-in-shell-script",
+      "status": "PASS"
+    },
+    {
+      "name": "detects-crlf-line-endings-in-shell-script",
+      "status": "PASS"
+    },
+    {
+      "name": "identifies-shebang-file-without-extension",
+      "status": "PASS"
+    }
+  ]
+}
