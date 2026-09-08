@@ -65,3 +65,15 @@ Update `verification.md` with acceptance-criterion traceability, actual checks r
 
 
 For STANDARD/STRICT product/change workflows, create/update `traceability.md` from the canonical template. Before returning DONE, verify every confirmed in-scope acceptance criterion has a design/implementation reference and executed evidence, or report a gap/authorized exception. Do not let G6 pass on narrative claims alone.
+
+## Testing anti-patterns to reject
+
+| Anti-pattern | Why it fails | Instead |
+|---|---|---|
+| **Testing mocks** | Asserts a mock configuration, not system behaviour. | Test real domain classes and interfaces with real inputs. |
+| **Tautological assertions** | Passes by definition (`expect(true).toBe(true)`, asserting a mocked return). | Assert actual state changes, return values, or store side-effects. |
+| **Testing private internals** | Binds the test to a private helper or internal variable. | Test only through public contracts. |
+| **Assertionless tests** | Calls a function and asserts nothing. | Every test verifies a concrete invariant or post-condition. |
+| **Giant monolithic tests** | One case asserting fifteen unrelated behaviours. | One test, one behaviour. |
+| **Broad try/catch in tests** | Swallows the exception that should have failed the run. | Let it bubble, or assert `toThrow()`. |
+| **Flaky condition waiting** | An arbitrary `sleep(1000)`. | Poll the condition, or assert on the event. |

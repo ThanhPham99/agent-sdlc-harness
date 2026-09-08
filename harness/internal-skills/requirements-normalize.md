@@ -14,3 +14,7 @@ Convert source material into `requirements.md` with stable requirement and accep
 For existing features, compare against the latest confirmed requirements and create/update `requirement-changes.md` with `ADDED`, `CHANGED`, `REMOVED`, `UNCHANGED`, or `CONFLICTING` classifications.
 
 Never silently replace confirmed requirements. Changed/conflicting semantics must go through clarification/confirmation.
+
+Prefer the deterministic `normalize` command for text, Markdown, JSON, CSV, DOCX,
+XLSX and text-bearing PDF input. Mark native images and image-only PDFs
+`NEEDS_MULTIMODAL`: never silently OCR them and never invent missing content.

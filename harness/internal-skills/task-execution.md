@@ -96,3 +96,24 @@ The scheduler decides, not you. It admits a second writer only when dependencies
 ## Cost
 
 Attribute usage to the task: `bin/agent-sdlc task usage-add --run-id <id> --task-id TASK-00X --input N --output N --model-calls N --tool-calls N`. The metric that matters is `bin/agent-sdlc task metrics --run-id <id>` → cost per verified DONE task, not tokens saved on a task that had to be redone.
+
+## Coding standards are enforced, not advisory
+
+Every created or modified file obeys `policies/coding-standards.json`:
+
+- **Naming**: `snake_case` properties and variables; `is_`/`has_`/`can_`/`should_`
+  boolean prefixes; `camelCase` verb-first functions; `PascalCase` types;
+  `SCREAMING_SNAKE` constants; `kebab-case` filenames.
+- **Clean code**: at most 3 function parameters (object DTO beyond that), one
+  responsibility per function, no duplicated logic, prefer pure functions.
+- **Domain modeling**: domain types represent canonical, mutually exclusive
+  concepts. Never add a synonymous alias to an enum (no `BOY` beside `MALE`).
+  Normalize input variation at the boundary, in a DTO or transformer.
+- **Never patch to pass**: no type loosening and no band-aid branch added only
+  to turn a test green.
+- **Security and resources**: validate at boundaries, no ambient secrets, zero
+  `any`, release resources in `finally`.
+
+If implementation reveals a requirement contradiction, an invalid architectural
+assumption, or a materially larger blast radius, stop the task and return
+`NEEDS_CONFIRMATION` or `BLOCKED`. Never redesign product behaviour implicitly.

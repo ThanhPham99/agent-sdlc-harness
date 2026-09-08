@@ -16,6 +16,9 @@ NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST
 
 Write code before the test? Delete it. Start over fresh from tests. No keeping it as "reference", no adapting it while writing tests. Delete means delete.
 
+Do not keep the unverified code as reference. Do not adapt it while writing the
+test. Do not look at it. **Delete means delete** — implement fresh from tests.
+
 ## The RED-GREEN-REFACTOR Cycle
 
 ```

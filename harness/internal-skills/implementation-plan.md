@@ -77,3 +77,8 @@ Before running `plan record`, perform a self-review of the materialized plan:
 ## Parallelism
 
 `parallel_candidate: true` is a claim the scheduler will check. Only claim it when write and interface scopes are genuinely disjoint. Parallelism is an optimization, not a default: serialize on shared write paths, contracts, migration ordering and shared security boundaries.
+
+## Minimums that never relax
+
+Even a FAST micro-plan states all four: **goal, scope, done condition, verification**.
+A plan missing any of them is not a smaller plan, it is an unvalidatable one.
