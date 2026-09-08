@@ -69,4 +69,4 @@ When a test introduces or requires varied input formats (e.g., `'male'` vs `'boy
 
 For risky legacy behavior, establish a characterization/integration test first. If test-first is genuinely infeasible, do not fabricate a red-green cycle; return a reason so the orchestrator can use the direct build path described in `task-execution.md`.
 
-This skill **includes implementation for the selected slice**. Do not invoke `implementation` afterward unless a distinct remaining task explicitly requires the direct strategy.
+This skill **includes implementation for the selected slice**. Do not switch to the direct build path in `task-execution.md` afterward unless a distinct remaining task explicitly requires it.
