@@ -1,9 +1,9 @@
 {
   "schema": "agent-sdlc/version-consistency/v1",
   "version": "3.0.0-rc2",
-  "checks": 75,
+  "checks": 74,
   "passes": 74,
-  "failures": 1,
+  "failures": 0,
   "behind": [
     {
       "where": "config/procedures.json#version",
@@ -186,13 +186,6 @@
       "current": "3.0.0-rc2"
     }
   ],
-  "problems": [
-    {
-      "where": "docs/superpowers/plans/2026-09-09-skill-first-navigation.md:134",
-      "found": "3.0.0-rc3",
-      "expected": "3.0.0-rc2",
-      "detail": "must state the current release exactly"
-    }
-  ],
-  "status": "FAIL"
+  "problems": [],
+  "status": "PASS"
 }

@@ -131,7 +131,7 @@ Expected: only `docs/MIGRATION.md` matches after Step 9, and nothing at all matc
 Append:
 
 ```markdown
-## 3.0.0-rc3 — `/sdlc-route` becomes `/sdlc-router`
+## Unreleased — `/sdlc-route` becomes `/sdlc-router`
 
 `commands/` is removed. Skills are the only public surface, identical on every
 host, and a skill is slash-invocable — so `/sdlc-status`, `/sdlc-task`,

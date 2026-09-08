@@ -122,7 +122,7 @@ Two additions change behaviour you may notice:
   A task list declaring `src/auth/` and `src/auth/reset.js` is now correctly reported as
   conflicting. File-level lists behave as before.
 
-## 3.0.0-rc3 — `/sdlc-route` becomes `/sdlc-router`
+## Unreleased — `/sdlc-route` becomes `/sdlc-router`
 
 `commands/` is removed. Skills are the only public surface, identical on every
 host, and a skill is slash-invocable — so `/sdlc-status`, `/sdlc-task`,
