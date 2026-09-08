@@ -3,8 +3,8 @@
   "version": "3.0.0-rc2",
   "workflow": ".github/workflows/ci.yml",
   "check_script": "check",
-  "checks": 62,
-  "passes": 61,
+  "checks": 75,
+  "passes": 74,
   "failures": 0,
   "suites": [
     {
@@ -74,7 +74,61 @@
       "problems": []
     },
     {
+      "script": "test:shell",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:bump-version",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:dist-leak-guard",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:sync-marketplace",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:layout-boundary",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:doc-generator",
+      "status": "PASS",
+      "gated_via": "test:doc-generator",
+      "problems": []
+    },
+    {
       "script": "test:coding-standards",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:check-update",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:task-worker",
+      "status": "PASS",
+      "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:compliance",
       "status": "PASS",
       "gated_via": "test:integrity",
       "problems": []
@@ -323,6 +377,30 @@
       "script": "test:autonomous-runner",
       "status": "PASS",
       "gated_via": "test:autonomous-runner",
+      "problems": []
+    },
+    {
+      "script": "test:layout",
+      "status": "PASS",
+      "gated_via": "test:layout",
+      "problems": []
+    },
+    {
+      "script": "test:layout-migration",
+      "status": "PASS",
+      "gated_via": "test:layout-migration",
+      "problems": []
+    },
+    {
+      "script": "test:cache-regeneration",
+      "status": "PASS",
+      "gated_via": "test:cache-regeneration",
+      "problems": []
+    },
+    {
+      "script": "test:doc-generator",
+      "status": "PASS",
+      "gated_via": "test:doc-generator",
       "problems": []
     },
     {
