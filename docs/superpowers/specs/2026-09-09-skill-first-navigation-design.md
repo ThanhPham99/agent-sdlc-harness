@@ -20,9 +20,17 @@ The same lifecycle knowledge lives on three disconnected surfaces.
    is reached by the bootstrap hook and the other by a user typing a slash command.
 3. `harness/internal-skills/` — 41 files (1246 lines) that are not skills. They are
    injected as raw text by `runtime/context.mjs` and `runtime/task-context.mjs`. Only 21
-   have a real route through `config/procedures.json`; the remaining 20 are reachable only
-   via `legacyReachableSkillIds`. The TDD rules are additionally hardcoded a fourth time
+   have a real route through `config/procedures.json`; the remaining 20 are reached by
+   `legacyReachableSkillIds`. The TDD rules are additionally hardcoded a fourth time
    inside `runtime/task-worker.mjs`.
+
+Underneath the third surface sits the actual cause. `runtime/context.mjs:10-21` hardcodes
+three navigation maps in code — `CORE_SKILL_BY_STAGE` (11 lifecycle stages to one skill
+each), `WORKFLOW_SKILLS` (15 workflows to skills) and `OVERLAY_SKILLS` (5 overlays to
+skills). Navigation policy therefore lives in a module, not in a policy file, and the 20
+non-registry files exist mostly to fill those slots. Twelve of them contain exactly one
+substantive line: their own description, followed by a `## Contract` block that is
+byte-identical across all of them.
 
 Consequences: agents navigate by issuing CLI commands rather than by activating the skill
 that matches their state; context cost is paid up-front instead of progressively; and one
@@ -36,14 +44,18 @@ rule can drift across four copies.
 - Progressive disclosure by stage: an agent loads the stage it is in, not the whole
   lifecycle.
 - One source of truth per rule.
+- No legacy navigation path: every file under `harness/internal-skills/` is routed by the
+  registry, or it does not exist.
+- Navigation policy lives in a policy file, not hardcoded in a runtime module.
 - Provider neutrality preserved: hosts without a Skill tool keep working unchanged.
 
 ## Non-Goals
 
-- Promoting all 41 internal-skill files to discoverable skills (see Deliberate Debt).
 - Changing the state machine, workflow registry, gate semantics, or the five Human
   Confirmation Gates.
 - Changing what the deterministic router decides.
+- Writing new lifecycle guidance. Consolidation moves and merges existing text; it does not
+  author replacement content for the stub files it removes.
 
 ## Design
 
@@ -57,7 +69,7 @@ differ in activation semantics:
 | Entry | `entry_skills` | `sdlc-router`, `sdlc-orchestrator` | Yes — `sdlc-router` via the bootstrap hook | `skills/` |
 | Ops | `ops_skills` | `sdlc-status`, `sdlc-resume`, `sdlc-approve`, `sdlc-task`, `sdlc-doctor` | No — user slash invocation or orchestrator dispatch | `skills/` |
 | Stage | `stage_skills` | `sdlc-requirements`, `sdlc-design`, `sdlc-plan`, `sdlc-implement`, `sdlc-verify`, `sdlc-review`, `sdlc-release` | No — dispatched by run state | `skills/` |
-| Procedure | `procedure_skills` | the 21 ids in `config/procedures.json` | No | `skills/procedures/<id>/` |
+| Procedure | `procedure_skills` | the 24 ids in `config/procedures.json` after consolidation | No | `skills/procedures/<id>/` |
 
 Structural changes:
 
@@ -79,21 +91,37 @@ auto-activate.
 
 ### 2. Deterministic skill navigation
 
-A new `policies/skill-navigation.json` is the single source of truth mapping lifecycle
-stage to stage skill to procedure skills:
+A new `policies/skill-navigation.json` becomes the single source of truth for navigation and
+**replaces the three maps hardcoded at `runtime/context.mjs:10-21`**. It carries three
+sections: `stages`, `workflow_skills` and `overlay_skills`. `legacyReachableSkillIds` is
+deleted; every id is reachable through the policy.
+
+The `stages` section maps lifecycle stage to stage skill to procedure skills:
 
 | Stage(s) | Stage skill | Procedure skills |
 |---|---|---|
-| `INTAKE`, `REQUIREMENTS` | `sdlc-requirements` | `requirements-intake`, `requirements-normalize`, `requirements-clarify`, `impact-analysis` (when) |
+| `INTAKE`, `REQUIREMENTS` | `sdlc-requirements` | `requirements-intake`, `requirements-normalize`, `requirements-clarify`, `project-bootstrap` (when), `impact-analysis` (when) |
 | `DESIGN` | `sdlc-design` | `design-discovery`, `solution-design` (when), `technical-spike` (when) |
 | `PLAN` | `sdlc-plan` | `implementation-plan`, `coordination-analysis` (when) |
 | `IMPLEMENT` | `sdlc-implement` | `task-execution`, `repository-intelligence`, `systematic-debugging` (when), `tdd` (when) |
 | `VERIFY` | `sdlc-verify` | `testing-verification` |
-| `REVIEW` | `sdlc-review` | `traceability`, `docs-update`, `knowledge-maintenance` (when) |
+| `REVIEW` | `sdlc-review` | `code-review`, `traceability`, `docs-update`, `knowledge-maintenance` (when) |
 | `RELEASE`, `DEPLOY`, `OBSERVE`, `CLOSE` | `sdlc-release` | `release-deployment`, `git-delivery`, `operability-engineering` |
 
 `workflow-maintenance` keeps its `manual` trigger and is reachable through `sdlc-task`
 rather than through a stage.
+
+The `workflow_skills` and `overlay_skills` sections carry what `runtime/context.mjs`
+hardcodes today, with one change in shape: an entry that previously pointed at a stub file
+now carries the stub's single guidance sentence inline as a `guidance` field, plus the
+procedure skills that actually cover the work. So `security-remediation` keeps its
+"threat-model and review bounded change for security/privacy regressions" line without a
+`security.md` file existing to hold it. `client-impact` continues to route to
+`frontend-integration`, which survives consolidation as a real procedure skill.
+
+An entry with `guidance` but no procedure skills is the declared extension point: when real
+content is written for it later, it graduates into `config/procedures.json` and becomes a
+procedure skill, without any change to the navigation shape.
 
 Gating conditions reuse the existing `WHEN_HANDLERS` in `runtime/procedures.mjs`. No
 second gating implementation is written.
@@ -149,28 +177,55 @@ The validation chain must be updated in step with the taxonomy:
 ### 5. New evals
 
 - `skill-navigation-covers-every-stage` — every stage in `lifecycle_order` maps to exactly
-  one stage skill, and every procedure in the registry belongs to exactly one stage.
+  one stage skill, and every procedure in the registry is reachable through at least one of
+  `stages`, `workflow_skills`, `overlay_skills`, or an explicit `manual` trigger. No
+  procedure is unreachable, and no navigation entry names a procedure that does not exist.
 - `single-auto-activating-skill` — exactly one skill (`sdlc-router`) carries a broad
   activation description; every other tier member contains "Not an entry point".
 - `skill-description-token-budget` — total description bytes across all tiers stay at or
   below a threshold recorded when the design lands. The measured baseline and the new
   figure are both written into the eval so regressions are visible.
 
-## Deliberate Debt
+### 6. Legacy consolidation
 
-Twenty files under `harness/internal-skills/` sit outside `config/procedures.json` and are
-reachable only through `legacyReachableSkillIds` in `runtime/context.mjs`: `architecture`,
-`planning`, `implementation`, `testing`, `code-review`, `security`, `incident`,
-`maintenance`, `upgrade`, `database`, `performance`, `compliance`, `documentation`,
-`modernization`, `frontend-integration`, `project-bootstrap`, `requirements`, `ci-cd`,
-`monitoring`, `deployment`.
+The twenty non-registry files are promoted — meaning the legacy path is removed entirely,
+not that twenty skills are added. They were measured before being classified: `SUBSTAN`
+below is the count of substantive lines, excluding blanks, headings, and the `## Contract`
+block that is byte-identical across the stub files.
 
-They are **not** promoted in this design. Promoting all of them would breach the
-description token budget established in section 5. The legacy path is left intact and this
-is recorded as intentional debt with a follow-up decision: each file either earns a route in
-`procedures.json` or is deleted. The D5 orphan check in
-`runtime/procedures.mjs:auditProcedureCoverage` continues to guarantee none becomes silently
-unreachable.
+**Group A — routing slots, not content (12 files, SUBSTAN = 1).** `ci-cd`, `compliance`,
+`database`, `deployment`, `documentation`, `incident`, `maintenance`, `modernization`,
+`monitoring`, `performance`, `security`, `upgrade`. The entire body of each is its own
+one-line description — already present verbatim as the `description` field in
+`config/skills.json` — followed by the shared boilerplate. They exist to fill slots in
+`CORE_SKILL_BY_STAGE`, `WORKFLOW_SKILLS` and `OVERLAY_SKILLS`. Their promoted form is the
+stage skill tier plus a `guidance` entry in `policies/skill-navigation.json`; the files are
+deleted. Turning them into procedure skills would produce twelve skills whose body is a
+sentence the registry already holds.
+
+**Group B — fold into the counterpart, then delete (5 files).**
+
+| File | SUBSTAN | Folds into | Content that must survive |
+|---|---|---|---|
+| `testing` | 35 | `tdd`, `testing-verification` | Testing anti-pattern table (partially overlaps `tdd.md`) |
+| `implementation` | 10 | `task-execution` | The `policies/coding-standards.json` enforcement detail |
+| `planning` | 10 | `implementation-plan` | "Minimums that never relax, including FAST micro-plans: goal, scope, done condition, verification" |
+| `architecture` | 6 | `design-discovery`, `solution-design` | The `design mode` selector preflight |
+| `requirements` | 2 | `requirements-normalize` | The `NEEDS_MULTIMODAL` rule: never silently OCR or invent missing content |
+
+**Group C — real content, promoted with a route (3 files).** `code-review` (SUBSTAN 21: the
+two hardened rubrics and the severity calibration) routes to `REVIEW`. `project-bootstrap`
+(SUBSTAN 10: the artifact kinds and the knowledge baseline) routes to `INTAKE`, keeping its
+G0 trigger. `frontend-integration` (SUBSTAN 4) routes through the `client-impact` overlay.
+
+Result: `harness/internal-skills/` goes from 41 files to 24; `config/procedures.json` goes
+from 21 entries to 24; `legacyReachableSkillIds` and the three hardcoded maps are deleted
+from `runtime/context.mjs`. The D5 orphan check in
+`runtime/procedures.mjs:auditProcedureCoverage` becomes total: it no longer needs a legacy
+set to consult, because every remaining file is registered.
+
+Every deletion in Groups A and B is content-preserving by construction: the fold lands in
+its own commit and the delete follows only after it.
 
 ## Migration and Compatibility
 
@@ -184,19 +239,26 @@ unreachable.
 
 ## Rollout
 
-Five phases, each independently verifiable.
+Six phases, each independently verifiable.
 
 1. **Deduplicate.** Delete `commands/`, merge `sdlc-route` into `sdlc-router`, update both
    Claude manifests. Verify: full eval suite green, `/sdlc-status` still resolves.
 2. **Tier model.** Introduce the four manifest keys; update build, dist and validation
    scripts. Verify: `build-dist`, `verify-dist`, `validate-github-install`,
    `validate-registry`, `validate-versions` all pass.
-3. **Navigation policy.** Add `policies/skill-navigation.json` and the `navigation` block on
-   `status` and `context`. Verify: new coverage eval passes; existing CLI contract tests
-   unchanged.
-4. **Stage skills.** Split the seven stage skills out; shrink `sdlc-orchestrator`. Verify:
+3. **Navigation policy.** Add `policies/skill-navigation.json` carrying `stages`,
+   `workflow_skills` and `overlay_skills`; delete `CORE_SKILL_BY_STAGE`, `WORKFLOW_SKILLS`,
+   `OVERLAY_SKILLS` and `legacyReachableSkillIds` from `runtime/context.mjs`; add the
+   `navigation` block to `status` and `context`. Verify: the coverage eval passes, and the
+   set of skill ids resolved per stage/workflow/overlay is identical to what the deleted
+   maps produced — asserted by a differential test, not by inspection.
+4. **Legacy consolidation.** Fold Group B content into its counterparts and commit that
+   alone; then delete Groups A and B and add Group C routes to `config/procedures.json`.
+   Verify: the D5 orphan audit reports zero orphans with no legacy set; every surviving
+   sentence from the fold table is greppable in its new home.
+5. **Stage skills.** Split the seven stage skills out; shrink `sdlc-orchestrator`. Verify:
    activation evals plus a run driven end to end through the stage skills.
-5. **Procedure generation.** Add `scripts/gen-skill-surface.mjs`, move the `task-worker` TDD
+6. **Procedure generation.** Add `scripts/gen-skill-surface.mjs`, move the `task-worker` TDD
    text to the registry, add the three new evals, update `docs/QUICKSTART.md`,
    `docs/USAGE.md`, `docs/AUTO-ACTIVATION.md`, `docs/MIGRATION.md`,
    `docs/CORPUS-DECISIONS.md` and `README.md`. Verify: `--check` drift mode green in CI.
@@ -206,7 +268,9 @@ Five phases, each independently verifiable.
 | Risk | Mitigation |
 |---|---|
 | Stage skills auto-activate on unrelated prompts | Fixed description shape plus the `single-auto-activating-skill` eval |
-| Description bloat (~+500 tokens estimated) | Token budget eval with a recorded baseline; procedure tier excluded from auto-activation |
+| Description bloat (~+500 tokens estimated for the stage tier; +3 procedures net) | Token budget eval with a recorded baseline; procedure tier excluded from auto-activation; consolidation avoids 12 content-free skills |
+| Deleting a Group A stub silently drops workflow guidance | The stub's one sentence moves to a `guidance` field in the navigation policy; a differential test compares resolved skill ids before and after |
+| A future contributor needs a per-workflow module that no longer has a file | `guidance`-only navigation entries are the declared extension point; adding content graduates the entry into `procedures.json` |
 | Generated skill files drift from the registry | `gen-skill-surface.mjs --check` runs in CI |
 | Host-specific Skill tool semantics differ | `navigation` is advisory; the deterministic text-injection path remains the floor |
 | Splitting the orchestrator loses an invariant | Iron Laws and invariants stay in `sdlc-orchestrator`; only per-stage procedure moves |
