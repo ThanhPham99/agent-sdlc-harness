@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-rc2",
-  "checks": 441,
-  "passes": 441,
+  "checks": 442,
+  "passes": 442,
   "failures": 0,
   "results": [
     {
@@ -1767,6 +1767,10 @@
     },
     {
       "name": "a6-learning/every-source-routes-to-a-runnable-suite",
+      "status": "PASS"
+    },
+    {
+      "name": "status-reports-next-stage-skill",
       "status": "PASS"
     }
   ]

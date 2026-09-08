@@ -50,7 +50,7 @@ export const commands={
     print(run);
   },
   status:async ctx=>{
-    const {args,print,needRun}=ctx;
+    const {args,ROOT,projectRoot,print,needRun}=ctx;
     const run=await needRun();
     if(truthy(args.pretty)){
       const lines=[
@@ -65,7 +65,17 @@ export const commands={
       ];
       print(lines.join('\n'));
     } else {
-      print(run);
+      const {resolveNavigation}=await import('../skill-navigation.mjs');
+      const {resolveProcedures}=await import('../procedures.mjs');
+      print({...run,navigation:(()=>{
+        const nav=resolveNavigation(ROOT,projectRoot,run);
+        return {
+          stage:nav.stage,
+          stage_skill:nav.stage_skill,
+          procedure_skills:resolveProcedures(ROOT,projectRoot,run).map(p=>p.id),
+          fallback_instructions_inlined:true
+        };
+      })()});
     }
   },
   next:async ctx=>{

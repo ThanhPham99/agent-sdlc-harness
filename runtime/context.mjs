@@ -26,9 +26,8 @@ function resolveRoles(root,stagePolicy){
   });
 }
 
-function resolveSkills(root,projectRoot,run){
+function resolveSkills(root,run,nav){
   const registry=readJson(path.join(root,'config','skills.json')).internal||{};
-  const nav=resolveNavigation(root,projectRoot,run);
   const ids=nav.core_skill_ids.filter(id=>registry[id]&&registry[id].stages?.includes(run.state));
   // readTextFile, not readFileSync: skill text is hashed into context_hash, so a
   // CRLF checkout must not change the hash for the same commit.
@@ -160,7 +159,8 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
   const maxArtifactTokens=Math.floor(maxContextTokens*0.45);
   const projectedArtifacts=projectArtifactsForStage(run.state,artifacts);
   const finalArtifacts=compactArtifactSummaries(projectedArtifacts,maxArtifactTokens,charsPerToken);
-  const skills=resolveSkills(root,projectRoot,run);
+  const nav=resolveNavigation(root,projectRoot,run);
+  const skills=resolveSkills(root,run,nav);
   const procedures=resolveProcedures(root,projectRoot,run);
   const manifest={
     schema:'agent-sdlc/context-manifest/v1',run_id:run.run_id,objective:run.objective,git_sha:gitSha(projectRoot),
@@ -172,7 +172,17 @@ export function buildContext(root,projectRoot,run,{symbols=[],artifactRefs=[],co
     procedures:procedures.map(p=>({id:p.id,group:p.group,when:p.when})),
     procedure_instructions:procedures.map(p=>({id:p.id,instructions:p.instructions})),
     requirement_update:run.workflow==='requirement-update'?loadRequirementUpdatePlan(projectRoot,run.run_id):null,
-    feature:resolveFeatureContext(projectRoot,run)
+    feature:resolveFeatureContext(projectRoot,run),
+    navigation:{
+      stage:run.state,
+      stage_skill:nav.stage_skill,
+      procedure_skills:procedures.map(p=>p.id),
+      // The compiled context always carries the instruction text, so a host
+      // with no Skill tool needs nothing else. A host that has one may
+      // activate stage_skill by name instead; the text is the floor, not a
+      // fallback that has to be requested.
+      fallback_instructions_inlined:true
+    }
   };
   const serialized=JSON.stringify(manifest);
   manifest.estimated_tokens=estimateTokens(serialized,charsPerToken);

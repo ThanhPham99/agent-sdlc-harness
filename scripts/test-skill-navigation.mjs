@@ -148,4 +148,24 @@ test('resolved-core-skill-ids-match-pinned-fixtures-exactly',()=>{
   }
 });
 
+await test('context-manifest-carries-navigation-block',async ()=>{
+  const {initProject,loadRun}=await import('../runtime/store.mjs');
+  const {newRun}=await import('../runtime/orchestrator.mjs');
+  const {route}=await import('../runtime/router.mjs');
+  const {buildContext}=await import('../runtime/context.mjs');
+  const {makeTempDir}=await import('./lib/tempdir.mjs');
+  const d=makeTempDir('agent-sdlc-nav-');
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'nav-fixture'});
+  // newRun takes a route object, not loose workflow/profile fields:
+  // newRun(root, projectRoot, {objective, route}) -- see runtime/orchestrator.mjs:42.
+  const objective='add a login endpoint';
+  const run=newRun(ROOT,d,{objective,route:route(ROOT,objective)});
+  const ctx=buildContext(ROOT,d,loadRun(d,run.run_id));
+  assert(ctx.navigation,'context manifest has no navigation block');
+  assert(ctx.navigation.stage===ctx.state||ctx.navigation.stage,'navigation.stage missing');
+  assert(typeof ctx.navigation.stage_skill==='string','navigation.stage_skill must be a string');
+  assert(Array.isArray(ctx.navigation.procedure_skills),'navigation.procedure_skills must be an array');
+  assert(ctx.navigation.fallback_instructions_inlined===true,'text injection is the floor: the flag must report it');
+});
+
 finish({harness_root:'.'});

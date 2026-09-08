@@ -38,6 +38,7 @@ import {addUsage,reportUsage} from '../runtime/cost.mjs';
 import {resolveConfig} from '../runtime/config.mjs';
 import {compatCheck} from '../runtime/compat.mjs';
 import {parallelPlan} from '../runtime/parallel.mjs';
+import {resolveNavigation} from '../runtime/skill-navigation.mjs';
 import {metrics} from '../runtime/telemetry.mjs';
 import {putHandoff,getHandoff,listHandoffs} from '../runtime/handoff.mjs';
 import {normalizeInput} from '../runtime/normalize.mjs';
@@ -2772,6 +2773,11 @@ for(const [prefix,suite] of [['task',runTaskRuntimeSuite(ROOT)],['a6',runAlpha6S
     }
   }
 }
+
+test('status-reports-next-stage-skill',()=>{
+  const nav=resolveNavigation(ROOT,ROOT,{run_id:'r1',state:'PLAN',workflow:'new-feature',profile:'STANDARD',overlays:[],objective:'x'});
+  if(nav.stage_skill!=='sdlc-plan')throw Error(`PLAN resolved to ${nav.stage_skill}`);
+});
 
 const report={schema:'agent-sdlc/deterministic-validation/v1',version:manifest.version,checks:rows.length,passes:pass,failures:fail,results:rows};
 writeReport(path.join(ROOT,'evals','DETERMINISTIC-VALIDATION.json'),report);

@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/skill-navigation-validation/v1",
   "harness_root": ".",
-  "checks": 8,
-  "passes": 8,
+  "checks": 9,
+  "passes": 9,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -36,6 +36,10 @@
     },
     {
       "name": "resolved-core-skill-ids-match-pinned-fixtures-exactly",
+      "status": "PASS"
+    },
+    {
+      "name": "context-manifest-carries-navigation-block",
       "status": "PASS"
     }
   ]
