@@ -76,4 +76,3 @@ For STANDARD/STRICT product/change workflows, create/update `traceability.md` fr
 | **Assertionless tests** | Calls a function and asserts nothing. | Every test verifies a concrete invariant or post-condition. |
 | **Giant monolithic tests** | One case asserting fifteen unrelated behaviours. | One test, one behaviour. |
 | **Broad try/catch in tests** | Swallows the exception that should have failed the run. | Let it bubble, or assert `toThrow()`. |
-| **Flaky condition waiting** | An arbitrary `sleep(1000)`. | Poll the condition, or assert on the event. |

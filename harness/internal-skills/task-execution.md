@@ -117,3 +117,15 @@ Every created or modified file obeys `policies/coding-standards.json`:
 If implementation reveals a requirement contradiction, an invalid architectural
 assumption, or a materially larger blast radius, stop the task and return
 `NEEDS_CONFIRMATION` or `BLOCKED`. Never redesign product behaviour implicitly.
+
+## The direct build path
+
+Not every task is test-first. When it is not, the discipline does not relax:
+
+Follow the approved plan or micro-plan. Keep changes minimal and cohesive. For a
+behaviour change made without a test first, preserve the reason when it is not
+self-evident, and confirm the verification plan still covers the behaviour.
+
+If implementation reveals a requirement contradiction, an invalid architectural
+assumption, or a materially larger blast radius, stop the affected task and return
+`NEEDS_CONFIRMATION` or `BLOCKED`. Never redesign product behaviour implicitly.

@@ -18,3 +18,12 @@ Never silently replace confirmed requirements. Changed/conflicting semantics mus
 Prefer the deterministic `normalize` command for text, Markdown, JSON, CSV, DOCX,
 XLSX and text-bearing PDF input. Mark native images and image-only PDFs
 `NEEDS_MULTIMODAL`: never silently OCR them and never invent missing content.
+
+## What the requirement artifact must separate
+
+Keep these apart rather than blending them into prose: confirmed requirements,
+assumptions, constraints, acceptance criteria, unresolved questions, phase scope,
+and deferred work. A reader must be able to tell which is which without asking.
+
+If an ambiguity can change implementation or acceptance, transition to
+`NEEDS_CONFIRMATION` rather than guessing.

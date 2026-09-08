@@ -25,8 +25,10 @@ test. Do not look at it. **Delete means delete** — implement fresh from tests.
 RED: Write minimal failing test showing expected behavior
  ↓
 VERIFY RED: Run test suite. Confirm it FAILS meaningfully (not syntax/setup error)
+  If the test passes immediately, you are testing existing behaviour or the test is tautological. Fix the test.
  ↓
 GREEN: Write the simplest minimal production code to pass
+  Do not write speculative code, premature abstractions, or extra unrequested features.
  ↓
 VERIFY GREEN: Run test suite. Confirm ALL tests PASS with pristine output
  ↓
@@ -57,7 +59,7 @@ For one bounded behavior slice:
 
 ### Testing Anti-Patterns to Avoid
 
-- **Testing Mocks Instead of Behavior**: Asserting that a mock function was called $N$ times instead of checking real business output or state transitions. Use real dependencies whenever possible; mock only external networks/third parties.
+- **Testing Mocks Instead of Behavior**: Asserting that a mock function was called $N$ times instead of checking real business output or state transitions. Use real dependencies whenever possible; mock only external networks, hardware, third parties.
 - **Bloated Multi-Assertion Tests**: Tests with "and" in the name testing multiple disjoint behaviors at once. Break them down: one test, one behavior.
 - **Mutating Tests to Make Code Green**: When a test fails during the GREEN phase, modifying the test's assertions to fit flawed code instead of fixing the implementation.
 - **Flaky Condition Waiting**: Using arbitrary `sleep(1000)` instead of condition-based polling or event-based assertions.
@@ -65,6 +67,6 @@ For one bounded behavior slice:
 ### Domain Integrity & Anti-Patching in TDD
 When a test introduces or requires varied input formats (e.g., `'male'` vs `'boy'`), solve it by adding a boundary transformer/normalizer (anti-corruption layer in DTO/Controller) or clarifying the canonical contract. Never inflate a domain enum or entity with synonymous values or loose types just to turn a test green.
 
-For risky legacy behavior, establish a characterization/integration test first. If test-first is genuinely infeasible, do not fabricate a red-green cycle; return a reason so the orchestrator can use the direct `implementation` build strategy.
+For risky legacy behavior, establish a characterization/integration test first. If test-first is genuinely infeasible, do not fabricate a red-green cycle; return a reason so the orchestrator can use the direct build path described in `task-execution.md`.
 
 This skill **includes implementation for the selected slice**. Do not invoke `implementation` afterward unless a distinct remaining task explicitly requires the direct strategy.
