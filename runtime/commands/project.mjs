@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {readJson} from '../util.mjs';
+import * as layout from '../layout.mjs';
 
 export const commands={
   init:async ctx=>{
@@ -47,7 +48,7 @@ export const commands={
         }
       }
     }
-    const proj=fs.existsSync(path.join(projectRoot,'.agent-sdlc','project.json'))?'READY':'NOT_INITIALIZED';
+    const proj=fs.existsSync(layout.projectConfigFile(projectRoot))?'READY':'NOT_INITIALIZED';
     const version=readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version;
     // Claude Code loads this plugin from its own cache directory, not from
     // ROOT directly. A cache left behind after a `git pull` here loads a

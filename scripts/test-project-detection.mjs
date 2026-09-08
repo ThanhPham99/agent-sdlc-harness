@@ -15,6 +15,7 @@ import {detectProject} from '../runtime/init.mjs';
 import {resolveConfig} from '../runtime/config.mjs';
 import {createSuite} from './lib/suite.mjs';
 import {makeTempDir} from './lib/tempdir.mjs';
+import * as layout from '../runtime/layout.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const CLI=path.join(ROOT,'runtime','cli.mjs');
@@ -170,8 +171,8 @@ test('an-unreadable-config-layer-is-skipped-and-named',()=>{
   // Regression: this threw a bare SyntaxError out of config-show and doctor --
   // the commands you run to find out what is wrong with your setup.
   const d=repo({});
-  fs.mkdirSync(path.join(d,'.agent-sdlc'),{recursive:true});
-  fs.writeFileSync(path.join(d,'.agent-sdlc','project.json'),'{"risk_profile":');
+  fs.mkdirSync(layout.stateDir(d),{recursive:true});
+  fs.writeFileSync(layout.projectConfigFile(d),'{"risk_profile":');
   const c=resolveConfig(d);
   const broken=c.layers.find(l=>l.name==='project');
   assert(broken?.status==='UNREADABLE'&&broken.applied===false,JSON.stringify(broken));
@@ -187,8 +188,8 @@ test('the-global-layer-is-read-from-AGENT_SDLC_HOME-and-the-project-layer-wins',
   const d=repo({});
   cli(['init'],d);
   const home=makeTempDir('agent-sdlc-global-');
-  fs.mkdirSync(path.join(home,'.agent-sdlc'),{recursive:true});
-  fs.writeFileSync(path.join(home,'.agent-sdlc','config.json'),
+  fs.mkdirSync(path.join(home,layout.STATE_DIRNAME),{recursive:true});
+  fs.writeFileSync(path.join(home,layout.STATE_DIRNAME,'config.json'),
     JSON.stringify({risk_profile:'STRICT',telemetry:{sink:'from-global'}}));
   const previous=process.env.AGENT_SDLC_HOME;
   process.env.AGENT_SDLC_HOME=home;
@@ -223,7 +224,7 @@ test('the-detected-commands-reach-the-persisted-project-config',()=>{
   const d=repo({'go.mod':'module x\n'});
   const out=cli(['init'],d);
   assert(out.status===0,out.stderr.slice(0,160));
-  const persisted=JSON.parse(fs.readFileSync(path.join(d,'.agent-sdlc','project.json'),'utf8'));
+  const persisted=JSON.parse(fs.readFileSync(layout.projectConfigFile(d),'utf8'));
   assert(persisted.commands.test_full.join(' ')==='go test ./...',JSON.stringify(persisted.commands));
   assert(persisted.stacks.includes('go'),JSON.stringify(persisted.stacks));
 });

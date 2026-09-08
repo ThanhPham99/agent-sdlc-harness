@@ -7,10 +7,10 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {gitSha,dirtyHash,now,appendJsonl} from './util.mjs';
-import {stateDir,saveRun} from './store.mjs';
+import {saveRun} from './store.mjs';
+import * as layout from './layout.mjs';
 
-const dir=projectRoot=>path.join(stateDir(projectRoot),'evidence');
-const logPath=(projectRoot,runId)=>path.join(dir(projectRoot),`${runId}.jsonl`);
+const logPath=(projectRoot,runId)=>layout.runEvidenceFile(projectRoot,runId);
 
 export function currentWorkspaceFingerprint(projectRoot){
   return {git_sha:gitSha(projectRoot),dirty_diff_sha256:dirtyHash(projectRoot)};

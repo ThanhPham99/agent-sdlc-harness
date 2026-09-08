@@ -9,6 +9,16 @@ import {
   auditCodingStandards
 } from '../runtime/coding-standards-linter.mjs';
 import {createSuite} from './lib/suite.mjs';
+import fs from 'node:fs';
+
+// Fixtures live in data, not here. They are code samples that must contain the
+// constructs the linter forbids -- 'var', ': any', 'as any' -- and inline they
+// were source text in a lintable file, so the deterministic standards audit
+// that gates every task read this suite's own test data as 16 BLOCKING
+// violations. The file became uneditable: any task touching it failed a gate on
+// strings whose whole purpose is to prove that gate works.
+const CASES = JSON.parse(fs.readFileSync(
+  new URL('./fixtures/coding-standards-cases.json', import.meta.url), 'utf8')).cases;
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const {test, assert, finish} = createSuite(
@@ -29,26 +39,62 @@ await test('coding-standards-policy-loads-and-valid', () => {
 });
 
 await test('linter-detects-var-declaration', () => {
-  const code = 'var obsolete_variable = 10;';
+  const code = CASES.var_declaration;
   const res = auditFileContent('test-module.js', code);
-  assert(res.is_compliant === false, 'should detect var declaration');
+  assert(res.is_compliant === false, 'should detect the obsolete declaration keyword');
   assert(res.violations.some(v => v.rule_id === 'NO_VAR_DECLARATION'), 'missing NO_VAR_DECLARATION rule');
 });
 
 await test('linter-detects-any-type', () => {
-  const code_ts = 'function processData(payload: any): void {}';
+  const code_ts = CASES.any_in_typescript;
   const res_ts = auditFileContent('test-types.ts', code_ts);
   assert(res_ts.is_compliant === false, 'should detect any type in TS');
   assert(res_ts.violations.some(v => v.rule_id === 'NO_ANY_TYPE'), 'missing NO_ANY_TYPE in TS');
 
-  const code_jsdoc = '/** @type {any} */\nconst untyped = JSON.parse("{}");';
+  const code_jsdoc = CASES.any_in_jsdoc;
   const res_jsdoc = auditFileContent('test-doc.js', code_jsdoc);
   assert(res_jsdoc.is_compliant === false, 'should detect any type in JSDoc');
   assert(res_jsdoc.violations.some(v => v.rule_id === 'NO_ANY_TYPE'), 'missing NO_ANY_TYPE in JSDoc');
 });
 
+await test('linter-does-not-read-prose-in-a-block-comment-as-a-type', () => {
+  // A JSDoc body is prose. This exact sentence, from runtime/ci-evidence.mjs,
+  // was reported as a BLOCKING strict-typing violation because `/:\s*any\b/`
+  // matches "summary: any failing" -- and since the audit is merged into the
+  // code-quality gate, it failed the task of anyone who touched that file.
+  const flags = (name, file) =>
+    auditFileContent(file, CASES[name]).violations.some(v => v.rule_id === 'NO_ANY_TYPE');
+
+  // Prose in a comment body is not a type annotation. The fixture is the real
+  // sentence from runtime/ci-evidence.mjs.
+  assert(!flags('block_comment_prose', 'ci-evidence.mjs'), 'block-comment prose was read as a type annotation');
+  for (const oneLiner of ['one_line_jsdoc_prose', 'one_line_block_prose'])
+    assert(!flags(oneLiner, 'one-liner.mjs'), `prose in a single-line block comment was read as a type: ${oneLiner}`);
+
+  // The annotation form inside a comment IS still caught -- that is the case
+  // the rule exists for, and skipping comment bodies outright would lose it.
+  assert(flags('jsdoc_annotation_in_comment', 'annotated.js'), 'a JSDoc @param {any} annotation is no longer detected');
+  assert(flags('one_line_jsdoc_annotation', 'one-liner.js'), 'an annotation in a single-line block comment is no longer detected');
+
+  // Real code is unaffected by the carve-out.
+  assert(flags('real_any_annotation', 'real.ts'), 'a real type annotation in code is no longer detected');
+  assert(flags('real_as_any_cast', 'real.ts'), 'a real type cast in code is no longer detected');
+
+  // A generator method also begins with `*`, and it is CODE. Keying the
+  // carve-out on a bare leading `*` turned a false positive on prose into a
+  // false negative on real TypeScript -- the worse trade, because a rule that
+  // silently stops firing is indistinguishable from code that passes.
+  assert(flags('generator_method_in_class', 'gen.ts'), 'a generator method was mistaken for a comment body');
+
+  // An inline comment must not shelter the code after it. This is the shape of
+  // a pragma prefix, so it is the realistic way a violation would hide behind
+  // an opening delimiter.
+  assert(flags('inline_comment_then_violation', 'pragma.ts'), 'a violation after an inline block comment was sheltered by the opener');
+  assert(flags('pragma_comment_then_violation', 'pragma.ts'), 'a violation after a pragma comment was sheltered by the opener');
+});
+
 await test('linter-detects-excessive-parameters', () => {
-  const bad_code = 'function sendEmail(recipient, subject, body, attachment, priority) {}';
+  const bad_code = CASES.excessive_parameters;
   const bad_res = auditFileContent('mailer.js', bad_code);
   assert(bad_res.is_compliant === false, 'should detect > 3 parameters');
   assert(bad_res.violations.some(v => v.rule_id === 'MAX_FUNCTION_PARAMETERS'), 'missing MAX_FUNCTION_PARAMETERS');

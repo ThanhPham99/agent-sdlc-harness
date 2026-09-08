@@ -7,6 +7,7 @@ import {gitSha,readJson,truthy} from './util.mjs';
 import {recordCiEvidence,ciEvidenceCurrent,loadCiEvidence} from './ci-evidence.mjs';
 import {resolveLaunch,describeSpawn} from './launcher.mjs';
 import {detectProject} from './init.mjs';
+import * as layout from './layout.mjs';
 
 /**
  * Detect CI/CD configurations in the target project.
@@ -28,7 +29,7 @@ export function detectProjectCi(projectRoot){
     }catch{/* ignore */}
   }
 
-  const projectCfgPath=path.join(projectRoot,'.agent-sdlc','project.json');
+  const projectCfgPath=layout.projectConfigFile(projectRoot);
   let test_commands=null;
   if(fs.existsSync(projectCfgPath)){
     try{

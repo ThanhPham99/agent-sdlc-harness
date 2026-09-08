@@ -21,9 +21,19 @@
 // to delete -- two runs can produce byte-identical content and collide on the
 // same hash. An artifact is only orphaned when NO surviving (kept) run, task,
 // or handoff still references its artifact_id.
+//
+// What this module must NOT do is decide for itself which paths belong to a
+// run. It used to: a literal list of seven paths, maintained by hand, which had
+// fallen six behind the runtime that writes them -- evidence, ci-evidence,
+// delivery, traceability, requirement-update and the run's workspaces were
+// never removed, so a "reclaimed" run left its largest directories on disk
+// forever. The list now comes from `layout.runPaths`, derived from the same
+// table every writer resolves its paths through, so a namespace cannot be added
+// without gc seeing it.
 import fs from 'node:fs';
 import path from 'node:path';
-import {stateDir,tasksDir} from './store.mjs';
+import {tasksDir,listRuns as listRunIds} from './store.mjs';
+import * as layout from './layout.mjs';
 import {readJson} from './util.mjs';
 
 const DAY_MS=24*60*60*1000;
@@ -34,8 +44,9 @@ function listJsonFiles(dir){
 }
 
 function listRuns(projectRoot){
-  const dir=path.join(stateDir(projectRoot),'runs');
-  return listJsonFiles(dir).map(f=>readJson(path.join(dir,f),null)).filter(Boolean);
+  return listRunIds(projectRoot)
+    .map(id=>readJson(layout.runFile(projectRoot,id),null))
+    .filter(Boolean);
 }
 
 function listRunTasks(projectRoot,runId){
@@ -44,7 +55,7 @@ function listRunTasks(projectRoot,runId){
 }
 
 function listHandoffs(projectRoot){
-  const dir=path.join(stateDir(projectRoot),'handoffs');
+  const dir=layout.handoffsDir(projectRoot);
   return listJsonFiles(dir).map(f=>readJson(path.join(dir,f),null)).filter(Boolean);
 }
 
@@ -52,11 +63,11 @@ function listHandoffs(projectRoot){
 function featureReferencedRunIds(projectRoot){
   const out=new Set();
   try{
-    const dir=path.join(stateDir(projectRoot),'features');
+    const dir=layout.featuresDir(projectRoot);
     if(!fs.existsSync(dir))return out;
     for(const featureFile of fs.readdirSync(dir).filter(f=>f.endsWith('.json'))){
       const feature=readJson(path.join(dir,featureFile));
-      const phasesDir=path.join(dir,feature.feature_id||path.basename(featureFile,'.json'),'phases');
+      const phasesDir=layout.featurePhasesDir(projectRoot,feature.feature_id||path.basename(featureFile,'.json'));
       if(!fs.existsSync(phasesDir))continue;
       for(const phaseFile of fs.readdirSync(phasesDir).filter(f=>f.endsWith('.json'))){
         const phase=readJson(path.join(phasesDir,phaseFile));
@@ -67,18 +78,16 @@ function featureReferencedRunIds(projectRoot){
   return out;
 }
 
-/** Per-run paths this module owns, relative to `.agent-sdlc`. */
+/**
+ * Per-run paths, from the layout rather than from this module's memory.
+ *
+ * `layout.runPaths` returns prune roots: the smallest set of existing paths
+ * whose removal deletes everything belonging to the run and nothing belonging
+ * to another. It already filters to what exists and guarantees no root nests
+ * inside another, so the sizes summed below cannot double-count.
+ */
 function runPaths(projectRoot,runId){
-  const d=stateDir(projectRoot);
-  return [
-    path.join(d,'runs',`${runId}.json`),
-    path.join(d,'events',`${runId}.jsonl`),
-    path.join(d,'tasks',runId),
-    path.join(d,'task-events',`${runId}.jsonl`),
-    path.join(d,'task-context',runId),
-    path.join(d,'task-evidence',runId),
-    path.join(d,'cost',`${runId}.jsonl`)
-  ].filter(p=>fs.existsSync(p));
+  return layout.runPaths(projectRoot,runId);
 }
 
 function sizeOf(p){
@@ -137,16 +146,62 @@ export function planGc(projectRoot,{olderThanDays=30,runId=null}={}){
     if(keptRunIds.has(h.run_id))for(const a of h.artifact_refs||[])keepArtifactIds.add(a);
   }
 
-  const metaDir=path.join(stateDir(projectRoot),'artifacts','meta');
+  // The store is enumerated PHYSICALLY here, not through `listArtifacts`.
+  //
+  // `listArtifacts` reports complete object+metadata pairs, which is what a
+  // reader wants and exactly the wrong basis for reclamation: the two files are
+  // written separately and cannot be made atomic, so a crash leaves one half
+  // behind, and a half nothing enumerates is a half nothing can ever delete.
+  // Planning from the reader's view left both kinds of debris on disk forever.
+  //
+  // An entry is orphaned under exactly one rule, and it applies to complete and
+  // half entries alike: no surviving run, task or handoff references its
+  // artifact_id.
+  //
+  // The identity of an entry does NOT come from its metadata document. Artifact
+  // ids are content-addressed, so `artifact://sha256/<hash>` is a pure function
+  // of the address the entry already sits at -- which means a metadata-less
+  // entry has a perfectly well-known id and can be checked against the keep set
+  // like any other. Deriving the id from the file instead, and skipping the
+  // keep check when the file was missing, planned every half entry as an orphan
+  // unconditionally: an open run's confirmed-requirements artifact whose
+  // metadata had been lost was deleted, object and all, with no ageing and no
+  // terminal run required, because the orphan sweep does not depend on run
+  // eligibility. A broken pair a surviving run points at is a repair problem,
+  // never gc's to take.
+  //
+  // The metadata is still read, for one narrow reason: a record may carry an id
+  // that is not its own hash address (written by an older harness, or edited by
+  // hand), and that id has to be honoured by the keep check too.
   const orphanedArtifacts=[];
-  for(const f of listJsonFiles(metaDir)){
-    const meta=readJson(path.join(metaDir,f));
-    if(keepArtifactIds.has(meta.artifact_id))continue;
-    const objectPath=path.join(stateDir(projectRoot),'artifacts','objects',meta.sha256);
-    orphanedArtifacts.push({artifact_id:meta.artifact_id,sha256:meta.sha256,
-      meta_path:path.relative(projectRoot,path.join(metaDir,f)).split(path.sep).join('/'),
-      object_path:fs.existsSync(objectPath)?path.relative(projectRoot,objectPath).split(path.sep).join('/'):null,
-      bytes:fs.existsSync(objectPath)?fs.statSync(objectPath).size:0});
+  const relOf=(p)=>path.relative(projectRoot,p).split(path.sep).join('/');
+  for(const entry of layout.listStoreEntries(projectRoot)){
+    const metaPath=layout.objectMetaPath(projectRoot,entry.hash);
+    const objectPath=layout.objectPath(projectRoot,entry.hash);
+    const addressId=`artifact://sha256/${entry.hash}`;
+    if(keepArtifactIds.has(addressId))continue;
+    // Read explicitly, never through `readJson(p,null)`: a null fallback
+    // RETHROWS (see util.mjs), so unparseable metadata anywhere in the store
+    // would throw out of `planGc` and leave `gc status` and `gc apply` dead
+    // project-wide until someone deleted the file by hand -- turning the very
+    // debris this enumeration exists to reclaim into the thing that blocks
+    // reclaiming anything.
+    let meta=null;
+    if(entry.has_meta){
+      try{meta=JSON.parse(fs.readFileSync(metaPath,'utf8'));}
+      catch{/* unreadable metadata is debris, not a planning failure */}
+    }
+    if(meta?.artifact_id&&keepArtifactIds.has(meta.artifact_id))continue;
+    orphanedArtifacts.push({
+      artifact_id:meta?.artifact_id??addressId,
+      sha256:entry.hash,
+      meta_path:entry.has_meta?relOf(metaPath):null,
+      object_path:entry.has_object?relOf(objectPath):null,
+      // An incomplete pair is named so an operator reading a gc plan can tell
+      // "this artifact is no longer referenced" from "this is wreckage".
+      incomplete:!(entry.has_object&&entry.has_meta&&meta)||undefined,
+      bytes:entry.has_object?fs.statSync(objectPath).size:0
+    });
   }
 
   return {
@@ -170,7 +225,7 @@ export function applyGc(projectRoot,plan){
   const removed_runs=[];
   const errors=[];
   for(const e of plan.eligible_runs||[]){
-    const runFile=path.join(stateDir(projectRoot),'runs',`${e.run_id}.json`);
+    const runFile=layout.runFile(projectRoot,e.run_id);
     if(fs.existsSync(runFile)){
       const fresh=readJson(runFile);
       if(fresh.state!==fresh.stages?.at(-1)||fresh.suspended_from){
@@ -191,9 +246,17 @@ export function applyGc(projectRoot,plan){
   const removed_artifacts=[];
   for(const o of plan.orphaned_artifacts||[]){
     try{
-      const metaFull=path.join(projectRoot,o.meta_path);
-      if(fs.existsSync(metaFull))fs.unlinkSync(metaFull);
-      if(o.object_path){const objFull=path.join(projectRoot,o.object_path);if(fs.existsSync(objFull))fs.unlinkSync(objFull);}
+      // Either side can legitimately be absent now that the plan reports
+      // incomplete pairs: an object with no metadata has no meta_path, and
+      // metadata with no object has no object_path. Both are nulls to skip,
+      // not paths to join -- path.join(root,null) throws.
+      const unlinkIfPresent=(rel)=>{
+        if(!rel)return;
+        const full=path.join(projectRoot,rel);
+        if(fs.existsSync(full))fs.unlinkSync(full);
+      };
+      unlinkIfPresent(o.meta_path);
+      unlinkIfPresent(o.object_path);
       removed_artifacts.push(o.artifact_id);
     }catch(err){errors.push({artifact_id:o.artifact_id,error:err.message});}
   }

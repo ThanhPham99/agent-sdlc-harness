@@ -26,6 +26,7 @@ import {migrateRunToTaskRuntime} from '../runtime/task-migration.mjs';
 import {reportRunTaskUsage} from '../runtime/cost.mjs';
 import {taskMetrics} from '../runtime/telemetry.mjs';
 import {makeTempDir} from '../scripts/lib/tempdir.mjs';
+import * as layout from '../runtime/layout.mjs';
 
 const gitq=(cwd,...a)=>execFileSync('git',a,{cwd,stdio:'ignore'});
 
@@ -1510,9 +1511,9 @@ export function runTaskRuntimeSuite(root){
       const task=requireTask(projectRoot,run.run_id,'TASK-001');
       const ws=createTaskWorkspace(projectRoot,{run,task,writer:'writer-a'});
       // Point the record at a path that is not a git worktree at all.
-      const rec=path.join(projectRoot,'.agent-sdlc','workspaces',run.run_id,'TASK-001.json');
+      const rec=layout.taskWorkspaceRecordFile(projectRoot,run.run_id,'TASK-001');
       const saved=JSON.parse(fs.readFileSync(rec,'utf8'));
-      fs.writeFileSync(rec,JSON.stringify({...saved,root:path.join(projectRoot,'.agent-sdlc','no-such-worktree')},null,2));
+      fs.writeFileSync(rec,JSON.stringify({...saved,root:path.join(projectRoot,'no-such-worktree')},null,2));
       const out=cleanupTaskWorkspace(projectRoot,{run,task,evidencePersisted:false});
       if(out.status!=='REFUSED_EVIDENCE_NOT_PERSISTED')fail(`an unreadable worktree was treated as clean: ${JSON.stringify(out)}`);
       fs.writeFileSync(rec,JSON.stringify(saved,null,2));

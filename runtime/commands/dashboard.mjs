@@ -1,9 +1,10 @@
 // Interactive Visual Dashboard Generator for Agent SDLC Harness.
 import fs from 'node:fs';
 import path from 'node:path';
-import {stateDir,projectConfig,listTasks} from '../store.mjs';
+import {projectConfig,listTasks,listRuns,loadRun} from '../store.mjs';
 import {metrics as getMetrics} from '../telemetry.mjs';
 import {readJson} from '../util.mjs';
+import * as layout from '../layout.mjs';
 
 function escapeHtml(s){
   return String(s??'')
@@ -170,15 +171,15 @@ export const commands={
       }
       return;
     }
-    const proj=fs.existsSync(path.join(projectRoot,'.agent-sdlc','project.json'))?projectConfig(projectRoot):{};
-    const state=fs.existsSync(path.join(projectRoot,'.agent-sdlc','state.json'))?readJson(path.join(projectRoot,'.agent-sdlc','state.json'),{}):{};
+    const proj=fs.existsSync(layout.projectConfigFile(projectRoot))?projectConfig(projectRoot):{};
+    const state=fs.existsSync(layout.stateFile(projectRoot))?readJson(layout.stateFile(projectRoot),{}):{};
     const version=readJson(path.join(ROOT,'agent-sdlc.manifest.json')).version;
-    const runsDir=path.join(stateDir(projectRoot),'runs');
+    // Through listRuns, not a readdir: a run is a directory containing
+    // run.json now, and the *.json filter this replaced matched nothing at all
+    // -- the dashboard rendered runs_count 0 for a project full of runs.
     const runs=[];
-    if(fs.existsSync(runsDir)){
-      for(const f of fs.readdirSync(runsDir).filter(x=>x.endsWith('.json')).sort()){
-        try{runs.push(readJson(path.join(runsDir,f)));}catch{}
-      }
+    for(const id of listRuns(projectRoot)){
+      try{runs.push(loadRun(projectRoot,id));}catch{}
     }
     const allTasks=[];
     for(const r of runs){
@@ -198,7 +199,7 @@ export const commands={
       return;
     }
     const html=generateDashboardHtml({project:proj,state,runs,tasks:allTasks,metrics,version});
-    const outPath=args.out?path.resolve(projectRoot,args.out):path.join(projectRoot,'.agent-sdlc','dashboard.html');
+    const outPath=args.out?path.resolve(projectRoot,args.out):layout.dashboardFile(projectRoot);
     fs.mkdirSync(path.dirname(outPath),{recursive:true});
     fs.writeFileSync(outPath,html,'utf8');
 

@@ -7,6 +7,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {now} from './util.mjs';
+import * as layout from './layout.mjs';
 
 /**
  * Compute sample mean and standard deviation.
@@ -106,10 +107,14 @@ export function processMetricAnomaly(projectRoot, { metric, baseline, current, w
   const result = evaluateControlBand({ metric, baseline, current });
   let intentPath = null;
   if (result.breach) {
-    const intentDir = path.join(projectRoot, '.agent-sdlc', 'intent');
+    const intentDir = layout.intentDir(projectRoot);
     if (!fs.existsSync(intentDir)) fs.mkdirSync(intentDir, { recursive: true });
-    const filename = `anomaly-${metric}-${Date.now()}.md`;
-    intentPath = path.join(intentDir, filename);
+    // The metric name reaches this function from outside and becomes a
+    // filename, so it is slugged rather than interpolated raw: the layout
+    // rejects an unsafe segment, and an anomaly report is not the place to
+    // discover that a metric was called "p95 latency".
+    const slug = String(metric).replace(/[^A-Za-z0-9._-]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64) || 'metric';
+    intentPath = layout.intentFile(projectRoot, `anomaly-${slug}-${Date.now()}.md`);
     const content = formatAnomalyIntent({ metric, result, workflow });
     fs.writeFileSync(intentPath, content, 'utf8');
   }

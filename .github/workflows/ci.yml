@@ -110,6 +110,14 @@ jobs:
         run: npm run test:simulate-e2e
       - name: Autonomous SDLC runner and human confirmation gates
         run: npm run test:autonomous-runner
+      - name: State directory layout authority
+        run: npm run test:layout
+      - name: Layout v1 to v2 migration
+        run: npm run test:layout-migration
+      - name: Cache subtree is regenerable
+        run: npm run test:cache-regeneration
+      - name: Human-readable documentation generator
+        run: npm run test:doc-generator
       - name: TypeScript definition validation
         run: npm run typecheck
       # --- build, then the surfaces that read what it produced -----------
@@ -238,6 +246,14 @@ jobs:
         run: npm run test:simulate-e2e
       - name: Autonomous SDLC runner and human confirmation gates
         run: npm run test:autonomous-runner
+      - name: State directory layout authority
+        run: npm run test:layout
+      - name: Layout v1 to v2 migration
+        run: npm run test:layout-migration
+      - name: Cache subtree is regenerable
+        run: npm run test:cache-regeneration
+      - name: Human-readable documentation generator
+        run: npm run test:doc-generator
       - name: Build provider distributions
         run: npm run build
       - name: Verify extracted distributions

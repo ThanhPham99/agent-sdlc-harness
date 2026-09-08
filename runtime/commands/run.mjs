@@ -8,6 +8,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {truthy} from '../util.mjs';
+import * as layout from '../layout.mjs';
 
 export const commands={
   route:async ctx=>{
@@ -31,7 +32,7 @@ export const commands={
     const {route,routeSemantic}=await import('../router.mjs');
     const {newRun}=await import('../orchestrator.mjs');
     const {resolveFeatureBinding}=await import('../features.mjs');
-    if(!fs.existsSync(path.join(projectRoot,'.agent-sdlc','project.json')))initProject(projectRoot,detectProject(projectRoot));
+    if(!fs.existsSync(layout.projectConfigFile(projectRoot)))initProject(projectRoot,detectProject(projectRoot));
     const isSemantic=truthy(args.semantic)||truthy(args.ai);
     const r=isSemantic
       ?await routeSemantic(ROOT,objective,args.workflow||null,args.profile||null,{semantic:true,provider:args.provider||'auto'})
@@ -248,7 +249,7 @@ export const commands={
       status:'REPORT_GENERATED',
       run_report:rep?.report_file||null,
       summary_file:summaryPath,
-      dashboard_file:path.join(projectRoot,'.agent-sdlc','dashboard.html')
+      dashboard_file:layout.dashboardFile(projectRoot)
     });
   }
 };

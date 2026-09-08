@@ -1,6 +1,7 @@
 import path from 'node:path';
 import {readJson} from './util.mjs';
 import {probe,capabilities} from './provider.mjs';
+import * as layout from './layout.mjs';
 
 const HARD_STAGES=new Set(['DESIGN','REVIEW','RELEASE']);
 const CHEAP_TASKS=new Set(['classification','triage','bounded-summary','metadata']);
@@ -8,7 +9,7 @@ const NO_MODEL_TASKS=new Set(['format','schema-validate','grep','build','test','
 
 export function routeModel(root,projectRoot,run,{task='stage',provider='auto',requireStructured=false}={}){
   const policy=readJson(path.join(root,'policies','model-routing.json'));
-  const cfg=readJson(path.join(projectRoot,'.agent-sdlc','project.json'),{});
+  const cfg=readJson(layout.projectConfigFile(projectRoot),{});
   if(NO_MODEL_TASKS.has(task))return {mode:'DETERMINISTIC',provider:null,tier:null,model_alias:null,reason:'mechanical-task'};
   let tier=policy.risk_floor?.[run.profile]||'standard';
   if(CHEAP_TASKS.has(task)&&run.profile!=='STRICT')tier='economy';

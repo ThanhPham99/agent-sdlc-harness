@@ -25,10 +25,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {now,readJson,writeJson} from './util.mjs';
-import {loadRun,saveRun,emit,stateDir} from './store.mjs';
+import {loadRun,saveRun,emit} from './store.mjs';
 import {loadTraceabilityGraph,computeInvalidationClosure,applyInvalidation} from './traceability.mjs';
+import * as layout from './layout.mjs';
 
-const planPath=(projectRoot,runId)=>path.join(stateDir(projectRoot),'requirement-update',`${runId}.json`);
+const planPath=(projectRoot,runId)=>layout.runRequirementUpdateFile(projectRoot,runId);
 
 function preservedArtifactRefs(graph,closure){
   const preservedIds=new Set(closure.preserved.map(n=>n.id));

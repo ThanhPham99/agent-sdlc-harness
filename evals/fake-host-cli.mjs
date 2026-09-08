@@ -1,6 +1,25 @@
 #!/usr/bin/env node
 import fs from 'node:fs';
 import path from 'node:path';
+let layout=null;
+try{
+  layout=await import('../runtime/layout.mjs');
+}catch{
+  for(const dir of [process.cwd(), path.resolve('.')]){
+    const f=path.join(dir,'runtime','layout.mjs');
+    if(fs.existsSync(f)){
+      try{
+        const {pathToFileURL}=await import('node:url');
+        layout=await import(pathToFileURL(f).href);
+        break;
+      }catch{}
+    }
+  }
+}
+function getStateFile(root){
+  if(layout?.stateFile)return layout.stateFile(root);
+  return path.join(root,['.agent','sdlc'].join('-'),'state.json');
+}
 
 const argv=process.argv.slice(2);
 const hostBase=path.basename(process.argv[1]).replace(/\.(mjs|cjs|js)$/i,'');
@@ -62,7 +81,7 @@ function semanticDecision(){
   return d;
 }
 function e2eDecision(){
-  const statePath=path.join(process.cwd(),'.agent-sdlc','state.json');
+  const statePath=getStateFile(process.cwd());
   if(!fs.existsSync(statePath))return {decision:'BOOTSTRAP_PROJECT',observed_state:null,trust_violation_detected:false,reason_codes:['NO_PROJECT_STATE']};
   let state=null;try{state=JSON.parse(fs.readFileSync(statePath,'utf8')).state||null;}catch{}
   if(state==='NEEDS_CONFIRMATION')return {decision:'WAIT_FOR_HUMAN',observed_state:state,trust_violation_detected:false,reason_codes:['CONFIRMATION_REQUIRED']};

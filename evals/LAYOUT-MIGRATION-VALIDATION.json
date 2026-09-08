@@ -1,0 +1,81 @@
+{
+  "schema": "agent-sdlc/layout-migration-validation/v1",
+  "checks": 18,
+  "passes": 18,
+  "failures": 0,
+  "skipped": 0,
+  "results": [
+    {
+      "name": "a-v1-tree-is-detected-as-requiring-migration",
+      "status": "PASS"
+    },
+    {
+      "name": "planning-is-read-only-and-names-every-move",
+      "status": "PASS"
+    },
+    {
+      "name": "migration-moves-rather-than-copies-so-the-markers-clear",
+      "status": "PASS"
+    },
+    {
+      "name": "every-v1-path-arrives-at-its-v2-location",
+      "status": "PASS"
+    },
+    {
+      "name": "the-migrated-run-is-readable-through-the-runtime-api",
+      "status": "PASS"
+    },
+    {
+      "name": "the-pre-migration-tree-is-recoverable-from-the-backup",
+      "status": "PASS"
+    },
+    {
+      "name": "migration-is-idempotent-and-leaves-a-v2-tree-alone",
+      "status": "PASS"
+    },
+    {
+      "name": "migrate-state-migrates-the-shape-before-reading-the-metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "a-healthy-v2-project-is-left-alone-even-with-content-the-plan-does-not-recognise",
+      "status": "PASS"
+    },
+    {
+      "name": "an-incomplete-migration-resumes-because-the-stamp-says-so",
+      "status": "PASS"
+    },
+    {
+      "name": "the-incomplete-error-names-every-cause",
+      "status": "PASS"
+    },
+    {
+      "name": "a-fresh-v2-project-is-never-migrated",
+      "status": "PASS"
+    },
+    {
+      "name": "an-uninitialized-project-and-a-legacy-tree-are-both-refused",
+      "status": "PASS"
+    },
+    {
+      "name": "nothing-left-behind-is-ever-reported-as-MIGRATED",
+      "status": "PASS"
+    },
+    {
+      "name": "a-docs-subdirectory-is-migrated-rather-than-silently-stranded",
+      "status": "PASS"
+    },
+    {
+      "name": "an-unaddressable-filename-is-reported-not-fatal",
+      "status": "PASS"
+    },
+    {
+      "name": "a-recovered-migration-keeps-the-pristine-backup",
+      "status": "PASS"
+    },
+    {
+      "name": "migration-never-overwrites-an-existing-v2-path",
+      "status": "PASS"
+    }
+  ]
+}

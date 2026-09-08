@@ -18,6 +18,7 @@ import {workspaceDiff,getTaskWorkspace} from './workspace.mjs';
 import {execFileSync} from 'node:child_process';
 import {resolveLaunch,describeSpawn} from './launcher.mjs';
 import {triageFailure} from './triage.mjs';
+import * as layout from './layout.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 const norm=p=>String(p||'').replace(/\\/g,'/').replace(/^\.\//,'').replace(/\/+$/,'');
@@ -92,7 +93,7 @@ export function attemptDeterministicMicroFix(cwd,projectRoot,task,{summary='',ki
 
 /** Which project commands a strategy runs, in order. */
 export function plannedCommands(projectRoot,task,strategy,{root=null,changedPaths=[],cwd=null}={}){
-  const cfg=readJson(path.join(projectRoot,'.agent-sdlc','project.json'),{});
+  const cfg=readJson(layout.projectConfigFile(projectRoot),{});
   const out=[];
   const selectors=arr(task.verification?.targeted_tests).map(String);
   const push=(kind,command)=>{

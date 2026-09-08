@@ -1,0 +1,71 @@
+{
+  "schema": "agent-sdlc/eval-report/v1",
+  "suite": "layout",
+  "layout_version": 2,
+  "checks": 15,
+  "passes": 15,
+  "failures": 0,
+  "results": [
+    {
+      "name": "every-accessor-resolves-inside-the-state-directory",
+      "status": "PASS"
+    },
+    {
+      "name": "unsafe-id-segments-are-rejected-including-the-win32-hazards",
+      "status": "PASS"
+    },
+    {
+      "name": "every-run-scoped-row-outside-the-run-directory-names-the-run",
+      "status": "PASS"
+    },
+    {
+      "name": "runPaths-covers-every-run-scoped-namespace-and-nothing-shared",
+      "status": "PASS"
+    },
+    {
+      "name": "the-object-store-shard-partition-round-trips",
+      "status": "PASS"
+    },
+    {
+      "name": "ensureLayout-is-idempotent-and-reports-only-what-it-created",
+      "status": "PASS"
+    },
+    {
+      "name": "describeLayout-is-a-complete-duplicate-free-description",
+      "status": "PASS"
+    },
+    {
+      "name": "the-statusline-hooks-hardcoded-paths-still-match-the-layout",
+      "status": "PASS"
+    },
+    {
+      "name": "listArtifacts-survives-an-object-with-no-readable-metadata",
+      "status": "PASS"
+    },
+    {
+      "name": "both-store-half-states-are-enumerable-and-reclaimable",
+      "status": "PASS"
+    },
+    {
+      "name": "gc-never-plans-a-half-state-that-a-surviving-run-references",
+      "status": "PASS"
+    },
+    {
+      "name": "gc-planning-survives-unparseable-metadata-in-the-store",
+      "status": "PASS"
+    },
+    {
+      "name": "detectLayoutVersion-trusts-markers-over-a-stamp",
+      "status": "PASS"
+    },
+    {
+      "name": "a-metadata-only-half-state-self-heals-on-the-next-identical-put",
+      "status": "PASS"
+    },
+    {
+      "name": "the-layout-authority-depends-on-nothing-but-node-builtins",
+      "status": "PASS"
+    }
+  ],
+  "status": "PASS"
+}

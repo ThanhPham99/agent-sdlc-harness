@@ -43,7 +43,7 @@ node runtime/cli.mjs gate status
 ## 3. Quản Lý Tài Liệu, Báo Cáo & Dashboard (Human-Readable)
 
 ```bash
-# Tạo / làm mới giao diện trực quan HTML (.agent-sdlc/dashboard.html):
+# Tạo / làm mới giao diện trực quan HTML (.agent-sdlc/cache/dashboard.html):
 node runtime/cli.mjs dashboard
 
 # Tạo hoặc xuất tóm tắt báo cáo Markdown cho run hiện tại:
