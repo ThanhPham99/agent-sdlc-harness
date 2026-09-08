@@ -1493,56 +1493,70 @@ await test('verify-stage-transitions-cleanly-on-zero-test-repository',async ()=>
 });
 
 await test('autonomous-worker-subagent-spawns-and-executes-task-without-callback',async ()=>{
+  const {resetProbeCache}=await import('../runtime/provider.mjs');
   const d=fixture('auto-worker-subagent');
-  const r=route(ROOT,'Add calculator multiply feature');
-  const run=newRun(ROOT,d,{objective:'Add calculator multiply feature',route:r});
+  const fakeClaude=path.join(d,'claude.mjs');
+  fs.copyFileSync(path.join(ROOT,'evals','fake-host-cli.mjs'),fakeClaude);
+  fs.chmodSync(fakeClaude,0o755);
+  const prevHost=process.env.AI_SDLC_CLAUDE_BIN;
+  process.env.AI_SDLC_CLAUDE_BIN=fakeClaude;
+  resetProbeCache();
 
-  const plan={
-    schema:'agent-sdlc/task-plan/v1',
-    plan_id:'plan_worker_subagent_test',
-    run_id:run.run_id,
-    objective:run.objective,
-    tasks:[{
-      task_id:'TASK-001',
-      title:'Multiply feature',
-      goal:'Implement multiply function',
-      category:'implementation',
-      changes_behavior:true,
-      scope:{write:['src/**']},
-      write_scope:['src/**'],
-      depends_on:[],
-      acceptance_criteria:['multiply works'],
-      done_conditions:['code written'],
-      design_decisions:[],
-      verification:{targeted_tests:['src/index.js'],expected_behavior:['multiply works']}
-    }]
-  };
+  try{
+    const r=route(ROOT,'Add calculator multiply feature');
+    const run=newRun(ROOT,d,{objective:'Add calculator multiply feature',route:r});
 
-  let mockWorkerRan=false;
-  const mockWorkerRunner=(host,prompt,schemaPath,budget)=>{
-    mockWorkerRan=true;
-    fs.mkdirSync(path.join(budget.cwd,'src'),{recursive:true});
-    fs.writeFileSync(path.join(budget.cwd,'src','index.js'),'module.exports={multiply:(a,b)=>a*b};\n');
-    return {
-      status:'PASS',
-      exit_code:0,
-      stdout:'Implemented multiply function',
-      stderr:''
+    const plan={
+      schema:'agent-sdlc/task-plan/v1',
+      plan_id:'plan_worker_subagent_test',
+      run_id:run.run_id,
+      objective:run.objective,
+      tasks:[{
+        task_id:'TASK-001',
+        title:'Multiply feature',
+        goal:'Implement multiply function',
+        category:'implementation',
+        changes_behavior:true,
+        scope:{write:['src/**']},
+        write_scope:['src/**'],
+        depends_on:[],
+        acceptance_criteria:['multiply works'],
+        done_conditions:['code written'],
+        design_decisions:[],
+        verification:{targeted_tests:['src/index.js'],expected_behavior:['multiply works']}
+      }]
     };
-  };
 
-  const res=runAutoPipeline(ROOT,d,run,{
-    customPlan:plan,
-    spawnWorker:true,
-    workerRunner:mockWorkerRunner,
-    reviewerCallback:passingReviewer,
-    skipCiCheck:true
-  });
+    let mockWorkerRan=false;
+    const mockWorkerRunner=(host,prompt,schemaPath,budget)=>{
+      mockWorkerRan=true;
+      fs.mkdirSync(path.join(budget.cwd,'src'),{recursive:true});
+      fs.writeFileSync(path.join(budget.cwd,'src','index.js'),'module.exports={multiply:(a,b)=>a*b};\n');
+      return {
+        status:'PASS',
+        exit_code:0,
+        stdout:'Implemented multiply function',
+        stderr:''
+      };
+    };
 
-  assert(mockWorkerRan,'mock worker runner was spawned');
-  assert(res.status==='PAUSED'||res.status==='COMPLETED',`pipeline ran, got ${res.status}`);
-  const task=loadTask(d,run.run_id,'TASK-001');
-  assert(task.status==='DONE','task reached DONE via worker subagent');
+    const res=runAutoPipeline(ROOT,d,run,{
+      customPlan:plan,
+      spawnWorker:true,
+      workerRunner:mockWorkerRunner,
+      reviewerCallback:passingReviewer,
+      skipCiCheck:true
+    });
+
+    assert(mockWorkerRan,'mock worker runner was spawned');
+    assert(res.status==='PAUSED'||res.status==='COMPLETED',`pipeline ran, got ${res.status}`);
+    const task=loadTask(d,run.run_id,'TASK-001');
+    assert(task.status==='DONE','task reached DONE via worker subagent');
+  }finally{
+    if(prevHost)process.env.AI_SDLC_CLAUDE_BIN=prevHost;
+    else delete process.env.AI_SDLC_CLAUDE_BIN;
+    resetProbeCache();
+  }
 });
 
 await test('spec-review-stub-carries-independence-and-does-not-crash-on-strict-tasks',async ()=>{

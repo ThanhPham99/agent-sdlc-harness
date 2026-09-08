@@ -68,6 +68,9 @@ export function executeTaskWithAgent(root,projectRoot,run,task,{provider='auto',
   const unavailable=reason=>({status:'UNAVAILABLE',task_id:task.task_id,reason});
 
   const routing=(()=>{
+    if(runner!==runHost){
+      return {mode:'MODEL',provider:provider!=='auto'?provider:'claude',tier:'standard',model_alias:'mock',reason:'custom-runner'};
+    }
     try{
       return routeModel(root,projectRoot,run,{
         task:task.category||'implementation',
