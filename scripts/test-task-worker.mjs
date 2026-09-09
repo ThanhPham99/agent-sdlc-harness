@@ -88,6 +88,18 @@ await test('buildWorkerPrompt-includes-prevFailure-context',async ()=>{
   assert(prompt.includes('src/billing.js:42'),'contains finding evidence');
 });
 
+await test('worker-prompt-sources-tdd-from-the-registry',()=>{
+  const tdd=fs.readFileSync(path.join(ROOT,'harness','internal-skills','tdd.md'),'utf8');
+  const marker='NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST';
+  assert(tdd.includes(marker),'tdd.md no longer states the Iron Law: fix the fixture, not the test');
+  const prompt=buildWorkerPrompt(ROOT,ROOT,
+    {run_id:'r1',state:'IMPLEMENT',workflow:'bug-fix',profile:'STRICT',overlays:[],objective:'x'},
+    {task_id:'TASK-001',title:'t',goal:'g',write_scope:['src/a.js'],verification:{targeted_tests:['npm test']}});
+  assert(prompt.includes(marker),'worker prompt lost the Iron Law');
+  const src=fs.readFileSync(path.join(ROOT,'runtime','task-worker.mjs'),'utf8');
+  assert(!src.includes(marker),'task-worker.mjs still hardcodes the Iron Law: it must read tdd.md');
+});
+
 // 2. Worker execution tests
 await test('executeTaskWithAgent-runs-in-workspace-and-saves-artifacts',async ()=>{
   const d=makeTempDir();
