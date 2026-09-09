@@ -15,8 +15,8 @@ import {newRun,transition,recordDesignDecision,recordTaskPlan,materializeRunTask
 import {materializeTaskGraph,refreshReadiness,transitionTask,evaluateTransition,dependencyState,taskProgress,requireTask} from '../runtime/task-engine.mjs';
 import {scheduleTasks,readySet,scopeConflicts,mustSerialize,scopeOverlap as schedulerOverlap} from '../runtime/task-scheduler.mjs';
 import {scopeOverlap as sharedOverlap} from '../runtime/scope.mjs';
-import {computeScopeConflicts} from '../runtime/plan-validator.mjs';
-import {buildTaskContext,renderTaskPrompt,EXCLUDED_BY_DEFAULT} from '../runtime/task-context.mjs';
+import {computeScopeConflicts,TASK_CATEGORIES} from '../runtime/plan-validator.mjs';
+import {buildTaskContext,renderTaskPrompt,renderCacheableTaskPrompt,EXCLUDED_BY_DEFAULT} from '../runtime/task-context.mjs';
 import {createTaskWorkspace,cleanupTaskWorkspace,checkWriterIsolation,listTaskWorkspaces,scrubbedEnv,workspaceDiff,getTaskWorkspace} from '../runtime/workspace.mjs';
 import {verifyTask,scopeAudit,verificationStrategy,plannedCommands} from '../runtime/task-verification.mjs';
 import {validateSpecComplianceReview,validateCodeQualityReview,recordTaskReview} from '../runtime/task-review.mjs';
@@ -687,6 +687,29 @@ export function runTaskRuntimeSuite(root){
       const text=m.risk_constraints.join('|');
       for(const needle of ['security-critical','data-affecting','destructive data change','public interface'])
         if(!text.includes(needle))fail(`missing constraint for ${needle}: ${text}`);
+    });
+
+    t('every-task-category-gets-non-empty-module-guidance',()=>{
+      // The 17 retired slot files this cleanup deleted were the very ids
+      // taskSkillInstructions (runtime/task-context.mjs) pointed at for every
+      // task category -- if that map is not repointed at a surviving
+      // procedure or a retired-guidance fallback, registry[id] is undefined,
+      // taskSkillInstructions returns null, and MODULE GUIDANCE silently
+      // renders "(none)" for every worker, every category, every run. This
+      // reads the actual rendered prompt string, not the manifest, the same
+      // way the analogous stage-level test does for skill_instructions.
+      const base=requireTask(projectRoot,run.run_id,'TASK-001');
+      for(const category of [...TASK_CATEGORIES,'no-such-category']){
+        const task={...base,category};
+        const m=buildTaskContext(root,projectRoot,run,task,{persist:false});
+        const cacheable=renderCacheableTaskPrompt(root,m);
+        const guidance=cacheable.module_prefix
+          .replace(/^MODULE GUIDANCE\n/,'')
+          .split('\n\nPROJECT INVARIANTS')[0]
+          .trim();
+        if(!guidance||guidance==='(none)')
+          fail(`category "${category}" rendered empty MODULE GUIDANCE`);
+      }
     });
   }
 

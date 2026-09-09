@@ -147,8 +147,17 @@ for(const host of hosts){
       const run=cli(root,['start','--project',proj,'--objective','Add idempotent refund processing'],proj);
       const ctx=cli(root,['context','--project',proj,'--run-id',run.run_id],proj);
       if(ctx.context_budget_status!=='WITHIN_BUDGET')throw Error(`context ${ctx.context_budget_status}`);
-      if(!ctx.skill_instructions?.length)throw Error('internal skill instructions not resolved from packaged layout');
-      return {state:run.state,estimated_tokens:ctx.estimated_tokens,skills:ctx.skills.map(x=>x.id)};
+      // ctx.skill_instructions can be non-empty purely off a retired id's
+      // one-line guidance sentence (policies/skill-navigation.json), which
+      // needs no packaged file at all -- so its length alone never proved the
+      // packaged harness/internal-skills/*.md layout was actually read.
+      // Every real module file starts with the literal "# Workflow Module:
+      // <id>" header; a retired guidance sentence never does. requirements-
+      // intake is unconditional ("always") at INTAKE, the fresh run's stage,
+      // so this is always present when the packaged layout resolves for real.
+      const loadedFromDisk=(ctx.procedure_instructions||[]).find(p=>p.instructions?.startsWith('# Workflow Module:'));
+      if(!loadedFromDisk)throw Error('no packaged internal-skills module file was actually read from disk (readTextFile may be silently swallowed)');
+      return {state:run.state,estimated_tokens:ctx.estimated_tokens,skills:ctx.skills.map(x=>x.id),loaded_module:loadedFromDisk.id};
     });
     check(host,'doctor-smoke',()=>{
       const d=cli(root,['doctor'],root);

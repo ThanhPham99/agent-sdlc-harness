@@ -8,7 +8,7 @@
     "PLAN": {"stage_skill": "sdlc-plan", "retired_core": ["planning"]},
     "IMPLEMENT": {"stage_skill": "sdlc-implement", "retired_core": ["implementation"]},
     "VERIFY": {"stage_skill": "sdlc-verify", "retired_core": ["testing"]},
-    "REVIEW": {"stage_skill": "sdlc-review", "core": ["code-review"]},
+    "REVIEW": {"stage_skill": "sdlc-review"},
     "RELEASE": {"stage_skill": "sdlc-release", "retired_core": ["ci-cd"]},
     "DEPLOY": {"stage_skill": "sdlc-release", "retired_core": ["deployment"]},
     "OBSERVE": {"stage_skill": "sdlc-release", "retired_core": ["monitoring"]},
@@ -35,13 +35,11 @@
     "security": {"retired": ["security"]},
     "incident": {"retired": ["incident"]},
     "db-migration": {"retired": ["database"]},
-    "api-breaking-change": {"retired": ["documentation"]},
-    "client-impact": {"skills": ["frontend-integration"]}
+    "api-breaking-change": {"retired": ["documentation"]}
   },
   "conditional": [
     {"id": "release-deploy-needs-deployment", "when": "stage_in:RELEASE,DEPLOY", "add": ["deployment"]},
-    {"id": "strict-needs-security-review", "when": "strict_and_stage_in:DESIGN,VERIFY,REVIEW,RELEASE", "add": ["security"]},
-    {"id": "g0-bootstrap-project-knowledge", "when": "new_feature_without_project_knowledge", "add": ["project-bootstrap"]}
+    {"id": "strict-needs-security-review", "when": "strict_and_stage_in:DESIGN,VERIFY,REVIEW,RELEASE", "add": ["security"]}
   ],
   "retired_ids": ["architecture", "ci-cd", "compliance", "database", "deployment", "documentation", "implementation", "incident", "maintenance", "modernization", "monitoring", "performance", "planning", "requirements", "security", "testing", "upgrade"],
   "guidance": {

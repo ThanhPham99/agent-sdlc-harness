@@ -138,13 +138,13 @@
       "group": "requirements",
       "stages": ["INTAKE", "REQUIREMENTS"],
       "instructions": "harness/internal-skills/project-bootstrap.md",
-      "when": "workflow:new-feature"
+      "when": "new_feature_without_project_knowledge"
     },
     "frontend-integration": {
       "group": "implementation",
       "stages": ["DESIGN", "PLAN", "IMPLEMENT", "VERIFY"],
       "instructions": "harness/internal-skills/frontend-integration.md",
-      "when": "always"
+      "when": "overlay:client-impact"
     }
   }
 }

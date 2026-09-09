@@ -787,7 +787,24 @@ transition(ROOT,tmp,contextRun,'REQUIREMENTS');transition(ROOT,tmp,contextRun,'D
 // single-skill stage while staying far under DESIGN's real 60000 budget --
 // this test exists to catch runaway bloat, not to pin an exact byte count.
 test('context-bounded',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(m.estimated_tokens>7000||m.context_budget_status!=='WITHIN_BUDGET')throw Error(`unexpected context size: ${m.estimated_tokens}`);if(!m.allowed_tools.length)throw Error('no tools');});
-test('context-loads-core-skill',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(!m.skills.some(x=>x.id==='architecture')||!m.skill_instructions.some(x=>x.id==='architecture'))throw Error('architecture skill absent');});
+// Formerly "context-loads-core-skill", asserting architecture present on
+// m.skills/m.skill_instructions -- but architecture is a retired id now:
+// that assertion passes off its one-line guidance sentence
+// (policies/skill-navigation.json's guidance map), which needs no file read
+// at all. Nothing then proved resolveSkills or resolveProcedures ever
+// actually reads a packaged .md off disk; a try{}catch{} around
+// readTextFile could swallow every read and this would still stay green.
+// Every real module file starts with the literal "# Workflow Module: <id>"
+// header (harness/internal-skills/*.md); a retired guidance sentence never
+// does. design-discovery is unconditional ("always") at DESIGN, contextRun's
+// stage, so this is always present and always backed by a real file.
+test('context-loads-a-real-procedure-file-from-disk',()=>{
+  const m=buildContext(ROOT,tmp,contextRun,{});
+  const proc=(m.procedure_instructions||[]).find(p=>p.id==='design-discovery');
+  if(!proc)throw Error('design-discovery procedure missing from context');
+  if(!proc.instructions.startsWith('# Workflow Module: design-discovery'))
+    throw Error(`design-discovery instructions do not look like a real module file (readTextFile may have been silently swallowed): ${JSON.stringify(proc.instructions.slice(0,80))}`);
+});
 test('context-loads-workflow-specialty',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(!m.skills.some(x=>x.id==='database'))throw Error(JSON.stringify(m.skills));});
 test('strict-context-loads-security',()=>{const m=buildContext(ROOT,tmp,contextRun,{});if(!m.skills.some(x=>x.id==='security'))throw Error(JSON.stringify(m.skills));});
 test('prompt-does-not-load-chat-history',()=>{const m=buildContext(ROOT,tmp,contextRun,{});const p=renderPrompt(ROOT,m);if(/entire chat history/i.test(p)||p.length>30000)throw Error('prompt too large/unsafe');});
@@ -891,6 +908,13 @@ test('workflow-maintenance-is-registered-but-never-auto-selected',()=>{
 
 // Project knowledge readiness (G0): a new feature bootstraps missing project
 // knowledge before proceeding, and stops once it has all of it.
+//
+// project-bootstrap used to reach a run through the g0-bootstrap-project-
+// knowledge conditional in policies/skill-navigation.json (so it landed on
+// manifest.skills). Task 6's fix round 2 moved it to a routed procedure
+// (config/procedures.json, gated by the new_feature_without_project_knowledge
+// WHEN_HANDLER in runtime/procedures.mjs) and removed the conditional entry
+// entirely -- it now lands on manifest.procedures instead.
 test('project-knowledge-status-progresses-missing-to-partial-to-ready',()=>{
   const before=getProjectKnowledgeStatus(tmp);
   if(before.status!=='MISSING'||before.missing.length!==4)throw Error(JSON.stringify(before));
@@ -898,7 +922,7 @@ test('project-knowledge-status-progresses-missing-to-partial-to-ready',()=>{
   const bootstrapRun=newRun(ROOT,tmp,{objective:'Add referrals capability',route:route(ROOT,'Add referrals capability')});
   if(bootstrapRun.workflow!=='new-feature')throw Error(`fixture routed to ${bootstrapRun.workflow}, not new-feature`);
   const m0=buildContext(ROOT,tmp,bootstrapRun,{});
-  if(!m0.skills.some(s=>s.id==='project-bootstrap'))throw Error('project-bootstrap not offered while knowledge is MISSING');
+  if(!m0.procedures.some(s=>s.id==='project-bootstrap'))throw Error('project-bootstrap not offered while knowledge is MISSING');
 
   for(const kind of ['system-context','architecture','standards']){
     putArtifact(tmp,{kind,content:`# ${kind}\n(bootstrap fixture)`,runId:bootstrapRun.run_id,stage:bootstrapRun.state});
@@ -906,13 +930,13 @@ test('project-knowledge-status-progresses-missing-to-partial-to-ready',()=>{
   const mid=getProjectKnowledgeStatus(tmp);
   if(mid.status!=='PARTIAL'||!mid.missing.includes('feature-index'))throw Error(JSON.stringify(mid));
   const m1=buildContext(ROOT,tmp,bootstrapRun,{});
-  if(!m1.skills.some(s=>s.id==='project-bootstrap'))throw Error('project-bootstrap dropped while still PARTIAL');
+  if(!m1.procedures.some(s=>s.id==='project-bootstrap'))throw Error('project-bootstrap dropped while still PARTIAL');
 
   putArtifact(tmp,{kind:'feature-index',content:'# feature-index\n(bootstrap fixture)',runId:bootstrapRun.run_id,stage:bootstrapRun.state});
   const after=getProjectKnowledgeStatus(tmp);
   if(after.status!=='READY')throw Error(JSON.stringify(after));
   const m2=buildContext(ROOT,tmp,bootstrapRun,{});
-  if(m2.skills.some(s=>s.id==='project-bootstrap'))throw Error('project-bootstrap still offered once knowledge is READY');
+  if(m2.procedures.some(s=>s.id==='project-bootstrap'))throw Error('project-bootstrap still offered once knowledge is READY');
 });
 test('project-bootstrap-is-not-forced-on-other-workflows',()=>{
   // Knowledge is READY from the previous test, but the trigger is scoped to
@@ -921,7 +945,7 @@ test('project-bootstrap-is-not-forced-on-other-workflows',()=>{
   const bugRun=newRun(ROOT,tmp,{objective:'Fix refund rounding bug',route:route(ROOT,'Fix refund rounding bug')});
   if(bugRun.workflow==='new-feature')throw Error('fixture objective routed to new-feature, not bug-fix');
   const m=buildContext(ROOT,tmp,bugRun,{});
-  if(m.skills.some(s=>s.id==='project-bootstrap'))throw Error('project-bootstrap leaked into a non-new-feature workflow');
+  if(m.procedures.some(s=>s.id==='project-bootstrap'))throw Error('project-bootstrap leaked into a non-new-feature workflow');
 });
 
 // ---------------------------------------------------------------------------

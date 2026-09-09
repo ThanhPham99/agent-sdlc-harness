@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-rc2",
-  "checks": 443,
-  "passes": 443,
+  "checks": 444,
+  "passes": 444,
   "failures": 0,
   "results": [
     {
@@ -326,7 +326,7 @@
       "status": "PASS"
     },
     {
-      "name": "context-loads-core-skill",
+      "name": "context-loads-a-real-procedure-file-from-disk",
       "status": "PASS"
     },
     {
@@ -1275,6 +1275,10 @@
     },
     {
       "name": "task-context/risk-constraints-are-derived-from-task-risk",
+      "status": "PASS"
+    },
+    {
+      "name": "task-context/every-task-category-gets-non-empty-module-guidance",
       "status": "PASS"
     },
     {

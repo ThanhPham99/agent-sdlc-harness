@@ -30,11 +30,36 @@ const FROZEN_WORKFLOW={
 const FROZEN_OVERLAY={security:'security',incident:'incident','db-migration':'database',
   'api-breaking-change':'documentation','client-impact':'frontend-integration'};
 
+// code-review (REVIEW's old core entry) and frontend-integration (the old
+// client-impact overlay) are not retired -- they carry real content, so
+// Task 6 routed them through config/procedures.json instead of deleting
+// them, and Task 6's fix round 2 removed them from the policy's live
+// navigation lists entirely (keeping them there too would double-render the
+// same file, once from skill_instructions and once from
+// procedure_instructions, with no cross-dedupe). So for exactly these two
+// frozen entries, "reproduces the frozen table" no longer means "still in
+// policy.stages/workflow_skills/overlay_skills" -- it means "still reachable
+// for the same run shape via the procedure registry, gated the same way the
+// old table gated it". Every other frozen id must still be found in the
+// policy under core/retired_core or skills/retired, unchanged.
+const PROCEDURE_PROMOTED_CORE={REVIEW:'code-review'};
+const PROCEDURE_PROMOTED_OVERLAY={'client-impact':'frontend-integration'};
+
 test('policy-reproduces-frozen-core-map',()=>{
   const policy=loadNavigationPolicy(ROOT);
+  const procedures=readJson(path.join(ROOT,'config','procedures.json')).procedures||{};
   for(const [stage,id] of Object.entries(FROZEN_CORE)){
     const declared=policy.stages[stage];
     assert(declared,`policy has no entry for stage ${stage}`);
+    if(PROCEDURE_PROMOTED_CORE[stage]===id){
+      // The old table put code-review unconditionally on every REVIEW run;
+      // the promoted procedure must still fire unconditionally for REVIEW.
+      const proc=procedures[id];
+      assert(proc,`promoted id ${id} has no config/procedures.json entry`);
+      assert(proc.stages?.includes(stage),`procedure ${id} is not registered for stage ${stage}`);
+      assert(proc.when==='always',`procedure ${id} is gated by "${proc.when}", not the unconditional "always" the old core table used for ${stage}`);
+      continue;
+    }
     const covered=(declared.core||[]).includes(id)||(declared.retired_core||[]).includes(id);
     assert(covered,`stage ${stage} lost core skill ${id}`);
   }
@@ -54,7 +79,17 @@ test('policy-reproduces-frozen-workflow-map',()=>{
 
 test('policy-reproduces-frozen-overlay-map',()=>{
   const policy=loadNavigationPolicy(ROOT);
+  const procedures=readJson(path.join(ROOT,'config','procedures.json')).procedures||{};
   for(const [overlay,id] of Object.entries(FROZEN_OVERLAY)){
+    if(PROCEDURE_PROMOTED_OVERLAY[overlay]===id){
+      // The old table loaded frontend-integration only when the run carried
+      // the client-impact overlay; the promoted procedure's "when" must
+      // still name that exact overlay, not "always".
+      const proc=procedures[id];
+      assert(proc,`promoted id ${id} has no config/procedures.json entry`);
+      assert(proc.when===`overlay:${overlay}`,`procedure ${id}'s when-condition "${proc.when}" no longer reproduces the ${overlay} overlay gate`);
+      continue;
+    }
     const entry=policy.overlay_skills[overlay];
     assert(entry,`policy has no entry for overlay ${overlay}`);
     const covered=(entry.skills||[]).includes(id)||(entry.retired||[]).includes(id);
@@ -126,14 +161,20 @@ test('resolve-is-deterministic-for-a-fixed-run',()=>{
 // resolveNavigation still names it as guidance-only. Every fixture whose
 // pinned result was built entirely from retired ids (deployment, ci-cd,
 // planning, maintenance, implementation, testing, security) now resolves to
-// [] -- that is retirement working as designed, not a routing regression;
-// only the REVIEW fixture still resolves a live id (code-review, which was
-// promoted to a routed procedure rather than retired).
+// [] -- that is retirement working as designed, not a routing regression.
+// The REVIEW fixture also resolves to [] as of Task 6's fix round 2: code-
+// review was promoted to a routed procedure rather than retired, but round 2
+// then removed it from REVIEW's policy `core` entirely (config/
+// procedures.json now routes it unconditionally for REVIEW instead, so
+// leaving it in both places would render the same file twice with no
+// cross-dedupe). The reachability net for code-review's REVIEW placement
+// lives in policy-reproduces-frozen-core-map instead, which now asserts it
+// through the procedure registry.
 const PINNED_RESOLUTIONS=[
   {state:'DEPLOY',workflow:'infrastructure-change',overlays:['security'],profile:'STANDARD',
     expected:[]},
   {state:'REVIEW',workflow:'deprecation-removal',overlays:['api-breaking-change'],profile:'STRICT',
-    expected:['code-review']},
+    expected:[]},
   {state:'RELEASE',workflow:'ci-cd-change',overlays:[],profile:'STRICT',
     expected:[]},
   {state:'PLAN',workflow:'refactor',overlays:[],profile:'STANDARD',

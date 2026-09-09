@@ -31,12 +31,31 @@ export const EXCLUDED_BY_DEFAULT=[
 
 function taskSkillInstructions(root,task){
   const registry=readJson(path.join(root,'config','skills.json')).internal||{};
+  // Every category used to point at one of the 17 retired slot files; each
+  // now points at the surviving procedure that actually absorbed that
+  // category's content (see the skill-first-navigation cleanup).
   const byCategory={
-    implementation:'implementation',migration:'database',verification:'testing',
-    security:'security',integration:'testing',documentation:'documentation',
-    release:'ci-cd',operability:'monitoring'
+    implementation:'task-execution',verification:'testing-verification',
+    integration:'frontend-integration',documentation:'docs-update',
+    release:'release-deployment',operability:'operability-engineering'
   };
-  const id=byCategory[task.category]||'implementation';
+  // "migration" and "security" lost their only module and have no surviving
+  // procedure to fall back to -- policies/skill-navigation.json's guidance
+  // map exists precisely so a retired stub's one-line sentence still reaches
+  // an agent, so use it here instead of silently returning null.
+  const guidanceFallbackId={migration:'database',security:'security'};
+  const fallbackId=guidanceFallbackId[task.category];
+  if(fallbackId){
+    const policy=readJson(path.join(root,'policies','skill-navigation.json'));
+    const text=policy.guidance?.[fallbackId];
+    if(text)
+      // Shaped exactly like resolveSkills' retired-guidance entries
+      // (runtime/context.mjs): instructions equals description equals the
+      // one-line sentence, max_response_words:0 -- there is no full module
+      // file behind it, unlike a loaded byCategory entry below.
+      return {id:fallbackId,description:text,instructions:text,max_response_words:0};
+  }
+  const id=byCategory[task.category]||'task-execution';
   const spec=registry[id];
   if(!spec)return null;
   let instructions='';

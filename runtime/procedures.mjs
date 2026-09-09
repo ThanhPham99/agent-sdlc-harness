@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import {readJson,readTextFile} from './util.mjs';
 import {selectDesignDiscoveryMode} from './design-discovery.mjs';
 import {taskProgress} from './task-engine.mjs';
+import {getProjectKnowledgeStatus} from './project-knowledge.mjs';
 
 // Every condition here resolves from canonical run/artifact state -- never
 // from matching keywords in the free-text objective. Where the ideal signal
@@ -40,7 +41,19 @@ const WHEN_HANDLERS={
   plan_multi_workstream:(root,projectRoot,run)=>{
     if(run.profile==='STRICT')return true;
     try{return taskProgress(projectRoot,run.run_id).total>1;}catch{return false;}
-  }
+  },
+  // The registry's `stages` filter already confines project-bootstrap to
+  // INTAKE/REQUIREMENTS; this only needs to reproduce the other two clauses
+  // of the old g0-bootstrap-project-knowledge conditional
+  // (policies/skill-navigation.json, pre-Task-3): the new-feature workflow,
+  // and project knowledge not yet READY. Same canonical-state rule as every
+  // other handler here -- no keyword matching on the objective.
+  new_feature_without_project_knowledge:(root,projectRoot,run)=>
+    run.workflow==='new-feature'&&getProjectKnowledgeStatus(projectRoot).status!=='READY',
+  // Reproduces the old overlay_skills.client-impact gate: frontend-integration
+  // loaded only when the run carries the client-impact overlay, not on every
+  // DESIGN/PLAN/IMPLEMENT/VERIFY run regardless of overlays.
+  'overlay:client-impact':(root,projectRoot,run)=>Array.isArray(run.overlays)&&run.overlays.includes('client-impact')
 };
 
 function loadRegistry(root){
