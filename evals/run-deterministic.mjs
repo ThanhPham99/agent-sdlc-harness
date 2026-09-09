@@ -48,14 +48,14 @@ import {recordApproval,revokeApproval,findValidApproval,listApprovals} from '../
 import {evaluateGate} from '../runtime/gates.mjs';
 import {getProjectKnowledgeStatus} from '../runtime/project-knowledge.mjs';
 import {resolveProcedures,validateProcedureRegistry,auditProcedureCoverage} from '../runtime/procedures.mjs';
-import {navigableSkillIds} from '../runtime/skill-navigation.mjs';
+import {navigableSkillIds,loadNavigationPolicy} from '../runtime/skill-navigation.mjs';
 import {createFeature,loadFeature,updateFeature,listFeatures,createPhase,loadPhase,updatePhase,listPhases,attachRun,resolveActiveFeature,resolveActivePhase,resolveFeatureBinding} from '../runtime/features.mjs';
 import {planGc,applyGc} from '../runtime/retention.mjs';
 import {jobBlock,jobScriptSequence} from '../scripts/lib/ci-workflow.mjs';
 import {calculateStats,evaluateControlBand,formatAnomalyIntent,processMetricAnomaly} from '../runtime/control-bands.mjs';
 import {writeReport} from '../scripts/lib/report-io.mjs';
 import {makeTempDir} from '../scripts/lib/tempdir.mjs';
-import {readSkillTiers} from '../scripts/lib/skill-tiers.mjs';
+import {readSkillTiers,skillBodyPath} from '../scripts/lib/skill-tiers.mjs';
 
 const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 let pass=0,fail=0;const rows=[];
@@ -864,6 +864,78 @@ test('no-orphaned-procedure-files',()=>{
   const a=auditProcedureCoverage(ROOT,navigableSkillIds(ROOT));
   if(a.orphaned.length)throw Error(`orphaned procedure files: ${JSON.stringify(a.orphaned)}`);
   if(a.total<24)throw Error(`expected at least 24 procedure files, found ${a.total}`);
+});
+// config/procedures.json's `stages`+`when` fields are the single source of
+// stage-to-procedure routing now that the navigation policy's per-stage
+// `procedures` arrays are gone -- so this does NOT assert a procedure is
+// reachable through the policy (that would invert the design). It asserts
+// three separate things that keep the two registries from drifting apart:
+// every lifecycle stage names a stage skill; every registered procedure
+// declares a real stage and a `when` runtime/procedures.mjs can actually
+// evaluate (an unknown `when` makes resolveProcedures throw for every run at
+// that stage); and every id the navigation policy itself names resolves to
+// either a registered procedure or a guidance sentence, so nothing is named
+// and unreachable.
+test('skill-navigation-covers-every-stage',()=>{
+  const policy=loadNavigationPolicy(ROOT);
+  const order=JSON.parse(fs.readFileSync(path.join(ROOT,'config','state-machine.json'),'utf8')).lifecycle_order||[];
+  for(const stage of order){
+    const e=policy.stages?.[stage];
+    if(!e)throw Error(`no navigation entry for stage ${stage}`);
+    if(!e.stage_skill)throw Error(`stage ${stage} names no stage skill`);
+  }
+  const registryCheck=validateProcedureRegistry(ROOT);
+  if(!registryCheck.valid)throw Error(`procedure registry invalid: ${registryCheck.problems.join('; ')}`);
+  const procedures=JSON.parse(fs.readFileSync(path.join(ROOT,'config','procedures.json'),'utf8')).procedures;
+  for(const [id,spec] of Object.entries(procedures)){
+    if(!(spec.stages||[]).some(s=>order.includes(s)))throw Error(`procedure ${id} declares no stage in lifecycle_order`);
+  }
+  const reachable=navigableSkillIds(ROOT);
+  for(const id of reachable){
+    if(procedures[id])continue;
+    if(policy.guidance?.[id])continue;
+    throw Error(`navigation names ${id}, which is neither a procedure nor a guidance entry`);
+  }
+});
+// Every discoverable skill across all four tiers (entry/ops/stage/procedure,
+// via readSkillTiers) must disclaim being an entry point except the one that
+// actually is one. sdlc-router is the entry point and must NOT carry the
+// disclaimer; sdlc-orchestrator is exempt because it is only ever entered
+// after the router hands over, never auto-activated on its own.
+test('single-auto-activating-skill',()=>{
+  const tiers=readSkillTiers(ROOT);
+  const broad=[];
+  for(const id of tiers.all){
+    const body=fs.readFileSync(path.join(ROOT,skillBodyPath(tiers,id)),'utf8');
+    const front=body.split('---')[1]||'';
+    const declaresNonEntry=body.includes('Not an entry point');
+    if(id==='sdlc-router'){
+      if(declaresNonEntry)throw Error('sdlc-router is the entry point and must not disclaim it');
+      broad.push(id);
+      continue;
+    }
+    if(id==='sdlc-orchestrator')continue; // entered only after the router hands over
+    if(!declaresNonEntry)throw Error(`${id} does not declare itself a non-entry point`);
+    if(/^description:.*\buse automatically\b/im.test(front))throw Error(`${id} carries a broad auto-activation description`);
+  }
+  if(broad.length!==1)throw Error(`expected exactly one auto-activating skill, found ${broad.join(',')||'none'}`);
+});
+test('skill-description-token-budget',()=>{
+  // Measured across all four tiers (entry+ops+stage+procedure, 38 skills) on
+  // 2026-09-09: 7493 bytes of description text. The ceiling below is that
+  // figure rounded up to the next round number -- close enough that drift
+  // shows up as a failure, not as slow growth nobody notices, but never a
+  // blocker for the measured baseline itself.
+  const LIMIT_BYTES=8000;
+  const tiers=readSkillTiers(ROOT);
+  let total=0;
+  for(const id of tiers.all){
+    const front=(fs.readFileSync(path.join(ROOT,skillBodyPath(tiers,id)),'utf8').split('---')[1]||'');
+    const m=/^description:\s*(.+)$/im.exec(front);
+    if(!m)throw Error(`${id} has no description in its frontmatter`);
+    total+=Buffer.byteLength(m[1].trim(),'utf8');
+  }
+  if(total>LIMIT_BYTES)throw Error(`skill descriptions total ${total} bytes, over the ${LIMIT_BYTES} ceiling`);
 });
 test('plan-stage-loads-its-always-on-procedures-and-nothing-out-of-stage',()=>{
   const m=buildContext(ROOT,tmp,run,{}); // run is at PLAN

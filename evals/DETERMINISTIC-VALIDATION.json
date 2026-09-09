@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-rc2",
-  "checks": 446,
-  "passes": 446,
+  "checks": 449,
+  "passes": 449,
   "failures": 0,
   "results": [
     {
@@ -363,6 +363,18 @@
     },
     {
       "name": "no-orphaned-procedure-files",
+      "status": "PASS"
+    },
+    {
+      "name": "skill-navigation-covers-every-stage",
+      "status": "PASS"
+    },
+    {
+      "name": "single-auto-activating-skill",
+      "status": "PASS"
+    },
+    {
+      "name": "skill-description-token-budget",
       "status": "PASS"
     },
     {
