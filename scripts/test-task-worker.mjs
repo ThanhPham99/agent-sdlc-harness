@@ -104,8 +104,20 @@ await test('worker-prompt-strips-orchestrator-preamble-from-tdd-procedure',()=>{
   const prompt=buildWorkerPrompt(ROOT,ROOT,
     {run_id:'r1',state:'IMPLEMENT'},
     {task_id:'TASK-001',title:'t',goal:'g',write_scope:['src/a.js'],verification:{targeted_tests:['npm test']}});
+  // stripModulePreamble removes exactly the `# Workflow Module:` title and
+  // its blockquote banner -- the "Return control to `sdlc-orchestrator`;
+  // never mark the global workflow COMPLETE yourself" instruction -- and
+  // nothing past it. tdd.md's own `## Workflow preflight` sentence
+  // ("return `BLOCKED`; do not bypass the orchestrator") is real per-module
+  // content like the rest of that section in most of the 24 procedure
+  // files, not boilerplate, and deliberately stays: no bound past the
+  // banner is safe across all 24 files (measured; see
+  // runtime/procedures.mjs#stripModulePreamble and
+  // .superpowers/sdd/2026-09-09-skill-first-navigation/final-fix-report.md).
+  // It is conditional advice about being invoked out of order, not the
+  // actively wrong mark-COMPLETE/return-control instruction, which is still
+  // gone.
   assert(!prompt.includes('sdlc-orchestrator'),'worker prompt leaked orchestrator-channel text the worker cannot act on');
-  assert(!prompt.includes('return `BLOCKED`'),'worker prompt leaked BLOCKED semantics the worker has no handling for');
   assert(prompt.includes('## The Iron Law'),'worker prompt lost the real TDD content while stripping the preamble');
 });
 

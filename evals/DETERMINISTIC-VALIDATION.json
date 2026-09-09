@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-rc2",
-  "checks": 450,
-  "passes": 450,
+  "checks": 451,
+  "passes": 451,
   "failures": 0,
   "results": [
     {
@@ -363,6 +363,10 @@
     },
     {
       "name": "no-orphaned-procedure-files",
+      "status": "PASS"
+    },
+    {
+      "name": "strip-module-preamble-removes-only-the-banner",
       "status": "PASS"
     },
     {

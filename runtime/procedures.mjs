@@ -76,12 +76,22 @@ export function resolveProcedures(root,projectRoot,run){
 }
 
 // Procedure files carry an orchestrator-only preamble -- a `# Workflow
-// Module: <id>` title, its blockquote banner, and often a `## Workflow
-// preflight` section -- that assumes an orchestrator channel and `BLOCKED`
-// semantics a standalone subprocess (a spawned task worker, or a task's
-// compiled context with no orchestrator loop of its own) has neither.
-// Strip it structurally, by heading shape, never by matching one file's own
-// wording, so any procedure this is pointed at gets the same treatment.
+// Module: <id>` title and its blockquote banner -- that assumes an
+// orchestrator channel a standalone subprocess (a spawned task worker, or a
+// task's compiled context with no orchestrator loop of its own) has neither.
+// Strip exactly that: the title line and the blockquote beneath it, and
+// nothing else. Everything past the banner -- the file's real H1, and any
+// `## Workflow preflight` section -- is real per-module guidance in most of
+// the 24 procedure files (measured: stripping past the banner destroyed
+// 27-80% of ten files' content, because the shape of what follows the
+// banner is not uniform across files and no further heuristic bounds it
+// safely). One accepted consequence: `tdd.md`'s preflight sentence
+// ("return `BLOCKED`; do not bypass the orchestrator") stays in the worker
+// prompt -- conditional advice about being invoked out of order, not the
+// actively wrong instruction (the mark-COMPLETE / return-control text the
+// blockquote carries, which this does still remove). Do not extend this to
+// chase that sentence; see the design decision recorded in
+// docs/superpowers/specs for why no bound past the banner is safe.
 // Shared by runtime/task-worker.mjs and runtime/task-context.mjs -- both
 // inject procedure text into a prompt with no orchestrator channel behind
 // it, so both must strip the same preamble the same way.
@@ -100,22 +110,6 @@ export function stripModulePreamble(text){
     sawModuleBanner=true;
   }
   if(!sawModuleBanner)return text;
-  while(isBlank(lines[i]))i++;
-  if(/^#\s+/.test(lines[i]||'')&&!/^##/.test(lines[i]||''))i++;
-  while(isBlank(lines[i]))i++;
-  if(/^##\s+Workflow preflight/i.test(lines[i]||'')){
-    // Only skip the section when a later heading actually bounds it -- a
-    // handful of procedure files (e.g. frontend-integration.md) put the
-    // module's entire body under this one heading with no subheading to
-    // stop at, and running to end-of-file there would strip all real
-    // guidance along with the boilerplate, emptying the module for that
-    // task category. Leaving the section untouched in that case is the
-    // safe fallback: keeping one boilerplate sentence beats losing the
-    // module's content outright.
-    let j=i+1;
-    while(j<lines.length&&!/^#{1,2}\s+/.test(lines[j]))j++;
-    if(j<lines.length)i=j;
-  }
   return lines.slice(i).join('\n');
 }
 

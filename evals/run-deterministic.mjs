@@ -47,7 +47,7 @@ import {BOOTSTRAP_TEXT,getActivationPolicy,getActivationMode,estimateBootstrapCo
 import {recordApproval,revokeApproval,findValidApproval,listApprovals} from '../runtime/approvals.mjs';
 import {evaluateGate} from '../runtime/gates.mjs';
 import {getProjectKnowledgeStatus} from '../runtime/project-knowledge.mjs';
-import {resolveProcedures,validateProcedureRegistry,auditProcedureCoverage} from '../runtime/procedures.mjs';
+import {resolveProcedures,validateProcedureRegistry,auditProcedureCoverage,stripModulePreamble} from '../runtime/procedures.mjs';
 import {navigableSkillIds,loadNavigationPolicy} from '../runtime/skill-navigation.mjs';
 import {createFeature,loadFeature,updateFeature,listFeatures,createPhase,loadPhase,updatePhase,listPhases,attachRun,resolveActiveFeature,resolveActivePhase,resolveFeatureBinding} from '../runtime/features.mjs';
 import {planGc,applyGc} from '../runtime/retention.mjs';
@@ -864,6 +864,39 @@ test('no-orphaned-procedure-files',()=>{
   const a=auditProcedureCoverage(ROOT);
   if(a.orphaned.length)throw Error(`orphaned procedure files: ${JSON.stringify(a.orphaned)}`);
   if(a.total<24)throw Error(`expected at least 24 procedure files, found ${a.total}`);
+});
+// stripModulePreamble must remove exactly the `# Workflow Module:` title and
+// its blockquote banner -- nothing past the banner. An earlier version also
+// swallowed the file's real H1 and, for files with a `## Workflow preflight`
+// heading, everything up to the next heading; measured against these 24
+// files that destroyed 27-80% of ten of them (project-bootstrap,
+// requirements-normalize, docs-update, frontend-integration, solution-design,
+// operability-engineering, impact-analysis, requirements-intake,
+// code-review, technical-spike), because the shape of what follows the
+// banner is not uniform across files. This asserts the floor a correct strip
+// must clear (at least 60% of the original bytes survive) and that every
+// surviving line was actually present in the original, in order -- so a
+// regression that starts eating real content again fails loudly instead of
+// silently degrading a worker or task prompt.
+test('strip-module-preamble-removes-only-the-banner',()=>{
+  const dir=path.join(ROOT,'harness','internal-skills');
+  const files=fs.readdirSync(dir).filter(f=>f.endsWith('.md'));
+  if(files.length<24)throw Error(`expected at least 24 procedure files, found ${files.length}`);
+  for(const f of files){
+    const original=fs.readFileSync(path.join(dir,f),'utf8');
+    const stripped=stripModulePreamble(original);
+    const ratio=stripped.length/original.length;
+    if(ratio<0.6)
+      throw Error(`${f}: stripModulePreamble kept only ${(ratio*100).toFixed(1)}% of the original (${stripped.length}/${original.length} bytes) -- it is removing more than the banner`);
+    // Every surviving line must be a line that was actually in the
+    // original, in the same relative order -- proves the strip only ever
+    // drops a contiguous prefix (the banner), never touches interior lines.
+    const originalLines=original.split(/\r?\n/);
+    const strippedLines=stripped.split(/\r?\n/);
+    const startIdx=originalLines.length-strippedLines.length;
+    if(startIdx<0||originalLines.slice(startIdx).join('\n')!==strippedLines.join('\n'))
+      throw Error(`${f}: stripModulePreamble did not return a plain suffix of the original file`);
+  }
 });
 // config/procedures.json's `stages`+`when` fields are the single source of
 // stage-to-procedure routing now that the navigation policy's per-stage
