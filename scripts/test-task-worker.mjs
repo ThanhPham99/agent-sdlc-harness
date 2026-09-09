@@ -100,6 +100,51 @@ await test('worker-prompt-sources-tdd-from-the-registry',()=>{
   assert(!src.includes(marker),'task-worker.mjs still hardcodes the Iron Law: it must read tdd.md');
 });
 
+await test('worker-prompt-strips-orchestrator-preamble-from-tdd-procedure',()=>{
+  const prompt=buildWorkerPrompt(ROOT,ROOT,
+    {run_id:'r1',state:'IMPLEMENT'},
+    {task_id:'TASK-001',title:'t',goal:'g',write_scope:['src/a.js'],verification:{targeted_tests:['npm test']}});
+  assert(!prompt.includes('sdlc-orchestrator'),'worker prompt leaked orchestrator-channel text the worker cannot act on');
+  assert(!prompt.includes('return `BLOCKED`'),'worker prompt leaked BLOCKED semantics the worker has no handling for');
+  assert(prompt.includes('## The Iron Law'),'worker prompt lost the real TDD content while stripping the preamble');
+});
+
+await test('worker-prompt-warns-and-degrades-when-tdd-procedure-entry-is-missing',()=>{
+  const d=makeTempDir();
+  fs.mkdirSync(path.join(d,'config'),{recursive:true});
+  fs.writeFileSync(path.join(d,'config','procedures.json'),JSON.stringify({schema:'agent-sdlc/procedure-registry/v1',procedures:{}}));
+  const warnings=[];
+  const originalError=console.error;
+  console.error=(...args)=>warnings.push(args.join(' '));
+  let prompt;
+  try{
+    prompt=buildWorkerPrompt(d,d,{run_id:'r1',state:'IMPLEMENT'},
+      {task_id:'TASK-001',title:'t',goal:'g',write_scope:['src/a.js'],verification:{targeted_tests:['npm test']}});
+  }finally{console.error=originalError;}
+  assert(prompt.includes('TASK TASK-001'),'buildWorkerPrompt still returned a usable prompt despite the missing entry');
+  assert(warnings.some(w=>w.includes('tdd')),'a missing procedure entry must warn loudly, naming the id');
+});
+
+await test('worker-prompt-warns-and-degrades-when-tdd-instructions-file-is-missing',()=>{
+  const d=makeTempDir();
+  fs.mkdirSync(path.join(d,'config'),{recursive:true});
+  const missingPath='harness/internal-skills/does-not-exist.md';
+  fs.writeFileSync(path.join(d,'config','procedures.json'),JSON.stringify({
+    schema:'agent-sdlc/procedure-registry/v1',
+    procedures:{tdd:{group:'implementation',stages:['IMPLEMENT'],instructions:missingPath,when:'strict'}}
+  }));
+  const warnings=[];
+  const originalError=console.error;
+  console.error=(...args)=>warnings.push(args.join(' '));
+  let prompt;
+  try{
+    prompt=buildWorkerPrompt(d,d,{run_id:'r1',state:'IMPLEMENT'},
+      {task_id:'TASK-001',title:'t',goal:'g',write_scope:['src/a.js'],verification:{targeted_tests:['npm test']}});
+  }finally{console.error=originalError;}
+  assert(prompt.includes('TASK TASK-001'),'buildWorkerPrompt still returned a usable prompt despite the dangling path');
+  assert(warnings.some(w=>w.includes('tdd')&&w.includes('does-not-exist.md')),'a dangling instructions path must warn loudly, naming the id and the path it looked for');
+});
+
 // 2. Worker execution tests
 await test('executeTaskWithAgent-runs-in-workspace-and-saves-artifacts',async ()=>{
   const d=makeTempDir();
