@@ -156,6 +156,50 @@ test('resolved-core-skill-ids-match-pinned-fixtures-exactly',()=>{
   }
 });
 
+await test('retired-guidance-sentences-render-into-the-actual-prompt-text',async ()=>{
+  // resolve-returns-guidance-for-every-retired-id only proves the policy HAS a
+  // sentence for every retired id; it never proves that sentence reaches the
+  // agent. resolveSkills (runtime/context.mjs) turns each retired id into a
+  // {id,description,instructions} entry consumed by buildContext, but
+  // renderPrompt's STAGE SKILLS section is built only from
+  // manifest.skill_instructions -- {id,instructions} -- so a retired entry
+  // whose `instructions` field is left empty renders as a heading with
+  // nothing under it, and the guidance sentence never appears in the string
+  // an agent actually reads. This test renders a real prompt and asserts the
+  // sentence is IN THAT STRING, not just present somewhere on the manifest.
+  const {initProject}=await import('../runtime/store.mjs');
+  const {buildContext,renderPrompt}=await import('../runtime/context.mjs');
+  const {makeTempDir}=await import('./lib/tempdir.mjs');
+  const d=makeTempDir('agent-sdlc-nav-');
+  initProject(d,{schema:'agent-sdlc/project/v1',project:'nav-fixture'});
+  // INTAKE + security-remediation + STRICT + the security overlay resolves
+  // two retired ids at once: "requirements" from the stage's retired_core,
+  // and "security" from both the workflow map and (on stages where it
+  // applies) the strict conditional -- the same combination the coordinator
+  // reproduced the empty-heading bug with.
+  const run={run_id:'r-guidance',objective:'patch a vulnerability',state:'INTAKE',
+    workflow:'security-remediation',overlays:['security'],profile:'STRICT'};
+  const policy=loadNavigationPolicy(ROOT);
+  const nav=resolveNavigation(ROOT,ROOT,run);
+  assert(nav.guidance.length>=2,`fixture must resolve at least two retired ids, got ${JSON.stringify(nav.guidance)}`);
+  const ctx=buildContext(ROOT,d,run);
+  const prompt=renderPrompt(ROOT,ctx);
+  for(const g of nav.guidance){
+    const sentence=policy.guidance[g.id];
+    assert(typeof sentence==='string'&&sentence.length>20,`no guidance sentence for retired id ${g.id}`);
+    assert(prompt.includes(sentence),
+      `retired id ${g.id}'s guidance sentence is missing from the rendered prompt (only checking the manifest, not the string an agent reads, would miss this)`);
+  }
+  // The literal regression the coordinator found: a heading immediately
+  // followed by a blank line then the next "### " heading (or the end of the
+  // STAGE SKILLS section) means that skill's instructions were empty.
+  const stageSkillsMatch=prompt.match(/STAGE SKILLS\n([\s\S]*?)\n\nDETAILED PROCEDURES/);
+  assert(stageSkillsMatch,'prompt has no STAGE SKILLS section');
+  const stageSkillsBody=stageSkillsMatch[1];
+  const emptyHeading=/### [^\n]+\n\n(?:### |$)/.test(stageSkillsBody+'\n');
+  assert(!emptyHeading,`STAGE SKILLS has a heading with an empty body:\n${stageSkillsBody}`);
+});
+
 await test('context-manifest-carries-navigation-block',async ()=>{
   const {initProject,loadRun}=await import('../runtime/store.mjs');
   const {newRun}=await import('../runtime/orchestrator.mjs');

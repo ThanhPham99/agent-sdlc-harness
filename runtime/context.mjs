@@ -33,8 +33,12 @@ function resolveSkills(root,run,nav){
   // CRLF checkout must not change the hash for the same commit.
   const loaded=ids.map(id=>{const spec=registry[id];let instructions='';try{instructions=readTextFile(path.join(root,spec.instructions)).trim();}catch{}return {id,description:spec.description,instructions,max_response_words:spec.max_response_words};});
   // A retired stub contributed one sentence, not a file. It still ships, as
-  // guidance, so deleting the file did not delete what it said.
-  for(const g of nav.guidance)loaded.push({id:g.id,description:g.text,instructions:'',max_response_words:0});
+  // guidance, so deleting the file did not delete what it said. The sentence
+  // goes in `instructions`, not just `description` -- renderPrompt builds the
+  // STAGE SKILLS section from manifest.skill_instructions, which carries only
+  // {id,instructions}, so a description-only entry would render as an empty
+  // heading and silently drop the guidance from the actual prompt text.
+  for(const g of nav.guidance)loaded.push({id:g.id,description:g.text,instructions:g.text,max_response_words:0});
   return loaded;
 }
 

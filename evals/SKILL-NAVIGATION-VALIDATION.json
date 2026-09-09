@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/skill-navigation-validation/v1",
   "harness_root": ".",
-  "checks": 10,
-  "passes": 10,
+  "checks": 11,
+  "passes": 11,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -36,6 +36,10 @@
     },
     {
       "name": "resolved-core-skill-ids-match-pinned-fixtures-exactly",
+      "status": "PASS"
+    },
+    {
+      "name": "retired-guidance-sentences-render-into-the-actual-prompt-text",
       "status": "PASS"
     },
     {
