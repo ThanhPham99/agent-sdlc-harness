@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-rc2",
-  "checks": 449,
-  "passes": 449,
+  "checks": 450,
+  "passes": 450,
   "failures": 0,
   "results": [
     {
@@ -1299,6 +1299,10 @@
     },
     {
       "name": "task-context/every-task-category-gets-non-empty-module-guidance",
+      "status": "PASS"
+    },
+    {
+      "name": "task-context/module-guidance-strips-orchestrator-preamble-but-keeps-subagent-stop",
       "status": "PASS"
     },
     {

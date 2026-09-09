@@ -1,6 +1,9 @@
 {
   "schema": "agent-sdlc/skill-navigation/v1",
   "version": "3.0.0-rc2",
+  "_notes": {
+    "live_navigation_ids": "stages[*].core, workflow_skills[*].skills and overlay_skills[*].skills are declared as empty on purpose: every surviving guidance file is already reachable through config/procedures.json, so nothing currently populates these live-id lists. They stay as the extension point for a future always-loadable skill file that is neither a retired one-line stub (covered by *_core/retired/guidance below) nor a conditionally-selected procedure -- runtime/context.mjs#resolveSkills reads them and carries a matching comment."
+  },
   "stages": {
     "INTAKE": {"stage_skill": "sdlc-requirements", "retired_core": ["requirements"]},
     "REQUIREMENTS": {"stage_skill": "sdlc-requirements", "retired_core": ["requirements"]},

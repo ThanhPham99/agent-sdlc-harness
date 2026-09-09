@@ -861,7 +861,7 @@ test('procedure-registry-is-internally-valid',()=>{
   if(!v.valid)throw Error(JSON.stringify(v.problems));
 });
 test('no-orphaned-procedure-files',()=>{
-  const a=auditProcedureCoverage(ROOT,navigableSkillIds(ROOT));
+  const a=auditProcedureCoverage(ROOT);
   if(a.orphaned.length)throw Error(`orphaned procedure files: ${JSON.stringify(a.orphaned)}`);
   if(a.total<24)throw Error(`expected at least 24 procedure files, found ${a.total}`);
 });

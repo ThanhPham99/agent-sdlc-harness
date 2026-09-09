@@ -133,11 +133,14 @@ Three code touchpoints:
    a Skill tool activates by name. A host without one receives
    `fallback_instructions_inlined: true` and the procedure text continues to be injected
    by `runtime/context.mjs` exactly as today.
-2. `skills/sdlc-orchestrator/SKILL.md` shrinks from 99 lines to roughly 45: it retains the
-   Iron Laws, the non-negotiable invariants, the five Human Confirmation Gates, and a loop
-   of "read state, activate `navigation.stage_skill`, transition with evidence". The
-   per-stage detail currently inline (REQUIREMENTS, DESIGN, PLAN, IMPLEMENT) moves into the
-   corresponding stage skill.
+2. `skills/sdlc-orchestrator/SKILL.md` drops from 99 lines to 93, not to roughly 45 as
+   first estimated: the Iron Laws, the anti-rationalization table, the non-negotiable
+   invariants, and the five Human Confirmation Gates all stay, because none of them is
+   per-stage detail -- they are the safety rails that apply across every stage, so moving
+   them into a stage skill would only make them conditionally loaded instead of always
+   present. What actually moves out is the per-stage detail (REQUIREMENTS, DESIGN, PLAN,
+   IMPLEMENT) that used to be inlined; the file keeps a loop of "read state, activate
+   `navigation.stage_skill`, transition with evidence" in its place.
 3. `runtime/task-worker.mjs` stops hardcoding the TDD rules and resolves them from the
    registry (`config/procedures.json` to `harness/internal-skills/tdd.md`). The worker runs
    in a separate process that may have no Skill tool, so the text is inlined — but from the

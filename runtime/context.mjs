@@ -28,6 +28,16 @@ function resolveRoles(root,stagePolicy){
 
 function resolveSkills(root,run,nav){
   const registry=readJson(path.join(root,'config','skills.json')).internal||{};
+  // `nav.core_skill_ids` is currently always empty: policies/skill-navigation.json
+  // declares no `stages[*].core`, `workflow_skills[*].skills`, or
+  // `overlay_skills[*].skills` entries -- every surviving guidance file is
+  // already reached through config/procedures.json instead (see
+  // runtime/procedures.mjs#auditProcedureCoverage). This lookup/filter is
+  // deliberately kept as the declared extension point for a future module
+  // that is neither a retired one-line stub (nav.guidance, below) nor a
+  // conditionally-selected procedure: a live, always-loadable skill file a
+  // stage or workflow wants unconditionally, the moment the policy actually
+  // lists one under a `core`/`skills` key.
   const ids=nav.core_skill_ids.filter(id=>registry[id]&&registry[id].stages?.includes(run.state));
   // readTextFile, not readFileSync: skill text is hashed into context_hash, so a
   // CRLF checkout must not change the hash for the same commit.

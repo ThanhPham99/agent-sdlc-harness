@@ -15,6 +15,7 @@ import {estimateTokens,gitSha,readJson,readTextFile,sha256,truncateUtf8,now} fro
 import {getArtifact,listTasks,putTaskContextManifest} from './store.mjs';
 import {openIntelligence,findTestsForFiles,findPublicInterfaces,findDataEntities,findDependents} from './repo-intelligence.mjs';
 import * as layout from './layout.mjs';
+import {stripModulePreamble} from './procedures.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 
@@ -60,7 +61,11 @@ function taskSkillInstructions(root,task){
   if(!spec)return null;
   let instructions='';
   // Hashed into the task context_hash; line endings must not change it.
-  try{instructions=readTextFile(path.join(root,spec.instructions)).trim();}catch{}
+  // Same orchestrator-only preamble strip runtime/task-worker.mjs applies --
+  // this compiled context has no orchestrator channel either, so the
+  // "return control to sdlc-orchestrator" blockquote is just as meaningless
+  // here. The <SUBAGENT-STOP> guidance further down each file is untouched.
+  try{instructions=stripModulePreamble(readTextFile(path.join(root,spec.instructions))).trim();}catch{}
   return {id,description:spec.description,instructions,max_response_words:spec.max_response_words};
 }
 

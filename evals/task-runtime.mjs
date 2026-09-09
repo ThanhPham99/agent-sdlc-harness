@@ -711,6 +711,30 @@ export function runTaskRuntimeSuite(root){
           fail(`category "${category}" rendered empty MODULE GUIDANCE`);
       }
     });
+
+    t('module-guidance-strips-orchestrator-preamble-but-keeps-subagent-stop',()=>{
+      // harness/internal-skills/task-execution.md (the "implementation"
+      // category's procedure, and the default category) opens with a
+      // `# Workflow Module:` title and a blockquote telling the reader to
+      // "Return control to `sdlc-orchestrator`" -- meaningless to a standalone
+      // worker subprocess or this compiled task context, neither of which has
+      // an orchestrator channel. runtime/task-worker.mjs already stripped
+      // this for its own prompt path; runtime/task-context.mjs must strip it
+      // too, via the same shared runtime/procedures.mjs#stripModulePreamble,
+      // while leaving the file's <SUBAGENT-STOP> block -- explicitly
+      // addressed to a dispatched subagent -- intact.
+      const base=requireTask(projectRoot,run.run_id,'TASK-001');
+      const task={...base,category:'implementation'};
+      const m=buildTaskContext(root,projectRoot,run,task,{persist:false});
+      const cacheable=renderCacheableTaskPrompt(root,m);
+      const guidance=cacheable.module_prefix
+        .replace(/^MODULE GUIDANCE\n/,'')
+        .split('\n\nPROJECT INVARIANTS')[0];
+      if(guidance.includes('Return control to `sdlc-orchestrator`'))
+        fail('MODULE GUIDANCE still carries the orchestrator-only return-control blockquote');
+      if(!guidance.includes('<SUBAGENT-STOP>'))
+        fail('MODULE GUIDANCE lost the <SUBAGENT-STOP> guidance meant for dispatched subagents');
+    });
   }
 
   // ==================== verification and review ===========================

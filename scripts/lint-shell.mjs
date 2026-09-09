@@ -187,9 +187,18 @@ export function lintShellFiles(target_files = null) {
   const failures = [];
 
   for (const abs_path of normalized_files) {
+    // A file outside ROOT is always a throwaway test fixture under the OS
+    // temp dir (see scripts/lib/tempdir.mjs) -- its real absolute path
+    // carries a randomized per-run directory name and, on a developer
+    // machine, the OS username. Recording that verbatim in a tracked
+    // evals/*.json report makes every run of the suite rewrite the file
+    // (dirtying the tree with no real change) and leaks the username into
+    // version control. The fixture's basename is the only part of the path
+    // that means anything to a reader, so keep that and replace the rest
+    // with a fixed, machine-independent placeholder.
     const display_path = abs_path.startsWith(ROOT)
       ? path.relative(ROOT, abs_path).split(path.sep).join('/')
-      : abs_path.split(path.sep).join('/');
+      : `<tmp-fixture>/${path.basename(abs_path)}`;
 
     const shell_type = detectShellType(abs_path);
     const is_lf = checkLineEndings(abs_path);

@@ -75,6 +75,50 @@ export function resolveProcedures(root,projectRoot,run){
   return selected;
 }
 
+// Procedure files carry an orchestrator-only preamble -- a `# Workflow
+// Module: <id>` title, its blockquote banner, and often a `## Workflow
+// preflight` section -- that assumes an orchestrator channel and `BLOCKED`
+// semantics a standalone subprocess (a spawned task worker, or a task's
+// compiled context with no orchestrator loop of its own) has neither.
+// Strip it structurally, by heading shape, never by matching one file's own
+// wording, so any procedure this is pointed at gets the same treatment.
+// Shared by runtime/task-worker.mjs and runtime/task-context.mjs -- both
+// inject procedure text into a prompt with no orchestrator channel behind
+// it, so both must strip the same preamble the same way.
+export function stripModulePreamble(text){
+  const lines=text.split(/\r?\n/);
+  const isBlank=l=>(l||'').trim()==='';
+  let i=0;
+  // Only ever strip when the preamble is positively identified (a
+  // `# Workflow Module: <id>` title and/or its blockquote banner) -- a file
+  // without that signature is returned untouched, real title included.
+  let sawModuleBanner=false;
+  if(/^#\s+Workflow Module:/.test(lines[i]||'')){i++;sawModuleBanner=true;}
+  while(isBlank(lines[i]))i++;
+  if(/^>/.test(lines[i]||'')){
+    while(/^>/.test(lines[i]||''))i++;
+    sawModuleBanner=true;
+  }
+  if(!sawModuleBanner)return text;
+  while(isBlank(lines[i]))i++;
+  if(/^#\s+/.test(lines[i]||'')&&!/^##/.test(lines[i]||''))i++;
+  while(isBlank(lines[i]))i++;
+  if(/^##\s+Workflow preflight/i.test(lines[i]||'')){
+    // Only skip the section when a later heading actually bounds it -- a
+    // handful of procedure files (e.g. frontend-integration.md) put the
+    // module's entire body under this one heading with no subheading to
+    // stop at, and running to end-of-file there would strip all real
+    // guidance along with the boilerplate, emptying the module for that
+    // task category. Leaving the section untouched in that case is the
+    // safe fallback: keeping one boilerplate sentence beats losing the
+    // module's content outright.
+    let j=i+1;
+    while(j<lines.length&&!/^#{1,2}\s+/.test(lines[j]))j++;
+    if(j<lines.length)i=j;
+  }
+  return lines.slice(i).join('\n');
+}
+
 export function validateProcedureRegistry(root){
   const registry=loadRegistry(root);
   const problems=[];
@@ -88,13 +132,19 @@ export function validateProcedureRegistry(root){
 
 // D5 orphan check: every guidance file under harness/internal-skills/ must be
 // reachable -- registered in this registry, or named by
-// policies/skill-navigation.json. There is no third path and no legacy set.
-export function auditProcedureCoverage(root,navigableIds){
+// policies/skill-navigation.json. There is no third path and no legacy set,
+// so this reads both sources itself rather than taking a caller-supplied id
+// list. (Read policies/skill-navigation.json directly, not through
+// runtime/skill-navigation.mjs's navigableSkillIds -- that module imports
+// resolveProcedures from this one, so importing it back here would be
+// circular.)
+export function auditProcedureCoverage(root){
   const dir=path.join(root,'harness','internal-skills');
   const files=fs.readdirSync(dir).filter(f=>f.endsWith('.md')).map(f=>f.replace(/\.md$/,''));
   const registry=loadRegistry(root);
   const registered=new Set(Object.keys(registry));
-  const navigable=new Set(navigableIds||[]);
+  const policy=readJson(path.join(root,'policies','skill-navigation.json'));
+  const navigable=new Set(Object.keys(policy.guidance||{}));
   const orphaned=files.filter(id=>!registered.has(id)&&!navigable.has(id));
   return {schema:'agent-sdlc/procedure-coverage-audit/v1',total:files.length,orphaned};
 }

@@ -9,40 +9,10 @@ import {putArtifact,emitTaskEvent} from './store.mjs';
 import {getTaskWorkspace} from './workspace.mjs';
 import {routeModel} from './model-router.mjs';
 import {runHost} from './provider.mjs';
+import {stripModulePreamble} from './procedures.mjs';
 
 const arr=x=>Array.isArray(x)?x:[];
 const list=(xs,empty='(none)')=>arr(xs).length?arr(xs).map(x=>`- ${x}`).join('\n'):empty;
-
-// Procedure files carry an orchestrator-only preamble -- a `# Workflow
-// Module: <id>` title, its blockquote banner, and often a `## Workflow
-// preflight` section -- that assumes an orchestrator channel and `BLOCKED`
-// semantics this standalone worker subprocess has neither. Strip it
-// structurally, by heading shape, never by matching one file's own wording,
-// so any procedure this helper is later pointed at gets the same treatment.
-function stripModulePreamble(text){
-  const lines=text.split(/\r?\n/);
-  const isBlank=l=>(l||'').trim()==='';
-  let i=0;
-  // Only ever strip when the preamble is positively identified (a
-  // `# Workflow Module: <id>` title and/or its blockquote banner) -- a file
-  // without that signature is returned untouched, real title included.
-  let sawModuleBanner=false;
-  if(/^#\s+Workflow Module:/.test(lines[i]||'')){i++;sawModuleBanner=true;}
-  while(isBlank(lines[i]))i++;
-  if(/^>/.test(lines[i]||'')){
-    while(/^>/.test(lines[i]||''))i++;
-    sawModuleBanner=true;
-  }
-  if(!sawModuleBanner)return text;
-  while(isBlank(lines[i]))i++;
-  if(/^#\s+/.test(lines[i]||'')&&!/^##/.test(lines[i]||''))i++;
-  while(isBlank(lines[i]))i++;
-  if(/^##\s+Workflow preflight/i.test(lines[i]||'')){
-    i++;
-    while(i<lines.length&&!/^#{1,2}\s+/.test(lines[i]))i++;
-  }
-  return lines.slice(i).join('\n');
-}
 
 // The worker runs in its own process and may have no Skill tool, so its rules
 // are inlined -- but read from the one canonical file, not restated here. A
