@@ -2,8 +2,8 @@
   "schema": "agent-sdlc/registry-validation/v1",
   "version": "3.0.0-rc2",
   "counts": {
-    "registered_internal_skills": 41,
-    "internal_skill_files": 41,
+    "registered_internal_skills": 24,
+    "internal_skill_files": 24,
     "discoverable_skills": 7,
     "procedure_skills": 0,
     "unregistered_files": 0,

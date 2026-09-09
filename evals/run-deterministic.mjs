@@ -811,14 +811,14 @@ test('active-roles-tracks-the-current-stage-not-every-role',()=>{
 });
 
 // ---------------------------------------------------------------------------
-// Procedure registry / resolver: harness/internal-skills/ carries 37 detailed
-// methodology files, but config/skills.json's stage/workflow/overlay maps in
-// runtime/context.mjs only ever select 20 of them -- 21 files were registered
-// and instructed to be followed, yet structurally unreachable. config/
-// procedures.json + runtime/procedures.mjs close that: a run's current stage
-// and canonical state (workflow, profile, design mode, task graph size)
-// conditionally surface the rest, without eagerly concatenating every
-// procedure belonging to a stage.
+// Procedure registry / resolver: harness/internal-skills/ carries 24 detailed
+// methodology files after the skill-first-navigation cleanup retired the
+// 17 slot files whose entire body was a one-line description (now carried
+// as policies/skill-navigation.json guidance text instead). config/
+// procedures.json + runtime/procedures.mjs route every surviving file: a
+// run's current stage and canonical state (workflow, profile, design mode,
+// task graph size) conditionally surface the rest, without eagerly
+// concatenating every procedure belonging to a stage.
 // ---------------------------------------------------------------------------
 test('procedure-registry-is-internally-valid',()=>{
   const v=validateProcedureRegistry(ROOT);
@@ -827,7 +827,7 @@ test('procedure-registry-is-internally-valid',()=>{
 test('no-orphaned-procedure-files',()=>{
   const a=auditProcedureCoverage(ROOT,navigableSkillIds(ROOT));
   if(a.orphaned.length)throw Error(`orphaned procedure files: ${JSON.stringify(a.orphaned)}`);
-  if(a.total<37)throw Error(`expected at least 37 procedure files, found ${a.total}`);
+  if(a.total<24)throw Error(`expected at least 24 procedure files, found ${a.total}`);
 });
 test('plan-stage-loads-its-always-on-procedures-and-nothing-out-of-stage',()=>{
   const m=buildContext(ROOT,tmp,run,{}); // run is at PLAN
@@ -2777,6 +2777,15 @@ for(const [prefix,suite] of [['task',runTaskRuntimeSuite(ROOT)],['a6',runAlpha6S
 test('status-reports-next-stage-skill',()=>{
   const nav=resolveNavigation(ROOT,ROOT,{run_id:'r1',state:'PLAN',workflow:'new-feature',profile:'STANDARD',overlays:[],objective:'x'});
   if(nav.stage_skill!=='sdlc-plan')throw Error(`PLAN resolved to ${nav.stage_skill}`);
+});
+
+test('no-legacy-guidance-path',()=>{
+  const files=fs.readdirSync(path.join(ROOT,'harness','internal-skills')).filter(f=>f.endsWith('.md')).map(f=>f.replace(/\.md$/,''));
+  if(files.length!==24)throw Error(`expected 24 guidance files, found ${files.length}`);
+  const procedures=JSON.parse(fs.readFileSync(path.join(ROOT,'config','procedures.json'),'utf8')).procedures;
+  if(Object.keys(procedures).length!==24)throw Error(`expected 24 procedures, found ${Object.keys(procedures).length}`);
+  const unrouted=files.filter(id=>!procedures[id]);
+  if(unrouted.length)throw Error(`unrouted guidance files: ${unrouted.join(',')}`);
 });
 
 const report={schema:'agent-sdlc/deterministic-validation/v1',version:manifest.version,checks:rows.length,passes:pass,failures:fail,results:rows};

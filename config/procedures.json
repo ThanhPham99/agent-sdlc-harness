@@ -127,6 +127,24 @@
       "stages": ["PLAN", "IMPLEMENT", "VERIFY", "CLOSE"],
       "instructions": "harness/internal-skills/workflow-maintenance.md",
       "when": "manual"
+    },
+    "code-review": {
+      "group": "documentation",
+      "stages": ["REVIEW"],
+      "instructions": "harness/internal-skills/code-review.md",
+      "when": "always"
+    },
+    "project-bootstrap": {
+      "group": "requirements",
+      "stages": ["INTAKE", "REQUIREMENTS"],
+      "instructions": "harness/internal-skills/project-bootstrap.md",
+      "when": "workflow:new-feature"
+    },
+    "frontend-integration": {
+      "group": "implementation",
+      "stages": ["DESIGN", "PLAN", "IMPLEMENT", "VERIFY"],
+      "instructions": "harness/internal-skills/frontend-integration.md",
+      "when": "always"
     }
   }
 }

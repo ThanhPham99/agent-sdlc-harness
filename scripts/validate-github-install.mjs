@@ -31,7 +31,7 @@ check('public-skills-match-manifest',()=>{
   assert(JSON.stringify(dirs)===JSON.stringify(expected),`discoverable skills=${dirs.join(',')}`);
 });
 check('internal-skills-outside-native-root',()=>{
-  assert(exists('harness/internal-skills/requirements.md'),'internal skills missing');
+  assert(exists('harness/internal-skills/requirements-normalize.md'),'internal skills missing');
   const nested=[];
   for(const name of fs.readdirSync(path.join(ROOT,'skills'))) if(name==='internal'||name==='public') nested.push(name);
   assert(nested.length===0,`legacy discovery dirs remain: ${nested}`);

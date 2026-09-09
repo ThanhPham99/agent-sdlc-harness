@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-rc2",
-  "checks": 442,
-  "passes": 442,
+  "checks": 443,
+  "passes": 443,
   "failures": 0,
   "results": [
     {
@@ -1771,6 +1771,10 @@
     },
     {
       "name": "status-reports-next-stage-skill",
+      "status": "PASS"
+    },
+    {
+      "name": "no-legacy-guidance-path",
       "status": "PASS"
     }
   ]

@@ -121,19 +121,27 @@ test('resolve-is-deterministic-for-a-fixed-run',()=>{
 // core_skill_ids, filtered through config/skills.json's per-id `stages` list
 // -- the same filter resolveSkills applies -- since that filter, not
 // resolveNavigation alone, decides what a run's context actually carries.
+// Retiring an id removes it from config/skills.json's internal registry, so
+// the registry-stage filter below drops it from core_skill_ids even where
+// resolveNavigation still names it as guidance-only. Every fixture whose
+// pinned result was built entirely from retired ids (deployment, ci-cd,
+// planning, maintenance, implementation, testing, security) now resolves to
+// [] -- that is retirement working as designed, not a routing regression;
+// only the REVIEW fixture still resolves a live id (code-review, which was
+// promoted to a routed procedure rather than retired).
 const PINNED_RESOLUTIONS=[
   {state:'DEPLOY',workflow:'infrastructure-change',overlays:['security'],profile:'STANDARD',
-    expected:['deployment']},
+    expected:[]},
   {state:'REVIEW',workflow:'deprecation-removal',overlays:['api-breaking-change'],profile:'STRICT',
-    expected:['code-review','upgrade','documentation','security']},
+    expected:['code-review']},
   {state:'RELEASE',workflow:'ci-cd-change',overlays:[],profile:'STRICT',
-    expected:['ci-cd','deployment','security']},
+    expected:[]},
   {state:'PLAN',workflow:'refactor',overlays:[],profile:'STANDARD',
-    expected:['planning','maintenance']},
+    expected:[]},
   {state:'IMPLEMENT',workflow:'bug-fix',overlays:[],profile:'STANDARD',
-    expected:['implementation']},
+    expected:[]},
   {state:'VERIFY',workflow:'new-feature',overlays:[],profile:'STRICT',
-    expected:['testing','security']}
+    expected:[]}
 ];
 
 test('resolved-core-skill-ids-match-pinned-fixtures-exactly',()=>{
