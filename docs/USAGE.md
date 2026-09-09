@@ -27,6 +27,21 @@ shims exec.
 Codex installed natively is soft activation only; see `docs/AUTO-ACTIVATION.md`. The commands
 below remain the deterministic surface the orchestrator drives, and are equally usable by hand.
 
+## 0a. The skill surface
+
+Skills are the only public surface, identical on every host, and every skill is slash-invocable.
+`agent-sdlc.manifest.json` declares four tiers:
+
+| Tier | Count | Where | Auto-activates |
+|---|---|---|---|
+| `entry_skills` | 2 | `skills/` | `sdlc-router` only; it hands control to `sdlc-orchestrator` |
+| `ops_skills` | 5 | `skills/` | no — `/sdlc-approve`, `/sdlc-status`, `/sdlc-resume`, `/sdlc-task`, `/sdlc-doctor` |
+| `stage_skills` | 7 | `skills/` | no — `sdlc-orchestrator` activates the one named by `navigation.stage_skill` |
+| `procedure_skills` | 24 | `skills/procedures/` | no — resolved via `navigation.procedure_skills`, never from a host's own picker |
+
+38 skills total; see `README.md` for the full member lists and `scripts/lib/skill-tiers.mjs` for
+the programmatic reader.
+
 ## 1. Initialize and inspect configuration
 
 ```bash
@@ -85,7 +100,26 @@ Save the returned `run_id`. Routing chooses workflow/risk profile deterministica
 
 The manifest loads current stage skills, workflow-specific specialties, compact project invariants, relevant artifact summaries and exact requested symbols—never the entire chat/repository by default. It also carries `active_roles`: the roles `policies/stage-policy.json` authorizes for the current stage, each resolved against `config/roles.json` for its responsibilities and default constraint, so the model knows whose concerns it is standing in for (e.g. `architect`, `security`, `sre`, `dba` at DESIGN) rather than the registry sitting unused.
 
-`config/skills.json` registers 20 broad, always-compact capability groups; `config/procedures.json` registers the deeper, single-purpose methodology files under `harness/internal-skills/` that the group files intentionally stay too short to include (e.g. `tdd`, `systematic-debugging`, `git-delivery`, `design-discovery`). `runtime/procedures.mjs` resolves each one from canonical run state — current stage, workflow, profile, the same design-mode decision the DESIGN gate itself uses, materialized task-graph size — never from keywords in the objective text, and never all at once. A procedure whose ideal trigger has no first-class field yet (e.g. a declared build strategy for `tdd`) uses the closest real proxy available today rather than defaulting to always-on; `harness/internal-skills/workflow-maintenance.md` is registered but deliberately never auto-selected, since harness self-maintenance is operator-invoked, not run-driven. The resolved set appears in the context manifest as `procedures`/`procedure_instructions`, and every file under `harness/internal-skills/` is accounted for by either the skill maps or this registry — enforced by a regression test, not just a claim.
+`agent-sdlc.manifest.json` declares the public surface as four tiers: 2 `entry_skills`
+(`sdlc-router`, `sdlc-orchestrator`), 5 `ops_skills`, 7 `stage_skills` — those 14 sit at the
+`skills/` discovery root — and 24 `procedure_skills` under `skills/procedures/`, which never sit
+beside them. `readSkillTiers()` in `scripts/lib/skill-tiers.mjs` is the one place that reads this;
+every script that needs "what's public" calls it instead of re-deriving its own list.
+`config/skills.json` registers the compact per-skill metadata for the 24 procedure skills;
+`config/procedures.json` registers the deeper, single-purpose methodology files under
+`harness/internal-skills/` that the compact metadata intentionally stays too short to include
+(e.g. `tdd`, `systematic-debugging`, `git-delivery`, `design-discovery`). `runtime/procedures.mjs`
+resolves each one from canonical run state — current stage, workflow, profile, the same
+design-mode decision the DESIGN gate itself uses, materialized task-graph size — never from
+keywords in the objective text, and never all at once. A procedure whose ideal trigger has no
+first-class field yet (e.g. a declared build strategy for `tdd`) uses the closest real proxy
+available today rather than defaulting to always-on; `harness/internal-skills/workflow-maintenance.md`
+is registered but deliberately never auto-selected, since harness self-maintenance is
+operator-invoked, not run-driven. The resolved set appears in the context manifest as
+`procedures`/`procedure_instructions` and in `status`/`context`/`agent_sdlc_status` as
+`navigation.procedure_skills`, and every file under `harness/internal-skills/` is accounted for by
+either `policies/skill-navigation.json` or this registry — enforced by a regression test, not just
+a claim.
 
 ## 5. Tool and model routing
 

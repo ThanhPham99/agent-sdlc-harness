@@ -9,10 +9,18 @@ Push the **source tree**, not an offline-validation ZIP, to the repository root.
 - `.claude-plugin/plugin.json` and `.claude-plugin/marketplace.json`
 - `.codex-plugin/plugin.json` and `.agents/plugins/marketplace.json`
 - `plugin.json`, `mcp_config.json`, `hooks.json`, `agents/`, `rules/` for Antigravity
-- `skills/sdlc-router/SKILL.md` and `skills/sdlc-orchestrator/SKILL.md`
+- the 14 entry/ops/stage skills directly under `skills/` (`skills/sdlc-router/SKILL.md`,
+  `skills/sdlc-orchestrator/SKILL.md`, and the rest — see `agent-sdlc.manifest.json`'s
+  `entry_skills`/`ops_skills`/`stage_skills`)
+- `skills/procedures/` — the 24 generated procedure-skill wrappers, one level below the discovery
+  root
 - canonical runtime/config/policy directories
 
-Do not move the internal capability modules back under the native `skills/` discovery tree. They belong in `harness/internal-skills/` so only the two entry skills add discovery/context overhead.
+Do not hand-edit `skills/procedures/`; `scripts/gen-skill-surface.mjs --check` fails CI on drift
+between it and `config/procedures.json`. Do not move a procedure skill's real guidance out of
+`harness/internal-skills/` into a discovery-root `skills/` directory of its own — only the 14
+entry/ops/stage skills belong at the discovery root, so only they add discovery/context overhead
+on every host.
 
 ## Recommended repository workflow
 

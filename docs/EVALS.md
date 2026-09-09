@@ -50,7 +50,7 @@ because the property it checks had already drifted when it was written, and each
 own evidence file:
 
 - **`npm run test:versions`** (`evals/VERSION-CONSISTENCY.json`) — `VERSION` is the single
-  source of truth. Distribution manifests, marketplace entries, public skill metadata and doc
+  source of truth. Distribution manifests, marketplace entries, skill metadata and doc
   titles must state it *exactly*; internal registry and policy stamps must merely not claim a
   release that does not exist yet, and any laggard is listed under `behind` so the drift stays
   visible. `docs/releases/*`, `(vX)` feature labels and versions quoted as inline code are
@@ -58,10 +58,11 @@ own evidence file:
 - **`npm run test:registry`** (`evals/REGISTRY-VALIDATION.json`) — `config/skills.json` is what
   makes an internal skill real: `build-dist` copies exactly the registered entries. This fails on
   an entry pointing at a missing file, an entry naming a stage the run state machine does not
-  have or a tool the registry does not define, a discoverable skill directory that is not in the
-  public list, a workflow stage with no skill able to serve it, and any *new* unregistered file
-  under `harness/internal-skills/`. Files that were already orphaned are listed as accepted debt,
-  so the count can only go down.
+  have or a tool the registry does not define, a discoverable skill directory that is not
+  declared in one of `agent-sdlc.manifest.json`'s four tiers (read through
+  `readSkillTiers()` in `scripts/lib/skill-tiers.mjs`), a workflow stage with no skill able to
+  serve it, and any *new* unregistered file under `harness/internal-skills/`. Files that were
+  already orphaned are listed as accepted debt, so the count can only go down.
 - **`npm run test:root-sync`** (`evals/ROOT-SYNC-VALIDATION.json`) — the repository root doubles
   as an Antigravity plugin root, so seven files there are copies of files under `adapters/`. The
   adapter file is authoritative; this asserts the copies are byte-identical (line endings

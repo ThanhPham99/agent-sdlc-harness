@@ -4,9 +4,16 @@ Design discovery answers one question before any code is written: **how much des
 
 Two failure modes are equally bad. Brainstorming a README typo wastes the user's time and tokens. Coding straight through a breaking API change or a data migration produces work that has to be thrown away. The harness resolves this deterministically instead of leaving it to the model's mood.
 
-## Not a third public skill
+## Not a discovery-root skill
 
-There are exactly two public, host-discoverable skills: `sdlc-router` and `sdlc-orchestrator`. Design discovery is an **internal orchestrator module** at `harness/internal-skills/design-discovery.md`, registered in `config/skills.json` and loaded only when the `DESIGN` stage selects it.
+The plugin's discovery root (`skills/`) holds the 14 entry/ops/stage skills a host can pick from
+directly — `sdlc-router` and `sdlc-orchestrator` (`entry_skills`), five `ops_skills`, and seven
+`stage_skills`. Design discovery is not one of them. It is one of the 24 `procedure_skills`,
+living under `skills/procedures/design-discovery/SKILL.md` — a generated wrapper that points at
+the real guidance in `harness/internal-skills/design-discovery.md`, registered in
+`config/skills.json`/`config/procedures.json` — never at the discovery root, so no host's own
+skill picker ever offers it. It is loaded only when `sdlc-orchestrator` resolves it into
+`navigation.procedure_skills` for the `DESIGN` stage.
 
 ## Three modes
 

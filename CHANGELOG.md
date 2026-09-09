@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **BREAKING:** `commands/` (the Claude-only slash-command surface) is deleted. Skills are now
+  the only public surface, identical on every host, and every skill is slash-invocable —
+  `/sdlc-status`, `/sdlc-task`, `/sdlc-resume`, `/sdlc-approve` and `/sdlc-doctor` keep working
+  unchanged.
+- **BREAKING:** `/sdlc-route` is renamed to `/sdlc-router`, with no alias, closing the duplication
+  between `skills/sdlc-route/` and `skills/sdlc-router/`.
+- **BREAKING:** `agent-sdlc.manifest.json`'s flat `public_skills` array is replaced by four tiers —
+  `entry_skills` (2), `ops_skills` (5), `stage_skills` (7) and `procedure_skills` (24) — and
+  `config/skills.json`'s `public` array is removed; the manifest is now the single declaration of
+  the surface, read through `readSkillTiers()` in `scripts/lib/skill-tiers.mjs`.
+- 17 one-line guidance files under `harness/internal-skills/` (the stage/workflow/overlay slot
+  stubs previously reachable only through hardcoded maps in `runtime/context.mjs`) are retired;
+  their guidance now lives in `policies/skill-navigation.json` under `guidance`, and three of the
+  richest files — `code-review`, `project-bootstrap`, `frontend-integration` — were promoted to
+  real procedure routes instead. `harness/internal-skills/` goes from 41 files to 24. See
+  `docs/CORPUS-DECISIONS.md` and `docs/MIGRATION.md` for the full rationale and upgrade note.
+
 ### Changed
 - `.agent-sdlc/` is restructured into **layout v2**, and `runtime/layout.mjs` is now the single authority for every path inside it. The tree had grown 24 top-level namespaces created ad hoc by 20+ modules, each writing `path.join(stateDir(root),'<literal>')` at the point of use: nothing could enumerate the layout, so nothing could migrate, document or clean it up. v2 gathers everything one run owns into `runs/<run_id>/`, shards the content store git-style (`store/<aa>/<rest>` with metadata beside its object), and separates four lifetimes so a user can tell from the tree what to commit, what to back up and what is safe to delete: CONFIG (`project.json`, `workflows/`), DURABLE (`runs/`, `store/`, `shared/`, `state.json`), CACHE (`cache/` — regenerable, gitignore it) and DOCS (`docs/`). `npm run test:layout-boundary` fails if any file outside the authority composes a state-directory sub-path from a literal, and `npm run test:cache-regeneration` proves deleting `cache/` loses nothing.
 - Garbage collection stops orphaning data. `retention.mjs` kept its own list of seven per-run paths, hand-maintained and six behind the runtime that writes them, so reclaiming a run left its `evidence/`, `ci-evidence/`, `delivery/`, `traceability/`, `requirement-update/` and workspace bytes on disk permanently. The list now comes from `layout.runPaths`, derived from the same table every writer resolves through, and gc plans from the store's physical contents rather than from `listArtifacts` — so an object whose metadata is missing, or metadata whose object is missing, is reclaimable instead of invisible. An entry a surviving run still references is never planned, including when its metadata has been lost: artifact ids are content-addressed, so the id is known from the address.

@@ -113,14 +113,28 @@ agent-sdlc activation disable           # persist the same decision for this pro
 
 Full detail: `docs/AUTO-ACTIVATION.md`.
 
-## Why only two public skills?
+## The skill surface
 
-Only these are host-discoverable:
+Skills are the only public surface, identical on every host — there is no separate `commands/`
+directory. Every skill is slash-invocable: `/sdlc-router`, `/sdlc-status`, `/sdlc-task`,
+`/sdlc-resume`, `/sdlc-approve` and `/sdlc-doctor` all work. `agent-sdlc.manifest.json` declares
+four tiers:
 
-- `sdlc-router`
-- `sdlc-orchestrator`
+| Tier | Count | Members | Auto-activates |
+|---|---|---|---|
+| `entry_skills` | 2 | `sdlc-router`, `sdlc-orchestrator` | `sdlc-router` only (bootstrap); it hands control to `sdlc-orchestrator` |
+| `ops_skills` | 5 | `sdlc-approve`, `sdlc-status`, `sdlc-resume`, `sdlc-task`, `sdlc-doctor` | no — invoked by name or slash command |
+| `stage_skills` | 7 | `sdlc-requirements`, `sdlc-design`, `sdlc-plan`, `sdlc-implement`, `sdlc-verify`, `sdlc-review`, `sdlc-release` | no — `sdlc-orchestrator` activates the one named by `navigation.stage_skill` |
+| `procedure_skills` | 24 | deeper single-purpose methodology modules under `skills/procedures/` (e.g. `tdd`, `systematic-debugging`, `git-delivery`, `code-review`) | no — resolved from run state via `navigation.procedure_skills`, never from a host's own picker |
 
-The 18 canonical internal capability groups live under `harness/internal-skills/` and are loaded only when the deterministic lifecycle selects them. This keeps discovery/base context small while preserving full SDLC coverage.
+38 skills total: the 14 entry/ops/stage skills sit at the `skills/` discovery root; the 24
+procedure skills live under `skills/procedures/` so they never sit beside them. Read the surface
+programmatically with `readSkillTiers()` from `scripts/lib/skill-tiers.mjs` — the single reader
+every script in this repo uses, replacing six independent re-derivations of "what's public."
+`config/skills.json` and `config/procedures.json` register the deeper per-skill metadata and
+instruction bodies; `harness/internal-skills/` holds the 24 underlying guidance files those
+procedure skills point at, loaded only when the deterministic lifecycle selects one. This keeps
+discovery/base context small while preserving full SDLC coverage.
 
 ## Implemented scope
 
@@ -174,8 +188,10 @@ hooks.json                           Antigravity hooks
 rules/agent-sdlc.md                  Antigravity plugin rule (generated)
 hooks/                               generated bootstrap + guard hooks
 policies/auto-activation.json        canonical auto-activation policy
-skills/                              exactly two public skills
-harness/internal-skills/             on-demand internal capability modules
+policies/skill-navigation.json       canonical stage/workflow/overlay -> skill policy
+skills/                              14 entry/ops/stage skills (discovery root)
+skills/procedures/                   24 procedure skills, never at the discovery root
+harness/internal-skills/             24 on-demand internal capability modules
 ```
 
 Provider-specific generated ZIPs remain available through `npm run build`; they are release artifacts, not the canonical Git repository.

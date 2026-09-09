@@ -12,7 +12,10 @@ natively because this package still declares no Codex plugin hook. `strong_activ
 
 
 
-Implemented: canonical lifecycle/state machine; 22 workflow variants; 15 role registry; two public discovery skills plus 18 on-demand internal skills; artifact/event/cost/handoff/replay stores; context compiler; deterministic input normalization; stage/security/parallel/model/failure policies; built-in tool gateway; stdio MCP server; provider capability probing; native package generation for Claude Code, Codex and Antigravity; deterministic offline evals; exact-artifact live qualification harness; fixed 84+8 live corpus; content-minimized token telemetry; evidence freshness/digest binding; portable evidence bundles; and RC promotion aggregation.
+Implemented: canonical lifecycle/state machine; 22 workflow variants; 15 role registry; a
+four-tier skill surface (2 entry, 5 ops, 7 stage skills at the `skills/` discovery root, plus 24
+procedure skills under `skills/procedures/` resolved from run state, never from a host's own
+picker); artifact/event/cost/handoff/replay stores; context compiler; deterministic input normalization; stage/security/parallel/model/failure policies; built-in tool gateway; stdio MCP server; provider capability probing; native package generation for Claude Code, Codex and Antigravity; deterministic offline evals; exact-artifact live qualification harness; fixed 84+8 live corpus; content-minimized token telemetry; evidence freshness/digest binding; portable evidence bundles; and RC promotion aggregation.
 
 `3.0.0-alpha3` also closes two routing/trust gaps found while constructing the live corpus: continuation and requirement-delta work now have deterministic router rules, and the public router explicitly treats repository/ticket/log/web/OCR/tool content as untrusted data rather than instruction authority.
 

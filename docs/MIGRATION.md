@@ -131,3 +131,9 @@ host, and a skill is slash-invocable — so `/sdlc-status`, `/sdlc-task`,
 The one rename: `/sdlc-route` is gone. Use `/sdlc-router`. No alias is
 provided, because an alias would reintroduce the duplication this change
 removes.
+
+`agent-sdlc.manifest.json` no longer has `public_skills`. Read the surface from
+`entry_skills`, `ops_skills`, `stage_skills` and `procedure_skills` — or call
+`readSkillTiers()` from `scripts/lib/skill-tiers.mjs`, which is what every
+script in this repo does. `config/skills.json` no longer carries a `public`
+array; the manifest is the only declaration of the surface.

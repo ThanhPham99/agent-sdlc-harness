@@ -26,6 +26,22 @@ system:
 Ambiguous requests that may still mutate a real repository/system fail safe toward routing;
 `sdlc-router` then confirms scope. Ambiguity never fails safe toward silently editing.
 
+## 2a. Navigation after activation is not auto-activation
+
+`sdlc-router` remains the single skill this package auto-activates; the bootstrap hook above is
+unchanged by the tiered skill surface. Once routing hands off to `sdlc-orchestrator`, every
+further skill selection is deterministic dispatch, not activation: stage skills (`sdlc-design`,
+`sdlc-implement`, ...) and procedure skills (`tdd`, `git-delivery`, ...) never auto-activate on
+their own, and no host's own skill-selection heuristics choose them. `sdlc-orchestrator` reads
+`navigation.stage_skill` — the field `status`, `context` and the MCP `agent_sdlc_status` tool all
+report, resolved once in `runtime/skill-navigation.mjs` from `policies/skill-navigation.json` so
+the three surfaces can never hand-drift apart — and activates that one stage skill by name.
+`navigation.procedure_skills` names the procedure skills the current run state resolves, for the
+same reason. `context`'s `navigation` block additionally carries
+`fallback_instructions_inlined: true`, true only there: only the compiled context actually inlines
+the stage/procedure instruction text, so activating `stage_skill` by name is a convenience on that
+surface, not a prerequisite.
+
 ## 3. How each host delivers the bootstrap
 
 | Host | Delivery | Re-delivery | Offline class |
