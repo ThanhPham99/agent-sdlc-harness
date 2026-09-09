@@ -3,8 +3,8 @@
   "version": "3.0.0-rc2",
   "workflow": ".github/workflows/ci.yml",
   "check_script": "check",
-  "checks": 76,
-  "passes": 75,
+  "checks": 78,
+  "passes": 77,
   "failures": 0,
   "suites": [
     {
@@ -143,6 +143,18 @@
       "script": "test:temp-hygiene",
       "status": "PASS",
       "gated_via": "test:integrity",
+      "problems": []
+    },
+    {
+      "script": "test:skill-surface",
+      "status": "PASS",
+      "gated_via": "test:skill-surface",
+      "problems": []
+    },
+    {
+      "script": "test:skill-navigation",
+      "status": "PASS",
+      "gated_via": "test:skill-navigation",
       "problems": []
     },
     {

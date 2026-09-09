@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/version-consistency/v1",
   "version": "3.0.0-rc2",
-  "checks": 82,
-  "passes": 82,
+  "checks": 106,
+  "passes": 106,
   "failures": 0,
   "behind": [
     {
@@ -147,31 +147,6 @@
     },
     {
       "where": "evals/REPO-INTELLIGENCE-VALIDATION.json#version",
-      "found": "3.0.0-alpha6",
-      "current": "3.0.0-rc2"
-    },
-    {
-      "where": "evals/TASK-CONTEXT-VALIDATION.json#version",
-      "found": "3.0.0-alpha6",
-      "current": "3.0.0-rc2"
-    },
-    {
-      "where": "evals/TASK-ENGINE-VALIDATION.json#version",
-      "found": "3.0.0-alpha6",
-      "current": "3.0.0-rc2"
-    },
-    {
-      "where": "evals/TASK-RECOVERY-VALIDATION.json#version",
-      "found": "3.0.0-alpha6",
-      "current": "3.0.0-rc2"
-    },
-    {
-      "where": "evals/TASK-REVIEW-VALIDATION.json#version",
-      "found": "3.0.0-alpha6",
-      "current": "3.0.0-rc2"
-    },
-    {
-      "where": "evals/TASK-SCHEDULER-VALIDATION.json#version",
       "found": "3.0.0-alpha6",
       "current": "3.0.0-rc2"
     },

@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/task-context-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc2",
   "invariant": "one bounded task -> one bounded context package -> one primary writer",
   "manifest_schema": "agent-sdlc/task-context-manifest/v1",
   "excluded_by_default": [
@@ -26,8 +26,8 @@
   },
   "budget": "derived from the active stage budget in policies/stage-policy.json, narrowed to the task",
   "replayability": "context_hash excludes created_at, so identical inputs produce an identical hash",
-  "checks": 8,
-  "passes": 8,
+  "checks": 9,
+  "passes": 9,
   "failures": 0,
   "results": [
     {
@@ -60,6 +60,10 @@
     },
     {
       "name": "risk-constraints-are-derived-from-task-risk",
+      "status": "PASS"
+    },
+    {
+      "name": "every-task-category-gets-non-empty-module-guidance",
       "status": "PASS"
     }
   ],

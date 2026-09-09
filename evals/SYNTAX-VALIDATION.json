@@ -2,8 +2,8 @@
   "schema": "agent-sdlc/syntax-validation/v1",
   "version": "3.0.0-rc2",
   "checked": "node --check (parse only, not executed)",
-  "checks": 213,
-  "passes": 213,
+  "checks": 214,
+  "passes": 214,
   "failures": 0,
   "results": [
     {
@@ -613,6 +613,11 @@
     },
     {
       "file": "scripts/gen-activation-assets.mjs",
+      "status": "PASS",
+      "error": null
+    },
+    {
+      "file": "scripts/gen-skill-surface.mjs",
       "status": "PASS",
       "error": null
     },

@@ -657,6 +657,13 @@ test('discovery-root-matches-tiers',()=>{
     .filter(e=>e.isDirectory()&&e.name!=='procedures').map(e=>e.name).sort();
   if(JSON.stringify(dirs)!==JSON.stringify(t.discovery))throw Error(`skills/ holds ${dirs.join(',')} but tiers declare ${t.discovery.join(',')}`);
 });
+test('procedure-skills-generated-and-in-sync',()=>{
+  const r=spawnSync(process.execPath,[path.join(ROOT,'scripts','gen-skill-surface.mjs'),'--check'],{encoding:'utf8'});
+  if(r.status!==0)throw Error(`generated procedure skills are stale: ${String(r.stdout||r.stderr).slice(0,200)}`);
+  const tiers=readSkillTiers(ROOT);
+  const procedures=Object.keys(JSON.parse(fs.readFileSync(path.join(ROOT,'config','procedures.json'),'utf8')).procedures);
+  if(tiers.procedure.slice().sort().join(',')!==procedures.slice().sort().join(','))throw Error('procedure_skills does not match the procedure registry');
+});
 test('no-slash-command-surface',()=>{
   if(fs.existsSync(path.join(ROOT,'commands')))throw Error('commands/ still exists: skills are the only public surface');
   for(const f of ['.claude-plugin/plugin.json','adapters/claude/plugin.json']){

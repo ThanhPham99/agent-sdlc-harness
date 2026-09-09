@@ -38,6 +38,8 @@ jobs:
         run: npm test
       - name: Integrity gates (versions, registry, root sync, host guard, CI coverage, CLI surface)
         run: npm run test:integrity
+      - name: Procedure skill tier generated and in sync
+        run: npm run test:skill-surface
       - name: Auto-activation contract and per-host bootstrap hooks
         run: npm run test:activation
       - name: Design and plan-quality gates
@@ -164,6 +166,8 @@ jobs:
         run: npm test
       - name: Integrity gates (versions, registry, root sync, host guard, CI coverage, CLI surface)
         run: npm run test:integrity
+      - name: Procedure skill tier generated and in sync
+        run: npm run test:skill-surface
       # The bootstrap hooks resolve host home directories and write config
       # there. That is exactly the platform-sensitive path handling this job
       # exists for -- os.homedir() reads %USERPROFILE% here and $HOME on the

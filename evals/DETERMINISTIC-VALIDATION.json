@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-rc2",
-  "checks": 445,
-  "passes": 445,
+  "checks": 446,
+  "passes": 446,
   "failures": 0,
   "results": [
     {
@@ -243,6 +243,10 @@
     },
     {
       "name": "discovery-root-matches-tiers",
+      "status": "PASS"
+    },
+    {
+      "name": "procedure-skills-generated-and-in-sync",
       "status": "PASS"
     },
     {

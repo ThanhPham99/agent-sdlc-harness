@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/task-review-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc2",
   "contracts": [
     "agent-sdlc/task-verification/v1",
     "agent-sdlc/spec-compliance-review/v1",
@@ -29,8 +29,8 @@
     "blocking_finding_blocks_done": true,
     "independence": "recorded truthfully; an achieved claim contradicting its mode is rejected, and an unachieved claim requires a recorded limitation"
   },
-  "checks": 20,
-  "passes": 20,
+  "checks": 33,
+  "passes": 33,
   "failures": 0,
   "results": [
     {
@@ -54,6 +54,10 @@
       "status": "PASS"
     },
     {
+      "name": "advance-uses-a-review-that-was-already-recorded",
+      "status": "PASS"
+    },
+    {
       "name": "quality-blocker-re-enters-running",
       "status": "PASS"
     },
@@ -63,6 +67,10 @@
     },
     {
       "name": "review-must-be-bound-to-the-current-diff-and-attempt",
+      "status": "PASS"
+    },
+    {
+      "name": "a-review-that-declares-no-diff-is-not-bound-to-anything",
       "status": "PASS"
     },
     {
@@ -90,7 +98,51 @@
       "status": "PASS"
     },
     {
+      "name": "a-task-that-breaks-the-file-it-changed-fails-its-own-verification",
+      "status": "PASS"
+    },
+    {
+      "name": "the-parse-check-covers-the-diff-and-nothing-else",
+      "status": "PASS"
+    },
+    {
+      "name": "a-bare-js-file-is-left-unparsed-where-nothing-declares-its-module-system",
+      "status": "PASS"
+    },
+    {
+      "name": "a-task-that-changed-no-javascript-adds-no-parse-check",
+      "status": "PASS"
+    },
+    {
+      "name": "verification-side-effects-outside-the-write-scope-are-restored",
+      "status": "PASS"
+    },
+    {
+      "name": "an-untracked-file-a-command-created-is-left-alone",
+      "status": "PASS"
+    },
+    {
       "name": "verification-evidence-is-bound-to-a-revision-and-diff",
+      "status": "PASS"
+    },
+    {
+      "name": "an-isolated-workspace-records-the-new-files-it-cannot-see-either",
+      "status": "PASS"
+    },
+    {
+      "name": "the-per-task-secret-scan-searches-the-files-the-task-just-wrote",
+      "status": "PASS"
+    },
+    {
+      "name": "diff_hash-covers-the-content-of-files-the-task-created-and-never-staged",
+      "status": "PASS"
+    },
+    {
+      "name": "a-failed-verification-does-not-satisfy-the-verification-gate",
+      "status": "PASS"
+    },
+    {
+      "name": "a-verification-record-with-no-scope-audit-does-not-satisfy-the-scope-gate",
       "status": "PASS"
     },
     {
