@@ -15,7 +15,7 @@ import {ensureCiPassedBeforeDelivery,runLocalCiValidation} from './ci-guard.mjs'
 import {generatePrBody,generateChangelog} from './pr-generator.mjs';
 import {recordDelivery} from './git-delivery.mjs';
 import {invokeTool} from './tools.mjs';
-import {integrateTaskWorkspace} from './workspace.mjs';
+import {integrateTaskWorkspace,getTaskWorkspace} from './workspace.mjs';
 import {reviewTaskPair} from './task-reviewer.mjs';
 import {executeTaskWithAgent} from './task-worker.mjs';
 import {generateRunReport,updateSummaryIndex,syncDashboard} from './doc-generator.mjs';
@@ -242,10 +242,33 @@ export function runAutoTaskLoop(root,projectRoot,run,{customWriter=null,workerCa
       }
 
       // First capture diff so currentTask has diff_hash for reviews
+      let capturedDiff=null;
       try{
-        captureTaskDiff(projectRoot,run,currentTask);
+        capturedDiff=captureTaskDiff(projectRoot,run,currentTask);
       }catch{/* ignore */}
       currentTask=loadTask(projectRoot,run.run_id,t.task_id);
+
+      // When manual implementation mode (--no-worker and no workerCallback) is used:
+      // If the task changes behavior and declares write scope, but has no diff captured yet,
+      // pause cleanly instead of trying to verify an empty workspace and burning retries.
+      if(!spawnWorker&&!workerCallback){
+        const requiresChanges=currentTask.changes_behavior!==false&&Array.isArray(currentTask.scope?.write)&&currentTask.scope.write.length>0;
+        const hasDiff=capturedDiff&&Array.isArray(capturedDiff.changed_paths)&&capturedDiff.changed_paths.length>0;
+        if(requiresChanges&&!hasDiff){
+          const ws=getTaskWorkspace(projectRoot,run.run_id,currentTask.task_id);
+          const wsRoot=ws?.root||projectRoot;
+          return {
+            is_complete:false,
+            is_paused:true,
+            pause_gate:null,
+            pause_reason:'AWAITING_MANUAL_IMPLEMENTATION',
+            task_id:currentTask.task_id,
+            workspace:wsRoot,
+            steps,
+            message:`Task ${currentTask.task_id} is RUNNING in workspace ${wsRoot}. Waiting for manual changes. Once changes are made, run auto-task again to verify and advance.`
+          };
+        }
+      }
 
       // Both reviews used to be constructed here as COMPLIANT/ACCEPTED with no
       // findings, whatever the diff contained -- a rubber stamp wearing the
@@ -264,6 +287,7 @@ export function runAutoTaskLoop(root,projectRoot,run,{customWriter=null,workerCa
         attempt:currentTask.attempt||0,
         diff_hash:currentTask.diff_hash,
         verdict:'COMPLIANT',
+        acceptance_criteria_checked:Array.isArray(currentTask.acceptance_criteria)?currentTask.acceptance_criteria:[],
         findings:[],
         generated_by:AUTO_REVIEW_STUB,
         independence:{

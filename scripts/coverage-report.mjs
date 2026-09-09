@@ -80,13 +80,15 @@ const ENTRIES=[
   'scripts/test-layout.mjs',
   'scripts/test-layout-migration.mjs',
   'scripts/test-cache-regeneration.mjs',
-  'scripts/test-task-worker.mjs'
+  'scripts/test-task-worker.mjs',
+  'scripts/test-skill-navigation.mjs'
 ];
 
 // Suites deliberately not measured, each with the reason. Naming them rather
 // than merely leaving them out is what makes the completeness check below
 // possible: a new suite has to be classified, not silently forgotten.
 const NOT_MEASURED={
+  'scripts/gen-skill-surface.mjs':'generates and validates skill markdown surfaces; never enters runtime/',
   'scripts/test-check-update.mjs':'exercises the update check hook in hooks/, outside runtime/',
   'scripts/test-layout-boundary.mjs':'scans repository files statically for layout boundary violations; measures no runtime behaviour',
   'scripts/build-dist.mjs':'produces the packaged tree; measures no runtime behaviour',

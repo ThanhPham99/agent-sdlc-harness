@@ -49,6 +49,7 @@ export interface TaskScope {
 
 export interface TaskVerification {
   strategy?: 'TARGETED_ONLY' | 'TARGETED_THEN_FULL' | 'FULL_ONLY';
+  commands?: (string | string[] | { command: string | string[]; cwd?: string })[];
   targeted_tests?: string[];
   full_suite?: string[];
   coverage_required?: boolean;

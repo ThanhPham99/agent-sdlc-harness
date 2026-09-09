@@ -74,8 +74,13 @@ To eliminate repetitive manual transitions while guaranteeing human authority ov
 - `bin/agent-sdlc auto --objective "<goal>"`: Zero-config single-command start. Automatically initializes project, routes the objective, starts a run, dispatches autonomous worker subagents to write task code, dispatches independent reviewer subagents to verify, and executes SDLC stages automatically until complete or paused at a human gate.
 - `bin/agent-sdlc auto --run-id <id>`: Runs or resumes an existing SDLC run.
 - `bin/agent-sdlc auto --approve`: Automatically grants the pending human gate approval ticket and resumes pipeline execution in one step.
-- `bin/agent-sdlc auto-task --run-id <id>`: Automates the task scheduling, worker execution, verification, and review loop inside `IMPLEMENT`. Pass `--no-worker` to disable automatic worker agent spawning if implementing manually.
+- `bin/agent-sdlc auto-task --run-id <id>`: Automates the task scheduling, worker execution, verification, and review loop inside `IMPLEMENT`. Pass `--no-worker` when implementing tasks manually; the runner will set the ready task to `RUNNING`, prepare its isolated workspace, and cleanly pause with `AWAITING_MANUAL_IMPLEMENTATION` (showing the workspace path) until changes are made, without exhausting retry budgets.
 - `bin/agent-sdlc ci-check`: Validates that local test suites pass before commit/push.
+
+### Monorepo & Per-Task Verification (`verification.commands`)
+For polyglot monorepos (e.g. Alembic migrations, Python microservices, and React frontend apps), tasks can declare explicit verification commands and service directories in `task-plan.json`:
+- `verification.commands`: Array of command argv (e.g. `[["alembic", "upgrade", "head"], ["alembic", "downgrade", "-1"]]`) or objects with explicit working directory: `[{ "command": ["npm", "test"], "cwd": "apps/learner-ui" }]`.
+- If a task declares shell commands in `targeted_tests` (e.g. `"npm test"` or `"alembic upgrade head && alembic downgrade -1"`), the engine automatically detects them as commands and infers the service directory from `write_scope`.
 
 ### The 5 Human Confirmation Gates
 The runner automatically pauses and returns `status: "PAUSED"` at the following gates:

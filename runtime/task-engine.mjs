@@ -55,6 +55,7 @@ function taskFromPlanned(t,{runId,planId,profile}){
       symbols:arr(t.likely_symbols)
     },
     verification:{
+      commands:arr(t.verification?.commands),
       targeted_tests:arr(t.verification?.targeted_tests),
       expected_behavior:arr(t.verification?.expected_behavior),
       required_evidence:arr(t.verification?.required_evidence)

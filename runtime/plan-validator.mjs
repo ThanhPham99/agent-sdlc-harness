@@ -122,7 +122,7 @@ export function computeCoverage(plan){
       if(!implementing.has(ac)){implementing.set(ac,[]);verifying.set(ac,[]);}
       implementing.get(ac).push(t?.task_id);
       const v=t?.verification||{};
-      if(arr(v.targeted_tests).length||arr(v.expected_behavior).length)verifying.get(ac).push(t?.task_id);
+      if(arr(v.commands).length||arr(v.targeted_tests).length||arr(v.expected_behavior).length)verifying.get(ac).push(t?.task_id);
     }
   }
   const uncovered=required.filter(ac=>!(implementing.get(ac)||[]).length);
@@ -195,7 +195,7 @@ export function validateTaskPlan(plan,context={}){
     if(t?.category&&!TASK_CATEGORIES.includes(t.category))push('TASK_UNKNOWN_CATEGORY',{task_id:id,category:t.category});
 
     const v=t?.verification||{};
-    const hasVerification=arr(v.targeted_tests).length>0||arr(v.expected_behavior).length>0;
+    const hasVerification=arr(v.commands).length>0||arr(v.targeted_tests).length>0||arr(v.expected_behavior).length>0;
     const changesBehavior=t?.changes_behavior!==false;
     if(changesBehavior&&!hasVerification)push('BEHAVIOR_TASK_WITHOUT_VERIFICATION',{task_id:id});
 

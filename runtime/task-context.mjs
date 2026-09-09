@@ -87,9 +87,18 @@ function dependencyOutputs(projectRoot,task,tasks){
 
 function verificationCommands(projectRoot,task){
   const cfg=readJson(layout.projectConfigFile(projectRoot),{});
+  const customCmds=arr(task.verification?.commands).map(c=>{
+    if(typeof c==='string')return c;
+    if(Array.isArray(c))return c.join(' ');
+    if(c&&typeof c==='object'&&c.command){
+      const cmdStr=Array.isArray(c.command)?c.command.join(' '):String(c.command);
+      return c.cwd?`[cd ${c.cwd}] ${cmdStr}`:cmdStr;
+    }
+    return String(c);
+  });
   const targeted=arr(task.verification?.targeted_tests);
   const configured=arr(cfg.commands?.test_targeted).join(' ');
-  const out=[...targeted];
+  const out=[...customCmds,...targeted];
   if(configured&&!out.length)out.push(configured);
   if(task.category==='migration'&&arr(cfg.commands?.build).length)out.push(arr(cfg.commands.build).join(' '));
   return out;

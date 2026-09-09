@@ -1287,6 +1287,41 @@ export function runTaskRuntimeSuite(root){
       if(full.unsatisfied_selector)fail('test_full has no {selector} and must not be marked unsatisfied');
     });
 
+    t('planned-commands-supports-explicit-task-commands',()=>{
+      const projectRoot=makeFixture({commands:SELECTOR_CMDS});
+      const task={
+        task_id:'TASK-004',
+        scope:{write:['services/billing/alembic/versions/013_billing.py']},
+        verification:{
+          commands:[
+            ['alembic','upgrade','head'],
+            {command:['npm','test'],cwd:'apps/learner-ui'}
+          ]
+        }
+      };
+      const cmds=plannedCommands(projectRoot,task,'TARGETED',{root});
+      const custom=cmds.filter(c=>c.kind==='task_command');
+      if(custom.length!==2)fail(`expected 2 task_commands, got ${custom.length}`);
+      if(custom[0].command.join(' ')!=='alembic upgrade head')fail(`wrong command: ${custom[0].command}`);
+      if(custom[1].cwd!=='apps/learner-ui')fail(`wrong cwd: ${custom[1].cwd}`);
+    });
+
+    t('planned-commands-supports-smart-fallback-for-command-strings',()=>{
+      const projectRoot=makeFixture({commands:SELECTOR_CMDS});
+      const task={
+        task_id:'TASK-005',
+        scope:{write:['services/billing/alembic/versions/013_billing.py']},
+        verification:{
+          targeted_tests:['alembic upgrade head && alembic downgrade -1']
+        }
+      };
+      const cmds=plannedCommands(projectRoot,task,'TARGETED',{root});
+      const targeted=cmds.filter(c=>c.kind==='test_targeted');
+      if(targeted.length!==2)fail(`expected 2 test_targeted commands, got ${targeted.length}`);
+      if(targeted[0].command.join(' ')!=='alembic upgrade head')fail(`wrong cmd 0: ${targeted[0].command.join(' ')}`);
+      if(targeted[1].command.join(' ')!=='alembic downgrade -1')fail(`wrong cmd 1: ${targeted[1].command.join(' ')}`);
+    });
+
     t('task-verification-reports-an-unstartable-command-as-error',()=>{
       // Not "the tests failed". The previous behaviour was exit_code 1 with an
       // empty summary and no artifact, indistinguishable from a real failure.

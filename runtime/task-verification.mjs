@@ -91,54 +91,137 @@ export function attemptDeterministicMicroFix(cwd,projectRoot,task,{summary='',ki
   }
 }
 
+/** Infer service subdirectory from task write/read scope if in a monorepo. */
+export function inferServiceCwd(task, workspace){
+  if(!workspace)return null;
+  const paths=[...arr(task?.scope?.write),...arr(task?.scope?.read)].map(p=>String(p||'').replace(/\\/g,'/'));
+  if(!paths.length)return null;
+  const markers=['package.json','pyproject.toml','requirements.txt','setup.py','alembic.ini','Cargo.toml','go.mod','tsconfig.json'];
+  const candidates=new Set();
+  for(const p of paths){
+    let cur=path.dirname(p);
+    while(cur&&cur!=='.'&&cur!=='/'&&cur!=='\\'){
+      candidates.add(cur);
+      cur=path.dirname(cur);
+    }
+  }
+  const sorted=[...candidates].sort((a,b)=>b.length-a.length);
+  for(const dir of sorted){
+    const absDir=path.join(workspace,dir);
+    if(fs.existsSync(absDir)){
+      for(const m of markers){
+        if(fs.existsSync(path.join(absDir,m)))return dir;
+      }
+    }
+  }
+  if(arr(task?.scope?.write).length){
+    const writeDirs=arr(task.scope.write).map(p=>path.dirname(String(p).replace(/\\/g,'/')));
+    const first=writeDirs[0];
+    if(first&&first!=='.'&&writeDirs.every(d=>d===first||d.startsWith(first+'/'))){
+      if(fs.existsSync(path.join(workspace,first)))return first;
+    }
+  }
+  return null;
+}
+
+/** Tokenize a command string into argv without breaking quotes. */
+export function parseCommandString(str){
+  const s=String(str||'').trim();
+  if(!s)return [];
+  const matches=s.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g)||[];
+  return matches.map(m=>m.replace(/^["']|["']$/g,''));
+}
+
+/** Determines if a targeted_tests entry looks like a full command rather than a test selector/file. */
+export function isCommandLike(str){
+  const s=String(str||'').trim();
+  if(!s)return false;
+  if(s.includes('&&')||s.includes(';')||s.includes('|'))return true;
+  const knownBinaries=/^(alembic|npm|npx|pnpm|yarn|bun|pytest|python|python3|node|vitest|jest|cargo|go|make|mvn|gradle|dotnet|mix|bundle|composer|ruff|flake8|mypy|black|tsc|eslint)\b/i;
+  if(knownBinaries.test(s)&&s.includes(' '))return true;
+  return false;
+}
+
+/** Expand command entry into a list of {command: string[], cwd?: string}. */
+export function expandCommandItem(item, defaultCwd=null){
+  if(!item)return [];
+  if(Array.isArray(item)){
+    return [{command:item.map(String),cwd:defaultCwd}];
+  }
+  if(typeof item==='object'&&item.command){
+    const targetCwd=item.cwd||defaultCwd;
+    if(Array.isArray(item.command)){
+      return [{command:item.command.map(String),cwd:targetCwd}];
+    }
+    return expandCommandItem(item.command,targetCwd);
+  }
+  const str=String(item).trim();
+  if(!str)return [];
+  if(str.includes('&&')){
+    return str.split('&&')
+      .map(s=>s.trim())
+      .filter(Boolean)
+      .flatMap(s=>expandCommandItem(s,defaultCwd));
+  }
+  return [{command:parseCommandString(str),cwd:defaultCwd}];
+}
+
 /** Which project commands a strategy runs, in order. */
 export function plannedCommands(projectRoot,task,strategy,{root=null,changedPaths=[],cwd=null}={}){
   const cfg=readJson(layout.projectConfigFile(projectRoot),{});
   const out=[];
-  const selectors=arr(task.verification?.targeted_tests).map(String);
-  const push=(kind,command)=>{
-    if(!command.length)return;
-    out.push({kind,...substituteSelector(command,selectors)});
-  };
-  // Parse what the task changed, before running anything long.
-  //
-  // A task's verification runs the project's test command and nothing else, so
-  // a JavaScript file the task just broke is parsed only if some suite happens
-  // to import it. That is exactly how an unterminated string literal once
-  // reached a run's VERIFY stage: the configured suite passed, and the file it
-  // never loaded did not. `node --check` is parse-only -- it executes nothing
-  // -- and it takes one file at a time, so this is one command per changed
-  // file, over the task's own diff and never the repository.
-  //
-  // .mjs and .cjs declare their own module system, so they are always safe to
-  // parse. A bare .js does not: node decides from the nearest package.json, and
-  // without one an ESM .js parses as CommonJS and fails for a reason that has
-  // nothing to do with the task. So .js is only checked where a package.json
-  // exists to answer the question.
   const workspace=cwd||projectRoot;
+  const inferredCwd=inferServiceCwd(task,workspace);
+
+  // 1. Explicit task-level verification commands
+  if(arr(task.verification?.commands).length){
+    for(const item of task.verification.commands){
+      const expanded=expandCommandItem(item,inferredCwd);
+      for(const e of expanded){
+        if(e.command.length){
+          out.push({kind:'task_command',command:e.command,cwd:e.cwd,unsatisfied_selector:false});
+        }
+      }
+    }
+  }
+
+  // 2. Targeted tests (selectors or command-like strings)
+  const selectors=[];
+  for(const sel of arr(task.verification?.targeted_tests).map(String)){
+    if(isCommandLike(sel)){
+      const expanded=expandCommandItem(sel,inferredCwd);
+      for(const e of expanded){
+        if(e.command.length){
+          out.push({kind:'test_targeted',command:e.command,cwd:e.cwd,unsatisfied_selector:false});
+        }
+      }
+    }else{
+      selectors.push(sel);
+    }
+  }
+
+  const push=(kind,command,sels=selectors)=>{
+    if(!command.length)return;
+    out.push({kind,...substituteSelector(command,sels)});
+  };
+
+  // Parse what the task changed, before running anything long.
   const hasPackageJson=fs.existsSync(path.join(workspace,'package.json'));
   const parseable=rel=>/\.(mjs|cjs)$/i.test(rel)||(hasPackageJson&&/\.js$/i.test(rel));
   for(const rel of arr(changedPaths).map(String).filter(parseable).sort()){
-    // A file the task deleted has nothing left to parse.
     if(!fs.existsSync(path.join(workspace,rel)))continue;
     out.push({kind:'syntax_check',command:['node','--check',rel],unsatisfied_selector:false});
   }
-  push('test_targeted',arr(cfg.commands?.test_targeted));
+
+  // If there are real file selectors, OR if no custom/command-like verification was declared,
+  // evaluate the project template:
+  if(selectors.length || !out.some(c=>c.kind==='task_command'||c.kind==='test_targeted')){
+    push('test_targeted',arr(cfg.commands?.test_targeted),selectors);
+  }
+
   if(strategy!=='TARGETED')push('build',arr(cfg.commands?.build));
   if(strategy==='BROAD_SUITE')push('test_full',arr(cfg.commands?.test_full));
   if((task.risk?.security==='HIGH'||arr(task.scope?.interfaces).length)&&strategy!=='TARGETED'){
-    // Patterns come from the same policy the tool gateway's scanner reads, and
-    // the hits are filtered through the gateway's own exported allowlist below,
-    // so the two cannot drift apart. This scan is repository-wide, not limited
-    // to the task's diff: a credential committed anywhere is a finding, and
-    // narrowing it to changed paths would let one slip in under an unrelated
-    // task. The comment here used to claim the opposite on both counts.
-    //
-    // --untracked for the same reason the gateway scanner needs it, and more
-    // urgently: this runs inside the workspace of a task singled out as
-    // security-critical, so the files it most needs to read are the ones that
-    // task just created -- and those are untracked. Without the flag `git
-    // grep` exits 1 there, which this module maps to a pass.
     const declared=root?(readJson(path.join(root,'policies','security-policy.json'),{}).secret_scan?.patterns||[]):[];
     const regexes=declared.map(p=>p.regex).filter(Boolean);
     const pattern=regexes.length?`(${regexes.join('|')})`:'(AKIA[0-9A-Z]{16}|BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY)';
@@ -228,6 +311,7 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
       continue;
     }
     const start=Date.now();
+    const execCwd=c.cwd?path.resolve(cwd,c.cwd):cwd;
     // Same resolution the tool gateway uses: `npm` is npm.cmd on Windows, and a
     // command that never started is not a test that failed.
     const launch=resolveLaunch(c.command);
@@ -237,7 +321,7 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
         summary:`${launch.reason}: cannot launch ${c.command.join(' ')}`});
       continue;
     }
-    const r=spawnSync(launch.bin,launch.args,{cwd,encoding:'utf8',timeout:timeoutMs,maxBuffer:20*1024*1024,...launch.spawnOptions});
+    const r=spawnSync(launch.bin,launch.args,{cwd:execCwd,encoding:'utf8',timeout:timeoutMs,maxBuffer:20*1024*1024,...launch.spawnOptions});
     const spawned=describeSpawn(r);
     if(spawned.status==='ERROR'){
       allPassed=false;
@@ -267,11 +351,11 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
       log_ref=putArtifact(projectRoot,{kind:'task-verification-log',content:raw,runId:run.run_id,stage:run.state,filename:`${task.task_id}-${c.kind}.log`}).artifact_id;
     }
     if(exit!==0&&!dryRun){
-      const microFix=attemptDeterministicMicroFix(cwd,projectRoot,task,{summary:t.text,kind:c.kind});
+      const microFix=attemptDeterministicMicroFix(execCwd,projectRoot,task,{summary:t.text,kind:c.kind});
       if(microFix.success){
         const retryLaunch=resolveLaunch(c.command);
         if(retryLaunch.status==='OK'){
-          const retryRes=spawnSync(retryLaunch.bin,retryLaunch.args,{cwd,encoding:'utf8',timeout:timeoutMs,maxBuffer:20*1024*1024,...retryLaunch.spawnOptions});
+          const retryRes=spawnSync(retryLaunch.bin,retryLaunch.args,{cwd:execCwd,encoding:'utf8',timeout:timeoutMs,maxBuffer:20*1024*1024,...retryLaunch.spawnOptions});
           const retrySpawn=describeSpawn(retryRes);
           if(retrySpawn.status!=='ERROR'&&(retryRes.status===0||(c.kind==='security_secret_scan'&&retryRes.status===1))){
             exit=0;
@@ -313,8 +397,8 @@ export function verifyTask(root,projectRoot,run,task,{escalate=false,timeoutMs=1
     strategy,
     commands:executed.length?executed:[{kind:'custom',command:['(none configured)'],exit_code:null,duration_ms:0,log_ref:null,summary:'no project verification command available'}],
     tests:{
-      passed:executed.filter(c=>c.kind.startsWith('test')&&c.exit_code===0).length,
-      failed:executed.filter(c=>c.kind.startsWith('test')&&c.exit_code!==0&&c.exit_code!==null).length,
+      passed:executed.filter(c=>(c.kind.startsWith('test')||c.kind==='task_command')&&c.exit_code===0).length,
+      failed:executed.filter(c=>(c.kind.startsWith('test')||c.kind==='task_command')&&c.exit_code!==0&&c.exit_code!==null).length,
       skipped:0,
       failing_names:failingNames,
       triage:triages[0]||null

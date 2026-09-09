@@ -1638,6 +1638,72 @@ await test('resuming-auto-pipeline-preserves-authored-design-decision-in-strict-
   assert(res.current_stage!=='DESIGN',`resumed pipeline should advance past DESIGN, got ${res.current_stage}`);
 });
 
+await test('auto-task-no-worker-pauses-cleanly-for-manual-implementation',async ()=>{
+  const {commands}=await import('../runtime/commands/auto.mjs');
+  const d=fixture('auto-task-manual-pause');
+  const r=route(ROOT,'Add math utility');
+  let run=newRun(ROOT,d,{objective:'Add math utility',route:r});
+  run.state='IMPLEMENT';
+  saveRun(d,run);
+  const plan={
+    schema:'agent-sdlc/task-plan/v1',
+    plan_id:`plan_${Date.now()}`,
+    objective:run.objective,
+    requirements:['R1'],
+    tasks:[
+      {
+        task_id:'TASK-001',
+        title:'Implement add function',
+        goal:'Write add function',
+        category:'implementation',
+        write_scope:['src/math.js'],
+        acceptance_criteria:['R1'],
+        done_conditions:['math.js exists'],
+        verification:{targeted_tests:['node -e "process.exit(0)"']}
+      }
+    ]
+  };
+  const {materializeRunTasks}=await import('../runtime/orchestrator.mjs');
+  materializeRunTasks(ROOT,d,run,plan);
+
+  let printed=null;
+  const print=v=>{printed=v;};
+
+  // Step 1: Run auto-task with no-worker on empty workspace -> must pause with AWAITING_MANUAL_IMPLEMENTATION
+  await commands['auto-task']({
+    args:{'no-worker':true,'no-reviewer':true},
+    ROOT,
+    projectRoot:d,
+    print,
+    needRun:async()=>loadRun(d,run.run_id)
+  });
+
+  assert(printed&&printed.is_paused===true,'auto-task must pause when no worker and no diff');
+  assert(printed.pause_reason==='AWAITING_MANUAL_IMPLEMENTATION','pause_reason must be AWAITING_MANUAL_IMPLEMENTATION');
+  assert(printed.workspace&&fs.existsSync(printed.workspace),'workspace must be prepared');
+
+  const taskBefore=loadTask(d,run.run_id,'TASK-001');
+  assert((taskBefore.attempt||0)<=1,'attempt count must not be exhausted/burned');
+  assert(taskBefore.status==='RUNNING','task must remain in RUNNING state for user');
+
+  // Step 2: User writes code into workspace
+  fs.mkdirSync(path.join(printed.workspace,'src'),{recursive:true});
+  fs.writeFileSync(path.join(printed.workspace,'src','math.js'),'export function add(a,b){return a+b;}\n');
+
+  // Step 3: Run auto-task again -> should capture diff, advance, and mark DONE
+  printed=null;
+  await commands['auto-task']({
+    args:{'no-worker':true,'no-reviewer':true},
+    ROOT,
+    projectRoot:d,
+    print,
+    needRun:async()=>loadRun(d,run.run_id)
+  });
+
+  const taskAfter=loadTask(d,run.run_id,'TASK-001');
+  assert(taskAfter.status==='DONE',`task should be DONE, got ${taskAfter.status}, printed=${JSON.stringify(printed)}, task=${JSON.stringify(taskAfter)}`);
+});
+
 finish();
 
 
