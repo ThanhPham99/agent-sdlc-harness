@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-rc2",
-  "checks": 444,
-  "passes": 444,
+  "checks": 445,
+  "passes": 445,
   "failures": 0,
   "results": [
     {
@@ -267,6 +267,10 @@
     },
     {
       "name": "public-skill-layout-valid",
+      "status": "PASS"
+    },
+    {
+      "name": "every-stage-skill-exists-and-declares-itself-non-entry",
       "status": "PASS"
     },
     {

@@ -14,7 +14,15 @@
     "sdlc-task",
     "sdlc-doctor"
   ],
-  "stage_skills": [],
+  "stage_skills": [
+    "sdlc-requirements",
+    "sdlc-design",
+    "sdlc-plan",
+    "sdlc-implement",
+    "sdlc-verify",
+    "sdlc-review",
+    "sdlc-release"
+  ],
   "procedure_skills": [],
   "canonical": {
     "state_machine": "config/state-machine.json",

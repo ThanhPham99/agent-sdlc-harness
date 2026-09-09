@@ -29,8 +29,11 @@ THE IRON LAWS OF ORCHESTRATION:
 - **Autonomous Engine First**: Prefer running `bin/agent-sdlc auto --objective "..." --workflow <route>` (or `node "${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-.}}/runtime/cli.mjs" auto ...`). This automatically executes the stage loop, dispatches workers/reviewers, and manages context deterministically without polluting chat context, pausing only at Human Confirmation Gates.
 - If manually driving or resuming: Read `bin/agent-sdlc status --run-id <id>` before acting.
 - Build compact context with `bin/agent-sdlc context --run-id <id>`. Do not load whole chat/repo/log history.
-- Load only the internal skill matching the current stage and workflow. Internal skills are references, not public/discoverable skills.
-- Available public utility skills: `sdlc-approve` (grant gate ticket), `sdlc-status` (check progress), `sdlc-resume` (resume run), `sdlc-task` (task graph), `sdlc-doctor` (system health).
+- Ops skills, for the human or for you: `sdlc-approve` (grant a gate ticket),
+  `sdlc-status`, `sdlc-resume`, `sdlc-task`, `sdlc-doctor`.
+- Stage skills are dispatched by run state, never chosen by preference.
+- Procedure skills under `skills/procedures/` are addressable by name but never
+  auto-activate; `policies/skill-navigation.json` decides which ones apply.
 
 ## Non-negotiable invariants
 - Clarification before execution: When input documentation or user requests are ambiguous, underspecified, or missing critical information (business logic, schemas, error behavior, edge cases), halt and ask the user to confirm thoroughly. Record answers in `clarifications.md`; never proceed on unverified assumptions.
@@ -46,33 +49,24 @@ THE IRON LAWS OF ORCHESTRATION:
 - Requirement deltas invalidate only affected artifacts/stages; preserve unaffected confirmed work.
 
 ## Stage loop
-1. Read run state.
-2. Compile compact context.
-3. Load stage skill + minimal tools.
-4. Execute one bounded objective.
-5. Verify deterministically.
-6. Write artifacts/handoff.
-7. Transition with evidence using `bin/agent-sdlc transition`.
-
-## REQUIREMENTS -> DESIGN -> PLAN -> IMPLEMENT
 
 Gates are machine-checked and their evidence cannot be asserted by hand.
 
-**REQUIREMENTS.** Validate input completeness. If specifications or user requests lack critical context, halt and confirm with the user using Socratic dialogue: ask one question at a time, provide 2-3 concrete options with trade-offs and your recommendation. Only confirmed answers in `clarifications.md` are accepted as product truth.
+1. Read run state: `bin/agent-sdlc status --run-id <id>`.
+2. Compile compact context: `bin/agent-sdlc context --run-id <id>`.
+3. Activate the skill `navigation.stage_skill` names. Do not infer the stage
+   skill yourself and do not load a stage you are not in — the engine derived
+   it from run state, which is the authority.
+4. Load only the procedure modules `navigation.procedure_skills` lists.
+5. Execute one bounded objective.
+6. Verify deterministically.
+7. Write artifacts and the handoff.
+8. Transition with evidence: `bin/agent-sdlc transition`.
 
-**DESIGN.** Ask `bin/agent-sdlc design mode --run-id <id>` for the discovery depth (`SKIP` / `COMPACT` / `FULL`) and obey it; declare a missing signal with `--signals` rather than overriding the answer in prose. Present design in bite-sized sections (150-250 words) for incremental user feedback before finalizing. Load `design-discovery` internal module, produce a `agent-sdlc/design-decision/v1` object, then `bin/agent-sdlc design record --run-id <id> --file design-decision.json`. When the selector reports `human_approval_required`, suspend to `NEEDS_CONFIRMATION` and obtain real user approval; never write your own.
-
-**PLAN.** Produce a structured `agent-sdlc/task-plan/v1` object, not Markdown prose. `bin/agent-sdlc plan validate` first, then `bin/agent-sdlc plan record --run-id <id> --file task-plan.json`. An invalid dependency graph, an uncovered acceptance criterion, a behaviour-changing task without verification, or two overlapping parallel candidates keeps `PLAN -> IMPLEMENT` closed. Fix the plan; do not `--force` past it.
-
-There is no `--force`; a blocked gate is fixed by producing the missing evidence, or, for a
-privileged capability, by asking a human to run `agent-sdlc approval grant` interactively — never by
-you.
-
-**IMPLEMENT.** The validated plan becomes a persistent task graph, and `IMPLEMENT` means executing it: `bin/agent-sdlc task materialize`, then `task refresh` / `task schedule` / `task start` / `task advance` per the `task-execution` internal module. A task reaches `DONE` only with verification evidence bound to its current attempt and diff, a clean spec-compliance review and a clean code-quality review. `implementation_artifact` is derived by `bin/agent-sdlc task implementation-complete` once every required task is `DONE`; it cannot be asserted either.
-
-One task, one bounded context, one primary writer, one workspace. A worker returns a structured result and never transitions run or task state. A diff outside a task's approved write scope is a planning event that re-enters `PLAN`, not a retry. A retry needs new concrete evidence; the engine refuses an identical repeat.
-
-Before declaring completion, the workflow must reach `CLOSE` with the required verification, review/release/deploy evidence for its selected workflow.
+`context`'s `navigation.fallback_instructions_inlined` is `true` whenever the
+compiled context already carries the instruction text. It always does:
+activating the named skill is an addressing convenience, never a
+prerequisite.
 
 ## Autonomous Execution & 5 Human Confirmation Gates
 

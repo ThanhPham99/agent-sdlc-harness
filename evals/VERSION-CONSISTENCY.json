@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/version-consistency/v1",
   "version": "3.0.0-rc2",
-  "checks": 75,
-  "passes": 75,
+  "checks": 82,
+  "passes": 82,
   "failures": 0,
   "behind": [
     {

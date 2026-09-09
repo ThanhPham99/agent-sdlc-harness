@@ -8,6 +8,8 @@ metadata:
 
 When this skill is activated (via `/sdlc-task` or when inspecting task readiness and progress):
 
+Not an entry point: invoked by a human typing the slash command or dispatched by `sdlc-orchestrator`, never auto-activated from a prompt.
+
 ## Instructions for the Agent
 
 1. **Execute Task Inspection:**

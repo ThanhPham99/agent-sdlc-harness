@@ -669,6 +669,18 @@ test('all-workflows-have-valid-stages',()=>{for(const [name,w] of Object.entries
 test('all-stage-tools-registered',()=>{for(const [s,p] of Object.entries(stagePolicy))for(const t of [...(p.allowed_tools||[]),...(p.denied_tools||[])])if(!tools[t])throw Error(`${s}:${t}`);});
 test('all-internal-skill-files-exist',()=>{for(const [id,s] of Object.entries(skills.internal)){if(!fs.existsSync(path.join(ROOT,s.instructions)))throw Error(id);}});
 test('public-skill-layout-valid',()=>{const tiers=readSkillTiers(ROOT);for(const id of tiers.discovery){const p=path.join(ROOT,'skills',id,'SKILL.md');const txt=fs.readFileSync(p,'utf8');if(!txt.startsWith('---')||!txt.includes(`name: ${id}`))throw Error(id);}});
+test('every-stage-skill-exists-and-declares-itself-non-entry',()=>{
+  const policy=JSON.parse(fs.readFileSync(path.join(ROOT,'policies','skill-navigation.json'),'utf8'));
+  const named=[...new Set(Object.values(policy.stages).map(s=>s.stage_skill))];
+  const tiers=readSkillTiers(ROOT);
+  for(const id of named){
+    if(!tiers.stage.includes(id))throw Error(`${id} is named by the policy but not declared in stage_skills`);
+    const body=fs.readFileSync(path.join(ROOT,'skills',id,'SKILL.md'),'utf8');
+    if(!body.startsWith('---')||!body.includes(`name: ${id}`))throw Error(`${id} has a malformed frontmatter`);
+    if(!body.includes('Not an entry point'))throw Error(`${id} must declare itself a non-entry point`);
+  }
+  if(tiers.stage.length!==named.length)throw Error(`stage_skills has ${tiers.stage.length} entries for ${named.length} named skills`);
+});
 test('tool-output-limit-policy',()=>{const p=JSON.parse(fs.readFileSync(path.join(ROOT,'policies','context-policy.json'),'utf8'));if(p.limits.max_tool_return_bytes>24000)throw Error('too large');});
 test('parallelism-bounded',()=>{const p=JSON.parse(fs.readFileSync(path.join(ROOT,'policies','parallelism-policy.json'),'utf8'));if(p.hard_default_max>2)throw Error('fanout too high');});
 // No active skill/procedure may depend on the legacy .ai-workflow namespace --

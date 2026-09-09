@@ -8,6 +8,8 @@ metadata:
 
 When this skill is activated (via `/sdlc-approve` or when the user approves a pending Human Confirmation Gate in chat):
 
+Not an entry point: invoked by a human typing the slash command or dispatched by `sdlc-orchestrator`, never auto-activated from a prompt.
+
 ## Instructions for the Agent
 
 1. **Verify Pending Gate Ticket:**
