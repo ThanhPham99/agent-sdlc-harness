@@ -5,7 +5,7 @@ tokens) compiled into a Claude Code `SessionStart` hook, an Antigravity `PreInvo
 plugin rule, and an optional managed block in `$CODEX_HOME/AGENTS.md`; an `agent-sdlc activation`
 CLI surface with per-host diagnosis; deterministic, multi-turn and adversarial activation corpora;
 four dedicated bootstrap test suites; and a live activation probe whose prompts name no skill.
-Public discovery is still exactly two skills and no internal skill body is injected at start.
+The bootstrap text still names exactly two skills, `sdlc-router` and then `sdlc-orchestrator`, and no internal skill body is injected at start.
 Claude and Antigravity are classified `STRONG_PENDING_LIVE_QUALIFICATION`; Codex is **soft**
 natively because this package still declares no Codex plugin hook. `strong_activation` remains
 `false` in every offline report.
