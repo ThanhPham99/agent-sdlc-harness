@@ -37,9 +37,9 @@ Skills are the only public surface, identical on every host, and every skill is 
 | `entry_skills` | 2 | `skills/` | `sdlc-router` only; it hands control to `sdlc-orchestrator` |
 | `ops_skills` | 5 | `skills/` | no — `/sdlc-approve`, `/sdlc-status`, `/sdlc-resume`, `/sdlc-task`, `/sdlc-doctor` |
 | `stage_skills` | 7 | `skills/` | no — `sdlc-orchestrator` activates the one named by `navigation.stage_skill` |
-| `procedure_skills` | 24 | `skills/procedures/` | no — resolved via `navigation.procedure_skills`, never from a host's own picker |
+| `procedure_skills` | 25 | `skills/procedures/` | no — resolved via `navigation.procedure_skills`, never from a host's own picker |
 
-38 skills total; see `README.md` for the full member lists and `scripts/lib/skill-tiers.mjs` for
+39 skills total; see `README.md` for the full member lists and `scripts/lib/skill-tiers.mjs` for
 the programmatic reader.
 
 ## 1. Initialize and inspect configuration
@@ -102,10 +102,10 @@ The manifest loads current stage skills, workflow-specific specialties, compact 
 
 `agent-sdlc.manifest.json` declares the public surface as four tiers: 2 `entry_skills`
 (`sdlc-router`, `sdlc-orchestrator`), 5 `ops_skills`, 7 `stage_skills` — those 14 sit at the
-`skills/` discovery root — and 24 `procedure_skills` under `skills/procedures/`, which never sit
+`skills/` discovery root — and 25 `procedure_skills` under `skills/procedures/`, which never sit
 beside them. `readSkillTiers()` in `scripts/lib/skill-tiers.mjs` is the one place that reads this;
 every script that needs "what's public" calls it instead of re-deriving its own list.
-`config/skills.json` registers the compact per-skill metadata for the 24 procedure skills;
+`config/skills.json` registers the compact per-skill metadata for the 25 procedure skills;
 `config/procedures.json` registers the deeper, single-purpose methodology files under
 `harness/internal-skills/` that the compact metadata intentionally stays too short to include
 (e.g. `tdd`, `systematic-debugging`, `git-delivery`, `design-discovery`). `runtime/procedures.mjs`

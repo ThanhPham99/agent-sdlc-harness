@@ -145,6 +145,12 @@
       "stages": ["DESIGN", "PLAN", "IMPLEMENT", "VERIFY"],
       "instructions": "harness/internal-skills/frontend-integration.md",
       "when": "overlay:client-impact"
+    },
+    "receiving-code-review": {
+      "group": "implementation",
+      "stages": ["IMPLEMENT", "REVIEW"],
+      "instructions": "harness/internal-skills/receiving-code-review.md",
+      "when": "always"
     }
   }
 }

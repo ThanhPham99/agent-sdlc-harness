@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/design-discovery-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc2",
   "policy_version": "3.0.0-alpha6",
-  "public_skill_count": 2,
+  "public_skill_count": 14,
   "design_discovery_is_internal": true,
   "modes": [
     "SKIP",
@@ -41,13 +41,13 @@
     }
   },
   "mode_selection": {
-    "checks": 13,
-    "passes": 13,
+    "checks": 15,
+    "passes": 15,
     "failures": 0,
     "distribution": {
       "SKIP": 2,
       "COMPACT": 4,
-      "FULL": 7
+      "FULL": 9
     },
     "results": [
       {
@@ -262,6 +262,38 @@
         "reason_codes": [
           "PROFILE_DEFAULT:STANDARD:COMPACT",
           "ESCALATE:ARCHITECTURE_BOUNDARY:FULL"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-014-external-tech-integration-full",
+        "profile": "STANDARD",
+        "status": "PASS",
+        "mode": "FULL",
+        "human_approval_required": false,
+        "escalation_signals": [
+          "EXTERNAL_TECH_OR_INTEGRATION"
+        ],
+        "deescalation_signals": [],
+        "reason_codes": [
+          "PROFILE_DEFAULT:STANDARD:COMPACT",
+          "ESCALATE_HARD:EXTERNAL_TECH_OR_INTEGRATION:FULL"
+        ],
+        "problems": []
+      },
+      {
+        "case_id": "DD-015-tra-cuu-tai-lieu-moi-nhat",
+        "profile": "STANDARD",
+        "status": "PASS",
+        "mode": "FULL",
+        "human_approval_required": false,
+        "escalation_signals": [
+          "EXTERNAL_TECH_OR_INTEGRATION"
+        ],
+        "deescalation_signals": [],
+        "reason_codes": [
+          "PROFILE_DEFAULT:STANDARD:COMPACT",
+          "ESCALATE_HARD:EXTERNAL_TECH_OR_INTEGRATION:FULL"
         ],
         "problems": []
       }

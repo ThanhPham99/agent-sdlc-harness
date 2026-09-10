@@ -1,7 +1,7 @@
 {
   "schema": "agent-sdlc/security-linter-validation/v1",
-  "checks": 9,
-  "passes": 9,
+  "checks": 11,
+  "passes": 11,
   "failures": 0,
   "skipped": 0,
   "results": [
@@ -39,6 +39,14 @@
     },
     {
       "name": "security-linter-passes-clean-code",
+      "status": "PASS"
+    },
+    {
+      "name": "security-sast-runs-the-shipped-linter-over-changed-files",
+      "status": "PASS"
+    },
+    {
+      "name": "security-sast-passes-a-clean-tree",
       "status": "PASS"
     }
   ]

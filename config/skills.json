@@ -102,6 +102,28 @@
       "output_schema": "protocol/schemas/StageResult.schema.json",
       "max_response_words": 700
     },
+    "receiving-code-review": {
+      "id": "receiving-code-review",
+      "version": "1.0.0",
+      "description": "Evaluate and respond to code review feedback with technical rigor rather than performative agreement.",
+      "stages": [
+        "IMPLEMENT",
+        "REVIEW"
+      ],
+      "roles": [
+        "architect",
+        "developer",
+        "qa"
+      ],
+      "tools": [
+        "repo.read",
+        "repo.diff",
+        "test.run_targeted"
+      ],
+      "instructions": "harness/internal-skills/receiving-code-review.md",
+      "output_schema": "protocol/schemas/StageResult.schema.json",
+      "max_response_words": 700
+    },
     "traceability": {
       "id": "traceability",
       "version": "1.0.0",

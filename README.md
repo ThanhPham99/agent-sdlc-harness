@@ -125,14 +125,14 @@ four tiers:
 | `entry_skills` | 2 | `sdlc-router`, `sdlc-orchestrator` | `sdlc-router` only (bootstrap); it hands control to `sdlc-orchestrator` |
 | `ops_skills` | 5 | `sdlc-approve`, `sdlc-status`, `sdlc-resume`, `sdlc-task`, `sdlc-doctor` | no — invoked by name or slash command |
 | `stage_skills` | 7 | `sdlc-requirements`, `sdlc-design`, `sdlc-plan`, `sdlc-implement`, `sdlc-verify`, `sdlc-review`, `sdlc-release` | no — `sdlc-orchestrator` activates the one named by `navigation.stage_skill` |
-| `procedure_skills` | 24 | deeper single-purpose methodology modules under `skills/procedures/` (e.g. `tdd`, `systematic-debugging`, `git-delivery`, `code-review`) | no — resolved from run state via `navigation.procedure_skills`, never from a host's own picker |
+| `procedure_skills` | 25 | deeper single-purpose methodology modules under `skills/procedures/` (e.g. `tdd`, `systematic-debugging`, `git-delivery`, `code-review`, `receiving-code-review`) | no — resolved from run state via `navigation.procedure_skills`, never from a host's own picker |
 
-38 skills total: the 14 entry/ops/stage skills sit at the `skills/` discovery root; the 24
+39 skills total: the 14 entry/ops/stage skills sit at the `skills/` discovery root; the 25
 procedure skills live under `skills/procedures/` so they never sit beside them. Read the surface
 programmatically with `readSkillTiers()` from `scripts/lib/skill-tiers.mjs` — the single reader
 every script in this repo uses, replacing six independent re-derivations of "what's public."
 `config/skills.json` and `config/procedures.json` register the deeper per-skill metadata and
-instruction bodies; `harness/internal-skills/` holds the 24 underlying guidance files those
+instruction bodies; `harness/internal-skills/` holds the 25 underlying guidance files those
 procedure skills point at, loaded only when the deterministic lifecycle selects one. This keeps
 discovery/base context small while preserving full SDLC coverage.
 

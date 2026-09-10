@@ -1,8 +1,8 @@
 {
   "schema": "agent-sdlc/deterministic-validation/v1",
   "version": "3.0.0-rc2",
-  "checks": 451,
-  "passes": 451,
+  "checks": 453,
+  "passes": 453,
   "failures": 0,
   "results": [
     {
@@ -1435,6 +1435,14 @@
     },
     {
       "name": "task-verification_review/planned-commands-leaves-a-selectorless-template-alone",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/planned-commands-supports-explicit-task-commands",
+      "status": "PASS"
+    },
+    {
+      "name": "task-verification_review/planned-commands-supports-smart-fallback-for-command-strings",
       "status": "PASS"
     },
     {

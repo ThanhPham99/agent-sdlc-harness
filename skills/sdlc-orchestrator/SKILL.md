@@ -20,10 +20,40 @@ THE IRON LAWS OF ORCHESTRATION:
 | Thought / Rationalization | Reality |
 |---|---|
 | "The changes look straightforward, tests will probably pass" | Run the exact test command and inspect output for 0 failures. Assumptions fail gates. |
-| "I don't need a task plan for a small change" | Every behavior-changing edit requires a validated `task-plan`. Small changes cause subtle regressions. |
+| "I don't need a task plan for a small change" | Every behavior-changing edit requires a validated `task-plan` or approved Bounded in-chat design. |
 | "Let me bypass or approve the gate myself" | Agents cannot self-grant approval. Gates require explicit human confirmation. |
 | "The test failed, let me quickly change this one line" | Investigate root cause before modifying code. Blind retries waste budget. |
 | "I'll dump 10 questions on the user at once" | Ask clarifying questions ONE AT A TIME with clear recommendations. |
+| "I should pause to ask user about naming or a minor ambiguity" | Rulings, not stalls. Decide it, ledger the ruling (`Ruling: <decision> — <why> — <cost if wrong>`), and keep moving. |
+| "Task 1 finished, should I ask if I should continue to Task 2?" | Continuous execution: do not pause to ask. Execute all plan tasks until complete or hitting a Hard Stop. |
+| "Memory compacted, let me restart from Task 1" | Never re-dispatch completed tasks. Read the progress ledger and resume at the first incomplete task. |
+
+## Execution Momentum: Rulings, Not Stalls
+
+A running plan does not wait on a human for minor implementation details. Conflicts, minor ambiguities, minor plan defects, or non-contractual naming choices — decide them.
+
+- **Authority Hierarchy**: The specification is the binding authority, the plan is its operational argument, and your technical judgment settles what neither specifies.
+- **The Ruling Protocol**: When encountering an ambiguous or underspecified choice that does not violate a gate, record the decision in the run decisions ledger:
+  ```text
+  Ruling: <what you decided> — <why> — <what it costs if wrong>
+  ```
+  Then keep moving immediately. A wrong ruling costs small rework that your human partner can review and adjust in the final diff; a session parked on a trivial question wastes their entire focus.
+
+### The 4 Hard Stops
+
+Only four conditions warrant stopping execution to request human input:
+1. **Irreversible or Destructive Operation**: Database drop, permanent data deletion, force-pushing shared refs.
+2. **Security or Credential Boundary**: Accessing secrets, modifying IAM/auth policies, or granting security waivers.
+3. **External Side-Effect**: Operations outside the isolated workspace (git push to remote, production deployment, package publishing).
+4. **Fundamentally Broken Plan**: Plan defects so severe that every conceivable path forward is pure guesswork.
+
+For everything else: make the ruling, ledger it, and continue.
+
+## Continuous Execution & Compaction Resilience
+
+- **Continuous Task Execution**: Do not pause between individual tasks to ask "Should I continue?" or output lengthy conversational summaries. Execute all tasks in sequence until complete or paused by one of the 4 Hard Stops or a Human Gate.
+- **Compaction Resilience**: Conversation memory in LLM sessions does not survive context compaction. Track progress in the run ledger artifact (`.agent-sdlc/runs/<id>/progress.md` or task state).
+- **Resume Rule**: If a session resumes or after compaction, inspect the ledger: tasks marked complete are DONE — never re-dispatch them. Resume directly at the first incomplete task or active fix round.
 
 ## Runtime first
 - **Autonomous Engine First**: Prefer running `bin/agent-sdlc auto --objective "..." --workflow <route>` (or `node "${CLAUDE_PLUGIN_ROOT:-${PLUGIN_ROOT:-.}}/runtime/cli.mjs" auto ...`). This automatically executes the stage loop, dispatches workers/reviewers, and manages context deterministically without polluting chat context, pausing only at Human Confirmation Gates.

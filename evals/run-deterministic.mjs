@@ -2929,9 +2929,9 @@ test('status-reports-next-stage-skill',()=>{
 
 test('no-legacy-guidance-path',()=>{
   const files=fs.readdirSync(path.join(ROOT,'harness','internal-skills')).filter(f=>f.endsWith('.md')).map(f=>f.replace(/\.md$/,''));
-  if(files.length!==24)throw Error(`expected 24 guidance files, found ${files.length}`);
+  if(files.length!==25)throw Error(`expected 25 guidance files, found ${files.length}`);
   const procedures=JSON.parse(fs.readFileSync(path.join(ROOT,'config','procedures.json'),'utf8')).procedures;
-  if(Object.keys(procedures).length!==24)throw Error(`expected 24 procedures, found ${Object.keys(procedures).length}`);
+  if(Object.keys(procedures).length!==25)throw Error(`expected 25 procedures, found ${Object.keys(procedures).length}`);
   const unrouted=files.filter(id=>!procedures[id]);
   if(unrouted.length)throw Error(`unrouted guidance files: ${unrouted.join(',')}`);
 });

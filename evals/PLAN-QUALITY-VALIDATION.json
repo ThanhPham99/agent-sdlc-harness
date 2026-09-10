@@ -1,6 +1,6 @@
 {
   "schema": "agent-sdlc/plan-quality-validation/v1",
-  "version": "3.0.0-alpha6",
+  "version": "3.0.0-rc2",
   "schemas": [
     "agent-sdlc/task-plan/v1",
     "agent-sdlc/planned-task/v1"
@@ -8,6 +8,8 @@
   "thresholds": {
     "giant_task_module_threshold": 3,
     "giant_task_write_scope_threshold": 12,
+    "oversized_task_ac_threshold": 5,
+    "oversized_task_write_scope_threshold": 6,
     "micro_plan_profiles": [
       "FAST"
     ],

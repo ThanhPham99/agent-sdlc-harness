@@ -29,8 +29,8 @@
     "blocking_finding_blocks_done": true,
     "independence": "recorded truthfully; an achieved claim contradicting its mode is rejected, and an unachieved claim requires a recorded limitation"
   },
-  "checks": 33,
-  "passes": 33,
+  "checks": 35,
+  "passes": 35,
   "failures": 0,
   "results": [
     {
@@ -159,6 +159,14 @@
     },
     {
       "name": "planned-commands-leaves-a-selectorless-template-alone",
+      "status": "PASS"
+    },
+    {
+      "name": "planned-commands-supports-explicit-task-commands",
+      "status": "PASS"
+    },
+    {
+      "name": "planned-commands-supports-smart-fallback-for-command-strings",
       "status": "PASS"
     },
     {

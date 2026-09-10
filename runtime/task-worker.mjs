@@ -86,7 +86,9 @@ export function buildWorkerPrompt(root,projectRoot,run,task,{prevFailure=null}={
     '3. NO PLACEHOLDERS: Implement complete, functional code. Never leave TODO comments, mock shortcuts, or incomplete stubs.',
     '4. EVIDENCE OVER CLAIMS: Before declaring completion, run the targeted verification test command yourself and confirm 0 failures with exit code 0.',
     '5. BACKWARD COMPATIBILITY: Ensure existing tests pass and backward compatibility obligations are preserved.',
-    '6. When finished, ensure all changes are saved. The harness will automatically capture the git diff, run verification tests, and dispatch independent reviewer agents.'
+    '6. NO SUBAGENT DISPATCH: Do all implementation work yourself. Never spawn a subagent to implement or review parts of the task. Review is scheduled separately by the harness.',
+    '7. CONCISE SUMMARY OUTPUT: Keep your final response message under 15 lines (Status: DONE | DONE_WITH_CONCERNS | BLOCKED | NEEDS_CONTEXT, commits created, 1-line test summary, and concerns if any). Detailed logs and outputs are automatically captured in the execution transcript, keeping the controller context clean.',
+    '8. When finished, ensure all changes are saved. The harness will automatically capture the git diff, run verification tests, and dispatch independent reviewer agents.'
   ].join('\n');
 
   return [

@@ -26,8 +26,8 @@
   },
   "budget": "derived from the active stage budget in policies/stage-policy.json, narrowed to the task",
   "replayability": "context_hash excludes created_at, so identical inputs produce an identical hash",
-  "checks": 9,
-  "passes": 9,
+  "checks": 10,
+  "passes": 10,
   "failures": 0,
   "results": [
     {
@@ -64,6 +64,10 @@
     },
     {
       "name": "every-task-category-gets-non-empty-module-guidance",
+      "status": "PASS"
+    },
+    {
+      "name": "module-guidance-strips-orchestrator-preamble-but-keeps-subagent-stop",
       "status": "PASS"
     }
   ],
